@@ -1,0 +1,43 @@
+# Environment variables (secrets)
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules
+vendor/bundle
+
+# Logs
+*.log
+log/*
+!log/.keep
+
+# Temporary files
+tmp/*
+!tmp/.keep
+tmp/pids/*
+!tmp/pids/.keep
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.orig
+
+# Test artifacts
+test-click.png
+
+# Local data
+data/
+
+# Coverage
+coverage/

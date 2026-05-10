@@ -1,0 +1,97 @@
+class Service < ApplicationRecord
+  belongs_to :project
+  has_many :environment_variables, dependent: :destroy
+  has_many :domains, dependent: :destroy
+  has_many :storage_mounts, dependent: :destroy
+  has_many :deployments, dependent: :destroy
+  has_many :process_types, dependent: :destroy
+
+  has_many :outgoing_links, class_name: "ServiceLink", foreign_key: "from_service_id", dependent: :destroy
+  has_many :incoming_links, class_name: "ServiceLink", foreign_key: "to_service_id", dependent: :destroy
+  has_many :linked_services, through: :outgoing_links, source: :to_service
+
+  validates :name, presence: true
+  validates :service_type, inclusion: { in: %w[app database cache queue search service] }
+  validates :status, inclusion: { in: %w[running stopped deploying error building] }
+
+  enum :service_type, {
+    app: "app",
+    database: "database",
+    cache: "cache",
+    queue: "queue",
+    search: "search",
+    service: "service"
+  }, prefix: true
+
+  enum :status, {
+    running: "running",
+    stopped: "stopped",
+    deploying: "deploying",
+    error: "error",
+    building: "building"
+  }
+
+  enum :builder, {
+    herokuish: "herokuish",
+    pack: "pack",
+    dockerfile: "dockerfile",
+    nixpacks: "nixpacks",
+    railpack: "railpack",
+    lambda: "lambda",
+    null_builder: "null"
+  }
+
+  enum :restart_policy, {
+    on_failure: "on-failure",
+    always: "always",
+    unless_stopped: "unless-stopped"
+  }
+
+  before_create :generate_dokku_app_name
+
+  scope :apps, -> { where(service_type: :app) }
+  scope :databases, -> { where(service_type: :database) }
+  scope :caches, -> { where(service_type: :cache) }
+
+  def type
+    service_type
+  end
+
+  def linked_service_ids
+    linked_services.pluck(:id)
+  end
+
+  def logs
+    # Return recent deployments' logs as log entries
+    deployments.order(created_at: :desc).limit(10).flat_map do |d|
+      [
+        { timestamp: d.started_at, process_type: "deploy", message: "Deployment #{d.status}" }
+      ]
+    end
+  end
+
+  def backups
+    # Placeholder - would integrate with dokku backup plugin
+    []
+  end
+
+  def as_json(options = {})
+    super(options.merge(
+      methods: [:type, :linked_service_ids, :logs, :backups],
+      include: {
+        environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
+        domains: { only: [:id, :hostname, :port, :ssl, :letsencrypt] },
+        storage_mounts: { only: [:id, :host_path, :container_path] },
+        process_types: { only: [:id, :name, :quantity, :running, :command] }
+      }
+    )).merge(
+      "config" => config || {}
+    )
+  end
+
+  private
+
+  def generate_dokku_app_name
+    self.dokku_app_name ||= "#{project.name.parameterize}-#{name.parameterize}"
+  end
+end

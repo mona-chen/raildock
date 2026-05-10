@@ -1,0 +1,95 @@
+/**
+ * API request/response transformation helpers.
+ * Rails backend uses snake_case; frontend types use camelCase.
+ */
+
+export function camelizeKeys(obj: unknown): unknown {
+  if (Array.isArray(obj)) return obj.map(camelizeKeys)
+  if (obj === null || typeof obj !== 'object') return obj
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const camel = key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
+    result[camel] = camelizeKeys(value)
+  }
+  return result
+}
+
+export function snakeifyKeys(obj: unknown): unknown {
+  if (Array.isArray(obj)) return obj.map(snakeifyKeys)
+  if (obj === null || typeof obj !== 'object') return obj
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    result[snake] = snakeifyKeys(value)
+  }
+  return result
+}
+
+export function wrapBody(resource: string, body: unknown): string {
+  return JSON.stringify({ [resource]: snakeifyKeys(body) })
+}
+
+import type { Service, Project, Server, ActivityEvent, GitSource } from '@/types'
+
+export function normalizeService(data: unknown): Service {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  // Ensure ID is a string so query keys match consistently
+  if (camel.id != null && typeof camel.id !== 'string') {
+    camel.id = String(camel.id)
+  }
+  const config = (camel.config || {}) as Record<string, unknown>
+  delete camel.config
+  const defaults = {
+    nginx: { clientMaxBodySize: '1m', readTimeout: '60s', keepaliveTimeout: '75s', hsts: true, hstsMaxAge: 15724800, hstsIncludeSubdomains: true, hstsPreload: false, bindAddressIpv4: '0.0.0.0', bindAddressIpv6: '[::]' },
+    proxy: { enabled: true, proxyType: 'traefik', portMappings: [] },
+    dockerOptions: [],
+    resourceLimits: [],
+    resourceReservations: [],
+    checks: { enabled: true, wait: 10, timeout: 60, skipList: [] },
+    letsencrypt: { enabled: false, email: '', staging: false, autoRenew: true },
+    git: { deployBranch: 'main', keepGitDir: false, revEnvVar: true },
+    envVars: [],
+    domains: [],
+    storageMounts: [],
+    logs: [],
+    backups: [],
+    linkedServiceIds: [],
+    processTypes: [],
+    locked: false,
+    restartPolicy: 'on-failure',
+    restartMaxRetries: 10,
+  }
+  return { ...defaults, ...config, ...camel } as unknown as Service
+}
+
+export function normalizeProject(data: unknown): Project {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (camel.id != null && typeof camel.id !== 'string') {
+    camel.id = String(camel.id)
+  }
+  return camel as Project
+}
+
+export function normalizeServer(data: unknown): Server {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (camel.id != null && typeof camel.id !== 'string') {
+    camel.id = String(camel.id)
+  }
+  return camel as Server
+}
+
+export function normalizeActivityEvent(data: unknown): ActivityEvent {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (!camel.timestamp && camel.createdAt) {
+    camel.timestamp = (camel.createdAt as string)
+  }
+  return camel as unknown as ActivityEvent
+}
+
+export function normalizeGitSource(data: unknown): GitSource {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (!camel.repos && (camel.metadata as Record<string, unknown>)?.repos) {
+    camel.repos = (camel.metadata as Record<string, unknown>).repos
+  }
+  return camel as unknown as GitSource
+}

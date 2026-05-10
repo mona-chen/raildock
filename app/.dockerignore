@@ -1,0 +1,8 @@
+node_modules
+.git
+*.log
+dist
+.nyc_output
+coverage
+.DS_Store
+*.local

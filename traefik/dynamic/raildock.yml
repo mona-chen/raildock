@@ -1,0 +1,40 @@
+# Dynamic configuration for Traefik
+# This directory is watched by Traefik and changes are applied automatically.
+# Add file-based routes, middlewares, and TLS options here.
+
+http:
+  middlewares:
+    # Compress responses for better performance
+    compress:
+      compress: {}
+
+    # Basic security headers
+    security-headers:
+      headers:
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+
+  # routers:
+  #   # Example: static route for a service that doesn't support Docker labels
+  #   my-static-service:
+  #     rule: "Host(`static.localhost`)"
+  #     service: my-static-service
+  #     entrypoints:
+  #       - web
+  #
+  # services:
+  #   my-static-service:
+  #     loadBalancer:
+  #       servers:
+  #         - url: "http://192.168.1.100:8080"
+
+tls:
+  # options:
+  #   # Example: modern TLS options
+  #   modern:
+  #     minVersion: VersionTLS13
+  #     cipherSuites:
+  #       - TLS_AES_128_GCM_SHA256
+  #       - TLS_AES_256_GCM_SHA384
+  #       - TLS_CHACHA20_POLY1305_SHA256

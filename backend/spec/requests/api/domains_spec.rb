@@ -1,0 +1,46 @@
+require 'rails_helper'
+
+RSpec.describe "Domains API", type: :request do
+  let(:user) { create(:user) }
+  let(:server) { create(:server) }
+  let(:project) { create(:project, server: server) }
+  let(:service) { create(:service, project: project) }
+  let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
+
+  describe "POST /api/services/:service_id/domains" do
+    it "creates a domain" do
+      post "/api/services/#{service.id}/domains",
+        params: { hostname: "example.com", port: 443 },
+        headers: auth_headers
+      expect(response).to have_http_status(:created)
+      expect(service.domains.count).to eq(1)
+    end
+
+    it "returns 422 with invalid data" do
+      post "/api/services/#{service.id}/domains",
+        params: { hostname: "" },
+        headers: auth_headers
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "returns 401 without auth" do
+      post "/api/services/#{service.id}/domains", params: { hostname: "example.com" }
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "DELETE /api/services/:service_id/domains/:hostname" do
+    let!(:domain) { create(:domain, service: service, hostname: "test.com") }
+
+    it "destroys the domain" do
+      delete "/api/services/#{service.id}/domains/test.com", headers: auth_headers
+      expect(response).to have_http_status(:no_content)
+      expect(service.domains.count).to eq(0)
+    end
+
+    it "returns 404 for non-existent domain" do
+      delete "/api/services/#{service.id}/domains/missing.com", headers: auth_headers
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+end

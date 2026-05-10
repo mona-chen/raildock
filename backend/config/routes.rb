@@ -1,0 +1,65 @@
+Rails.application.routes.draw do
+  mount ActionCable.server => '/cable'
+
+  namespace :api do
+    get "health", to: "auth#health"
+    post "webhooks/deploy", to: "webhooks#deploy"
+    post "login", to: "auth#login"
+    get "me", to: "auth#me"
+    get "setup", to: "users#setup_required"
+    post "users", to: "users#create"
+
+    resources :projects do
+      resources :services, shallow: true do
+        member do
+          post :deploy
+          post :rollback
+          post :scale
+          get :logs
+          get :metrics
+          get :container_status
+          post :link
+          post :unlink
+          post :backup
+          post :restore
+          post :start
+          post :stop
+          post :restart
+          post :rebuild
+        end
+        resources :deployments, only: [:index, :show]
+        resources :environment_variables, path: "env-vars", only: [:create]
+        resources :domains, only: [:create]
+        resources :storage_mounts, path: "storage", only: [:create]
+      end
+      resources :activity_events, path: "activity-events", only: [:index]
+      get :activity, on: :member
+      patch :shared_vars, on: :member
+    end
+
+    # Service sub-resource destroy actions (not shallow — stay under /services/:id/...)
+    scope "/services/:service_id" do
+      delete "env-vars/:key", to: "environment_variables#destroy"
+      delete "domains/:hostname", to: "domains#destroy", constraints: { hostname: /[^\/]+/ }
+      delete "storage/*host_path", to: "storage_mounts#destroy", format: false
+    end
+
+    resources :servers do
+      member do
+        post :validate
+        get :metrics
+      end
+    end
+
+    resources :git_sources, path: "git-sources"
+    resources :templates, only: [:index] do
+      member do
+        post :deploy
+      end
+    end
+    get "activity", to: "activity_events#global"
+
+    resources :builders, only: [:index]
+    resources :networks, only: [:index]
+  end
+end

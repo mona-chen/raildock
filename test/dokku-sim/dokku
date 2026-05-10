@@ -1,0 +1,337 @@
+#!/bin/bash
+# Mock Dokku for integration testing
+
+DOKKU_APPS_DIR="/home/dokku/apps"
+mkdir -p "$DOKKU_APPS_DIR"
+
+log() {
+  echo "-----> $1"
+}
+
+case "$1" in
+  version)
+    echo "dokku version 0.35.14"
+    ;;
+
+  apps:create)
+    app_name="$2"
+    if [ -z "$app_name" ]; then
+      echo " !    App name required"
+      exit 1
+    fi
+    mkdir -p "$DOKKU_APPS_DIR/$app_name"
+    log "Creating $app_name... done"
+    ;;
+
+  apps:destroy)
+    app_name="$2"
+    rm -rf "$DOKKU_APPS_DIR/$app_name"
+    log "Destroying $app_name... done"
+    ;;
+
+  apps:exists)
+    app_name="$2"
+    if [ -d "$DOKKU_APPS_DIR/$app_name" ]; then
+      exit 0
+    else
+      echo "App $app_name does not exist"
+      exit 1
+    fi
+    ;;
+
+  apps:list)
+    echo "=====> My Apps"
+    for app in "$DOKKU_APPS_DIR"/*; do
+      [ -d "$app" ] && echo "       $(basename "$app")"
+    done
+    ;;
+
+  config:set)
+    shift 2
+    app_name="$1"
+    shift
+    log "Setting config vars for $app_name... done"
+    for var in "$@"; do
+      echo "       $var"
+    done
+    ;;
+
+  config:unset)
+    app_name="$2"
+    key="$3"
+    log "Unsetting $key for $app_name... done"
+    ;;
+
+  config:get)
+    app_name="$2"
+    key="$3"
+    echo "mock-value-for-$key"
+    ;;
+
+  config:export)
+    app_name="$2"
+    echo "export MOCK_VAR=mock_value"
+    ;;
+
+  domains:add)
+    app_name="$2"
+    hostname="$3"
+    log "Adding $hostname to $app_name... done"
+    ;;
+
+  domains:remove)
+    app_name="$2"
+    hostname="$3"
+    log "Removing $hostname from $app_name... done"
+    ;;
+
+  domains:clear)
+    app_name="$2"
+    log "Clearing domains for $app_name... done"
+    ;;
+
+  domains:set)
+    app_name="$2"
+    shift 2
+    log "Setting domains for $app_name... done"
+    ;;
+
+  storage:mount)
+    app_name="$2"
+    mount="$3"
+    log "Mounting $mount for $app_name... done"
+    ;;
+
+  storage:unmount)
+    app_name="$2"
+    mount="$3"
+    log "Unmounting $mount for $app_name... done"
+    ;;
+
+  nginx:set)
+    app_name="$2"
+    property="$3"
+    value="$4"
+    log "Setting nginx $property to $value for $app_name... done"
+    ;;
+
+  nginx:show-config)
+    app_name="$2"
+    echo "server { listen 80; server_name $app_name.test; }"
+    ;;
+
+  proxy:enable)
+    app_name="$2"
+    log "Enabling proxy for $app_name... done"
+    ;;
+
+  proxy:disable)
+    app_name="$2"
+    log "Disabling proxy for $app_name... done"
+    ;;
+
+  proxy:ports-set)
+    app_name="$2"
+    mapping="$3"
+    log "Setting proxy ports for $app_name... done"
+    ;;
+
+  proxy:set)
+    app_name="$2"
+    proxy_type="$3"
+    log "Setting proxy type to $proxy_type for $app_name... done"
+    ;;
+
+  proxy:report)
+    echo "=====> proxy information"
+    echo "       Proxy enabled: true"
+    echo "       Proxy type: nginx"
+    ;;
+
+  checks:enable)
+    app_name="$2"
+    log "Enabling zero-downtime checks for $app_name... done"
+    ;;
+
+  checks:disable)
+    app_name="$2"
+    log "Disabling zero-downtime checks for $app_name... done"
+    ;;
+
+  checks:skip)
+    app_name="$2"
+    shift 2
+    log "Skipping checks for $@ on $app_name... done"
+    ;;
+
+  docker-options:add)
+    app_name="$2"
+    phase="$3"
+    option="$4"
+    log "Adding docker option for $app_name in $phase phase... done"
+    ;;
+
+  docker-options:remove)
+    app_name="$2"
+    phase="$3"
+    option="$4"
+    log "Removing docker option for $app_name in $phase phase... done"
+    ;;
+
+  resource:limit)
+    app_name="$2"
+    process_type="$3"
+    shift 3
+    log "Setting resource limits for $app_name ($process_type)... done"
+    ;;
+
+  resource:reserve)
+    app_name="$2"
+    process_type="$3"
+    shift 3
+    log "Setting resource reservation for $app_name ($process_type)... done"
+    ;;
+
+  letsencrypt:set)
+    app_name="$2"
+    key="$3"
+    value="$4"
+    log "Setting letsencrypt $key for $app_name... done"
+    ;;
+
+  letsencrypt:enable)
+    app_name="$2"
+    log "Enabling letsencrypt for $app_name... done"
+    ;;
+
+  letsencrypt:disable)
+    app_name="$2"
+    log "Disabling letsencrypt for $app_name... done"
+    ;;
+
+  letsencrypt:auto-renew)
+    app_name="$2"
+    log "Auto-renewing letsencrypt for $app_name... done"
+    ;;
+
+  git:sync)
+    app_name="$2"
+    branch="${3:-main}"
+    log "Syncing $app_name to $branch... done"
+    log "Building app from source... done"
+    log "Releasing $app_name... done"
+    ;;
+
+  git:set)
+    app_name="$2"
+    key="$3"
+    value="$4"
+    log "Setting git $key to $value for $app_name... done"
+    ;;
+
+  logs)
+    app_name="$2"
+    shift 2
+    echo "2026-05-08T00:00:00Z app[web.1]: Mock log line 1"
+    echo "2026-05-08T00:00:01Z app[web.1]: Mock log line 2"
+    echo "2026-05-08T00:00:02Z app[web.1]: Mock log line 3"
+    ;;
+
+  postgres:create|redis:create|mysql:create|mongo:create)
+    service_name="$2"
+    log "Creating $(echo "$1" | cut -d: -f1) service $service_name... done"
+    ;;
+
+  postgres:destroy|redis:destroy|mysql:destroy|mongo:destroy)
+    service_name="$2"
+    log "Destroying $(echo "$1" | cut -d: -f1) service $service_name... done"
+    ;;
+
+  postgres:link|redis:link|mysql:link|mongo:link)
+    service_name="$2"
+    app_name="$3"
+    log "Linking $(echo "$1" | cut -d: -f1) service $service_name to $app_name... done"
+    ;;
+
+  postgres:unlink|redis:unlink|mysql:unlink|mongo:unlink)
+    service_name="$2"
+    app_name="$3"
+    log "Unlinking $(echo "$1" | cut -d: -f1) service $service_name from $app_name... done"
+    ;;
+
+  postgres:export)
+    service_name="$2"
+    log "Exporting $service_name... done"
+    echo "-- PostgreSQL dump"
+    ;;
+
+  postgres:import)
+    service_name="$2"
+    log "Importing $service_name... done"
+    ;;
+
+  cron:set)
+    app_name="$2"
+    schedule="$3"
+    command="$4"
+    log "Setting cron for $app_name: '$command' @ $schedule... done"
+    ;;
+
+  cron:clear)
+    app_name="$2"
+    log "Clearing cron for $app_name... done"
+    ;;
+
+  ps:report)
+    app_name="$2"
+    echo "=====> $app_name ps information"
+    echo "       Processes:       1"
+    echo "       Deployed:        true"
+    ;;
+
+  ps:restart)
+    app_name="$2"
+    log "Restarting $app_name... done"
+    ;;
+
+  ps:stop)
+    app_name="$2"
+    log "Stopping $app_name... done"
+    ;;
+
+  ps:start)
+    app_name="$2"
+    log "Starting $app_name... done"
+    ;;
+
+  ps:scale)
+    app_name="$2"
+    shift 2
+    log "Scaling $app_name... done"
+    for scale in "$@"; do
+      echo "       $scale"
+    done
+    ;;
+
+  apps:report)
+    app_name="$2"
+    echo "=====> $app_name app information"
+    echo "       Dir: /home/dokku/$app_name"
+    ;;
+
+  docker)
+    shift
+    if [ "$1" = "--version" ]; then
+      echo "Docker version 26.1.5, build buildx"
+    else
+      docker "$@"
+    fi
+    ;;
+
+  *)
+    echo " !    Command '$1' not found"
+    exit 1
+    ;;
+esac
+
+exit 0
