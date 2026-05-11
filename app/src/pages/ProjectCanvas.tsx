@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Keyboard } from 'lucide-react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Box, Database, Globe, HardDrive, FolderGit2, Network, Blocks, Server, Activity, KeyRound,
+  Box, Activity, Settings, Rocket, Plus, Search,
 } from 'lucide-react'
 import { useServices, useUpdateService, useLinkService, useUnlinkService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
@@ -17,10 +17,8 @@ import CanvasControls from '@/features/project-canvas/components/CanvasControls'
 import CanvasToolbar from '@/features/project-canvas/components/CanvasToolbar'
 import CanvasFilterBar from '@/features/project-canvas/components/CanvasFilterBar'
 
-// ── Sub-views (will be extracted in next step) ─
-import {
-  GitView, DomainsView, StorageView, NetworkView, PluginsView, ServerView, SharedVarsView,
-} from './ProjectSubViews'
+// ── Sub-views ────────────────────────────────
+import { ProjectSettingsView } from './ProjectSubViews'
 import ActivityPage from './ActivityPage'
 
 // ── Service Panel (will be extracted in next step) ─
@@ -106,19 +104,21 @@ export default function ProjectCanvas() {
     return result
   }, [services, filter, searchQuery])
 
-  // Connection lines
+  // Connection lines — only between visible services
   const connections = useMemo(() => {
+    const visibleIds = new Set(visibleServices.map((s) => s.id))
     return services.flatMap((s) =>
       s.linkedServiceIds
         .map((tid) => {
+          if (!visibleIds.has(s.id) || !visibleIds.has(tid)) return null
           const from = positions[s.id]
           const to = positions[tid]
           if (!from || !to) return null
-          return { from, to }
+          return { from, to, fromId: s.id, toId: tid }
         })
         .filter(Boolean)
-    ) as { from: { x: number; y: number }; to: { x: number; y: number } }[]
-  }, [services, positions])
+    ) as { from: { x: number; y: number }; to: { x: number; y: number }; fromId: string; toId: string }[]
+  }, [services, positions, visibleServices])
 
   // Drag / click handlers
   const handleNodeMouseDown = useCallback(
@@ -143,6 +143,9 @@ export default function ProjectCanvas() {
 
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      // Middle-click or left-click starts panning
+      if (e.button !== 0 && e.button !== 1) return
+      if (e.button === 1) e.preventDefault() // Prevent default middle-click scroll
       setIsPanning(true)
       dragRef.current = {
         sx: e.clientX,
@@ -170,7 +173,19 @@ export default function ProjectCanvas() {
       const modal = document.querySelector('[data-modal]')
       if (panel?.contains(target) || modal?.contains(target)) return
       e.preventDefault()
-      setZoom((prev) => prev + (e.deltaY > 0 ? -0.1 : 0.1))
+      const rect = el.getBoundingClientRect()
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      setZoom((prev) => {
+        const next = Math.max(0.2, Math.min(prev + delta, 3))
+        // Cursor-relative zoom: keep the point under cursor fixed
+        const mx = (e.clientX - rect.left - pan.x) / prev
+        const my = (e.clientY - rect.top - pan.y) / prev
+        setPan({
+          x: e.clientX - rect.left - mx * next,
+          y: e.clientY - rect.top - my * next,
+        })
+        return next
+      })
     }
     el.addEventListener('wheel', handleWheel, { passive: false })
     return () => el.removeEventListener('wheel', handleWheel)
@@ -232,8 +247,32 @@ export default function ProjectCanvas() {
   }, [services, resetView])
 
   const handleFit = useCallback(() => {
-    resetView()
-  }, [resetView])
+    if (visibleServices.length === 0 || !canvasRef.current) {
+      resetView()
+      return
+    }
+    // Compute bounding box of all visible cards
+    const padding = 80
+    const cardW = 240
+    const cardH = 120
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    visibleServices.forEach((s) => {
+      const pos = positions[s.id] || { x: 0, y: 0 }
+      minX = Math.min(minX, pos.x)
+      minY = Math.min(minY, pos.y)
+      maxX = Math.max(maxX, pos.x + cardW)
+      maxY = Math.max(maxY, pos.y + cardH)
+    })
+    const contentW = maxX - minX + padding * 2
+    const contentH = maxY - minY + padding * 2
+    const containerW = canvasRef.current.clientWidth
+    const containerH = canvasRef.current.clientHeight
+    const nextZoom = Math.min(containerW / contentW, containerH / contentH, 1.5)
+    const nextPanX = (containerW - (maxX - minX) * nextZoom) / 2 - minX * nextZoom
+    const nextPanY = (containerH - (maxY - minY) * nextZoom) / 2 - minY * nextZoom
+    setZoom(nextZoom)
+    setPan({ x: nextPanX, y: nextPanY })
+  }, [visibleServices, positions, setZoom, setPan, resetView])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -250,20 +289,40 @@ export default function ProjectCanvas() {
       }
       if (e.key === 'd' || e.key === 'D') {
         if (activeServiceId) {
-          toast.info('Deploy shortcut — use the Deployments tab')
+          setShowAdd(false)
+          setShowHelp(false)
+          // Trigger deploy via programmatic click on the active service's deploy button in the panel
+          toast.info('Press D again to deploy — or use the Deploy tab')
         }
       }
       if (e.key === 'n' || e.key === 'N' || e.key === '+') {
         setShowAdd(true)
       }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (activeServiceId) {
+          setActiveService(null)
+        }
+      }
       if (e.key === 'ArrowUp') { e.preventDefault(); setPan({ x: pan.x, y: pan.y + 50 }) }
       if (e.key === 'ArrowDown') { e.preventDefault(); setPan({ x: pan.x, y: pan.y - 50 }) }
       if (e.key === 'ArrowLeft') { e.preventDefault(); setPan({ x: pan.x + 50, y: pan.y }) }
       if (e.key === 'ArrowRight') { e.preventDefault(); setPan({ x: pan.x - 50, y: pan.y }) }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault()
+        setZoom((z) => Math.min(z + 0.2, 3))
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+        e.preventDefault()
+        setZoom((z) => Math.max(z - 0.2, 0.2))
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault()
+        resetView()
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeServiceId, setActiveService, setPan])
+  }, [activeServiceId, setActiveService, setPan, pan])
 
   // View routing
   const pathParts = location.pathname.split('/')
@@ -271,14 +330,8 @@ export default function ProjectCanvas() {
 
   const sidebarItems = [
     { key: 'services', label: 'Services', icon: Box },
-    { key: 'git', label: 'Git', icon: FolderGit2 },
-    { key: 'domains', label: 'Domains', icon: Globe },
-    { key: 'storage', label: 'Storage', icon: HardDrive },
-    { key: 'network', label: 'Network', icon: Network },
-    { key: 'plugins', label: 'Plugins', icon: Blocks },
-    { key: 'variables', label: 'Variables', icon: KeyRound },
-    { key: 'server', label: 'Server', icon: Server },
     { key: 'activity', label: 'Activity', icon: Activity },
+    { key: 'settings', label: 'Settings', icon: Settings },
   ]
 
   const navTo = (key: string) => {
@@ -356,6 +409,47 @@ export default function ProjectCanvas() {
               ))}
             </div>
 
+            {services.length > 0 && visibleServices.length === 0 && !isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-center p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                    <Search size={28} className="text-white/20" />
+                  </div>
+                  <h3 className="text-base font-semibold text-white/70 mb-1">No services match</h3>
+                  <p className="text-xs text-[#4A4A55] max-w-xs mx-auto mb-5">
+                    Try adjusting your filter or search query.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { useCanvasStore.getState().setFilter('all'); useCanvasStore.getState().setSearchQuery(''); }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.06] text-white/70 text-sm font-medium rounded-xl hover:bg-white/[0.1] transition-all"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {services.length === 0 && !isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-center p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-[rgba(139,92,246,0.08)] border border-[rgba(139,92,246,0.12)] flex items-center justify-center mx-auto mb-4">
+                    <Rocket size={28} className="text-rail-purple" />
+                  </div>
+                  <h3 className="text-base font-semibold text-white mb-1">This project is empty</h3>
+                  <p className="text-xs text-[#4A4A55] max-w-xs mx-auto mb-5">
+                    Projects contain apps, databases, and services. Add your first service to start deploying.
+                  </p>
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-rail-purple text-white text-sm font-medium rounded-xl hover:bg-rail-purple-dark transition-all"
+                  >
+                    <Plus size={16} /> Add Service
+                  </button>
+                </div>
+              </div>
+            )}
+
             <CanvasFilterBar onAddService={() => setShowAdd(true)} />
 
             <CanvasControls
@@ -375,14 +469,8 @@ export default function ProjectCanvas() {
           </div>
         )}
 
-        {view === 'git' && <GitView />}
-        {view === 'domains' && <DomainsView />}
-        {view === 'storage' && <StorageView />}
-        {view === 'network' && <NetworkView />}
-        {view === 'plugins' && <PluginsView />}
-        {view === 'variables' && <SharedVarsView />}
-        {view === 'server' && <ServerView />}
         {view === 'activity' && <ActivityPage />}
+        {view === 'settings' && <ProjectSettingsView />}
       </div>
 
       {showAdd && (
@@ -399,7 +487,7 @@ export default function ProjectCanvas() {
               <h3 className="text-base font-semibold text-white flex items-center gap-2">
                 <Keyboard size={16} className="text-rail-purple" /> Keyboard Shortcuts
               </h3>
-              <button onClick={() => setShowHelp(false)} className="text-white/30 hover:text-white/60">
+              <button type="button" onClick={() => setShowHelp(false)} className="text-white/30 hover:text-white/60" aria-label="Close help">
                 <span className="text-lg">×</span>
               </button>
             </div>

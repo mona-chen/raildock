@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Api::GitSourcesController", type: :request do
   let(:user) { create(:user) }
-  let!(:git_source) { create(:git_source) }
+  let!(:git_source) { create(:git_source, user: user) }
 
   describe "GET /api/git-sources" do
     context "when unauthenticated" do
@@ -13,13 +13,24 @@ RSpec.describe "Api::GitSourcesController", type: :request do
     end
 
     context "when authenticated" do
-      it "returns all git sources" do
+      it "returns user's personal git sources" do
         get "/api/git-sources", headers: auth_headers(user)
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
         expect(json.length).to eq(1)
         expect(json.first["provider"]).to eq("github")
+      end
+
+      it "does not return other users' git sources" do
+        other_user = create(:user)
+        create(:git_source, user: other_user)
+
+        get "/api/git-sources", headers: auth_headers(user)
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json.length).to eq(1)
       end
     end
   end

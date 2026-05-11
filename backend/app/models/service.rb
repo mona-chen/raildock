@@ -5,6 +5,8 @@ class Service < ApplicationRecord
   has_many :storage_mounts, dependent: :destroy
   has_many :deployments, dependent: :destroy
   has_many :process_types, dependent: :destroy
+  has_many :backups, dependent: :destroy
+  has_many :backup_schedules, dependent: :destroy
 
   has_many :outgoing_links, class_name: "ServiceLink", foreign_key: "from_service_id", dependent: :destroy
   has_many :incoming_links, class_name: "ServiceLink", foreign_key: "to_service_id", dependent: :destroy
@@ -70,19 +72,15 @@ class Service < ApplicationRecord
     end
   end
 
-  def backups
-    # Placeholder - would integrate with dokku backup plugin
-    []
-  end
-
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :logs, :backups],
+      methods: [:type, :linked_service_ids, :logs],
       include: {
         environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
         domains: { only: [:id, :hostname, :port, :ssl, :letsencrypt] },
         storage_mounts: { only: [:id, :host_path, :container_path] },
-        process_types: { only: [:id, :name, :quantity, :running, :command] }
+        process_types: { only: [:id, :name, :quantity, :running, :command] },
+        backups: { only: [:id, :status, :size, :created_at] }
       }
     )).merge(
       "config" => config || {}

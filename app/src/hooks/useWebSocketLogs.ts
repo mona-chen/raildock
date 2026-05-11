@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getCable, isCableAvailable } from '@/lib/cable'
+import { debugLog, debugWarn } from '@/lib/debug'
 
 interface LogLine {
   timestamp: string
@@ -21,15 +22,15 @@ export function useWebSocketLogs(serviceId: string) {
       { channel: 'LogsChannel', service_id: serviceId },
       {
         connected() {
-          console.log('[WebSocket] LogsChannel connected for', serviceId)
+          debugLog('[WebSocket] LogsChannel connected for', serviceId)
           setIsConnected(true)
         },
         disconnected() {
-          console.log('[WebSocket] LogsChannel disconnected for', serviceId)
+          debugLog('[WebSocket] LogsChannel disconnected for', serviceId)
           setIsConnected(false)
         },
         rejected() {
-          console.warn('[WebSocket] LogsChannel rejected for', serviceId)
+          debugWarn('[WebSocket] LogsChannel rejected for', serviceId)
           setIsConnected(false)
         },
         received(data: { timestamp?: string; process_type?: string; line?: string; message?: string }) {

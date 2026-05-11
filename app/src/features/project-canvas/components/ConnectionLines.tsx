@@ -1,8 +1,10 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 
 interface Connection {
   from: { x: number; y: number }
   to: { x: number; y: number }
+  fromId: string
+  toId: string
 }
 
 interface ConnectionLinesProps {
@@ -10,29 +12,50 @@ interface ConnectionLinesProps {
 }
 
 function ConnectionLines({ connections }: ConnectionLinesProps) {
+  const [hovered, setHovered] = useState<string | null>(null)
+
   if (connections.length === 0) return null
 
   return (
     <svg
-      className="absolute inset-0 pointer-events-none"
-      style={{ width: '100%', height: '100%' }}
+      className="absolute inset-0"
+      style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
     >
-      {connections.map((conn, i) => {
+      {connections.map((conn) => {
+        const key = `${conn.fromId}-${conn.toId}`
+        const isHovered = hovered === key
         const mx = conn.from.x + 110 + (conn.to.x - conn.from.x) / 2
+        const pathD = `M ${conn.from.x + 110} ${conn.from.y + 30} L ${mx} ${conn.from.y + 30} L ${mx} ${conn.to.y + 30} L ${conn.to.x + 110} ${conn.to.y + 30}`
+
         return (
-          <g key={i}>
+          <g
+            key={key}
+            style={{ pointerEvents: 'auto' }}
+            onMouseEnter={() => setHovered(key)}
+            onMouseLeave={() => setHovered(null)}
+          >
+            {/* Invisible wider path for easier hover */}
             <path
-              d={`M ${conn.from.x + 110} ${conn.from.y + 30} L ${mx} ${conn.from.y + 30} L ${mx} ${conn.to.y + 30} L ${conn.to.x + 110} ${conn.to.y + 30}`}
+              d={pathD}
               fill="none"
-              stroke="rgba(255,255,255,0.07)"
-              strokeWidth={1.5}
+              stroke="transparent"
+              strokeWidth={12}
+              style={{ cursor: 'pointer' }}
+            />
+            <path
+              d={pathD}
+              fill="none"
+              stroke={isHovered ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.07)'}
+              strokeWidth={isHovered ? 2 : 1.5}
               strokeDasharray="6 4"
+              style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
             />
             <circle
               cx={conn.to.x + 110}
               cy={conn.to.y + 30}
-              r={3}
-              fill="rgba(255,255,255,0.1)"
+              r={isHovered ? 4 : 3}
+              fill={isHovered ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.1)'}
+              style={{ transition: 'all 0.2s' }}
             />
           </g>
         )

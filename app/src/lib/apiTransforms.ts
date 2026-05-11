@@ -67,7 +67,7 @@ export function normalizeProject(data: unknown): Project {
   if (camel.id != null && typeof camel.id !== 'string') {
     camel.id = String(camel.id)
   }
-  return camel as Project
+  return camel as unknown as Project
 }
 
 export function normalizeServer(data: unknown): Server {
@@ -75,7 +75,7 @@ export function normalizeServer(data: unknown): Server {
   if (camel.id != null && typeof camel.id !== 'string') {
     camel.id = String(camel.id)
   }
-  return camel as Server
+  return camel as unknown as Server
 }
 
 export function normalizeActivityEvent(data: unknown): ActivityEvent {

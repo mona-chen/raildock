@@ -1,5 +1,6 @@
 module Api
   class TemplatesController < BaseController
+    include Authorizable
     TEMPLATES = [
       {
         id: 'rails-api',
@@ -52,7 +53,7 @@ module Api
       template = TEMPLATES.find { |t| t[:id] == params[:id] }
       return render json: { error: 'Template not found' }, status: :not_found unless template
 
-      project = Project.find_by(id: params[:project_id])
+      project = scoped_projects.find_by(id: params[:project_id])
       return render json: { error: 'Project not found' }, status: :not_found unless project
 
       created = template[:services].map do |svc|

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Box, Database, Zap, Cog, X, Plus, Rocket, Code2, Container,
-  ChevronLeft, GitBranch, Settings2, HardDrive, Trash2,
+  ChevronLeft, GitBranch, Settings2, HardDrive, Trash2, HelpCircle,
 } from 'lucide-react'
 import { useCreateService } from '@/hooks/useServices'
 import { useBuilders } from '@/hooks/useModules'
@@ -160,11 +160,16 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           {sourceType === 'git' && (
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-white/40 block mb-1.5">Repository URL</label>
+                <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                  Repository URL
+                  <span title="Use the HTTPS or SSH clone URL of your repository. For private repos, make sure you've connected a Git source or added a deploy key." className="cursor-help">
+                    <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
+                  </span>
+                </label>
                 <input
                   value={gitRepo}
                   onChange={(e) => setGitRepo(e.target.value)}
-                  placeholder="https://github.com/user/repo.git"
+                  placeholder="https://github.com/username/repo.git"
                   className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
                 />
               </div>
@@ -179,7 +184,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[11px] text-white/40 block mb-1.5">Builder</label>
+                  <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                    Builder
+                    <span title="Builders determine how your code is turned into a container image. Auto-detect checks for a Dockerfile, then falls back to buildpacks like Nixpacks or Herokuish." className="cursor-help">
+                      <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
+                    </span>
+                  </label>
                   <select
                     value={builder}
                     onChange={(e) => setBuilder(e.target.value)}
@@ -192,9 +202,11 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                   </select>
                 </div>
               </div>
-              <div className="text-[11px] text-white/30">
-                {builder === 'auto' && 'Dokku will auto-detect the best build method from your repository.'}
-                {builders.find((b) => b.id === builder)?.description}
+              <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2">
+                {builder === 'auto' && (
+                  <span>Dokku will auto-detect the best build method: <strong>Dockerfile</strong> → <strong>Nixpacks</strong> → <strong>Herokuish</strong>.</span>
+                )}
+                {builder !== 'auto' && builders.find((b) => b.id === builder)?.description}
               </div>
             </div>
           )}

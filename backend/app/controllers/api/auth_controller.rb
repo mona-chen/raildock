@@ -19,11 +19,6 @@ module Api
     def me
       user = current_user
 
-      # Development fallback
-      if !user && Rails.env.development?
-        user = User.first
-      end
-
       if user
         render json: user.as_json(only: [:id, :email, :name])
       else

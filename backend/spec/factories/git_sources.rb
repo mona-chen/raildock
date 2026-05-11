@@ -5,5 +5,6 @@ FactoryBot.define do
     username { Faker::Internet.username }
     access_token { Faker::Alphanumeric.alphanumeric(number: 40) }
     metadata { {} }
+    association :user, strategy: :create
   end
 end

@@ -1,6 +1,16 @@
 class LogsChannel < ApplicationCable::Channel
   def subscribed
     service = Service.find(params[:service_id])
+
+    # Authorization: verify the user can access this service's project
+    reject unless current_user
+    if service.project&.organization_id
+      unless current_user.organizations.exists?(id: service.project.organization_id)
+        reject
+        return
+      end
+    end
+
     stream_for service
     Rails.logger.info "[ActionCable] LogsChannel subscribed for service #{service.id} (user #{current_user.id})"
 
@@ -26,9 +36,21 @@ class LogsChannel < ApplicationCable::Channel
     server = service.project&.server
     return unless server&.ssh_key.present?
 
+    log_cmd = if service.service_type == "database"
+      case service.subtype
+      when "postgres" then "postgres:logs #{service.dokku_app_name} --tail"
+      when "redis" then "redis:logs #{service.dokku_app_name} --tail"
+      when "mysql" then "mysql:logs #{service.dokku_app_name} --tail"
+      when "mongo" then "mongo:logs #{service.dokku_app_name} --tail"
+      else "logs #{service.dokku_app_name} -n 0 --tail"
+      end
+    else
+      "logs #{service.dokku_app_name} -n 0 --tail"
+    end
+
     Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("logs #{service.dokku_app_name} -n 0 --tail") do |_, success|
+        ch.exec(log_cmd) do |_, success|
           unless success
             Rails.logger.error "LogsChannel: failed to execute logs command"
             return

@@ -15,7 +15,7 @@ const ProjectCanvas = lazy(() => import('./pages/ProjectCanvas'))
 const ServerPage = lazy(() => import('./pages/ServerPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const ActivityPage = lazy(() => import('./pages/ActivityPage'))
-const ActivityDashboard = lazy(() => import('./pages/ActivityDashboard'))
+
 
 function App() {
   return (
@@ -37,7 +37,7 @@ function App() {
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="project/:projectId/*" element={<ProjectCanvas />} />
                 <Route path="servers" element={<ServerPage />} />
-                <Route path="activity" element={<ActivityDashboard />} />
+                <Route path="activity" element={<ActivityPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Routes>

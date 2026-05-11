@@ -166,6 +166,15 @@ export function useServiceLogs(id: string) {
   })
 }
 
+export function useDatabaseInfo(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'database_info'],
+    queryFn: () => api.services.databaseInfo(id),
+    enabled: !!id,
+    staleTime: 60000,
+  })
+}
+
 export function useServiceMetrics(id: string) {
   return useQuery({
     queryKey: ['services', id, 'metrics'],
@@ -180,6 +189,48 @@ export function useServiceDeployments(id: string) {
     queryKey: ['services', id, 'deployments'],
     queryFn: () => api.services.deployments(id),
     enabled: !!id,
+  })
+}
+
+export function useBackups(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'backups'],
+    queryFn: () => api.services.backups(id),
+    enabled: !!id,
+  })
+}
+
+export function useBackupSchedules(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'backup_schedules'],
+    queryFn: () => api.services.backupSchedules(id),
+    enabled: !!id,
+  })
+}
+
+export function useCreateBackupSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { frequency: string; retentionCount: number } }) =>
+      api.services.createBackupSchedule(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      toast.success('Backup schedule created')
+    },
+    onError: (err) => toast.error(`Failed to create schedule: ${err.message}`),
+  })
+}
+
+export function useDestroyBackupSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, scheduleId }: { id: string; scheduleId: string }) =>
+      api.services.destroyBackupSchedule(id, scheduleId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      toast.success('Backup schedule removed')
+    },
+    onError: (err) => toast.error(`Failed to remove schedule: ${err.message}`),
   })
 }
 
@@ -219,7 +270,7 @@ export function useBackupService() {
 
 export function useRestoreService() {
   return useMutation({
-    mutationFn: (id: string) => api.services.restore(id),
+    mutationFn: ({ id, file }: { id: string; file?: File }) => api.services.restore(id, file),
     onSuccess: () => toast.success('Restore initiated'),
     onError: (err) => toast.error(`Restore failed: ${err.message}`),
   })

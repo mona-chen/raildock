@@ -37,6 +37,10 @@ gem "net-scp", "~> 4.0"
 # JSON Web Tokens for API authentication
 gem "jwt", "~> 2.8"
 
+# Encryption at rest for sensitive data (tokens, SSH keys)
+gem "lockbox", "~> 2.0"
+gem "octokit", "~> 9.0"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 

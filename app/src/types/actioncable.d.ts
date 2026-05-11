@@ -3,6 +3,7 @@ declare module '@rails/actioncable' {
 
   interface Cable {
     subscriptions: Subscriptions
+    disconnect(): void
   }
 
   interface Subscriptions {
@@ -13,6 +14,7 @@ declare module '@rails/actioncable' {
     connected?: () => void
     disconnected?: () => void
     received?: (data: any) => void
+    rejected?: () => void
   }
 
   interface Subscription {

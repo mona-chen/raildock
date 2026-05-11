@@ -116,8 +116,13 @@ export default function HomePage() {
             <span className="text-sm font-bold text-white">RailDock</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
-            {['Features', 'Docs', 'Pricing', 'Enterprise'].map(item => (
-              <button key={item} className="text-sm text-[#6B6B7B] hover:text-white transition-colors">{item}</button>
+            {[
+              { label: 'Features', href: '#features' },
+              { label: 'Docs', href: '#' },
+              { label: 'Pricing', href: '/pricing' },
+              { label: 'Enterprise', href: '#' },
+            ].map(item => (
+              <a key={item.label} href={item.href} className="text-sm text-[#6B6B7B] hover:text-white transition-colors">{item.label}</a>
             ))}
           </div>
           <div className="flex items-center gap-3">
@@ -207,7 +212,7 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section className="py-24 bg-[#0D0D0F]">
+      <section id="features" className="py-24 bg-[#0D0D0F]">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16 reveal">
             <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">Built on Dokku, designed for humans</h2>

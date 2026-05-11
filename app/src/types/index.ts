@@ -12,6 +12,7 @@ export interface Project {
   description: string
   environment: 'production' | 'staging' | 'development'
   serviceIds: string[]       // references to services in this project
+  serviceCounts: { total: number; app: number; database: number; cache: number }
   sharedVars: SharedVar[]    // project-level env vars (Railway shared variables)
   createdAt: string
 }
@@ -32,7 +33,7 @@ export interface Service {
   id: string
   name: string
   type: ServiceType
-  subtype: string           // 'web' | 'worker' | 'postgres' | 'redis' | 'mysql' | 'mongo' | 'rabbitmq' | 'elasticsearch'
+  subtype: string           // 'web' | 'worker' | 'postgres' | 'redis' | 'mysql' | 'mongo'
   projectId: string
   status: 'running' | 'stopped' | 'deploying' | 'error' | 'building'
   // For apps
@@ -247,6 +248,20 @@ export interface GitRepo {
   defaultBranch: string
   private: boolean
   serviceName?: string  // which service this deploys to
+}
+
+// ───────────────────────────────────────────────
+// Organization
+// ───────────────────────────────────────────────
+
+export interface Organization {
+  id: string
+  name: string
+  slug: string
+  avatarUrl?: string
+  ownerId: string
+  memberCount?: number
+  createdAt?: string
 }
 
 // ───────────────────────────────────────────────

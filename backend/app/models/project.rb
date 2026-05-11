@@ -1,4 +1,5 @@
 class Project < ApplicationRecord
+  belongs_to :organization, optional: true
   belongs_to :server, optional: true
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
@@ -7,13 +8,34 @@ class Project < ApplicationRecord
   validates :environment, inclusion: { in: %w[production staging development] }
 
   before_validation :set_default_environment, on: :create
+  before_validation :set_default_server, on: :create
+
+  # For backward compat + new org scoping
+  scope :for_user, ->(user) {
+    org_ids = user.organization_ids
+    where(organization_id: org_ids).or(where(organization_id: nil))
+  }
 
   def set_default_environment
     self.environment ||= 'production'
   end
 
+  def set_default_server
+    self.server ||= Server.first if server_id.blank?
+  end
+
   def service_ids
     services.pluck(:id)
+  end
+
+  def service_counts
+    grouped = services.group(:service_type).count
+    {
+      total: services.count,
+      app: grouped["app"] || 0,
+      database: grouped["database"] || 0,
+      cache: grouped["cache"] || 0,
+    }
   end
 
   def shared_vars
@@ -22,7 +44,7 @@ class Project < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:service_ids, :shared_vars]
+      methods: [:service_ids, :service_counts, :shared_vars]
     ))
   end
 end

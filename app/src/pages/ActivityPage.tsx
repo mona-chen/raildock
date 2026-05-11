@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { Activity, GitBranch, Database, ArrowUpRight, ArrowDownRight, Settings, Boxes } from 'lucide-react'
 import { useActivity } from '@/hooks/useActivity'
 import { useProject } from '@/hooks/useProjects'
+import { useProjects } from '@/hooks/useProjects'
 
 const ACTION_ICON: Record<string, React.ElementType> = {
   deployed: GitBranch,
@@ -27,7 +28,9 @@ const ACTION_COLOR: Record<string, string> = {
 
 export default function ActivityPage() {
   const { projectId } = useParams<{ projectId: string }>()
+  const isScoped = !!projectId
   const { data: project } = useProject(projectId || '')
+  const { data: projects = [] } = useProjects()
   const { data: events = [], isLoading } = useActivity(projectId || '')
 
   return (
@@ -36,8 +39,11 @@ export default function ActivityPage() {
         <div className="flex items-center gap-3">
           <Activity size={18} className="text-rail-purple" />
           <h1 className="text-base font-semibold text-white">Activity</h1>
-          {project && (
+          {isScoped && project && (
             <span className="text-[11px] text-[#4A4A55]">{project.name}</span>
+          )}
+          {!isScoped && (
+            <span className="text-[11px] text-[#4A4A55]">All projects</span>
           )}
         </div>
       </div>
@@ -52,6 +58,7 @@ export default function ActivityPage() {
             events.map((event) => {
               const Icon = ACTION_ICON[event.action] || Boxes
               const color = ACTION_COLOR[event.action] || '#A0A0B0'
+              const eventProject = projects.find(p => p.id === event.projectId)
               return (
                 <div
                   key={event.id}
@@ -71,6 +78,12 @@ export default function ActivityPage() {
                       )}
                       {event.serviceName && event.serviceName !== '-' && (
                         <span className="mx-1.5 text-white/10">·</span>
+                      )}
+                      {!isScoped && eventProject && (
+                        <>
+                          <span className="text-white/30">{eventProject.name}</span>
+                          <span className="mx-1.5 text-white/10">·</span>
+                        </>
                       )}
                       <span>{new Date(event.timestamp).toLocaleString()}</span>
                     </div>

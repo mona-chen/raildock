@@ -1,6 +1,7 @@
 module Api
   class StorageMountsController < BaseController
-    before_action :set_service
+    include Authorizable
+    before_action :set_and_authorize_service!
 
     def create
       mount = @service.storage_mounts.create!(mount_params)
@@ -23,8 +24,9 @@ module Api
 
     private
 
-    def set_service
+    def set_and_authorize_service!
       @service = Service.find(params[:service_id])
+      authorize_service!(@service)
     end
 
     def mount_params

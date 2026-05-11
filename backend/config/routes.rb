@@ -18,6 +18,10 @@ Rails.application.routes.draw do
           get :logs
           get :metrics
           get :container_status
+          get :database_info
+          get :backups
+          get :backup_schedules
+          post :create_backup_schedule
           post :link
           post :unlink
           post :backup
@@ -42,6 +46,7 @@ Rails.application.routes.draw do
       delete "env-vars/:key", to: "environment_variables#destroy"
       delete "domains/:hostname", to: "domains#destroy", constraints: { hostname: /[^\/]+/ }
       delete "storage/*host_path", to: "storage_mounts#destroy", format: false
+      delete "backup_schedules/:schedule_id", to: "services#destroy_backup_schedule"
     end
 
     resources :servers do
@@ -51,7 +56,15 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :organizations do
+      resources :projects, only: [:index, :create]
+      resources :git_sources, path: "git-sources", only: [:index, :create, :destroy]
+      resources :members, controller: "organization_members", only: [:index, :create, :destroy, :update]
+      resources :deploy_keys, path: "deploy-keys", only: [:index, :create, :destroy]
+    end
+
     resources :git_sources, path: "git-sources"
+    resources :deploy_keys, path: "deploy-keys", only: [:index, :create, :destroy]
     resources :templates, only: [:index] do
       member do
         post :deploy
@@ -61,5 +74,8 @@ Rails.application.routes.draw do
 
     resources :builders, only: [:index]
     resources :networks, only: [:index]
+
+    get "github-apps/callback", to: "github_apps#callback"
+    post "github-apps/webhook", to: "github_apps#webhook"
   end
 end

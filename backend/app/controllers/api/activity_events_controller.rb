@@ -1,12 +1,15 @@
 module Api
   class ActivityEventsController < BaseController
+    include Authorizable
+
     def index
-      events = ActivityEvent.where(project_id: params[:project_id]).limit(50)
+      project = scoped_projects.find(params[:project_id])
+      events = ActivityEvent.where(project_id: project.id).limit(50)
       render json: events
     end
 
     def global
-      events = ActivityEvent.limit(100)
+      events = ActivityEvent.where(project_id: scoped_projects.select(:id)).limit(100)
       render json: events
     end
   end

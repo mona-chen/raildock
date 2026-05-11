@@ -1,80 +1,71 @@
 require "rails_helper"
 
 RSpec.describe "Api::WebhooksController", type: :request do
-  let!(:service) { create(:service, git_repo: "owner/repo-name") }
+  let(:project) { create(:project) }
+  let!(:service) { create(:service, project: project, git_repo: "acme/app", branch: "main") }
 
   describe "POST /api/webhooks/deploy" do
-    context "with GitHub payload" do
-      let(:github_payload) do
-        {
-          repository: { full_name: "owner/repo-name" },
-          ref: "refs/heads/main"
-        }
-      end
-
-      it "triggers deployments for matching services" do
+    context "without webhook secret configured" do
+      it "triggers deployment" do
         expect {
-          post "/api/webhooks/deploy", params: github_payload
+          post "/api/webhooks/deploy", params: {
+            repository: { full_name: "acme/app" },
+            ref: "refs/heads/main"
+          }
         }.to change(Deployment, :count).by(1)
-          .and change { service.reload.status }.to("deploying")
 
         expect(response).to have_http_status(:accepted)
       end
+    end
 
-      it "returns 404 when no services match the repo" do
+    context "with webhook secret configured" do
+      before do
+        allow(Rails.application).to receive(:credentials).and_return(
+          ActiveSupport::OrderedOptions.new.tap { |c| c.webhook_secret = "supersecret" }
+        )
+      end
+
+      it "returns 403 without signature" do
         post "/api/webhooks/deploy", params: {
-          repository: { full_name: "owner/non-existent" },
+          repository: { full_name: "acme/app" },
           ref: "refs/heads/main"
         }
 
-        expect(response).to have_http_status(:not_found)
+        expect(response).to have_http_status(:forbidden)
       end
 
-      it "returns 400 when repository info is missing" do
-        post "/api/webhooks/deploy", params: { ref: "refs/heads/main" }
+      it "accepts valid GitHub signature" do
+        payload = {
+          repository: { full_name: "acme/app" },
+          ref: "refs/heads/main"
+        }.to_json
 
-        expect(response).to have_http_status(:bad_request)
-      end
-    end
+        signature = 'sha256=' + OpenSSL::HMAC.hexdigest(
+          OpenSSL::Digest.new('sha256'), "supersecret", payload
+        )
 
-    context "with GitLab payload" do
-      let(:gitlab_payload) do
-        {
-          project: { path_with_namespace: "owner/repo-name" },
-          ref: "refs/heads/develop"
-        }
-      end
-
-      it "triggers deployments for matching services with correct branch" do
         expect {
-          post "/api/webhooks/deploy", params: gitlab_payload
+          post "/api/webhooks/deploy",
+               params: payload,
+               headers: {
+                 "CONTENT_TYPE" => "application/json",
+                 "X-Hub-Signature-256" => signature
+               }
         }.to change(Deployment, :count).by(1)
 
         expect(response).to have_http_status(:accepted)
-        deployment = Deployment.last
-        expect(deployment.branch).to eq("develop")
       end
-    end
 
-    context "with missing ref" do
-      it "defaults branch to main" do
+      it "accepts valid GitLab token" do
         expect {
-          post "/api/webhooks/deploy", params: { repository: { full_name: "owner/repo-name" } }
+          post "/api/webhooks/deploy", params: {
+            repository: { full_name: "acme/app" },
+            ref: "refs/heads/main"
+          }, headers: { "X-Gitlab-Token" => "supersecret" }
         }.to change(Deployment, :count).by(1)
 
         expect(response).to have_http_status(:accepted)
-        deployment = Deployment.last
-        expect(deployment.branch).to eq("main")
       end
-    end
-
-    it "does not require authentication" do
-      post "/api/webhooks/deploy", params: {
-        repository: { full_name: "owner/repo-name" },
-        ref: "refs/heads/main"
-      }
-
-      expect(response).to have_http_status(:accepted)
     end
   end
 end

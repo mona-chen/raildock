@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench } from 'lucide-react'
+import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle } from 'lucide-react'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
-import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService } from '@/hooks/useServices'
-import { useServiceLogs } from '@/hooks/useServices'
-import { useWebSocketLogs } from '@/hooks/useWebSocketLogs'
+import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { useUpdateService } from '@/hooks/useServices'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import type { Service } from '@/types'
+import LogsTab from '@/features/service-panel/tabs/LogsTab'
 
 const SVC_ICON: Record<string, React.ElementType> = {
   web: () => null, worker: Box, postgres: () => null, redis: () => null,
-  mysql: () => null, mongo: () => null, rabbitmq: () => null, clock: Box,
+  mysql: () => null, mongo: () => null, clock: Box,
 }
 const SVC_CLR: Record<string, string> = {
   web: '#22c55e', worker: '#3b82f6', postgres: '#8b5cf6',
@@ -24,7 +23,7 @@ interface ServicePanelProps {
 }
 
 export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) {
-  const { data: svc } = useService(serviceId)
+  const { data: svc, isLoading, isError, error, refetch } = useService(serviceId)
   const [tab, setTab] = useState('overview')
   const deployService = useDeployService()
   const startService = useStartService()
@@ -37,7 +36,66 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     deployService.mutate(serviceId)
   }
 
-  if (!svc) return null
+  if (isLoading) {
+    return (
+      <div data-service-panel className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+              aria-label="Close panel"
+              type="button"
+            >
+              <X size={15} className="text-white/60" />
+            </button>
+            <div className="w-32 h-4 bg-white/[0.04] rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="flex-1 p-5 space-y-4">
+          <div className="h-24 bg-white/[0.02] rounded-xl animate-pulse" />
+          <div className="h-32 bg-white/[0.02] rounded-xl animate-pulse" />
+          <div className="h-48 bg-white/[0.02] rounded-xl animate-pulse" />
+        </div>
+      </div>
+    )
+  }
+
+  if (isError || !svc) {
+    return (
+      <div data-service-panel className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+              aria-label="Close panel"
+              type="button"
+            >
+              <X size={15} className="text-white/60" />
+            </button>
+            <span className="text-[15px] font-semibold text-white/90">Service unavailable</span>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+            <Box size={24} className="text-red-400" />
+          </div>
+          <p className="text-white/60 text-[14px] mb-2">Failed to load service details</p>
+          {error && (
+            <p className="text-white/40 text-[12px] mb-6 max-w-md">{error.message}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="px-4 py-2 bg-white/[0.06] text-white/70 rounded-lg text-[13px] hover:bg-white/[0.1] transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const db = svc.type === 'database'
   const tabs = db
@@ -53,8 +111,10 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={onClose}
             className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+            aria-label="Close panel"
           >
             <X size={15} className="text-white/60" />
           </button>
@@ -74,15 +134,17 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         <div className="flex items-center gap-2">
           {/* Lifecycle actions */}
           <div className="flex items-center gap-1 mr-2">
-            <button
-              onClick={handleDeploy}
-              disabled={deployService.isPending}
-              title="Deploy"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[11px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
-            >
-              <Rocket size={12} />
-              {deployService.isPending ? '...' : 'Deploy'}
-            </button>
+            {!db && (
+              <button
+                onClick={handleDeploy}
+                disabled={deployService.isPending}
+                title="Deploy"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[11px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+              >
+                <Rocket size={12} />
+                {deployService.isPending ? '...' : 'Deploy'}
+              </button>
+            )}
             {svc.status !== 'running' && svc.status !== 'deploying' && (
               <button
                 onClick={() => startService.mutate(serviceId)}
@@ -158,7 +220,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} onDeploy={handleDeploy} />}
         {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} />}
         {tab === 'logs' && <LogsTab serviceId={serviceId} />}
-        {tab === 'database' && db && <DatabaseTab svc={svc} />}
+        {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}
         {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
         {tab === 'variables' && <VariablesTab svc={svc} />}
         {tab === 'domains' && <DomainsTab svc={svc} />}
@@ -211,14 +273,16 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
 
         {/* Quick Actions */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={onDeploy}
-            disabled={deployService.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
-          >
-            <Rocket size={13} />
-            {deployService.isPending ? 'Deploying...' : 'Deploy'}
-          </button>
+          {svc.type !== 'database' && (
+            <button
+              onClick={onDeploy}
+              disabled={deployService.isPending}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+            >
+              <Rocket size={13} />
+              {deployService.isPending ? 'Deploying...' : 'Deploy'}
+            </button>
+          )}
           {svc.status !== 'running' && svc.status !== 'deploying' && (
             <button
               onClick={() => startService.mutate(serviceId)}
@@ -593,179 +657,310 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
   )
 }
 
-// ── Logs Tab ─────────────────────────────────
-function LogsTab({ serviceId }: { serviceId: string }) {
-  const { data: historicalLogs } = useServiceLogs(serviceId)
-  const { lines: liveLines, isConnected, clear } = useWebSocketLogs(serviceId)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [hasCleared, setHasCleared] = useState(false)
+// ── Database Tab ─────────────────────────────
+function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
+  const { data: info, isLoading } = useDatabaseInfo(serviceId)
+  const [copied, setCopied] = useState<string | null>(null)
 
-  // Build the full log list: historical first, then live additions
-  const allLines = useMemo(() => {
-    if (hasCleared) return liveLines
-    const historical = (historicalLogs || []).map((l) => ({
-      timestamp: l.timestamp,
-      process_type: l.processType,
-      message: l.message,
-    }))
-    return [...historical, ...liveLines]
-  }, [historicalLogs, liveLines, hasCleared])
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [allLines.length])
-
-  const handleClear = () => {
-    clear()
-    setHasCleared(true)
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(label)
+    setTimeout(() => setCopied(null), 2000)
   }
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-2 border-b border-white/[0.06] flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : 'bg-white/20'}`} />
-          <span className="text-[11px] text-white/40">{isConnected ? 'Live' : 'Polling'}</span>
-        </div>
-        <button
-          onClick={handleClear}
-          className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
-        >
-          Clear
-        </button>
-      </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 font-mono text-[12px] space-y-1">
-        {allLines.length > 0 ? (
-          allLines.map((line, i) => (
-            <div key={i} className="text-white/60">
-              <span className="text-white/20 mr-2">{new Date(line.timestamp).toLocaleTimeString()}</span>
-              <span className="text-[#8b5cf6]/60 mr-2">[{line.process_type}]</span>
-              <span>{line.message}</span>
-            </div>
-          ))
-        ) : (
-          <div className="text-white/20 text-center py-10">Waiting for logs...</div>
-        )}
-      </div>
-    </div>
-  )
-}
+  const connectionUrl = info?.url || info?.dsn || svc.envVars.find((e) => e.key.includes('URL'))?.value
 
-// ── Database Tab ─────────────────────────────
-function DatabaseTab({ svc }: { svc: Service }) {
-  const [subTab, setSubTab] = useState('config')
-  const subTabs = ['config']
-  const dbUrl = svc.envVars.find((e) => e.key.includes('URL') || e.key.includes('DATABASE') || e.key.includes('REDIS'))
+  const connectionFields = [
+    { label: 'Host', value: info?.host },
+    { label: 'Port', value: info?.port?.toString() },
+    { label: 'Username', value: info?.username },
+    { label: 'Password', value: info?.password },
+    { label: 'Database', value: info?.database },
+  ].filter((f) => f.value)
+
+  const quickConnect = (() => {
+    const { subtype, username, password, host, port, database } = {
+      subtype: svc.subtype,
+      username: info?.username,
+      password: info?.password,
+      host: info?.host,
+      port: info?.port,
+      database: info?.database,
+    }
+    if (!host || !port) return null
+    switch (subtype) {
+      case 'postgres':
+        return `psql ${connectionUrl || `postgresql://${username}:${password}@${host}:${port}/${database}`}`
+      case 'redis':
+        return `redis-cli -h ${host} -p ${port} ${password ? `-a ${password}` : ''}`
+      case 'mysql':
+        return `mysql -h ${host} -P ${port} -u ${username || 'root'} ${password ? `-p${password}` : ''} ${database || ''}`
+      case 'mongo':
+        return `mongosh ${connectionUrl || `mongodb://${username}:${password}@${host}:${port}/${database}`}`
+      default:
+        return null
+    }
+  })()
 
   return (
     <div className="p-5 space-y-4">
-      <div className="flex border-b border-white/[0.06] mb-4">
-        {subTabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setSubTab(t)}
-            className={`px-3 py-2 text-[12px] border-b-2 transition-all capitalize ${
-              subTab === t
-                ? 'border-[#8b5cf6] text-[#8b5cf6]'
-                : 'border-transparent text-white/40 hover:text-white/60'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+      {/* Connection URL */}
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[13px] font-medium text-white/70">Connection</div>
+          {info?.status && (
+            <span className={`text-[11px] px-2 py-0.5 rounded-full ${info.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/40'}`}>
+              {info.status}
+            </span>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <div className="h-8 bg-white/[0.03] rounded animate-pulse" />
+            <div className="h-20 bg-white/[0.03] rounded animate-pulse" />
+          </div>
+        ) : connectionUrl ? (
+          <>
+            <div className="bg-black/20 rounded-lg p-3 mb-3 relative group">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-[11px] text-white/40">Connection URL</div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(connectionUrl, 'url')}
+                  className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
+                >
+                  {copied === 'url' ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <div className="text-[12px] text-white/70 font-mono break-all">{connectionUrl}</div>
+            </div>
+
+            {connectionFields.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {connectionFields.map((f) => (
+                  <div key={f.label} className="bg-black/20 rounded-lg p-2.5 relative group">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="text-[11px] text-white/40">{f.label}</div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(f.value!, f.label)}
+                        className="opacity-0 group-hover:opacity-100 text-[10px] text-white/30 hover:text-white/60 transition-all"
+                      >
+                        {copied === f.label ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="text-[12px] text-white/70 font-mono break-all">{f.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {quickConnect && (
+              <div className="bg-black/20 rounded-lg p-3 relative group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-[11px] text-white/40">Quick Connect</div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(quickConnect, 'cmd')}
+                    className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    {copied === 'cmd' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <div className="text-[12px] text-white/70 font-mono break-all">{quickConnect}</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-[12px] text-white/30">
+            {info?.error || 'No connection details available. Ensure the database server is running.'}
+          </div>
+        )}
       </div>
 
-      {subTab === 'config' && (
-        <div className="space-y-4">
-          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-            <div className="text-[13px] font-medium text-white/70 mb-2">Connection</div>
-            {dbUrl ? (
-              <div className="bg-black/20 rounded-lg p-3 mb-3">
-                <div className="text-[11px] text-white/40 mb-1">{dbUrl.key}</div>
-                <div className="text-[12px] text-white/70 font-mono break-all">{dbUrl.value}</div>
-              </div>
-            ) : (
-              <div className="text-[12px] text-white/30 mb-3">No connection URL configured</div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { l: 'Type', v: svc.subtype },
-                { l: 'Version', v: svc.version || 'latest' },
-                { l: 'Name', v: svc.name },
-                { l: 'Status', v: svc.status },
-              ].map((f) => (
-                <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
-                  <div className="text-[11px] text-white/40">{f.l}</div>
-                  <div className="text-[12px] text-white/70 font-mono mt-0.5">{f.v}</div>
-                </div>
-              ))}
+      {/* Service Info */}
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+        <div className="text-[13px] font-medium text-white/70 mb-3">Service Details</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { l: 'Type', v: svc.subtype },
+            { l: 'Version', v: svc.version || info?.version || 'latest' },
+            { l: 'Name', v: svc.name },
+            { l: 'Status', v: svc.status },
+            { l: 'Internal IP', v: info?.internal_ip },
+            { l: 'Dokku Name', v: svc.name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() },
+          ].filter((f) => f.v).map((f) => (
+            <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
+              <div className="text-[11px] text-white/40">{f.l}</div>
+              <div className="text-[12px] text-white/70 font-mono mt-0.5 break-all">{f.v}</div>
             </div>
-          </div>
-
-          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-            <div className="text-[13px] font-medium text-white/70 mb-2">Database Management</div>
-            <p className="text-[12px] text-white/40 mb-3">
-              Query interface and table introspection require SSH access to the Dokku host.
-            </p>
-            <div className="text-[11px] text-white/30">
-              Connect a server in project settings to enable database querying, backup management, and performance metrics.
-            </div>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
 // ── Backups Tab ──────────────────────────────
+function formatSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
 function BackupsTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
+  const { data: backups, isLoading, isError, refetch } = useBackups(serviceId)
   const backupService = useBackupService()
   const restoreService = useRestoreService()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleRestoreClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    restoreService.mutate({ id: serviceId, file })
+    e.target.value = ''
+  }
+
+  const handleCreateBackup = () => {
+    backupService.mutate(serviceId, {
+      onSuccess: () => refetch(),
+    })
+  }
 
   return (
-    <div className="p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-5 space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
           <div className="text-[14px] font-medium text-white/70">Backups</div>
           <div className="text-[12px] text-white/40 mt-0.5">
-            {svc.backups.length} backup(s) available
+            {backups?.length ?? svc.backups.length} backup(s) available
           </div>
         </div>
-        <button
-          onClick={() => backupService.mutate(serviceId)}
-          disabled={backupService.isPending}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
-        >
-          <ArrowDownToLine size={13} /> {backupService.isPending ? 'Creating...' : 'Create Backup'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRestoreClick}
+            disabled={restoreService.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.06] text-white/60 rounded-lg text-[12px] hover:bg-white/[0.1] transition-all disabled:opacity-50"
+            title="Restore from backup file"
+          >
+            <Upload size={13} />
+            {restoreService.isPending ? 'Restoring...' : 'Restore'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".sql,.dump,.gz,.zip"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
+          <button
+            onClick={handleCreateBackup}
+            disabled={backupService.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+          >
+            {backupService.isPending ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} />}
+            {backupService.isPending ? 'Creating...' : 'Create Backup'}
+          </button>
+        </div>
       </div>
-      {svc.backups.length > 0 ? (
+
+      {/* Backup List */}
+      {isLoading ? (
         <div className="space-y-2">
-          {svc.backups.map((b) => (
-            <div
-              key={b.id}
-              className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3"
-            >
-              <div className="flex-1">
-                <div className="text-[13px] text-white/70">Backup {b.id}</div>
-                <div className="text-[11px] text-white/40">{new Date(b.createdAt).toLocaleString()}</div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 animate-pulse">
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 bg-white/5 rounded w-32" />
+                <div className="h-2.5 bg-white/5 rounded w-48" />
               </div>
-              <span className="text-[11px] px-2 py-0.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">{b.status}</span>
-              <span className="text-[12px] text-white/50 font-mono">{b.size}</span>
-              <button className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-white/60">
-                <ArrowDownToLine size={13} />
-              </button>
-              <button className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-red-400">
-                <Trash2 size={13} />
-              </button>
+              <div className="h-5 bg-white/5 rounded w-16" />
+              <div className="h-4 bg-white/5 rounded w-12" />
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <div className="text-center py-12">
+          <AlertCircle size={24} className="mx-auto text-red-400/60 mb-2" />
+          <div className="text-[13px] text-white/40">Failed to load backups</div>
+          <button
+            onClick={() => refetch()}
+            className="mt-2 text-[12px] text-[#8b5cf6] hover:text-[#8b5cf6]/80"
+          >
+            Retry
+          </button>
+        </div>
+      ) : (backups && backups.length > 0) || svc.backups.length > 0 ? (
+        <div className="space-y-2">
+          {(backups || svc.backups).map((b) => {
+            const statusConfig = {
+              completed: { icon: CheckCircle2, color: 'text-[#22c55e]', bg: 'bg-[#22c55e]/10' },
+              success: { icon: CheckCircle2, color: 'text-[#22c55e]', bg: 'bg-[#22c55e]/10' },
+              failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/10' },
+              pending: { icon: Loader2, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+              running: { icon: Loader2, color: 'text-[#8b5cf6]', bg: 'bg-[#8b5cf6]/10' },
+            }
+            const config = statusConfig[b.status as keyof typeof statusConfig] || statusConfig.pending
+            const StatusIcon = config.icon
+            const sizeNum = typeof b.size === 'number' ? b.size : parseInt(b.size as string) || 0
+
+            return (
+              <div
+                key={b.id}
+                className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 group"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[13px] text-white/70 truncate">Backup {String(b.id).slice(0, 8)}</div>
+                    <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
+                      <StatusIcon size={11} className={b.status === 'pending' || b.status === 'running' ? 'animate-spin' : ''} />
+                      {b.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-[11px] text-white/40 flex items-center gap-1">
+                      <Clock size={10} />
+                      {new Date(b.createdAt).toLocaleString()}
+                    </span>
+                    <span className="text-[11px] text-white/40 font-mono">{formatSize(sizeNum)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    disabled
+                    className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-white/60 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Download (coming soon)"
+                    aria-label="Download backup"
+                  >
+                    <ArrowDownToLine size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Delete (coming soon)"
+                    aria-label="Delete backup"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ) : (
-        <div className="text-center py-12 text-[13px] text-white/30">
-          No backups yet. Create your first backup to protect your data.
+        <div className="text-center py-12 border border-dashed border-white/[0.08] rounded-xl">
+          <HardDrive size={28} className="mx-auto text-white/15 mb-3" />
+          <div className="text-[13px] text-white/40 font-medium">No backups yet</div>
+          <div className="text-[12px] text-white/25 mt-1">Create your first backup to protect your data.</div>
         </div>
       )}
     </div>
@@ -897,15 +1092,68 @@ function VariablesTab({ svc }: { svc: Service }) {
 }
 
 // ── Metrics Tab ──────────────────────────────
+function useMetricHistory(serviceId: string, maxPoints = 30) {
+  const { data: metrics } = useServiceMetrics(serviceId)
+  const historyRef = useRef<{ cpu: number[]; memory: number[]; networkIn: number[]; networkOut: number[] }>({
+    cpu: [], memory: [], networkIn: [], networkOut: [],
+  })
+
+  useEffect(() => {
+    if (!metrics) return
+    const h = historyRef.current
+    h.cpu.push(metrics.cpu || 0)
+    h.memory.push(metrics.memory || 0)
+    h.networkIn.push(metrics.networkIn || 0)
+    h.networkOut.push(metrics.networkOut || 0)
+    if (h.cpu.length > maxPoints) h.cpu.shift()
+    if (h.memory.length > maxPoints) h.memory.shift()
+    if (h.networkIn.length > maxPoints) h.networkIn.shift()
+    if (h.networkOut.length > maxPoints) h.networkOut.shift()
+  }, [metrics, maxPoints])
+
+  return { current: metrics || { cpu: 0, memory: 0, networkIn: 0, networkOut: 0 }, history: historyRef.current }
+}
+
+function Sparkline({ data, color, maxVal = 100 }: { data: number[]; color: string; maxVal?: number }) {
+  if (data.length === 0) {
+    return <div className="h-16 bg-black/20 rounded-lg flex items-center justify-center"><span className="text-[10px] text-white/20">Collecting data...</span></div>
+  }
+  const padded = data.length < 2 ? [...Array(Math.max(0, 2 - data.length)).fill(0), ...data] : data
+  const h = 64
+  const w = 280
+  const step = w / (padded.length - 1)
+  const points = padded.map((v, i) => {
+    const x = i * step
+    const y = h - (Math.min(v, maxVal) / maxVal) * (h - 4) - 2
+    return `${x},${y}`
+  }).join(' ')
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-16 w-full bg-black/20 rounded-lg" preserveAspectRatio="none">
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+        opacity={0.8}
+      />
+      {padded.map((v, i) => (
+        <circle key={i} cx={i * step} cy={h - (Math.min(v, maxVal) / maxVal) * (h - 4) - 2} r={1.5} fill={color} opacity={0.6} />
+      ))}
+    </svg>
+  )
+}
+
 function MetricsTab({ svc }: { svc: Service }) {
-  const { data: metrics } = useServiceMetrics(svc.id)
-  const m = metrics || { cpu: 0, memory: 0, networkIn: 0, networkOut: 0 }
+  const { current: m, history } = useMetricHistory(svc.id)
 
   const items = [
-    { label: 'CPU', value: `${m.cpu.toFixed(1)}%`, color: '#8b5cf6', pct: Math.min(m.cpu, 100) },
-    { label: 'Memory', value: `${m.memory.toFixed(1)}%`, color: '#22c55e', pct: Math.min(m.memory, 100) },
-    { label: 'Network In', value: `${(m.networkIn ?? 0).toFixed(1)} MB/s`, color: '#3b82f6', pct: Math.min((m.networkIn ?? 0) / 10, 100) },
-    { label: 'Network Out', value: `${(m.networkOut ?? 0).toFixed(1)} MB/s`, color: '#f59e0b', pct: Math.min((m.networkOut ?? 0) / 10, 100) },
+    { label: 'CPU', value: `${m.cpu.toFixed(1)}%`, color: '#8b5cf6', data: history.cpu, max: 100 },
+    { label: 'Memory', value: `${m.memory.toFixed(1)}%`, color: '#22c55e', data: history.memory, max: 100 },
+    { label: 'Network In', value: `${(m.networkIn ?? 0).toFixed(1)} MB/s`, color: '#3b82f6', data: history.networkIn, max: 50 },
+    { label: 'Network Out', value: `${(m.networkOut ?? 0).toFixed(1)} MB/s`, color: '#f59e0b', data: history.networkOut, max: 50 },
   ]
 
   return (
@@ -918,18 +1166,8 @@ function MetricsTab({ svc }: { svc: Service }) {
             <div className="text-[20px] font-semibold" style={{ color: item.color }}>
               {item.value}
             </div>
-            <div className="mt-3 h-16 bg-black/20 rounded-lg flex items-end gap-0.5 p-1">
-              {Array.from({ length: 20 }, (_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-sm transition-all"
-                  style={{
-                    height: `${i === 19 ? item.pct : Math.max(4, item.pct * (0.5 + (i % 7) / 12))}%`,
-                    backgroundColor: item.color,
-                    opacity: 0.3 + (i / 20) * 0.4,
-                  }}
-                />
-              ))}
+            <div className="mt-3">
+              <Sparkline data={item.data} color={item.color} maxVal={item.max} />
             </div>
           </div>
         ))}
@@ -1077,229 +1315,6 @@ function SettingsTab({ svc }: { svc: Service }) {
     </div>
   )
 }
-
-// ── Network Settings (Domains + Storage CRUD) ──
-function NetworkSettings({ svc }: { svc: Service }) {
-  const updateService = useUpdateService()
-  const addDomain = useAddDomain()
-  const removeDomain = useRemoveDomain()
-  const addStorage = useAddStorageMount()
-  const removeStorage = useRemoveStorageMount()
-  const [newDomain, setNewDomain] = useState('')
-  const [newHostPath, setNewHostPath] = useState('')
-  const [newContainerPath, setNewContainerPath] = useState('')
-
-  const nginx = svc.nginx || { clientMaxBodySize: '', readTimeout: '', keepaliveTimeout: '', hsts: false, hstsMaxAge: 31536000, hstsIncludeSubdomains: false, hstsPreload: false, bindAddressIpv4: '0.0.0.0', bindAddressIpv6: '::' }
-  const le = svc.letsencrypt || { enabled: false, email: '', staging: false, autoRenew: true }
-
-  const toggleField = (path: string, value: unknown) => {
-    updateService.mutate({ id: svc.id, data: { [path]: value } })
-  }
-
-  const updateNginx = (patch: Partial<typeof nginx>) => {
-    toggleField('nginx', { ...nginx, ...patch })
-  }
-
-  const updateLE = (patch: Partial<typeof le>) => {
-    toggleField('letsencrypt', { ...le, ...patch })
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="text-[13px] font-medium text-white/70 mb-2">Proxy</div>
-        <div className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 mb-2">
-          <div className="text-[12px] text-white/60">Proxy Enabled</div>
-          <AccessibleToggle
-            checked={svc.proxy.enabled}
-            onChange={(v) => toggleField('proxy', { ...svc.proxy, enabled: v })}
-            label="Proxy enabled"
-          />
-        </div>
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 mb-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-white/40">Proxy Type</div>
-              <div className="text-[12px] text-white/60 capitalize mt-0.5">{svc.proxy.proxyType}</div>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 bg-white/[0.04] text-white/30 rounded-full">server-level</span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[13px] font-medium text-white/70 mb-2">Nginx Settings</div>
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          {[
-            { key: 'clientMaxBodySize', label: 'Max Body Size', placeholder: 'e.g. 50m' },
-            { key: 'readTimeout', label: 'Read Timeout', placeholder: 'e.g. 60s' },
-            { key: 'keepaliveTimeout', label: 'Keepalive Timeout', placeholder: 'e.g. 60s' },
-          ].map((f) => (
-            <div key={f.key} className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5">
-              <div className="text-[11px] text-white/40 mb-1">{f.label}</div>
-              <input
-                type="text"
-                value={(nginx as unknown as Record<string, string>)[f.key] || ''}
-                placeholder={f.placeholder}
-                onChange={(e) => updateNginx({ [f.key]: e.target.value })}
-                className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
-          <div className="text-[12px] text-white/60">HSTS</div>
-          <AccessibleToggle
-            checked={nginx.hsts}
-            onChange={(v) => updateNginx({ hsts: v })}
-            label="HSTS enabled"
-          />
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[13px] font-medium text-white/70 mb-2">Let's Encrypt SSL</div>
-        <div className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 mb-2">
-          <div className="text-[12px] text-white/60">Auto SSL</div>
-          <AccessibleToggle
-            checked={le.enabled}
-            onChange={(v) => updateLE({ enabled: v })}
-            label="Let's Encrypt enabled"
-          />
-        </div>
-        {le.enabled && (
-          <div className="space-y-2">
-            <input
-              type="email"
-              value={le.email}
-              placeholder="admin@example.com"
-              onChange={(e) => updateLE({ email: e.target.value })}
-              className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-            />
-            <div className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
-              <div className="text-[12px] text-white/60">Staging Mode</div>
-              <AccessibleToggle
-                checked={le.staging}
-                onChange={(v) => updateLE({ staging: v })}
-                label="Use Let's Encrypt staging"
-              />
-            </div>
-            <div className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
-              <div className="text-[12px] text-white/60">Auto Renew</div>
-              <AccessibleToggle
-                checked={le.autoRenew}
-                onChange={(v) => updateLE({ autoRenew: v })}
-                label="Auto renew certificates"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="text-[13px] font-medium text-white/70 mb-2">Domains</div>
-        {svc.domains.length > 0 ? (
-          svc.domains.map((d) => (
-            <div
-              key={d.hostname}
-              className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5 mb-1.5 group"
-            >
-              <Globe size={13} className="text-white/30" />
-              <span className="text-[12px] text-white/70">{d.hostname}</span>
-              {d.ssl && (
-                <span className="text-[10px] px-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">
-                  SSL
-                </span>
-              )}
-              <button
-                onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
-                className="ml-auto p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <div className="text-[12px] text-white/30 py-2">No domains configured</div>
-        )}
-        <div className="flex gap-2 mt-2">
-          <input
-            type="text"
-            placeholder="example.com"
-            value={newDomain}
-            onChange={(e) => setNewDomain(e.target.value)}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-          />
-          <button
-            onClick={() => {
-              if (newDomain) {
-                addDomain.mutate({ id: svc.id, hostname: newDomain, port: 443 })
-                setNewDomain('')
-              }
-            }}
-            className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[13px] font-medium text-white/70 mb-2">Storage Mounts</div>
-        {svc.storageMounts.length > 0 ? (
-          svc.storageMounts.map((sm) => (
-            <div
-              key={sm.hostPath}
-              className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5 mb-1.5 group"
-            >
-              <HardDrive size={13} className="text-white/30" />
-              <div className="text-[11px] text-white/50 font-mono">
-                {sm.hostPath} → {sm.containerPath}
-              </div>
-              <button
-                onClick={() => removeStorage.mutate({ id: svc.id, hostPath: sm.hostPath })}
-                className="ml-auto p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <div className="text-[12px] text-white/30 py-2">No storage mounts</div>
-        )}
-        <div className="flex gap-2 mt-2">
-          <input
-            type="text"
-            placeholder="/var/lib/dokku/data/storage/..."
-            value={newHostPath}
-            onChange={(e) => setNewHostPath(e.target.value)}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-          />
-          <input
-            type="text"
-            placeholder="/app/data"
-            value={newContainerPath}
-            onChange={(e) => setNewContainerPath(e.target.value)}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-          />
-          <button
-            onClick={() => {
-              if (newHostPath && newContainerPath) {
-                addStorage.mutate({ id: svc.id, hostPath: newHostPath, containerPath: newContainerPath })
-                setNewHostPath('')
-                setNewContainerPath('')
-              }
-            }}
-            className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 // ── Resource Settings ────────────────────────
 function ResourceSettings({ svc }: { svc: Service }) {

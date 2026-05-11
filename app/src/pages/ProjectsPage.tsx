@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Folder, Plus, Search, Box, Database } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
-import { useServices } from '@/hooks/useServices'
+
 import { useCanvasStore } from '@/stores/useCanvasStore'
+import OnboardingChecklist from '@/components/OnboardingChecklist'
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
@@ -43,6 +44,7 @@ export default function ProjectsPage() {
   return (
     <div className="min-h-full p-8">
       <div className="max-w-5xl mx-auto">
+        <OnboardingChecklist />
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Projects</h1>
@@ -157,14 +159,11 @@ function ProjectCard({
   onOpen,
   onDelete,
 }: {
-  project: { id: string; name: string; description: string; environment: string }
+  project: { id: string; name: string; description: string; environment: string; serviceCounts: { total: number; app: number; database: number; cache: number } }
   onOpen: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  const { data: svcs = [] } = useServices(project.id)
-  const appCount = svcs.filter((s) => s.type === 'app').length
-  const dbCount = svcs.filter((s) => s.type === 'database').length
-  const cacheCount = svcs.filter((s) => s.type === 'cache').length
+  const { total, app: appCount, database: dbCount, cache: cacheCount } = project.serviceCounts
 
   return (
     <div className="relative group">
@@ -196,7 +195,7 @@ function ProjectCard({
 
         <div className="flex items-center gap-3 text-[10px] text-[#6B6B7B]">
           <span className="flex items-center gap-1">
-            <Box size={10} /> {svcs.length} services
+            <Box size={10} /> {total} services
           </span>
           {appCount > 0 && <span>{appCount} app{appCount > 1 ? 's' : ''}</span>}
           {dbCount > 0 && <span>{dbCount} db</span>}

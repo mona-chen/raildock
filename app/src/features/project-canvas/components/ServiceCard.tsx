@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useEffect } from 'react'
+import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { Box, Globe, Database, Zap, MessageSquare, Search, HardDrive, Link2, Unlink, X } from 'lucide-react'
 import type { Service } from '@/types'
 
@@ -42,10 +42,25 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
   const isDb = service.type === 'database'
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+
+  const openMenu = useCallback(() => {
+    const btn = buttonRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const menuWidth = 180
+    // Position menu to the left of the button if near right edge
+    const left = Math.min(rect.left, window.innerWidth - menuWidth - 8)
+    const top = rect.bottom + 4
+    setMenuPos({ top, left })
+    setShowLinkMenu(true)
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setShowLinkMenu(false)
       }
     }
@@ -70,7 +85,14 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onMouseDown(e as unknown as React.MouseEvent)
+          // Programmatically create a mouse event at the card center to open the panel
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+          const syntheticEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          })
+          e.currentTarget.dispatchEvent(syntheticEvent)
         }
       }}
     >
@@ -91,16 +113,22 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
               <div className="text-[15px] font-semibold text-white truncate">{service.name}</div>
             </div>
             {otherServices && (linkable.length > 0 || linked.length > 0) && (
-              <div className="relative" ref={menuRef}>
+              <div className="relative">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowLinkMenu(!showLinkMenu) }}
+                  ref={buttonRef}
+                  onClick={(e) => { e.stopPropagation(); showLinkMenu ? setShowLinkMenu(false) : openMenu() }}
                   className="p-1 rounded hover:bg-white/[0.08] text-white/30 hover:text-white/60 transition-colors"
                   title="Link services"
+                  type="button"
                 >
                   <Link2 size={14} />
                 </button>
-                {showLinkMenu && (
-                  <div className="absolute right-0 top-7 w-44 bg-[#1a1a1e] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40 py-1.5 z-50">
+                {showLinkMenu && menuPos && (
+                  <div
+                    className="fixed w-44 bg-[#1a1a1e] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40 py-1.5 z-50"
+                    style={{ top: menuPos.top, left: menuPos.left }}
+                    ref={menuRef}
+                  >
                     {linked.length > 0 && (
                       <>
                         <div className="px-3 py-1 text-[10px] text-white/30 uppercase tracking-wider">Linked</div>
@@ -144,11 +172,22 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
             <div
               className="w-2 h-2 rounded-full"
               style={{
-                backgroundColor: service.status === 'running' ? '#22c55e' : '#4A4A55',
+                backgroundColor:
+                  service.status === 'running' ? '#22c55e' :
+                  service.status === 'error' ? '#ef4444' :
+                  service.status === 'building' ? '#eab308' :
+                  service.status === 'deploying' ? '#8b5cf6' :
+                  service.status === 'stopped' ? '#f97316' :
+                  '#4A4A55',
               }}
             />
             <span className="text-[12px] text-white/60">
-              {service.status === 'running' ? 'Online' : service.status}
+              {service.status === 'running' ? 'Online' :
+               service.status === 'error' ? 'Error' :
+               service.status === 'building' ? 'Building' :
+               service.status === 'deploying' ? 'Deploying' :
+               service.status === 'stopped' ? 'Stopped' :
+               service.status}
             </span>
           </div>
         </div>

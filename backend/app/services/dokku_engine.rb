@@ -1,4 +1,5 @@
 require "net/ssh"
+require "shellwords"
 
 class DokkuEngine
   attr_reader :server
@@ -21,6 +22,38 @@ class DokkuEngine
           unless success
             return { success: false, output: "Failed to execute command" }
           end
+
+          ch.on_data { |_, data| output += data }
+          ch.on_extended_data { |_, type, data| output += data }
+          ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+        end
+      end
+      channel.wait
+    end
+
+    { success: exit_code == 0, output: output }
+  rescue Net::SSH::AuthenticationFailed => e
+    { success: false, output: "Authentication failed: #{e.message}" }
+  rescue => e
+    { success: false, output: "SSH error: #{e.message}" }
+  end
+
+  # Run a command piping data to stdin
+  def run_with_stdin(command, stdin_data)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    output = ""
+    exit_code = nil
+
+    Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
+      channel = ssh.open_channel do |ch|
+        ch.exec("#{command}") do |_, success|
+          unless success
+            return { success: false, output: "Failed to execute command" }
+          end
+
+          ch.send_data(stdin_data)
+          ch.eof!
 
           ch.on_data { |_, data| output += data }
           ch.on_extended_data { |_, type, data| output += data }
@@ -77,9 +110,7 @@ class DokkuEngine
   def validate_connection
     result = run("version")
     if result[:success]
-      # Parse dokku version from output
       dokku_version = result[:output].match(/dokku version (\S+)/)&.[](1) || "unknown"
-      # Also try to get docker version
       docker_result = run("docker --version")
       docker_version = docker_result[:output].match(/Docker version ([\d\.]+)/)&.[](1) || "unknown"
       {
@@ -97,15 +128,15 @@ class DokkuEngine
   # ── App Lifecycle ────────────────────────────
 
   def app_create(app_name)
-    run("apps:create #{app_name}")
+    run("apps:create #{escape(app_name)}")
   end
 
   def app_destroy(app_name)
-    run("apps:destroy #{app_name} --force")
+    run("apps:destroy #{escape(app_name)} --force")
   end
 
   def app_exists?(app_name)
-    result = run("apps:exists #{app_name}")
+    result = run("apps:exists #{escape(app_name)}")
     result[:success]
   end
 
@@ -116,173 +147,181 @@ class DokkuEngine
   # ── Process Management ───────────────────────
 
   def ps_scale(app_name, process_type, quantity)
-    run("ps:scale #{app_name} #{process_type}=#{quantity}")
+    run("ps:scale #{escape(app_name)} #{escape(process_type)}=#{quantity.to_i}")
   end
 
   def ps_restart(app_name)
-    run("ps:restart #{app_name}")
+    run("ps:restart #{escape(app_name)}")
   end
 
   def ps_rebuild(app_name)
-    run("ps:rebuild #{app_name}")
+    run("ps:rebuild #{escape(app_name)}")
   end
 
   def ps_stop(app_name)
-    run("ps:stop #{app_name}")
+    run("ps:stop #{escape(app_name)}")
   end
 
   def ps_start(app_name)
-    run("ps:start #{app_name}")
+    run("ps:start #{escape(app_name)}")
   end
 
   # ── Configuration / Env Vars ─────────────────
 
   def config_set(app_name, key, value)
-    run("config:set --no-restart #{app_name} #{key}='#{value.gsub("'", "'\\''")}'")
+    run("config:set --no-restart #{escape(app_name)} #{escape(key)}=#{escape(value)}")
   end
 
   def config_unset(app_name, key)
-    run("config:unset --no-restart #{app_name} #{key}")
+    run("config:unset --no-restart #{escape(app_name)} #{escape(key)}")
   end
 
   def config_get(app_name, key)
-    run("config:get #{app_name} #{key}")
+    run("config:get #{escape(app_name)} #{escape(key)}")
   end
 
   def config_export(app_name)
-    run("config:export #{app_name}")
+    run("config:export #{escape(app_name)}")
   end
 
   # ── Domains ──────────────────────────────────
 
   def domain_add(app_name, hostname)
-    run("domains:add #{app_name} #{hostname}")
+    run("domains:add #{escape(app_name)} #{escape(hostname)}")
   end
 
   def domain_remove(app_name, hostname)
-    run("domains:remove #{app_name} #{hostname}")
+    run("domains:remove #{escape(app_name)} #{escape(hostname)}")
   end
 
   def domain_clear(app_name)
-    run("domains:clear #{app_name}")
+    run("domains:clear #{escape(app_name)}")
   end
 
   def domain_set(app_name, *hostnames)
-    run("domains:set #{app_name} #{hostnames.join(" ")}")
+    run("domains:set #{escape(app_name)} #{hostnames.map { |h| escape(h) }.join(" ")}")
   end
 
   # ── Storage / Volumes ────────────────────────
 
   def storage_mount(app_name, host_path, container_path)
-    run("storage:mount #{app_name} #{host_path}:#{container_path}")
+    run("storage:mount #{escape(app_name)} #{escape(host_path)}:#{escape(container_path)}")
   end
 
   def storage_unmount(app_name, host_path, container_path)
-    run("storage:unmount #{app_name} #{host_path}:#{container_path}")
+    run("storage:unmount #{escape(app_name)} #{escape(host_path)}:#{escape(container_path)}")
   end
 
   # ── Nginx Settings ───────────────────────────
 
   def nginx_set(app_name, property, value)
-    run("nginx:set #{app_name} #{property} #{value}")
+    run("nginx:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
   end
 
   def nginx_show_config(app_name)
-    run("nginx:show-config #{app_name}")
+    run("nginx:show-config #{escape(app_name)}")
   end
 
   # ── Proxy ────────────────────────────────────
 
   def proxy_enable(app_name)
-    run("proxy:enable #{app_name}")
+    run("proxy:enable #{escape(app_name)}")
   end
 
   def proxy_disable(app_name)
-    run("proxy:disable #{app_name}")
+    run("proxy:disable #{escape(app_name)}")
   end
 
   def proxy_ports_set(app_name, scheme, host_port, container_port)
-    run("proxy:ports-set #{app_name} #{scheme}:#{host_port}:#{container_port}")
+    run("proxy:ports-set #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
   end
 
   def proxy_set(app_name, proxy_type)
-    run("proxy:set #{app_name} #{proxy_type}")
+    run("proxy:set #{escape(app_name)} #{escape(proxy_type)}")
   end
 
   # ── Health Checks ────────────────────────────
 
   def checks_enable(app_name)
-    run("checks:enable #{app_name}")
+    run("checks:enable #{escape(app_name)}")
   end
 
   def checks_disable(app_name)
-    run("checks:disable #{app_name}")
+    run("checks:disable #{escape(app_name)}")
   end
 
   def checks_skip(app_name, *process_types)
-    run("checks:skip #{app_name} #{process_types.join(" ")}")
+    run("checks:skip #{escape(app_name)} #{process_types.map { |pt| escape(pt) }.join(" ")}")
   end
 
   # ── Docker Options ───────────────────────────
 
   def docker_option_add(app_name, phase, option)
-    run("docker-options:add #{app_name} #{phase} #{option}")
+    run("docker-options:add #{escape(app_name)} #{escape(phase)} #{escape(option)}")
   end
 
   def docker_option_remove(app_name, phase, option)
-    run("docker-options:remove #{app_name} #{phase} #{option}")
+    run("docker-options:remove #{escape(app_name)} #{escape(phase)} #{escape(option)}")
   end
 
   # ── Resource Limits ──────────────────────────
 
   def resource_limit(app_name, process_type, memory: nil, cpu: nil, nvidia_gpu: nil)
     args = []
-    args << "--memory #{memory}" if memory
-    args << "--cpu #{cpu}" if cpu
-    args << "--nvidia-gpu #{nvidia_gpu}" if nvidia_gpu
-    run("resource:limit #{app_name} #{process_type} #{args.join(" ")}")
+    args << "--memory #{escape(memory)}" if memory
+    args << "--cpu #{escape(cpu)}" if cpu
+    args << "--nvidia-gpu #{nvidia_gpu.to_i}" if nvidia_gpu
+    run("resource:limit #{escape(app_name)} #{escape(process_type)} #{args.join(" ")}")
   end
 
   def resource_reserve(app_name, process_type, memory: nil, cpu: nil)
     args = []
-    args << "--memory #{memory}" if memory
-    args << "--cpu #{cpu}" if cpu
-    run("resource:reserve #{app_name} #{process_type} #{args.join(" ")}")
+    args << "--memory #{escape(memory)}" if memory
+    args << "--cpu #{escape(cpu)}" if cpu
+    run("resource:reserve #{escape(app_name)} #{escape(process_type)} #{args.join(" ")}")
   end
 
   # ── Let's Encrypt / SSL ──────────────────────
 
   def letsencrypt_enable(app_name, email)
-    run("letsencrypt:set #{app_name} email #{email}")
-    run("letsencrypt:enable #{app_name}")
+    run("letsencrypt:set #{escape(app_name)} email #{escape(email)}")
+    run("letsencrypt:enable #{escape(app_name)}")
   end
 
   def letsencrypt_disable(app_name)
-    run("letsencrypt:disable #{app_name}")
+    run("letsencrypt:disable #{escape(app_name)}")
   end
 
   def letsencrypt_auto_renew(app_name)
-    run("letsencrypt:auto-renew #{app_name}")
+    run("letsencrypt:auto-renew #{escape(app_name)}")
   end
 
   # ── Git Deployment ───────────────────────────
 
   def deploy(app_name, repo_url, branch: "main")
-    run("git:sync #{app_name} #{repo_url} #{branch}")
+    run("git:sync #{escape(app_name)} #{escape(repo_url)} #{escape(branch)}")
   end
 
   def deploy_from_image(app_name, image)
-    run("git:from-image #{app_name} #{image}")
+    run("git:from-image #{escape(app_name)} #{escape(image)}")
   end
 
   def git_set_deploy_branch(app_name, branch)
-    run("git:set #{app_name} deploy-branch #{branch}")
+    run("git:set #{escape(app_name)} deploy-branch #{escape(branch)}")
+  end
+
+  def git_set_deploy_key(app_name, private_key)
+    run_with_stdin("git:set #{escape(app_name)} deploy-key", private_key)
+  end
+
+  def git_remove_deploy_key(app_name)
+    run("git:set #{escape(app_name)} deploy-key ''")
   end
 
   # ── Logs ─────────────────────────────────────
 
   def logs(app_name, lines: 100, tail: false)
-    cmd = "logs #{app_name} --num #{lines}"
+    cmd = "logs #{escape(app_name)} --num #{lines.to_i}"
     cmd += " --tail" if tail
     run(cmd)
   end
@@ -290,94 +329,210 @@ class DokkuEngine
   # ── Datastore Plugins ────────────────────────
 
   def postgres_create(service_name)
-    run("postgres:create #{service_name}")
+    run("postgres:create #{escape(service_name)}")
   end
 
   def redis_create(service_name)
-    run("redis:create #{service_name}")
+    run("redis:create #{escape(service_name)}")
   end
 
   def mysql_create(service_name)
-    run("mysql:create #{service_name}")
+    run("mysql:create #{escape(service_name)}")
   end
 
   def mongo_create(service_name)
-    run("mongo:create #{service_name}")
+    run("mongo:create #{escape(service_name)}")
   end
 
   def postgres_destroy(service_name)
-    run("postgres:destroy #{service_name} --force")
+    run("postgres:destroy #{escape(service_name)} --force")
   end
 
   def redis_destroy(service_name)
-    run("redis:destroy #{service_name} --force")
+    run("redis:destroy #{escape(service_name)} --force")
   end
 
   def mysql_destroy(service_name)
-    run("mysql:destroy #{service_name} --force")
+    run("mysql:destroy #{escape(service_name)} --force")
+  end
+
+  def mongo_destroy(service_name)
+    run("mongo:destroy #{escape(service_name)} --force")
   end
 
   def postgres_link(service_name, app_name)
-    run("postgres:link #{service_name} #{app_name}")
+    run("postgres:link #{escape(service_name)} #{escape(app_name)}")
   end
 
   def redis_link(service_name, app_name)
-    run("redis:link #{service_name} #{app_name}")
+    run("redis:link #{escape(service_name)} #{escape(app_name)}")
   end
 
   def mysql_link(service_name, app_name)
-    run("mysql:link #{service_name} #{app_name}")
+    run("mysql:link #{escape(service_name)} #{escape(app_name)}")
   end
 
   def mongo_link(service_name, app_name)
-    run("mongo:link #{service_name} #{app_name}")
+    run("mongo:link #{escape(service_name)} #{escape(app_name)}")
   end
 
   def postgres_unlink(service_name, app_name)
-    run("postgres:unlink #{service_name} #{app_name}")
+    run("postgres:unlink #{escape(service_name)} #{escape(app_name)}")
   end
 
   def redis_unlink(service_name, app_name)
-    run("redis:unlink #{service_name} #{app_name}")
+    run("redis:unlink #{escape(service_name)} #{escape(app_name)}")
   end
 
   def mysql_unlink(service_name, app_name)
-    run("mysql:unlink #{service_name} #{app_name}")
+    run("mysql:unlink #{escape(service_name)} #{escape(app_name)}")
   end
 
   def mongo_unlink(service_name, app_name)
-    run("mongo:unlink #{service_name} #{app_name}")
+    run("mongo:unlink #{escape(service_name)} #{escape(app_name)}")
   end
 
-  def postgres_export(service_name, path)
-    run("postgres:export #{service_name} > #{path}")
+  # ── Datastore Info ───────────────────────────
+
+  def postgres_info(service_name)
+    parse_datastore_info(run("postgres:info #{escape(service_name)}"), "postgres")
   end
 
-  def postgres_import(service_name, path)
-    run("postgres:import #{service_name} < #{path}")
+  def redis_info(service_name)
+    parse_datastore_info(run("redis:info #{escape(service_name)}"), "redis")
+  end
+
+  def mysql_info(service_name)
+    parse_datastore_info(run("mysql:info #{escape(service_name)}"), "mysql")
+  end
+
+  def mongo_info(service_name)
+    parse_datastore_info(run("mongo:info #{escape(service_name)}"), "mongo")
+  end
+
+  # ── Datastore Logs ───────────────────────────
+
+  def postgres_logs(service_name, lines: 100)
+    run("postgres:logs #{escape(service_name)} --num #{lines.to_i}")
+  end
+
+  def redis_logs(service_name, lines: 100)
+    run("redis:logs #{escape(service_name)} --num #{lines.to_i}")
+  end
+
+  def mysql_logs(service_name, lines: 100)
+    run("mysql:logs #{escape(service_name)} --num #{lines.to_i}")
+  end
+
+  def mongo_logs(service_name, lines: 100)
+    run("mongo:logs #{escape(service_name)} --num #{lines.to_i}")
+  end
+
+  # ── Datastore Backup / Restore ───────────────
+
+  def postgres_export(service_name)
+    run("postgres:export #{escape(service_name)}")
+  end
+
+  def redis_export(service_name)
+    run("redis:export #{escape(service_name)}")
+  end
+
+  def mysql_export(service_name)
+    run("mysql:export #{escape(service_name)}")
+  end
+
+  def mongo_export(service_name)
+    run("mongo:export #{escape(service_name)}")
+  end
+
+  def postgres_import(service_name, data)
+    run_with_stdin("postgres:import #{escape(service_name)}", data)
+  end
+
+  def redis_import(service_name, data)
+    run_with_stdin("redis:import #{escape(service_name)}", data)
+  end
+
+  def mysql_import(service_name, data)
+    run_with_stdin("mysql:import #{escape(service_name)}", data)
+  end
+
+  def mongo_import(service_name, data)
+    run_with_stdin("mongo:import #{escape(service_name)}", data)
   end
 
   # ── Cron ─────────────────────────────────────
 
   def cron_set(app_name, schedule, command)
-    run("cron:set #{app_name} #{schedule} #{command}")
+    run("cron:set #{escape(app_name)} #{escape(schedule)} #{escape(command)}")
   end
 
   def cron_clear(app_name)
-    run("cron:clear #{app_name}")
+    run("cron:clear #{escape(app_name)}")
   end
 
   # ── Metrics / Status ─────────────────────────
 
   def metrics(app_name)
-    run("ps:report #{app_name}")
+    run("ps:report #{escape(app_name)}")
   end
 
   def container_status(app_name)
-    run("ps:report #{app_name} --process-status")
+    run("ps:report #{escape(app_name)} --process-status")
   end
 
   def app_report(app_name)
-    run("apps:report #{app_name}")
+    run("apps:report #{escape(app_name)}")
+  end
+
+  private
+
+  def escape(value)
+    Shellwords.escape(value.to_s)
+  end
+
+  # Parse Dokku datastore plugin info output into structured hash.
+  # Expected output format:
+  #   =====> <name> postgres service information
+  #          Dsn:                 postgres://postgres:pass@host:5432/db
+  #          Internal ip:         172.17.0.19
+  #          Status:              running
+  #          Version:             postgres:15.2
+  def parse_datastore_info(result, type)
+    return { success: false, error: result[:output] } unless result[:success]
+
+    output = result[:output]
+    info = { success: true, type: type }
+
+    output.each_line do |line|
+      next unless line.include?(":")
+      key, value = line.split(":", 2)
+      next unless key && value
+      key = key.strip.downcase.gsub(/\s+/, "_").to_sym
+      value = value.strip
+      info[key] = value
+    end
+
+    # Extract connection details from DSN if present
+    if info[:dsn]
+      uri = begin
+        URI.parse(info[:dsn])
+      rescue
+        nil
+      end
+      if uri
+        info[:username] = uri.user
+        info[:password] = uri.password
+        info[:host] = uri.host
+        info[:port] = uri.port
+        info[:database] = uri.path.to_s.sub(%r{^/}, "")
+        info[:url] = info[:dsn]
+      end
+    end
+
+    info
+  rescue => e
+    { success: false, error: "Failed to parse info: #{e.message}" }
   end
 end

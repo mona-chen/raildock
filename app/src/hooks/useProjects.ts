@@ -41,6 +41,20 @@ export function useDestroyProject() {
   })
 }
 
+export function useUpdateProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Parameters<typeof api.projects.update>[1]> }) =>
+      api.projects.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['projects', id] })
+      toast.success('Project updated')
+    },
+    onError: (err) => toast.error(`Failed to update project: ${err.message}`),
+  })
+}
+
 export function useUpdateProjectSharedVars() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -15,6 +15,7 @@ vi.mock('@/hooks/useServices', () => ({
   useRemoveStorageMount: () => ({ mutate: vi.fn() }),
   useBackupService: () => ({ mutate: vi.fn(), isPending: false }),
   useRestoreService: () => ({ mutate: vi.fn(), isPending: false }),
+  useBackups: () => ({ data: null, isLoading: false, isError: false, refetch: vi.fn() }),
   useRollbackService: () => ({ mutate: vi.fn(), isPending: false }),
   useContainerStatus: () => ({ data: null }),
   useUpdateService: () => ({ mutate: vi.fn() }),

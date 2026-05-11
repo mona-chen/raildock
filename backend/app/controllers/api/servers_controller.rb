@@ -47,7 +47,7 @@ module Api
         disk_result = engine.run("df -h / | awk 'NR==2{print $5}' | sed 's/%//'")
 
         return render json: {
-          cpu: cpu_result[:success] ? mem_result[:output].to_i : 0,
+          cpu: cpu_result[:success] ? cpu_result[:output].to_i : 0,
           memory: mem_result[:success] ? mem_result[:output].to_i : 0,
           disk: disk_result[:success] ? disk_result[:output].to_i : 0,
           uptime: server.uptime || "0d 0h 0m"

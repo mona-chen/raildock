@@ -1,3 +1,5 @@
+name: raildock
+
 services:
   traefik:
     image: traefik:v3.7.0
@@ -59,16 +61,17 @@ services:
       dockerfile: Dockerfile
     environment:
       RAILS_ENV: production
-      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD}@db:5432/raildock_production
+      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: raildock
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
       FRONTEND_URL: https://${RAILDOCK_DOMAIN:-localhost}
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-a9ed9ed072241a8a72b10a9ed9ed072241a8a72b10a9ed9ed072241a8a72b10}
       RAILS_SERVE_STATIC_FILES: "true"
     volumes:
       - rails_storage:/rails/storage
+      - ./data/dokku-ssh:/data/dokku-ssh:ro
     depends_on:
       db:
         condition: service_healthy
@@ -127,7 +130,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: raildock
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
       POSTGRES_DB: raildock_production
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -145,11 +148,16 @@ services:
     hostname: dokku
     environment:
       DOKKU_HOSTNAME: ${RAILDOCK_DOMAIN:-localhost}
-      DOKKU_HOST_ROOT: /mnt/dokku/home/dokku
-      DOKKU_LIB_HOST_ROOT: /mnt/dokku/var/lib/dokku
+      # Plugins create containers with bind mounts via the host daemon.
+      # The named volume 'dokku_data' is stored at this path on the Docker host.
+      # Override if your Docker root or Compose project name differs.
+      DOKKU_HOST_ROOT: ${DOKKU_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/home/dokku}
+      DOKKU_LIB_HOST_ROOT: ${DOKKU_LIB_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/var/lib/dokku}
     volumes:
       - dokku_data:/mnt/dokku
       - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+      - ./data/dokku-ssh:/data/dokku-ssh
+      - ./scripts/dokku-init.sh:/etc/my_init.d/99-raildock-init.sh:ro
     ports:
       - "3022:22"
     networks:

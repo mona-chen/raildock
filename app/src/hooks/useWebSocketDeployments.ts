@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { getCable, isCableAvailable, reconnectCable } from '@/lib/cable'
 import { useQueryClient } from '@tanstack/react-query'
+import { debugLog, debugWarn } from '@/lib/debug'
 
 interface DeploymentUpdate {
   deployment_id: string
@@ -37,21 +38,21 @@ export function useWebSocketDeployments(serviceId: string) {
       { channel: 'DeploymentsChannel', service_id: serviceId },
       {
         connected() {
-          console.log('[WebSocket] DeploymentsChannel connected for', serviceId)
+          debugLog('[WebSocket] DeploymentsChannel connected for', serviceId)
           setIsConnected(true)
           setIsRejected(false)
         },
         disconnected() {
-          console.log('[WebSocket] DeploymentsChannel disconnected for', serviceId)
+          debugLog('[WebSocket] DeploymentsChannel disconnected for', serviceId)
           setIsConnected(false)
         },
         rejected() {
-          console.warn('[WebSocket] DeploymentsChannel rejected for', serviceId)
+          debugWarn('[WebSocket] DeploymentsChannel rejected for', serviceId)
           setIsConnected(false)
           setIsRejected(true)
         },
         received(data: DeploymentUpdate) {
-          console.log('[WebSocket] DeploymentsChannel received:', data)
+          debugLog('[WebSocket] DeploymentsChannel received:', data)
           setLastUpdate(data)
           if (data.log_chunk && data.deployment_id) {
             logMapRef.current[data.deployment_id] = (logMapRef.current[data.deployment_id] || '') + data.log_chunk

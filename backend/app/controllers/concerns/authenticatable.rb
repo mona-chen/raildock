@@ -28,4 +28,17 @@ module Authenticatable
   def current_user
     @current_user
   end
+
+  def current_organization
+    @current_organization ||= begin
+      org_id = request.headers['X-Organization-ID'] || params[:organization_id]
+      Organization.find_by(id: org_id) if org_id
+    end
+  end
+
+  def authorize_organization_access!(organization)
+    return true if organization.nil?
+    return true if current_user.organizations.include?(organization)
+    render json: { error: "Forbidden" }, status: :forbidden
+  end
 end

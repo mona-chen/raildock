@@ -13,6 +13,7 @@ import type {
   Module,
   ActivityEvent,
   Template,
+  Organization,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -33,11 +34,17 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 // ── Fetch Wrapper ────────────────────────────
 
 function getAuthHeaders(): Record<string, string> {
-  const token = useAuthStore.getState().token
-  return {
+  const state = useAuthStore.getState()
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
+  if (state.token) {
+    headers['Authorization'] = `Bearer ${state.token}`
+  }
+  if (state.currentOrganizationId) {
+    headers['X-Organization-ID'] = state.currentOrganizationId
+  }
+  return headers
 }
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
@@ -75,6 +82,11 @@ export const projectsApi = {
 
   create: async (data: { name: string; description: string; environment?: string }): Promise<Project> => {
     const res = await fetchJson<unknown>('/api/projects', { method: 'POST', body: wrapBody('project', data) })
+    return normalizeProject(res)
+  },
+
+  update: async (id: string, data: Partial<Project>): Promise<Project> => {
+    const res = await fetchJson<unknown>(`/api/projects/${id}`, { method: 'PATCH', body: wrapBody('project', data) })
     return normalizeProject(res)
   },
 
@@ -167,12 +179,46 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/logs`)
   },
 
+  databaseInfo: async (id: string): Promise<{
+    success: boolean
+    error?: string
+    type?: string
+    dsn?: string
+    url?: string
+    host?: string
+    port?: number
+    username?: string
+    password?: string
+    database?: string
+    status?: string
+    version?: string
+    internal_ip?: string
+  }> => {
+    return fetchJson(`/api/services/${id}/database_info`)
+  },
+
   metrics: async (id: string): Promise<{ cpu: number; memory: number; networkIn: number; networkOut: number }> => {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
   deployments: async (id: string): Promise<{ id: string; status: string; branch: string; commit_sha: string; created_at: string }[]> => {
     return fetchJson(`/api/services/${id}/deployments`)
+  },
+
+  backups: async (id: string): Promise<{ id: string; status: string; size: number; createdAt: string }[]> => {
+    return fetchJson(`/api/services/${id}/backups`)
+  },
+
+  backupSchedules: async (id: string): Promise<{ id: string; frequency: string; retentionCount: number; lastRunAt: string; nextRunAt: string }[]> => {
+    return fetchJson(`/api/services/${id}/backup_schedules`)
+  },
+
+  createBackupSchedule: async (id: string, data: { frequency: string; retentionCount: number }): Promise<void> => {
+    await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: data }) })
+  },
+
+  destroyBackupSchedule: async (id: string, scheduleId: string): Promise<void> => {
+    await fetchJson(`/api/services/${id}/backup_schedules/${scheduleId}`, { method: 'DELETE' })
   },
 
   deployment: async (deploymentId: string): Promise<{ id: string; status: string; branch: string; commitSha: string; deployLog: string; buildLog: string; createdAt: string; startedAt: string; completedAt: string }> => {
@@ -191,8 +237,21 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/backup`, { method: 'POST' })
   },
 
-  restore: async (id: string): Promise<{ success: boolean }> => {
-    return fetchJson(`/api/services/${id}/restore`, { method: 'POST' })
+  restore: async (id: string, file?: File): Promise<{ success: boolean }> => {
+    const state = useAuthStore.getState()
+    const headers: Record<string, string> = {}
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`
+    if (state.currentOrganizationId) headers['X-Organization-ID'] = state.currentOrganizationId
+    const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
+      method: 'POST',
+      headers,
+      body: file || undefined,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || `HTTP ${res.status}`)
+    }
+    return res.json()
   },
 
   rollback: async (id: string, deploymentId: string): Promise<void> => {
@@ -229,18 +288,41 @@ export const serversApi = {
 // ── Git Sources API ──────────────────────────
 
 export const gitSourcesApi = {
-  list: async (): Promise<GitSource[]> => {
-    const data = await fetchJson<unknown[]>('/api/git-sources')
+  list: async (organizationId?: string): Promise<GitSource[]> => {
+    const path = organizationId ? `/api/organizations/${organizationId}/git-sources` : '/api/git-sources'
+    const data = await fetchJson<unknown[]>(path)
     return data.map(normalizeGitSource)
   },
 
-  connect: async (provider: string, token: string): Promise<GitSource> => {
-    const res = await fetchJson<unknown>('/api/git-sources', { method: 'POST', body: JSON.stringify({ provider, access_token: token }) })
+  connect: async (provider: string, token: string, organizationId?: string): Promise<GitSource> => {
+    const body: Record<string, unknown> = { provider, access_token: token }
+    if (organizationId) body.organization_id = organizationId
+    const res = await fetchJson<unknown>('/api/git-sources', { method: 'POST', body: JSON.stringify(body) })
     return normalizeGitSource(res)
   },
 
   disconnect: async (id: string): Promise<void> => {
     await fetchJson(`/api/git-sources/${id}`, { method: 'DELETE' })
+  },
+}
+
+// ── Organizations API ──────────────────────────
+
+export const organizationsApi = {
+  list: async (): Promise<Organization[]> => {
+    return fetchJson<Organization[]>('/api/organizations')
+  },
+
+  get: async (id: string): Promise<Organization> => {
+    return fetchJson<Organization>(`/api/organizations/${id}`)
+  },
+
+  create: async (data: { name: string; slug: string; avatarUrl?: string }): Promise<Organization> => {
+    return fetchJson<Organization>('/api/organizations', { method: 'POST', body: wrapBody('organization', data) })
+  },
+
+  destroy: async (id: string): Promise<void> => {
+    await fetchJson(`/api/organizations/${id}`, { method: 'DELETE' })
   },
 }
 
@@ -271,14 +353,6 @@ export const templatesApi = {
 export const modulesApi = {
   list: async (): Promise<Module[]> => {
     return fetchJson('/api/templates')
-  },
-}
-
-// ── Builders API ─────────────────────────────
-
-export const buildersApi = {
-  list: async (): Promise<{ id: string; name: string; description: string }[]> => {
-    return fetchJson('/api/builders')
   },
 }
 
@@ -330,6 +404,24 @@ export const authApi = {
 
 // ── Unified API Export ───────────────────────
 
+// ── Deploy Keys API ──────────────────────────
+
+export const deployKeysApi = {
+  list: async (): Promise<{ id: string; name: string; publicKey: string; fingerprint: string; createdAt: string }[]> => {
+    return fetchJson('/api/deploy-keys')
+  },
+
+  create: async (data: { name: string }): Promise<{ id: string; name: string; publicKey: string; fingerprint: string }> => {
+    return fetchJson('/api/deploy-keys', { method: 'POST', body: JSON.stringify(data) })
+  },
+
+  destroy: async (id: string): Promise<void> => {
+    await fetchJson(`/api/deploy-keys/${id}`, { method: 'DELETE' })
+  },
+}
+
+// ── Unified API Export ───────────────────────
+
 export const api = {
   auth: authApi,
   projects: projectsApi,
@@ -339,6 +431,7 @@ export const api = {
   activity: activityApi,
   modules: modulesApi,
   templates: templatesApi,
-  builders: buildersApi,
   networks: networksApi,
+  organizations: organizationsApi,
+  deployKeys: deployKeysApi,
 }

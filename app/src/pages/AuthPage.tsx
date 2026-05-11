@@ -1,8 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LogIn, UserPlus, Loader2, Zap } from 'lucide-react'
+import { LogIn, UserPlus, Loader2, Zap, Eye, EyeOff, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { authApi } from '@/lib/api'
+import { toast } from 'sonner'
+
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  let score = 0
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[^A-Za-z0-9]/.test(password)) score++
+
+  const levels = [
+    { label: 'Too weak', color: '#ef4444' },
+    { label: 'Weak', color: '#f97316' },
+    { label: 'Fair', color: '#eab308' },
+    { label: 'Good', color: '#22c55e' },
+    { label: 'Strong', color: '#22c55e' },
+    { label: 'Very strong', color: '#8b5cf6' },
+  ]
+  return { score, label: levels[score].label, color: levels[score].color }
+}
 
 export default function AuthPage() {
   const navigate = useNavigate()
@@ -10,12 +30,21 @@ export default function AuthPage() {
   const isSetup = location.pathname === '/setup'
   const { setToken, setUser, isAuthenticated } = useAuthStore()
 
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmPasswordRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [setupRequired, setSetupRequired] = useState(false)
+
+  const strength = getPasswordStrength(password)
+  const passwordsMatch = !isSetup || password === confirmPassword || confirmPassword === ''
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -24,29 +53,31 @@ export default function AuthPage() {
     }
   }, [])
 
-  // Check if setup is required
+  // Check if setup is required — run on both /login and /setup
   useEffect(() => {
-    if (!isSetup) {
-      fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/setup`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.required) {
-            setSetupRequired(true)
-            navigate('/setup', { replace: true })
-          }
-        })
-        .catch(() => {
-          // Backend not reachable — assume mock mode, no redirect needed
-        })
-    }
+    fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/setup`)
+      .then(r => r.json())
+      .then(data => {
+        setSetupRequired(data.required)
+        if (data.required && !isSetup) {
+          navigate('/setup', { replace: true })
+        }
+      })
+      .catch(() => {
+        // Backend not reachable — assume mock mode, no redirect needed
+      })
   }, [isSetup, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+    // Read values directly from refs to handle password-manager autofill
+    // which may not trigger React onChange events
+    const emailValue = emailRef.current?.value || email
+    const passwordValue = passwordRef.current?.value || password
     try {
-      const data = await authApi.login(email, password)
+      const data = await authApi.login(emailValue, passwordValue)
       setToken(data.token)
       setUser(data.user)
       navigate('/dashboard')
@@ -60,11 +91,26 @@ export default function AuthPage() {
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    const nameValue = nameRef.current?.value || name
+    const emailValue = emailRef.current?.value || email
+    const passwordValue = passwordRef.current?.value || password
+    const confirmValue = confirmPasswordRef.current?.value || confirmPassword
+
+    if (passwordValue !== confirmValue) {
+      setError('Passwords do not match')
+      return
+    }
+    if (passwordValue.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+
     setLoading(true)
     try {
-      const data = await authApi.register({ name, email, password })
+      const data = await authApi.register({ name: nameValue, email: emailValue, password: passwordValue })
       setToken(data.token)
       setUser(data.user)
+      toast.success(`Welcome to RailDock, ${nameValue}!`)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Setup failed')
@@ -95,7 +141,8 @@ export default function AuthPage() {
           </p>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+            <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-2">
+              <AlertCircle size={14} />
               {error}
             </div>
           )}
@@ -107,6 +154,7 @@ export default function AuthPage() {
                   Full Name
                 </label>
                 <input
+                  ref={nameRef}
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -121,6 +169,7 @@ export default function AuthPage() {
                 Email
               </label>
               <input
+                ref={emailRef}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -133,20 +182,78 @@ export default function AuthPage() {
               <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  ref={passwordRef}
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#4A4A55] hover:text-[#A0A0B0]"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              {isSetup && password.length > 0 && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 h-1 bg-[rgba(255,255,255,0.06)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${(strength.score / 5) * 100}%`, backgroundColor: strength.color }}
+                      />
+                    </div>
+                    <span className="text-[10px]" style={{ color: strength.color }}>{strength.label}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {[
+                      { label: '8+ chars', met: password.length >= 8 },
+                      { label: 'Uppercase', met: /[A-Z]/.test(password) },
+                      { label: 'Number', met: /[0-9]/.test(password) },
+                      { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
+                    ].map((req) => (
+                      <span key={req.label} className={`text-[10px] flex items-center gap-1 ${req.met ? 'text-rail-green' : 'text-[#4A4A55]'}`}>
+                        {req.met ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+                        {req.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {isSetup && (
+              <div>
+                <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+                  Confirm Password
+                </label>
+                <input
+                  ref={confirmPasswordRef}
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className={`w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none transition-colors ${
+                    passwordsMatch ? 'border-[rgba(255,255,255,0.08)] focus:border-[rgba(139,92,246,0.4)]' : 'border-red-500/30 focus:border-red-500/50'
+                  }`}
+                  placeholder="••••••••"
+                />
+                {!passwordsMatch && (
+                  <p className="text-[10px] text-red-400 mt-1">Passwords do not match</p>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isSetup && !passwordsMatch)}
               className="w-full h-9 flex items-center justify-center gap-2 bg-rail-purple text-white text-sm font-medium rounded-lg hover:bg-rail-purple-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -162,6 +269,17 @@ export default function AuthPage() {
               )}
             </button>
           </form>
+
+          {!isSetup && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={() => toast.info('Password reset is not yet configured. Contact your admin.')}
+                className="text-[11px] text-[#4A4A55] hover:text-[#A0A0B0] transition-colors"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-center text-[10px] text-[#4A4A55] mt-4">

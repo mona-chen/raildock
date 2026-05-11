@@ -13,13 +13,16 @@ export default function CanvasToolbar({ projectName, projectEnvironment }: Canva
     <div className="h-11 border-b border-white/[0.06] flex items-center justify-between px-3 flex-shrink-0 z-40">
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => navigate('/dashboard/projects')}
           className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+          aria-label="Back to projects"
         >
           <Box size={16} className="text-white" />
         </button>
         <div className="w-px h-4 bg-white/[0.08]" />
         <button
+          type="button"
           onClick={() => navigate('/dashboard/projects')}
           className="flex items-center gap-1 text-[13px]"
         >
@@ -30,10 +33,10 @@ export default function CanvasToolbar({ projectName, projectEnvironment }: Canva
         <span className="text-[12px] text-white/50 capitalize">{projectEnvironment}</span>
       </div>
       <div className="flex items-center gap-3">
-        <button className="text-white/30 hover:text-white/60"><Activity size={16} /></button>
-        <button className="text-white/30 hover:text-white/60"><Bell size={16} /></button>
+        <button type="button" className="text-white/30 hover:text-white/60" aria-label="Activity"><Activity size={16} /></button>
+        <button type="button" className="text-white/30 hover:text-white/60" aria-label="Notifications"><Bell size={16} /></button>
         <div className="h-5 w-px bg-white/[0.08]" />
-        <button className="flex items-center gap-1 text-[12px] text-white/50">
+        <button type="button" className="flex items-center gap-1 text-[12px] text-white/50" aria-label="AI Agent">
           <Bot size={14} /> Agent
         </button>
       </div>
