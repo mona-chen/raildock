@@ -4,24 +4,41 @@
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| react | ^18.3.0 | UI framework |
-| react-dom | ^18.3.0 | DOM rendering |
-| react-router-dom | ^6.28.0 | Multi-page routing (Home, Dashboard, Pricing) |
-| three | ^0.170.0 | 3D spline tunnel hero effect |
-| meshline | ^3.3.0 | MeshLine for 3D tube trail |
-| gsap | ^3.12.0 | Scroll animations, hero sequence, transitions |
-| @gsap/react | ^2.1.0 | GSAP React integration (useGSAP) |
-| lucide-react | ^0.460.0 | Icons throughout |
-| framer-motion | ^11.15.0 | Page transitions, UI micro-interactions |
-| class-variance-authority | ^0.7.0 | Component variant styling |
-| clsx | ^2.1.0 | Conditional classnames |
-| tailwind-merge | ^2.6.0 | Tailwind class deduplication |
-| typescript | ^5.6.0 | Type checking |
-| vite | ^6.0.0 | Build tool |
-| @vitejs/plugin-react | ^4.3.0 | Vite React plugin |
-| tailwindcss | ^3.4.0 | Utility CSS |
-| postcss | ^8.4.0 | CSS processing |
-| autoprefixer | ^10.4.0 | CSS vendor prefixes |
+| react | ^19.2.0 | UI framework |
+| react-dom | ^19.2.0 | DOM rendering |
+| react-router-dom | ^7.14.1 | Multi-page routing |
+| three | ^0.184.0 | 3D spline tunnel hero effect |
+| meshline | ^3.3.1 | MeshLine for 3D tube trail |
+| gsap | ^3.15.0 | Scroll animations, hero sequence, transitions |
+| @gsap/react | ^2.1.2 | GSAP React integration (useGSAP) |
+| lucide-react | ^0.562.0 | Icons throughout |
+| framer-motion | ^12.38.0 | Page transitions, UI micro-interactions |
+| class-variance-authority | ^0.7.1 | Component variant styling |
+| clsx | ^2.1.1 | Conditional classnames |
+| tailwind-merge | ^3.4.0 | Tailwind class deduplication |
+| typescript | ~5.9.3 | Type checking |
+| vite | ^7.2.4 | Build tool |
+| @vitejs/plugin-react | ^5.1.1 | Vite React plugin |
+| tailwindcss | ^3.4.19 | Utility CSS |
+| postcss | ^8.5.6 | CSS processing |
+| autoprefixer | ^10.4.23 | CSS vendor prefixes |
+
+### Backend (Ruby)
+
+| Gem | Version | Purpose |
+|-----|---------|---------|
+| rails | ~> 8.1.1 | Web framework |
+| pg | ~> 1.1 | PostgreSQL adapter |
+| puma | >= 5.0 | Web server |
+| jwt | ~> 2.8 | JSON Web Tokens |
+| lockbox | ~> 2.0 | Encryption at rest |
+| net-ssh | ~> 7.2 | SSH for Dokku |
+| net-scp | ~> 4.0 | SCP for file transfer |
+| rack-attack | latest | Rate limiting |
+| concurrent-ruby | latest | Thread-safe collections |
+| solid_cache | latest | Cache backend |
+| solid_queue | latest | Job queue |
+| solid_cable | latest | ActionCable backend |
 
 ## Component Inventory
 

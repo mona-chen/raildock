@@ -4,15 +4,21 @@ class Server < ApplicationRecord
   validates :name, presence: true
   validates :host, presence: true
 
-  # Manual lockbox encryption for ssh_key to avoid ActiveRecord attribute
-  # method conflicts with the legacy plaintext column. Uses base64-encoded
-  # ciphertext so it can be stored in a text column without null byte issues.
+  enum :status, {
+    connected: "connected",
+    disconnected: "disconnected",
+    error: "error"
+  }, default: "disconnected"
+
+  PROXY_TYPES = %w[nginx traefik caddy haproxy openresty].freeze
+
   def ssh_key
     ciphertext = self[:ssh_key_ciphertext]
     return nil if ciphertext.blank?
 
     lockbox.decrypt(ciphertext)
-  rescue Lockbox::DecryptionError
+  rescue Lockbox::DecryptionError => e
+    Rails.logger.error "Failed to decrypt SSH key for server #{id}: #{e.message}"
     nil
   end
 
@@ -23,22 +29,6 @@ class Server < ApplicationRecord
       self[:ssh_key_ciphertext] = nil
     end
   end
-
-  private
-
-  def lockbox
-    @lockbox ||= Lockbox.new(key: Lockbox.master_key, encode: true)
-  end
-
-  public
-
-  enum :status, {
-    connected: "connected",
-    disconnected: "disconnected",
-    error: "error"
-  }, default: "disconnected"
-
-  PROXY_TYPES = %w[nginx traefik caddy haproxy openresty].freeze
 
   def default_proxy
     self[:default_proxy].presence || "traefik"
@@ -58,8 +48,14 @@ class Server < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:disk_usage, :memory_usage, :project_ids, :default_proxy],
-      except: [:ssh_key_ciphertext]
+      methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy ],
+      except: [ :ssh_key_ciphertext ]
     ))
+  end
+
+  private
+
+  def lockbox
+    @lockbox ||= Lockbox.new(key: Lockbox.master_key, encode: true)
   end
 end

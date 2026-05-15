@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "raildock",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -59,7 +59,6 @@
     "lucide-react": "^0.562.0",
     "meshline": "^3.3.1",
     "next-themes": "^0.4.6",
-    "playwright": "^1.59.1",
     "react": "^19.2.0",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.0",
@@ -88,6 +87,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "kimi-plugin-inspect-react": "^1.0.3",
+    "playwright": "^1.59.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",

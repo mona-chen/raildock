@@ -34,19 +34,19 @@ module Api
       attrs[:service_type] ||= params[:category] || params[:service_type]
       attrs[:name] ||= params[:name]
       attrs[:subtype] ||= params[:subtype]
-      attrs[:status] ||= 'stopped'
+      attrs[:status] ||= "stopped"
 
       service = Service.create!(attrs)
 
       # Create Dokku resource if server connected
       if server&.ssh_key.present?
         engine = DokkuEngine.new(server)
-        if service.service_type == 'database'
+        if service.service_type == "database"
           result = case service.subtype
-          when 'postgres' then engine.postgres_create(service.dokku_app_name)
-          when 'redis' then engine.redis_create(service.dokku_app_name)
-          when 'mysql' then engine.mysql_create(service.dokku_app_name)
-          when 'mongo' then engine.mongo_create(service.dokku_app_name)
+          when "postgres" then engine.postgres_create(service.dokku_app_name)
+          when "redis" then engine.redis_create(service.dokku_app_name)
+          when "mysql" then engine.mysql_create(service.dokku_app_name)
+          when "mongo" then engine.mongo_create(service.dokku_app_name)
           end
           service.update!(status: :running) if result && result[:success]
         else
@@ -73,12 +73,12 @@ module Api
       # Destroy Dokku resource if server connected
       if @service.project&.server&.ssh_key.present?
         engine = DokkuEngine.new(@service.project.server)
-        if @service.service_type == 'database'
+        if @service.service_type == "database"
           case @service.subtype
-          when 'postgres' then engine.postgres_destroy(@service.dokku_app_name)
-          when 'redis' then engine.redis_destroy(@service.dokku_app_name)
-          when 'mysql' then engine.mysql_destroy(@service.dokku_app_name)
-          when 'mongo' then engine.mongo_destroy(@service.dokku_app_name)
+          when "postgres" then engine.postgres_destroy(@service.dokku_app_name)
+          when "redis" then engine.redis_destroy(@service.dokku_app_name)
+          when "mysql" then engine.mysql_destroy(@service.dokku_app_name)
+          when "mongo" then engine.mongo_destroy(@service.dokku_app_name)
           end
         else
           engine.app_destroy(@service.dokku_app_name)
@@ -96,7 +96,7 @@ module Api
     end
 
     def deploy
-      if @service.service_type == 'database'
+      if @service.service_type == "database"
         render json: { error: "Database services cannot be deployed. They are managed directly by Dokku." }, status: :unprocessable_entity
         return
       end
@@ -493,10 +493,19 @@ module Api
     end
 
     def parse_metrics(output)
-      # Dokku ps:report returns text; try to extract numeric values
-      cpu = output.match(/cpu\s+(\d+)/i)&.[](1)&.to_i || rand(10..80)
-      memory = output.match(/memory\s+(\d+)/i)&.[](1)&.to_i || rand(20..90)
-      { cpu: cpu, memory: memory, network_in: 0, network_out: 0 }
+      cpu_match = output.match(/cpu\s+(\d+)/i)
+      memory_match = output.match(/memory\s+(\d+)/i)
+
+      unless cpu_match && memory_match
+        Rails.logger.warn "Metrics parsing failed - Dokku ps:report output may have changed format. Output: #{output[0..500]}"
+      end
+
+      {
+        cpu: cpu_match&.[](1)&.to_i,
+        memory: memory_match&.[](1)&.to_i,
+        network_in: 0,
+        network_out: 0
+      }
     end
   end
 end

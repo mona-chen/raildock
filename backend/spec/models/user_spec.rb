@@ -60,13 +60,13 @@ RSpec.describe User, type: :model do
 
     it "encodes the user_id in the token" do
       token = user.generate_jwt
-      decoded = JWT.decode(token, Rails.application.credentials.secret_key_base, true, algorithm: "HS256")
+      decoded = JWT.decode(token, user.jwt_secret_key, true, algorithm: "HS256")
       expect(decoded.first["user_id"]).to eq(user.id)
     end
 
     it "sets an expiration 30 days from now" do
       token = user.generate_jwt
-      decoded = JWT.decode(token, Rails.application.credentials.secret_key_base, true, algorithm: "HS256")
+      decoded = JWT.decode(token, user.jwt_secret_key, true, algorithm: "HS256")
       expect(decoded.first["exp"]).to be_within(5).of(30.days.from_now.to_i)
     end
   end

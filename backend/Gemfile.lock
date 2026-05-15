@@ -235,6 +235,8 @@ GEM
     raabro (1.4.0)
     racc (1.8.1)
     rack (3.2.6)
+    rack-attack (6.8.0)
+      rack (>= 1.0, < 4)
     rack-cors (3.0.0)
       logger
       rack (>= 3.0.14)
@@ -405,6 +407,7 @@ DEPENDENCIES
   bootsnap
   brakeman
   bundler-audit
+  concurrent-ruby
   debug
   factory_bot_rails (~> 6.4)
   faker (~> 3.4)
@@ -417,6 +420,7 @@ DEPENDENCIES
   octokit (~> 9.0)
   pg (~> 1.1)
   puma (>= 5.0)
+  rack-attack
   rack-cors
   rails (~> 8.1.1)
   rspec-rails (~> 7.0)

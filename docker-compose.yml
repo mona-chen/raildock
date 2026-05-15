@@ -67,7 +67,8 @@ services:
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
       FRONTEND_URL: https://${RAILDOCK_DOMAIN:-localhost}
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-a9ed9ed072241a8a72b10a9ed9ed072241a8a72b10a9ed9ed072241a8a72b10}
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in production}
       RAILS_SERVE_STATIC_FILES: "true"
     volumes:
       - rails_storage:/rails/storage
@@ -119,6 +120,7 @@ services:
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       backend:
         condition: service_healthy

@@ -1,4 +1,7 @@
 class LogsChannel < ApplicationCable::Channel
+  # Thread-safe map to track active log streams per service
+  cattr_accessor(:active_log_streams, default: Concurrent::Map.new)
+
   def subscribed
     service = Service.find(params[:service_id])
 
@@ -14,12 +17,8 @@ class LogsChannel < ApplicationCable::Channel
     stream_for service
     Rails.logger.info "[ActionCable] LogsChannel subscribed for service #{service.id} (user #{current_user.id})"
 
-    # Start a background thread to tail logs from Dokku
-    @thread = Thread.new do
-      ActiveRecord::Base.connection_pool.with_connection do
-        tail_logs(service)
-      end
-    end
+    # Start log tailing with proper cleanup
+    start_log_stream(service)
   rescue ActiveRecord::RecordNotFound
     Rails.logger.warn "[ActionCable] LogsChannel subscription rejected: service #{params[:service_id]} not found"
     reject
@@ -27,12 +26,41 @@ class LogsChannel < ApplicationCable::Channel
 
   def unsubscribed
     Rails.logger.info "[ActionCable] LogsChannel unsubscribed"
-    @thread&.kill
+    stop_log_stream
   end
 
   private
 
-  def tail_logs(service)
+  def start_log_stream(service)
+    # Clean up any existing stream for this service
+    stop_log_stream_for(service)
+
+    # Use a thread-safe queue to signal shutdown
+    stop_token = Concurrent::Atom.new(false)
+
+    # Store the stop token so we can signal it later
+    active_log_streams[service.id] = stop_token
+
+    # Run log tailing in a background executor to avoid blocking ActionCable
+    Concurrent::SingleThreadExecutor.new.post do
+      tail_logs(service, stop_token)
+    end
+  end
+
+  def stop_log_stream
+    # Find which service this subscription is for and signal stop
+    active_log_streams.each do |service_id, stop_token|
+      stop_token.swap(true)
+    end
+  end
+
+  def stop_log_stream_for(service)
+    if stop_token = active_log_streams.delete(service.id)
+      stop_token.swap(true)
+    end
+  end
+
+  def tail_logs(service, stop_token)
     server = service.project&.server
     return unless server&.ssh_key.present?
 
@@ -48,42 +76,50 @@ class LogsChannel < ApplicationCable::Channel
       "logs #{service.dokku_app_name} -n 0 --tail"
     end
 
-    Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
-      channel = ssh.open_channel do |ch|
-        ch.exec(log_cmd) do |_, success|
-          unless success
-            Rails.logger.error "LogsChannel: failed to execute logs command"
-            return
-          end
-
-          ch.on_data do |_, data|
-            data.split("\n").each do |line|
-              next if line.strip.empty?
-              parsed = parse_log_line(line)
-              next if parsed[:message].empty?
-              LogsChannel.broadcast_to(service, parsed)
+    begin
+      Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true, timeout: 10) do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(log_cmd) do |_, success|
+            unless success
+              Rails.logger.error "LogsChannel: failed to execute logs command"
+              return
             end
-          end
 
-          ch.on_extended_data do |_, type, data|
-            data.split("\n").each do |line|
-              next if line.strip.empty?
-              parsed = parse_log_line(line)
-              next if parsed[:message].empty?
-              LogsChannel.broadcast_to(service, parsed.merge(process_type: 'stderr'))
+            ch.on_data do |_, data|
+              break if stop_token.value
+              data.split("\n").each do |line|
+                next if line.strip.empty?
+                parsed = parse_log_line(line)
+                next if parsed[:message].empty?
+                LogsChannel.broadcast_to(service, parsed)
+              end
+            end
+
+            ch.on_extended_data do |_, type, data|
+              break if stop_token.value
+              data.split("\n").each do |line|
+                next if line.strip.empty?
+                parsed = parse_log_line(line)
+                next if parsed[:message].empty?
+                LogsChannel.broadcast_to(service, parsed.merge(process_type: "stderr"))
+              end
             end
           end
         end
+        channel.wait
       end
-      channel.wait
+    rescue Net::SSH::Exception => e
+      Rails.logger.error "LogsChannel SSH error: #{e.message}"
+    rescue => e
+      Rails.logger.error "LogsChannel error: #{e.message}"
+    ensure
+      active_log_streams.delete(service.id)
     end
-  rescue => e
-    Rails.logger.error "LogsChannel error: #{e.message}"
   end
 
   # Strip ANSI codes from log output
   def strip_ansi(str)
-    str.gsub(/\e\[[0-9;]*m/, '')
+    str.gsub(/\e\[[0-9;]*m/, "")
   end
 
   # Parse Dokku/Docker log lines:

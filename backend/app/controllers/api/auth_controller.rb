@@ -10,7 +10,7 @@ module Api
       user = User.find_by(email: params[:email])
 
       if user&.authenticate(params[:password])
-        render json: { token: user.generate_jwt, user: user.as_json(only: [:id, :email, :name]) }
+        render json: { token: user.generate_jwt, user: user.as_json(only: [ :id, :email, :name ]) }
       else
         render json: { error: "Invalid credentials" }, status: :unauthorized
       end
@@ -20,7 +20,7 @@ module Api
       user = current_user
 
       if user
-        render json: user.as_json(only: [:id, :email, :name])
+        render json: user.as_json(only: [ :id, :email, :name ])
       else
         render json: { error: "Unauthorized" }, status: :unauthorized
       end
@@ -28,12 +28,16 @@ module Api
 
     private
 
+    def jwt_secret
+      ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base }
+    end
+
     def current_user
       header = request.headers["Authorization"]
       token = header&.split(" ")&.last
       return nil unless token
 
-      decoded = JWT.decode(token, Rails.application.credentials.secret_key_base, true, { algorithm: "HS256" })
+      decoded = JWT.decode(token, jwt_secret, true, { algorithm: "HS256" })
       User.find_by(id: decoded[0]["user_id"]) if decoded
     rescue JWT::ExpiredSignature, JWT::DecodeError
       nil

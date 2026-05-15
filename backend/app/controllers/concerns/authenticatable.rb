@@ -16,7 +16,8 @@ module Authenticatable
     end
 
     begin
-      decoded = JWT.decode(token, Rails.application.credentials.secret_key_base, true, { algorithm: "HS256" })
+      jwt_secret = ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base }
+      decoded = JWT.decode(token, jwt_secret, true, { algorithm: "HS256" })
       @current_user = User.find(decoded[0]["user_id"])
     rescue JWT::ExpiredSignature
       render json: { error: "Token expired" }, status: :unauthorized and return
@@ -31,7 +32,7 @@ module Authenticatable
 
   def current_organization
     @current_organization ||= begin
-      org_id = request.headers['X-Organization-ID'] || params[:organization_id]
+      org_id = request.headers["X-Organization-ID"] || params[:organization_id]
       Organization.find_by(id: org_id) if org_id
     end
   end
