@@ -1,13 +1,36 @@
 # RailDock
 
-> A Railway-inspired PaaS management UI for [Dokku](https://dokku.com/). Deploy and manage apps, databases, and services on your own servers through a beautiful visual canvas interface.
+> [!WARNING]
+> **RailDock is experimental and not production-ready.** This project is in active development. Expect breaking changes, limited documentation, and potential data loss. Do not use in production environments.
+
+> [!NOTE]
+> Looking for a stable Dokku management solution? Consider [Dokku Dashboard](https://github.com/dokku/dokku-dashboard) or the [Dokku CLI](https://dokku.com/docs/getting-started/installation/).
+
+A Railway-inspired PaaS management UI for [Dokku](https://dokku.com/). Deploy and manage apps, databases, and services on your own servers through a visual canvas interface.
 
 [![Stack](https://img.shields.io/badge/React_19-20232A?logo=react)](https://react.dev)
 [![Stack](https://img.shields.io/badge/Rails_8-CC0000?logo=ruby-on-rails)](https://rubyonrails.org)
 [![Stack](https://img.shields.io/badge/Dokku-0.38.1-5c9e6b?logo=docker)](https://dokku.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Project Status](https://img.shields.io/badge/status-experimental-orange)](https://github.com/mona-chen/raildock)
 
-RailDock gives you the deployment experience of a modern managed platform — visual architecture diagrams, one-click database provisioning, real-time logs, automatic TLS, and Git-integrated deploys — while keeping you in full control of your own infrastructure via Dokku.
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Built With](#built-with)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [API Reference](#api-reference)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+- [Development](#development)
+- [Testing](#testing)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -48,6 +71,55 @@ RailDock gives you the deployment experience of a modern managed platform — vi
 
 ---
 
+## Built With
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19 + Vite + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion |
+| **State** | Zustand (client) + TanStack Query (server) |
+| **Real-time** | ActionCable (Solid Cable) |
+| **Backend** | Rails 8.1 + PostgreSQL + Solid Queue + Solid Cache |
+| **Auth** | JWT (HS256) + Lockbox encryption |
+| **SSH** | net-ssh + net-scp |
+| **Proxy** | Traefik v3 |
+| **Container** | Docker + Docker Compose |
+| **PaaS** | Dokku 0.38.1 |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Docker & Docker Compose
+- A server with SSH access (for connecting to Dokku hosts)
+- curl for the one-line installer
+
+### One-Line Installer
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+```
+
+This generates secrets, starts the full Docker Compose stack, and opens RailDock on `http://<your-server-ip>:8090`.
+
+### Manual Setup
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/mona-chen/raildock.git && cd raildock
+
+# 2. One-command dev setup
+make setup-dev
+
+# 3. Open the dashboard
+open http://localhost:8090
+```
+
+`make setup-dev` generates `.env`, builds images, runs migrations, and auto-configures the local Dokku server.
+
+---
+
 ## Architecture
 
 ```
@@ -62,62 +134,6 @@ RailDock gives you the deployment experience of a modern managed platform — vi
   (reverse proxy)    (primary DB)       (on raildock network)
 ```
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | React 19 + Vite + TypeScript + Tailwind CSS + shadcn/ui | Dashboard UI, canvas, log viewer |
-| **State** | Zustand (client) + TanStack Query (server) | Auth, canvas view, API caching |
-| **Real-time** | ActionCable (Solid Cable) | Deployment logs, live container logs |
-| **Backend** | Rails 8.1 API + PostgreSQL + Solid Queue | REST API, background jobs, ORM |
-| **SSH Engine** | net-ssh + DokkuEngine service | Remote Dokku command execution |
-| **Proxy** | Traefik v3 | Auto-routing, TLS, load balancing |
-| **PaaS** | Dokku 0.38.1 | App builds, container orchestration |
-| **Datastores** | Postgres, Redis, MySQL, Mongo plugins | Managed database services |
-
----
-
-## Quick Start
-
-### Production (One-Line Installer)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/yourname/raildock/main/install.sh | bash
-```
-
-This generates secrets, starts the full Docker Compose stack, and opens RailDock on your server's IP.
-
-### Development (Docker Compose)
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/yourname/raildock.git && cd raildock
-
-# 2. One-command dev setup
-make setup-dev
-
-# 3. Open the dashboard
-open http://localhost:8090
-```
-
-`make setup-dev` generates `.env`, builds images, runs migrations, and auto-configures the local Dokku server.
-
-### Manual Development Setup
-
-If you prefer running services directly on your machine:
-
-**Prerequisites:** Ruby 3.4.4, Node.js 20+, PostgreSQL 14+, Docker
-
-```bash
-# Backend
-cd backend
-bin/setup                    # installs gems, creates DB, runs migrations
-bin/rails server             # http://localhost:3000
-
-# Frontend (in another terminal)
-cd app
-npm install
-npm run dev                  # http://localhost:5173
-```
-
 ---
 
 ## Project Structure
@@ -130,9 +146,7 @@ raildock/
 │   │   ├── components/          # shadcn/ui + custom components
 │   │   ├── hooks/               # TanStack Query hooks
 │   │   ├── stores/              # Zustand stores (auth, canvas)
-│   │   ├── lib/
-│   │   │   ├── api.ts           # Typed REST client
-│   │   │   └── apiTransforms.ts # snake_case ↔ camelCase bridge
+│   │   ├── lib/                 # api.ts, apiTransforms.ts, utils
 │   │   └── __tests__/           # Vitest test suite
 │   ├── Dockerfile               # Dev image (node:20-alpine)
 │   ├── Dockerfile.prod          # Production image (nginx)
@@ -141,35 +155,34 @@ raildock/
 ├── backend/                      # Rails 8 API
 │   ├── app/
 │   │   ├── controllers/api/     # REST API controllers
-│   │   ├── models/              # Active Record models (19 models)
+│   │   ├── models/              # ActiveRecord models
 │   │   ├── services/            # DokkuEngine, GithubAppService, SshKeyService
 │   │   ├── jobs/                # DeploymentJob, GithubSyncReposJob
 │   │   └── channels/            # ActionCable (DeploymentsChannel, LogsChannel)
 │   ├── config/
 │   │   ├── routes.rb            # API routes
 │   │   ├── recurring.yml        # Solid Queue recurring jobs
-│   │   └── initializers/        # CORS, auto-setup Dokku server
-│   ├── spec/                    # RSpec test suite (53 files)
+│   │   └── initializers/        # CORS, rack-attack, lockbox
+│   ├── spec/                    # RSpec test suite
 │   ├── Dockerfile               # Production image (ruby:3.4.4-slim + Thruster)
 │   └── Dockerfile.dev           # Development image
 │
 ├── scripts/
-│   ├── dokku-init.sh            # Dokku container bootstrap (plugins, SSH keys)
+│   ├── dokku-init.sh            # Dokku container bootstrap
 │   └── setup-dev.sh             # One-click local dev environment
 │
 ├── traefik/dynamic/             # Traefik dynamic config
 ├── docker-compose.yml           # Production stack
-├── docker-compose.dev.yml       # Dev overrides (live reload)
+├── docker-compose.dev.yml       # Dev overrides
 ├── install.sh                   # Production one-line installer
-├── Makefile                     # Dev commands (start, stop, test, etc.)
-└── .env                         # Generated secrets (not committed)
+└── Makefile                     # Dev commands
 ```
 
 ---
 
-## API Architecture
+## API Reference
 
-The frontend and backend communicate via a typed REST API at `/api`. The frontend uses **camelCase**; the backend uses Rails conventions (**snake_case**). A thin transformation layer (`apiTransforms.ts`) handles conversion automatically.
+The frontend and backend communicate via a REST API at `/api`. The frontend uses **camelCase**; the backend uses Rails conventions (**snake_case**). A transformation layer handles conversion automatically.
 
 ### Key Endpoints
 
@@ -179,10 +192,9 @@ The frontend and backend communicate via a typed REST API at `/api`. The fronten
 | **Projects** | `GET|POST|PATCH|DELETE /api/projects`, shared vars, activity |
 | **Services** | Full CRUD + `deploy`, `start`, `stop`, `restart`, `rebuild`, `scale`, `rollback` |
 | **Service Sub-resources** | `env-vars`, `domains`, `storage`, `deployments`, `backups`, `backup_schedules` |
-| **Servers** | `GET|POST|DELETE /api/servers`, `POST .../validate` (SSH + proxy detection) |
+| **Servers** | `GET|POST|DELETE /api/servers`, `POST .../validate` |
 | **Organizations** | CRUD, members, git-sources, deploy-keys |
 | **GitHub Apps** | `GET /api/github-apps/callback`, `POST /api/github-apps/webhook` |
-| **Webhooks** | `POST /api/webhooks/deploy` (generic Git push webhook) |
 | **Templates** | `GET /api/templates`, `POST /api/templates/:id/deploy` |
 
 ### Real-Time (WebSocket)
@@ -192,105 +204,70 @@ The frontend and backend communicate via a typed REST API at `/api`. The fronten
 | `DeploymentsChannel` | `/cable` | Live deployment status + log chunks |
 | `LogsChannel` | `/cable` | Live container log streaming |
 
----
+### Authentication
 
-## Authentication
-
-RailDock uses **JWT Bearer tokens** (HS256). On login, the backend returns a token stored in `localStorage` and sent with every API request via the `Authorization` header.
-
+RailDock uses **JWT Bearer tokens** (HS256) with:
 - **30-day token expiry**
 - **Organization scoping** via `X-Organization-ID` header
 - **Role-based access** within organizations (owner / admin / member)
-- The `AuthGuard` component protects all dashboard routes
-
-### First-Time Setup
-
-On a fresh install, visit `/setup` to create the first admin user. No seed data is required.
 
 ---
 
-## Development Commands
+## Environment Variables
 
-```bash
-# Start the full dev stack (uses docker-compose.dev.yml)
-make start
+> [!IMPORTANT]
+> Generate secure values for secrets. Never commit `.env` files or expose secrets.
 
-# One-click dev setup (env, keys, migrations, Dokku config)
-make setup-dev
+### Required for Production
 
-# Stop everything
-make stop
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `RAILS_MASTER_KEY` | Rails credentials encryption key | Yes |
+| `JWT_SECRET_KEY` | JWT signing secret (min 64 chars) | Yes |
+| `POSTGRES_PASSWORD` | PostgreSQL password | Yes |
+| `RAILDOCK_DOMAIN` | Domain for Traefik routing | No |
 
-# View logs
-make logs               # all services
-make logs-backend       # Rails only
-make logs-frontend      # Vite only
+### Backend (Optional)
 
-# Database
-make db                 # psql console
-make console            # Rails console
-make reset-db           # wipe and recreate (destructive!)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Auto-configured |
+| `FRONTEND_URL` | Allowed CORS origin | `http://localhost:8090` |
+| `RAILS_ENV` | Environment | `production` |
+| `DOKKU_LIB_HOST_ROOT` | Dokku plugin bind mount path | Docker volume path |
+| `DOKKU_HOST_ROOT` | Dokku app home directory | Docker volume path |
 
-# Testing
-make test               # frontend Vitest tests
-cd backend && bundle exec rspec   # backend RSpec tests
+### Frontend
 
-# Hot reload fixes
-make fix-hmr            # restart frontend container
-make restart-backend    # copy backend code + restart
-```
-
----
-
-## Testing
-
-### Frontend (Vitest)
-
-```bash
-cd app
-npm test        # 29 tests — hooks, components, WebSocket lifecycle
-```
-
-- **Framework:** Vitest + jsdom + React Testing Library
-- **Coverage:** Hooks (`useProjects`, `useServices`, `useBackupService`, etc.), `ServicePanel`, `AuthPage`, `ServerPage`, WebSocket channels
-
-### Backend (RSpec)
-
-```bash
-cd backend
-bundle exec rspec    # 375+ examples — models, requests, channels, jobs, services
-```
-
-- **Framework:** RSpec Rails + Factory Bot + Faker + Shoulda Matchers
-- **Coverage:** 53 spec files covering all models, API controllers, ActionCable channels, background jobs, and the Dokku SSH engine
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_BASE_URL` | Rails backend URL | Same-origin |
 
 ---
 
 ## Deployment
 
-### As a Dokku App (Self-Hosting)
+> [!WARNING]
+> RailDock is not production-ready. If you deploy it, you do so at your own risk.
 
-Since RailDock manages Dokku hosts, the most natural deployment is as a Dokku app itself:
+### Deploy RailDock (Docker Compose)
 
-```bash
-dokku apps:create raildock
-dokku postgres:create raildock-db
-dokku postgres:link raildock-db raildock
-dokku config:set raildock RAILS_MASTER_KEY=$(cat config/master.key)
-
-git push dokku main
-```
-
-### With Kamal
-
-The backend includes Kamal configuration for Docker-based deployment anywhere:
+The recommended way to run RailDock itself:
 
 ```bash
-cd backend
-kamal setup
+# Clone and configure
+git clone https://github.com/mona-chen/raildock.git
+cd raildock
+
+# Generate secrets and start
+curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
 ```
 
-### Docker Production Build
+### Deploy Your Apps (RailDock manages Dokku)
+
+RailDock is a UI layer on top of Dokku. Once RailDock is running, use the web UI to connect to your Dokku servers and deploy your apps through the visual canvas.
+
+### Building from Source
 
 ```bash
 # Frontend
@@ -302,76 +279,81 @@ docker build -t raildock-backend ./backend
 
 ---
 
-## Environment Variables
+## Development
 
-### Required (`install.sh` generates these automatically)
+### Prerequisites
 
-| Variable | Description |
-|----------|-------------|
-| `RAILS_MASTER_KEY` | Required for production; encrypts Rails credentials |
-| `POSTGRES_PASSWORD` | PostgreSQL superuser password |
-| `RAILDOCK_DOMAIN` | Domain for Traefik routing (default: `localhost`) |
+- Ruby 3.4+
+- Node.js 20+
+- PostgreSQL 14+
+- Docker
 
-### Backend
+### Start Dev Stack
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `FRONTEND_URL` | Allowed CORS origin(s) |
-| `RAILS_ENV` | `production` or `development` |
+```bash
+make start          # Start full stack with live reload
+make setup-dev      # First-time setup (env, keys, migrations)
+```
 
-### Frontend (`app/.env`)
+### Common Commands
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_BASE_URL` | Rails backend URL (e.g. `http://localhost:3000`). Omit to use same-origin. |
-
-### Dokku Plugin Overrides (advanced)
-
-| Variable | Description |
-|----------|-------------|
-| `DOKKU_LIB_HOST_ROOT` | Host path for Dokku plugin bind mounts (default: Docker volume path) |
-| `DOKKU_HOST_ROOT` | Host path for Dokku app home directory |
+```bash
+make stop           # Stop all containers
+make logs           # View all logs
+make logs-backend   # View backend logs only
+make db             # Open psql console
+make console        # Open Rails console
+make test           # Frontend Vitest tests
+cd backend && bundle exec rspec  # Backend RSpec tests
+```
 
 ---
 
-## Datastore Plugins
+## Testing
 
-RailDock's Dokku container auto-installs and patches the following plugins on first boot:
+### Frontend (Vitest)
 
-| Plugin | Service | Image | Notes |
-|--------|---------|-------|-------|
-| `postgres` | PostgreSQL | `postgres:16-alpine` | Patched from broken `postgres:18.3` |
-| `redis` | Redis | Dockerfile default | Config bind-mount compatible |
-| `mysql` | MySQL | Dockerfile default | — |
-| `mongo` | MongoDB | `mongo:7.0` | Patched from corrupted `mongo:8.2.7` arm64 layer |
-| `letsencrypt` | TLS | — | Automatic Let's Encrypt certificates |
-| `redirect` | Redirects | — | Domain redirect rules |
-| `maintenance` | Maintenance mode | — | Static maintenance pages |
+```bash
+cd app && npm test
+```
+
+Framework: Vitest + jsdom + React Testing Library
+
+### Backend (RSpec)
+
+```bash
+cd backend && bundle exec rspec
+```
+
+Framework: RSpec Rails + Factory Bot + Faker + Shoulda Matchers
 
 ---
 
 ## Security
 
-- **SSH keys** are Ed25519, stored in `./data/dokku-ssh/` (never committed)
-- **Sensitive data** is encrypted at rest via the `lockbox` gem (SSH keys, Git tokens, deploy key private keys)
+> [!NOTE]
+> This project is experimental. Review the code and configuration before using with sensitive data.
+
+- **SSH keys** stored in `./data/dokku-ssh/` (never committed)
+- **Sensitive data** encrypted at rest via Lockbox gem
 - **JWT tokens** expire after 30 days
-- **CORS** is restricted to `FRONTEND_URL`
-- **Brakeman** and **bundler-audit** run in CI for vulnerability scanning
+- **Rate limiting** on login endpoints (rack-attack)
+- **CORS** restricted to `FRONTEND_URL`
+- **Brakeman** and **bundler-audit** run in CI
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or pull request.
+Contributions are welcome! Please open an issue first to discuss changes.
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes
+4. Push to the branch
 5. Open a Pull Request
 
-Please ensure tests pass before submitting:
+Ensure tests pass before submitting:
 
 ```bash
 cd app && npm test
@@ -382,24 +364,6 @@ cd backend && bundle exec rspec
 
 ## License
 
-MIT License
+MIT License - see [LICENSE](LICENSE)
 
 Copyright (c) 2026 RailDock Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
