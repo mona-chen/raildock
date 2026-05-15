@@ -4,7 +4,7 @@
 > **RailDock is experimental and not production-ready.** This project is in active development. Expect breaking changes, limited documentation, and potential data loss. Do not use in production environments.
 
 > [!NOTE]
-> Looking for a stable Dokku management solution? Consider [Dokku Dashboard](https://github.com/dokku/dokku-dashboard) or the [Dokku CLI](https://dokku.com/docs/getting-started/installation/).
+> Looking for a stable Dokku management solution? Try the [Dokku CLI](https://dokku.com/docs/getting-started/installation/) or explore community plugins like [Dokku Dashboard](https://github.com/dokku/dokku-dashboard).
 
 A Railway-inspired PaaS management UI for [Dokku](https://dokku.com/). Deploy and manage apps, databases, and services on your own servers through a visual canvas interface.
 
