@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  mount ActionCable.server => '/cable'
+  mount ActionCable.server => "/cable"
 
   namespace :api do
     get "health", to: "auth#health"
@@ -30,13 +30,20 @@ Rails.application.routes.draw do
           post :stop
           post :restart
           post :rebuild
+          post :run
+          post :enter
         end
-        resources :deployments, only: [:index, :show]
-        resources :environment_variables, path: "env-vars", only: [:create]
-        resources :domains, only: [:create]
-        resources :storage_mounts, path: "storage", only: [:create]
+        collection do
+          get :config_show
+          get :traefik_config
+          get :storage_list
+        end
+        resources :deployments, only: [ :index, :show ]
+        resources :environment_variables, path: "env-vars", only: [ :create ]
+        resources :domains, only: [ :create ]
+        resources :storage_mounts, path: "storage", only: [ :create ]
       end
-      resources :activity_events, path: "activity-events", only: [:index]
+      resources :activity_events, path: "activity-events", only: [ :index ]
       get :activity, on: :member
       patch :shared_vars, on: :member
     end
@@ -57,23 +64,23 @@ Rails.application.routes.draw do
     end
 
     resources :organizations do
-      resources :projects, only: [:index, :create]
-      resources :git_sources, path: "git-sources", only: [:index, :create, :destroy]
-      resources :members, controller: "organization_members", only: [:index, :create, :destroy, :update]
-      resources :deploy_keys, path: "deploy-keys", only: [:index, :create, :destroy]
+      resources :projects, only: [ :index, :create ]
+      resources :git_sources, path: "git-sources", only: [ :index, :create, :destroy ]
+      resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
+      resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
     end
 
     resources :git_sources, path: "git-sources"
-    resources :deploy_keys, path: "deploy-keys", only: [:index, :create, :destroy]
-    resources :templates, only: [:index] do
+    resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
+    resources :templates, only: [ :index ] do
       member do
         post :deploy
       end
     end
     get "activity", to: "activity_events#global"
 
-    resources :builders, only: [:index]
-    resources :networks, only: [:index]
+    resources :builders, only: [ :index ]
+    resources :networks, only: [ :index ]
 
     get "github-apps/callback", to: "github_apps#callback"
     post "github-apps/webhook", to: "github_apps#webhook"

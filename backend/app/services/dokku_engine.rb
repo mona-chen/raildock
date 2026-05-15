@@ -16,7 +16,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
+    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("#{command}") do |_, success|
           unless success
@@ -45,7 +45,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
+    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("#{command}") do |_, success|
           unless success
@@ -77,7 +77,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [server.ssh_key], non_interactive: true) do |ssh|
+    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("#{command}") do |_, success|
           unless success
@@ -180,6 +180,14 @@ class DokkuEngine
     run("config:get #{escape(app_name)} #{escape(key)}")
   end
 
+  def config_show(app_name)
+    run("config:show #{escape(app_name)}")
+  end
+
+  def config_clear(app_name)
+    run("config:clear #{escape(app_name)}")
+  end
+
   def config_export(app_name)
     run("config:export #{escape(app_name)}")
   end
@@ -212,14 +220,65 @@ class DokkuEngine
     run("storage:unmount #{escape(app_name)} #{escape(host_path)}:#{escape(container_path)}")
   end
 
-  # ── Nginx Settings ───────────────────────────
-
-  def nginx_set(app_name, property, value)
-    run("nginx:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
+  def storage_list(app_name)
+    run("storage:list #{escape(app_name)}")
   end
 
-  def nginx_show_config(app_name)
-    run("nginx:show-config #{escape(app_name)}")
+  def storage_list_entries
+    run("storage:list-entries")
+  end
+
+  # ── One-off Tasks ────────────────────────────
+
+  def run_one_off(app_name, command)
+    run("run #{escape(app_name)} #{escape(command)}")
+  end
+
+  # ── Container Access ────────────────────────
+
+  def enter_container(app_name, process_type: "web")
+    run("enter #{escape(app_name)} #{escape(process_type)} /bin/bash")
+  end
+
+  def exec_in_container(app_name, command, process_type: "web")
+    run("exec #{escape(app_name)} #{escape(process_type)} #{escape(command)}")
+  end
+
+  # ── Traefik Settings ──────────────────────────
+
+  def traefik_set(app_name, property, value)
+    run("traefik:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
+  end
+
+  def traefik_set_global(property, value)
+    run("traefik:set --global #{escape(property)} #{escape(value)}")
+  end
+
+  def traefik_show_config(app_name)
+    run("traefik:show-config #{escape(app_name)}")
+  end
+
+  def traefik_report(app_name = nil)
+    if app_name
+      run("traefik:report #{escape(app_name)}")
+    else
+      run("traefik:report")
+    end
+  end
+
+  def traefik_logs(num: 100, tail: false)
+    cmd = "traefik:logs"
+    cmd += " --num #{num.to_i}"
+    cmd += " --tail" if tail
+    run(cmd)
+  end
+
+  def traefik_start
+    run("traefik:start")
+  end
+
+  def traefik_stop
+    run("traefik:stop")
   end
 
   # ── Proxy ────────────────────────────────────
@@ -236,8 +295,53 @@ class DokkuEngine
     run("proxy:ports-set #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
   end
 
+  def proxy_ports_add(app_name, scheme, host_port, container_port)
+    run("proxy:ports-add #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  end
+
+  def proxy_ports_remove(app_name, scheme, host_port, container_port)
+    run("proxy:ports-remove #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  end
+
+  def proxy_ports_clear(app_name)
+    run("proxy:ports-clear #{escape(app_name)}")
+  end
+
   def proxy_set(app_name, proxy_type)
     run("proxy:set #{escape(app_name)} #{escape(proxy_type)}")
+  end
+
+  def proxy_report(app_name)
+    run("proxy:report #{escape(app_name)}")
+  end
+
+  # ── App Locking ──────────────────────────────
+
+  def app_lock(app_name)
+    run("apps:lock #{escape(app_name)}")
+  end
+
+  def app_unlock(app_name)
+    run("apps:unlock #{escape(app_name)}")
+  end
+
+  def app_locked?(app_name)
+    result = run("apps:locked #{escape(app_name)}")
+    result[:output].include?("locked")
+  end
+
+  # ── Maintenance Mode ─────────────────────────
+
+  def maintenance_enable(app_name)
+    run("maintenance:enable #{escape(app_name)}")
+  end
+
+  def maintenance_disable(app_name)
+    run("maintenance:disable #{escape(app_name)}")
+  end
+
+  def maintenance_show(app_name)
+    run("maintenance:report #{escape(app_name)}")
   end
 
   # ── Health Checks ────────────────────────────
@@ -281,6 +385,18 @@ class DokkuEngine
     run("resource:reserve #{escape(app_name)} #{escape(process_type)} #{args.join(" ")}")
   end
 
+  def resource_report(app_name)
+    run("resource:report #{escape(app_name)}")
+  end
+
+  def resource_limit_clear(app_name, process_type)
+    run("resource:limit:clear #{escape(app_name)} #{escape(process_type)}")
+  end
+
+  def resource_reserve_clear(app_name, process_type)
+    run("resource:reserve:clear #{escape(app_name)} #{escape(process_type)}")
+  end
+
   # ── Let's Encrypt / SSL ──────────────────────
 
   def letsencrypt_enable(app_name, email)
@@ -294,6 +410,60 @@ class DokkuEngine
 
   def letsencrypt_auto_renew(app_name)
     run("letsencrypt:auto-renew #{escape(app_name)}")
+  end
+
+  # ── SSL Certificates ─────────────────────────
+
+  def certs_add(app_name, cert_file, key_file)
+    run_with_stdin("certs:add #{escape(app_name)}", "#{cert_file}\n#{key_file}")
+  end
+
+  def certs_remove(app_name)
+    run("certs:remove #{escape(app_name)}")
+  end
+
+  def certs_show(app_name)
+    run("certs:show #{escape(app_name)}")
+  end
+
+  def certs_update(app_name, cert_file, key_file)
+    run_with_stdin("certs:update #{escape(app_name)}", "#{cert_file}\n#{key_file}")
+  end
+
+  def certs_report(app_name)
+    run("certs:report #{escape(app_name)}")
+  end
+
+  # ── Network Management ───────────────────────
+
+  def network_create(network_name)
+    run("network:create #{escape(network_name)}")
+  end
+
+  def network_connect(app_name, network_name)
+    run("network:connect #{escape(app_name)} #{escape(network_name)}")
+  end
+
+  def network_disconnect(app_name, network_name)
+    run("network:disconnect #{escape(app_name)} #{escape(network_name)}")
+  end
+
+  def network_list
+    run("network:list")
+  end
+
+  def network_report(app_name)
+    run("network:report #{escape(app_name)}")
+  end
+
+  # ── Build Management ────────────────────────
+
+  def builds_list(app_name)
+    run("builds:list #{escape(app_name)}")
+  end
+
+  def builds_remove(app_name, build_id)
+    run("builds:remove #{escape(app_name)} #{escape(build_id)}")
   end
 
   # ── Git Deployment ───────────────────────────

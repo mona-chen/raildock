@@ -13,25 +13,6 @@ class Rack::Attack
       email if email.include?("@")
     end
   end
-
-  # Custom response when throttled
-  self.render_public = false
-
-  after(throttle("logins/ip")) do |req|
-    Rack::Attack::Throttle.danger(
-      "logins/ip",
-      request: req,
-      period: 60.seconds,
-      limit: 5
-    )
-  end
-
-  # Track blocked IPs for monitoring
-  allowlist("safe_ips") do |req|
-    # Add known safe IPs here, e.g.:
-    # req.ip == "127.0.0.1" || req.ip == "::1"
-    false
-  end
 end
 
 Rails.application.config.middleware.use Rack::Attack

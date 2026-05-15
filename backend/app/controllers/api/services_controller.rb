@@ -5,7 +5,7 @@ module Api
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
       :metrics, :backup, :restore, :database_info, :backups, :backup_schedules,
-      :create_backup_schedule, :destroy_backup_schedule
+      :create_backup_schedule, :destroy_backup_schedule, :run, :enter
     ]
 
     def index
@@ -461,6 +461,78 @@ module Api
       schedule = @service.backup_schedules.find(params[:schedule_id])
       schedule.destroy!
       head :no_content
+    end
+
+    def run
+      command = params[:command]
+      unless command.present?
+        return render json: { error: "Command is required" }, status: :unprocessable_entity
+      end
+
+      if @service.project&.server&.ssh_key.present?
+        engine = DokkuEngine.new(@service.project.server)
+        result = engine.run_one_off(@service.dokku_app_name, command)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def enter
+      process_type = params[:process_type] || "web"
+
+      if @service.project&.server&.ssh_key.present?
+        engine = DokkuEngine.new(@service.project.server)
+        result = engine.enter_container(@service.dokku_app_name, process_type: process_type)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def config_show
+      project = scoped_projects.find_by(id: params[:project_id])
+      authorize_project!(project)
+      service = Service.find(params[:service_id])
+      authorize_service!(service)
+
+      if service.project&.server&.ssh_key.present?
+        engine = DokkuEngine.new(service.project.server)
+        result = engine.config_show(service.dokku_app_name)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def traefik_config
+      project = scoped_projects.find_by(id: params[:project_id])
+      authorize_project!(project)
+      service = Service.find(params[:service_id])
+      authorize_service!(service)
+
+      if service.project&.server&.ssh_key.present?
+        engine = DokkuEngine.new(service.project.server)
+        result = engine.traefik_report(service.dokku_app_name)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def storage_list
+      project = scoped_projects.find_by(id: params[:project_id])
+      authorize_project!(project)
+      service = Service.find(params[:service_id])
+      authorize_service!(service)
+
+      if service.project&.server&.ssh_key.present?
+        engine = DokkuEngine.new(service.project.server)
+        result = engine.storage_list(service.dokku_app_name)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+
+      render json: { error: "No server configured" }, status: :unprocessable_entity
     end
 
     private
