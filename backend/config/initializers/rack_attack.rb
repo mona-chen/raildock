@@ -16,7 +16,7 @@ class Rack::Attack
 
   # Throttle API requests to prevent abuse (100 req/min per IP)
   throttle("api/all", limit: 100, period: 60.seconds) do |req|
-    if req.path.start_with?("/api/") && %w[GET POST PUT PATCH DELETE].include?(req.method)
+    if req.path.start_with?("/api/") && %w[GET POST PUT PATCH DELETE].include?(req.request_method)
       req.ip
     end
   end
