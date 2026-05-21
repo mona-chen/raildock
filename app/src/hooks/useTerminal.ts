@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { getCable, isCableAvailable } from '@/lib/cable'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
+import { SearchAddon } from '@xterm/addon-search'
 
 interface TerminalMessage {
   type: 'data' | 'connected' | 'closed' | 'error'
@@ -13,6 +15,7 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
   const [error, setError] = useState<string | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const searchAddonRef = useRef<SearchAddon | null>(null)
   const subscriptionRef = useRef<{ unsubscribe: () => void; perform: (action: string, data?: Record<string, unknown>) => void } | null>(null)
 
   const sendData = useCallback((data: string) => {
@@ -23,10 +26,22 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
     subscriptionRef.current?.perform('resize', { cols, rows })
   }, [])
 
+  const findNext = useCallback((query: string) => {
+    searchAddonRef.current?.findNext(query)
+  }, [])
+
+  const findPrevious = useCallback((query: string) => {
+    searchAddonRef.current?.findPrevious(query)
+  }, [])
+
+  const clearSearch = useCallback(() => {
+    searchAddonRef.current?.clearDecorations()
+  }, [])
+
   useEffect(() => {
     if (!isCableAvailable() || !serviceId || !terminalRef.current) return
 
-    // Create terminal
+    // Create terminal with WebGL renderer if available
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: 'block',
@@ -55,15 +70,31 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
         brightWhite: '#ffffff',
       },
       allowProposedApi: true,
+      scrollback: 10000,
     })
 
     const fitAddon = new FitAddon()
+    const searchAddon = new SearchAddon()
+    const webLinksAddon = new WebLinksAddon()
+
     term.loadAddon(fitAddon)
+    term.loadAddon(searchAddon)
+    term.loadAddon(webLinksAddon)
+
     term.open(terminalRef.current)
+
+    // Try WebGL renderer for better performance (async load)
+    import('@xterm/addon-webgl')
+      .then(({ WebglAddon }) => term.loadAddon(new WebglAddon()))
+      .catch(() => { /* Fall back to DOM renderer */ })
     fitAddon.fit()
+    term.focus()
 
     termRef.current = term
     fitAddonRef.current = fitAddon
+    searchAddonRef.current = searchAddon
+
+    term.write('\r\n[Connecting...]\r\n')
 
     // Subscribe to ActionCable
     const subscription = getCable().subscriptions.create(
@@ -91,6 +122,7 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
           } else if (msg.type === 'connected') {
             setIsConnected(true)
             setError(null)
+            term.clear()
           } else if (msg.type === 'closed') {
             setIsConnected(false)
             term.write('\r\n\r\n[Session closed]\r\n')
@@ -128,10 +160,11 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
+      searchAddonRef.current = null
       subscriptionRef.current = null
       setIsConnected(false)
     }
   }, [serviceId, terminalRef, sendData, sendResize])
 
-  return { isConnected, error, term: termRef.current }
+  return { isConnected, error, term: termRef.current, findNext, findPrevious, clearSearch }
 }

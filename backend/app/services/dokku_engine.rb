@@ -709,7 +709,7 @@ class DokkuEngine
 
   # Open an interactive PTY shell inside a Dokku app container.
   # Returns a DokkuTerminalSession handle that the caller manages.
-  def interactive_shell(app_name, process_type: "web", shell: "/bin/bash")
+  def interactive_shell(app_name, process_type: "web", shell: "/bin/sh")
     return nil if server.ssh_key.blank?
     DokkuTerminalSession.new(server, app_name, process_type: process_type, shell: shell)
   end
@@ -785,7 +785,7 @@ end
 class DokkuTerminalSession
   attr_reader :app_name, :process_type
 
-  def initialize(server, app_name, process_type: "web", shell: "/bin/bash")
+  def initialize(server, app_name, process_type: "web", shell: "/bin/sh")
     @server = server
     @app_name = app_name
     @process_type = process_type
@@ -836,20 +836,34 @@ class DokkuTerminalSession
         @callbacks[:on_data]&.call(data)
       end
 
+      ch.on_eof do |ch|
+        Rails.logger.debug "[DokkuTerminalSession] on_eof received"
+      end
+
       ch.on_close do |_, data|
+        Rails.logger.debug "[DokkuTerminalSession] on_close received"
         @callbacks[:on_close]&.call
         close
       end
 
-      ch.on_process do
-        @ssh.process(0) if @ssh
+      ch.on_open_failed do |_, reason, description|
+        Rails.logger.error "[DokkuTerminalSession] on_open_failed: #{reason} - #{description}"
+        @callbacks[:on_error]&.call("Channel open failed: #{description}")
       end
+
+      # NOTE: Do NOT add ch.on_process { @ssh.process(0) } here.
+      # @ssh.loop in the background thread already handles event processing.
+      # Adding on_process causes infinite recursion (SystemStackError).
     end
 
-    # Start the SSH event loop in a background thread
+    # Start the SSH event loop in a background thread.
+    # Use manual polling instead of @ssh.loop to avoid SystemStackError
+    # caused by deep recursion inside Net::SSH's event loop.
     @thread = Thread.new do
       begin
-        @ssh.loop { !@closed }
+        until @closed
+          @ssh.process(0.01)
+        end
       rescue => e
         @callbacks[:on_error]&.call("SSH loop error: #{e.message}")
       ensure
