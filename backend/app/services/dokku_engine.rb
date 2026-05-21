@@ -31,7 +31,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(ssh_connection_options) do |ssh|
+    Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("dokku #{command}") do |_, success|
           unless success
@@ -64,7 +64,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(ssh_connection_options) do |ssh|
+    Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("dokku #{command}") do |_, success|
           unless success
@@ -100,7 +100,7 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(ssh_connection_options) do |ssh|
+    Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
         ch.exec("dokku #{command}") do |_, success|
           unless success
