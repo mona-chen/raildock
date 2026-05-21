@@ -101,7 +101,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
 
   const db = svc.type === 'database'
   const tabs = db
-    ? ['overview', 'logs', 'database', 'backups', 'variables', 'metrics', 'settings']
+    ? ['overview', 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
   const Icon = SVC_ICON[svc.subtype] || Box
