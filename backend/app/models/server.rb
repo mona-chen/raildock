@@ -12,11 +12,14 @@ class Server < ApplicationRecord
 
   PROXY_TYPES = %w[nginx traefik caddy haproxy openresty].freeze
 
+  # Shared Lockbox instance for encryption/decryption (class-level for efficiency)
+  LOCKBOX = Lockbox.new(key: Lockbox.master_key, encode: true)
+
   def ssh_key
     ciphertext = self[:ssh_key_ciphertext]
     return nil if ciphertext.blank?
 
-    lockbox.decrypt(ciphertext)
+    self.class::LOCKBOX.decrypt(ciphertext)
   rescue Lockbox::DecryptionError => e
     Rails.logger.error "Failed to decrypt SSH key for server #{id}: #{e.message}"
     nil
@@ -24,10 +27,14 @@ class Server < ApplicationRecord
 
   def ssh_key=(value)
     if value.present?
-      self[:ssh_key_ciphertext] = lockbox.encrypt(value)
+      self[:ssh_key_ciphertext] = self.class::LOCKBOX.encrypt(value)
     else
       self[:ssh_key_ciphertext] = nil
     end
+  end
+
+  def ssh_user
+    self[:ssh_user].presence || DokkuEngine::SSH_USER
   end
 
   def default_proxy
@@ -48,14 +55,8 @@ class Server < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy ],
-      except: [ :ssh_key_ciphertext ]
+      methods: [:disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user],
+      except: [:ssh_key_ciphertext]
     ))
-  end
-
-  private
-
-  def lockbox
-    @lockbox ||= Lockbox.new(key: Lockbox.master_key, encode: true)
   end
 end

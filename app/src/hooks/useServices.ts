@@ -358,3 +358,43 @@ export function useContainerStatus(id: string) {
     refetchInterval: 10000,
   })
 }
+
+export function useRunOneOff() {
+  return useMutation({
+    mutationFn: ({ id, command }: { id: string; command: string }) =>
+      api.services.runOneOff(id, command),
+    onError: (err) => toast.error(`Command failed: ${err.message}`),
+  })
+}
+
+export function useEnterService() {
+  return useMutation({
+    mutationFn: ({ id, command }: { id: string; command: string }) =>
+      api.services.enter(id, command),
+    onError: (err) => toast.error(`Enter failed: ${err.message}`),
+  })
+}
+
+export function useConfigShow(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'services', serviceId, 'config_show'],
+    queryFn: () => api.services.configShow(projectId, serviceId),
+    enabled: !!projectId && !!serviceId,
+  })
+}
+
+export function useTraefikConfig(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'services', serviceId, 'traefik_config'],
+    queryFn: () => api.services.traefikConfig(projectId, serviceId),
+    enabled: !!projectId && !!serviceId,
+  })
+}
+
+export function useStorageList(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'services', serviceId, 'storage_list'],
+    queryFn: () => api.services.storageList(projectId, serviceId),
+    enabled: !!projectId && !!serviceId,
+  })
+}

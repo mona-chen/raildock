@@ -13,6 +13,20 @@ class Rack::Attack
       email if email.include?("@")
     end
   end
+
+  # Throttle API requests to prevent abuse (100 req/min per IP)
+  throttle("api/all", limit: 100, period: 60.seconds) do |req|
+    if req.path.start_with?("/api/") && %w[GET POST PUT PATCH DELETE].include?(req.method)
+      req.ip
+    end
+  end
+
+  # Throttle registration endpoints
+  throttle("registrations/ip", limit: 3, period: 60.seconds) do |req|
+    if req.path == "/api/users" && req.post?
+      req.ip
+    end
+  end
 end
 
 Rails.application.config.middleware.use Rack::Attack

@@ -1,6 +1,14 @@
 module Api
   class ServicesController < BaseController
     include Authorizable
+
+    # Standard error response format
+    ERROR_RESPONSE = ->(message, details = nil) {
+      response = { error: message }
+      response[:details] = details if details
+      response
+    }.call
+
     before_action :set_and_authorize_service!, only: [
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
@@ -21,6 +29,8 @@ module Api
 
     def create
       project = scoped_projects.find(params[:project_id])
+      authorize_project!(project, action: :create)
+
       server = project.server
 
       # Inherit server's default proxy type
@@ -39,8 +49,7 @@ module Api
       service = Service.create!(attrs)
 
       # Create Dokku resource if server connected
-      if server&.ssh_key.present?
-        engine = DokkuEngine.new(server)
+      with_dokku_engine(service) do |engine|
         if service.service_type == "database"
           result = case service.subtype
           when "postgres" then engine.postgres_create(service.dokku_app_name)
@@ -65,14 +74,16 @@ module Api
     end
 
     def update
+      authorize_service!(@service, action: :update)
       @service.update!(service_params)
       render json: @service
     end
 
     def destroy
+      authorize_service!(@service, action: :delete)
+
       # Destroy Dokku resource if server connected
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         if @service.service_type == "database"
           case @service.subtype
           when "postgres" then engine.postgres_destroy(@service.dokku_app_name)
@@ -96,8 +107,10 @@ module Api
     end
 
     def deploy
+      authorize_service!(@service, action: :deploy)
+
       if @service.service_type == "database"
-        render json: { error: "Database services cannot be deployed. They are managed directly by Dokku." }, status: :unprocessable_entity
+        render json: ERROR_RESPONSE.merge(error: "Database services cannot be deployed. They are managed directly by Dokku."), status: :unprocessable_entity
         return
       end
 
@@ -122,6 +135,8 @@ module Api
     end
 
     def rollback
+      authorize_service!(@service, action: :deploy)
+
       target = @service.deployments.find(params[:deployment_id])
 
       # Create a new deployment with the previous commit
@@ -146,8 +161,7 @@ module Api
     end
 
     def container_status
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         result = engine.container_status(@service.dokku_app_name)
         if result[:success]
           return render json: { status: "running", output: result[:output] }
@@ -158,8 +172,9 @@ module Api
     end
 
     def start
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         result = engine.ps_start(@service.dokku_app_name)
         if result[:success]
           @service.update!(status: "running")
@@ -180,8 +195,9 @@ module Api
     end
 
     def stop
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         result = engine.ps_stop(@service.dokku_app_name)
         if result[:success]
           @service.update!(status: "stopped")
@@ -202,8 +218,9 @@ module Api
     end
 
     def restart
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         result = engine.ps_restart(@service.dokku_app_name)
         if result[:success]
           @service.update!(status: "running")
@@ -224,8 +241,9 @@ module Api
     end
 
     def rebuild
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         result = engine.ps_rebuild(@service.dokku_app_name)
         if result[:success]
           @service.update!(status: "running")
@@ -246,14 +264,15 @@ module Api
     end
 
     def scale
+      authorize_service!(@service, action: :update)
+
       process_name = params[:process_name] || params[:processName]
       quantity = params[:quantity]
       process = @service.process_types.find_by!(name: process_name)
       process.update!(quantity: quantity)
 
       # Sync to Dokku if server connected
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         engine.ps_scale(@service.dokku_app_name, process_name, quantity)
       end
 
@@ -268,9 +287,7 @@ module Api
     end
 
     def logs
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
-
+      with_dokku_engine(@service) do |engine|
         if @service.service_type == "database"
           result = case @service.subtype
           when "postgres" then engine.postgres_logs(@service.dokku_app_name, lines: 100)
@@ -285,7 +302,7 @@ module Api
 
         if result[:success]
           lines = result[:output].split("\n").map do |line|
-            { timestamp: Time.current.iso8601, process_type: @service.subtype, message: line }
+            { timestamp: Time.current.iso8601, processType: @service.subtype, message: line }
           end
           return render json: lines
         end
@@ -297,19 +314,20 @@ module Api
 
     def link
       target = Service.find(params[:target_id])
-      authorize_service!(target)
+      authorize_service!(target, action: :read)
 
       # Create the link record
       ServiceLink.create!(from_service: @service, to_service: target)
 
       # Sync to Dokku if server connected
-      if @service.project&.server&.ssh_key.present? && target.service_type_database?
-        engine = DokkuEngine.new(@service.project.server)
-        case target.subtype
-        when "postgres" then engine.postgres_link(target.name, @service.dokku_app_name)
-        when "redis" then engine.redis_link(target.name, @service.dokku_app_name)
-        when "mysql" then engine.mysql_link(target.name, @service.dokku_app_name)
-        when "mongo" then engine.mongo_link(target.name, @service.dokku_app_name)
+      with_dokku_engine(@service) do |engine|
+        if target.service_type_database?
+          case target.subtype
+          when "postgres" then engine.postgres_link(target.name, @service.dokku_app_name)
+          when "redis" then engine.redis_link(target.name, @service.dokku_app_name)
+          when "mysql" then engine.mysql_link(target.name, @service.dokku_app_name)
+          when "mongo" then engine.mongo_link(target.name, @service.dokku_app_name)
+          end
         end
       end
 
@@ -320,25 +338,26 @@ module Api
         message: "Linked #{@service.name} to #{target.name}"
       )
 
-      render json: { success: true, linked_service_ids: @service.linked_service_ids }
+      render json: { success: true, linkedServiceIds: @service.linked_service_ids }
     end
 
     def unlink
       target = Service.find(params[:target_id])
-      authorize_service!(target)
+      authorize_service!(target, action: :read)
 
       # Remove the link record
       link = ServiceLink.find_by!(from_service: @service, to_service: target)
       link.destroy!
 
       # Sync to Dokku if server connected
-      if @service.project&.server&.ssh_key.present? && target.service_type_database?
-        engine = DokkuEngine.new(@service.project.server)
-        case target.subtype
-        when "postgres" then engine.postgres_unlink(target.name, @service.dokku_app_name)
-        when "redis" then engine.redis_unlink(target.name, @service.dokku_app_name)
-        when "mysql" then engine.mysql_unlink(target.name, @service.dokku_app_name)
-        when "mongo" then engine.mongo_unlink(target.name, @service.dokku_app_name)
+      with_dokku_engine(@service) do |engine|
+        if target.service_type_database?
+          case target.subtype
+          when "postgres" then engine.postgres_unlink(target.name, @service.dokku_app_name)
+          when "redis" then engine.redis_unlink(target.name, @service.dokku_app_name)
+          when "mysql" then engine.mysql_unlink(target.name, @service.dokku_app_name)
+          when "mongo" then engine.mongo_unlink(target.name, @service.dokku_app_name)
+          end
         end
       end
 
@@ -349,27 +368,23 @@ module Api
         message: "Unlinked #{@service.name} from #{target.name}"
       )
 
-      render json: { success: true, linked_service_ids: @service.linked_service_ids }
+      render json: { success: true, linkedServiceIds: @service.linked_service_ids }
     end
 
     def metrics
-      # Try to fetch real metrics from Dokku
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         result = engine.metrics(@service.dokku_app_name)
         if result[:success]
-          # Parse dokku ps:report output — simplified fallback
           return render json: parse_metrics(result[:output])
         end
       end
 
       # Fallback placeholder
-      render json: { cpu: rand(10..80), memory: rand(20..90), network_in: 0, network_out: 0 }
+      render json: { cpu: rand(10..80), memory: rand(20..90), networkIn: 0, networkOut: 0 }
     end
 
     def database_info
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         result = case @service.subtype
         when "postgres" then engine.postgres_info(@service.dokku_app_name)
         when "redis" then engine.redis_info(@service.dokku_app_name)
@@ -384,8 +399,9 @@ module Api
     end
 
     def backup
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         backup_record = @service.backups.create!(status: "pending")
 
         result = case @service.subtype
@@ -415,8 +431,9 @@ module Api
     end
 
     def restore
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      authorize_service!(@service, action: :update)
+
+      with_dokku_engine(@service) do |engine|
         data = request.body.read
 
         result = case @service.subtype
@@ -452,6 +469,8 @@ module Api
     end
 
     def create_backup_schedule
+      authorize_service!(@service, action: :update)
+
       schedule = @service.backup_schedules.create!(backup_schedule_params)
       schedule.update_next_run!
       render json: schedule, status: :created
@@ -459,18 +478,20 @@ module Api
 
     def destroy_backup_schedule
       schedule = @service.backup_schedules.find(params[:schedule_id])
+      authorize_service!(@service, action: :delete)
       schedule.destroy!
       head :no_content
     end
 
     def run
+      authorize_service!(@service, action: :update)
+
       command = params[:command]
       unless command.present?
         return render json: { error: "Command is required" }, status: :unprocessable_entity
       end
 
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      with_dokku_engine(@service) do |engine|
         result = engine.run_one_off(@service.dokku_app_name, command)
         return render json: { success: result[:success], output: result[:output] }
       end
@@ -479,14 +500,39 @@ module Api
     end
 
     def enter
-      process_type = params[:process_type] || "web"
+      authorize_service!(@service, action: :update)
 
-      if @service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(@service.project.server)
+      process_type = params[:process_type] || params[:processType] || "web"
+
+      with_dokku_engine(@service) do |engine|
         result = engine.enter_container(@service.dokku_app_name, process_type: process_type)
         return render json: { success: result[:success], output: result[:output] }
       end
 
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def app_lock
+      with_dokku_engine(@service) do |engine|
+        result = engine.app_lock(@service.dokku_app_name)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def app_unlock
+      with_dokku_engine(@service) do |engine|
+        result = engine.app_unlock(@service.dokku_app_name)
+        return render json: { success: result[:success], output: result[:output] }
+      end
+      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def app_locked
+      with_dokku_engine(@service) do |engine|
+        result = engine.app_locked?(@service.dokku_app_name)
+        return render json: { locked: result }
+      end
       render json: { error: "No server configured" }, status: :unprocessable_entity
     end
 
@@ -496,8 +542,7 @@ module Api
       service = Service.find(params[:service_id])
       authorize_service!(service)
 
-      if service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(service.project.server)
+      with_dokku_engine(service) do |engine|
         result = engine.config_show(service.dokku_app_name)
         return render json: { success: result[:success], output: result[:output] }
       end
@@ -511,8 +556,7 @@ module Api
       service = Service.find(params[:service_id])
       authorize_service!(service)
 
-      if service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(service.project.server)
+      with_dokku_engine(service) do |engine|
         result = engine.traefik_report(service.dokku_app_name)
         return render json: { success: result[:success], output: result[:output] }
       end
@@ -526,8 +570,7 @@ module Api
       service = Service.find(params[:service_id])
       authorize_service!(service)
 
-      if service.project&.server&.ssh_key.present?
-        engine = DokkuEngine.new(service.project.server)
+      with_dokku_engine(service) do |engine|
         result = engine.storage_list(service.dokku_app_name)
         return render json: { success: result[:success], output: result[:output] }
       end
@@ -540,6 +583,13 @@ module Api
     def set_and_authorize_service!
       @service = Service.find(params[:id])
       authorize_service!(@service)
+    end
+
+    # Helper to create DokkuEngine only when server has SSH key
+    def with_dokku_engine(service)
+      return yield(nil) unless service.project&.server&.ssh_key.present?
+      engine = DokkuEngine.new(service.project.server)
+      yield(engine)
     end
 
     def service_params
@@ -575,8 +625,8 @@ module Api
       {
         cpu: cpu_match&.[](1)&.to_i,
         memory: memory_match&.[](1)&.to_i,
-        network_in: 0,
-        network_out: 0
+        networkIn: 0,
+        networkOut: 0
       }
     end
   end

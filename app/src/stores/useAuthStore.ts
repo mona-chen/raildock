@@ -31,7 +31,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setCurrentOrganizationId: (id) => set({ currentOrganizationId: id }),
       setLoading: (isLoading) => set({ isLoading }),
-      logout: () => set({ token: null, user: null, currentOrganizationId: null }),
+      logout: () => set({ token: null, user: null, currentOrganizationId: null, isLoading: false }),
       isAuthenticated: () => !!get().token,
     }),
     { name: 'raildock-auth' }

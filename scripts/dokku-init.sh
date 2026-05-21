@@ -83,4 +83,44 @@ install_plugin "letsencrypt"  "https://github.com/dokku/dokku-letsencrypt.git"
 install_plugin "redirect"     "https://github.com/dokku/dokku-redirect.git"
 install_plugin "maintenance"  "https://github.com/dokku/dokku-maintenance.git"
 
+# Configure Traefik to use raildock-bridge network
+# Modify the traefik-vhosts template to use raildock-bridge network
+# and ensure it can see all containers on the host
+
+TRAEFIK_TEMPLATE="/var/lib/dokku/plugins/available/traefik-vhosts/templates/compose.yml.sigil"
+
+if [ -f "$TRAEFIK_TEMPLATE" ]; then
+  echo "[raildock-init] Configuring traefik to use raildock-bridge network..."
+
+  # Use raildock-bridge network mode
+  sed -i 's/networks: \["raildock"\]/network_mode: raildock-bridge/' "$TRAEFIK_TEMPLATE"
+
+  # Add provider network flag to ensure traefik watches the raildock-bridge network
+  sed -i 's/--providers.docker.network=bridge/--providers.docker.network=raildock-bridge/' "$TRAEFIK_TEMPLATE"
+
+  echo "[raildock-init] Traefik template updated"
+fi
+
+# ── Configure Global Traefik Settings ─────────────────────────────
+
+# Set the domain for traefik
+DOKKU_DOMAIN="${DOKKU_HOSTNAME:-localhost}"
+echo "[raildock-init] Setting traefik domain to $DOKKU_DOMAIN..."
+
+# Set traefik api vhost
+dokku traefik:set --global api-vhost "traefik.$DOKKU_DOMAIN" || true
+
+# Set traefik log level
+dokku traefik:set --global log-level "INFO" || true
+
+# ── Set Global Proxy to Traefik ────────────────────────────────
+
+echo "[raildock-init] Setting global proxy to traefik..."
+dokku proxy:set --global traefik || true
+
+# ── Start Traefik ────────────────────────────────
+
+echo "[raildock-init] Starting traefik..."
+dokku traefik:start || echo "[raildock-init] Traefik start attempted"
+
 echo "[raildock-init] Dokku is ready for RailDock"

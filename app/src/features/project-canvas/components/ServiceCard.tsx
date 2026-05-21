@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { Box, Globe, Database, Zap, MessageSquare, Search, HardDrive, Link2, Unlink, X } from 'lucide-react'
+import { Box, Globe, Database, Zap, MessageSquare, Search, HardDrive, Link2, Unlink, X, Lock, Wrench } from 'lucide-react'
 import type { Service } from '@/types'
 
 const SVC_ICON: Record<string, React.ElementType> = {
@@ -189,6 +189,9 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                service.status === 'stopped' ? 'Stopped' :
                service.status}
             </span>
+            {(service as Service & { locked?: boolean }).locked && (
+              <span title="App locked"><Lock size={11} className="text-amber-400/60" /></span>
+            )}
           </div>
         </div>
       </div>

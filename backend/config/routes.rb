@@ -32,6 +32,9 @@ Rails.application.routes.draw do
           post :rebuild
           post :run
           post :enter
+          post :app_lock
+          post :app_unlock
+          get :app_locked
         end
         collection do
           get :config_show

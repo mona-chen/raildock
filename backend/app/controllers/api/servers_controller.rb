@@ -1,18 +1,33 @@
 module Api
   class ServersController < BaseController
+    include Authorizable
+
+    before_action :set_server, only: [:show, :update, :destroy, :validate, :metrics]
+    before_action :authorize_server_action!, except: [:index, :create]
+
     def index
       servers = Server.all
       render json: servers
     end
 
+    def show
+      render json: @server
+    end
+
     def create
+      authorize_server!(action: :create)
       server = Server.create!(server_params.merge(status: :disconnected))
       render json: server, status: :created
     end
 
+    def update
+      authorize_server!(action: :update)
+      @server.update!(server_params)
+      render json: @server
+    end
+
     def validate
-      server = Server.find(params[:id])
-      engine = DokkuEngine.new(server)
+      engine = DokkuEngine.new(@server)
       result = engine.validate_connection
 
       if result[:success]
@@ -20,7 +35,7 @@ module Api
         proxy_result = engine.run("proxy:report")
         detected_proxy = detect_proxy_type(proxy_result[:output])
 
-        server.update!(
+        @server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],
           docker_version: result[:docker_version],
@@ -29,17 +44,15 @@ module Api
           default_proxy: detected_proxy
         )
       else
-        server.update!(status: :error)
+        @server.update!(status: :error)
       end
 
-      render json: result.merge(default_proxy: server.default_proxy)
+      render json: result.merge(default_proxy: @server.default_proxy)
     end
 
     def metrics
-      server = Server.find(params[:id])
-
-      if server.ssh_key.present?
-        engine = DokkuEngine.new(server)
+      if @server.ssh_key.present?
+        engine = DokkuEngine.new(@server)
 
         # Try to get real system metrics via SSH
         cpu_result = engine.run("docker system info --format '{{.NCPU}}'")
@@ -50,7 +63,7 @@ module Api
           cpu: cpu_result[:success] ? cpu_result[:output].to_i : 0,
           memory: mem_result[:success] ? mem_result[:output].to_i : 0,
           disk: disk_result[:success] ? disk_result[:output].to_i : 0,
-          uptime: server.uptime || "0d 0h 0m"
+          uptime: @server.uptime || "0d 0h 0m"
         }
       end
 
@@ -58,22 +71,36 @@ module Api
         cpu: 0,
         memory: 0,
         disk: 0,
-        uptime: server.uptime || "0d 0h 0m"
+        uptime: @server.uptime || "0d 0h 0m"
       }
     end
 
     def destroy
-      server = Server.find(params[:id])
-      server.destroy!
+      authorize_server!(action: :delete)
+      @server.destroy!
       head :no_content
     end
 
     private
 
+    def set_server
+      @server = Server.find(params[:id])
+    end
+
     def server_params
-      params.require(:server).permit(:name, :host, :ssh_key, :default_proxy)
+      params.require(:server).permit(:name, :host, :ssh_key, :ssh_user, :default_proxy)
     rescue ActionController::ParameterMissing
-      params.permit(:name, :host, :ssh_key, :default_proxy)
+      params.permit(:name, :host, :ssh_key, :ssh_user, :default_proxy)
+    end
+
+    def authorize_server_action!
+      action = case params[:action]
+               when 'show' then :read
+               when 'update', 'validate', 'metrics' then :update
+               when 'destroy' then :delete
+               else :read
+               end
+      authorize_server!(action: action)
     end
 
     def detect_proxy_type(output)

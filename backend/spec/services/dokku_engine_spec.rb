@@ -228,26 +228,51 @@ RSpec.describe DokkuEngine, type: :service do
   end
 
   describe "storage methods" do
-    it "#storage_mount generates the correct command" do
-      expect(engine).to receive(:run).with("storage:mount myapp /host:/container").and_return({ success: true, output: "" })
+    it "#storage_mount generates the correct command with container-dir" do
+      expect(engine).to receive(:run).with("storage:mount myapp /host --container-dir /container").and_return({ success: true, output: "" })
       engine.storage_mount("myapp", "/host", "/container")
     end
 
+    it "#storage_mount generates the correct command with process-type" do
+      expect(engine).to receive(:run).with("storage:mount myapp /host --container-dir /container --process-type web").and_return({ success: true, output: "" })
+      engine.storage_mount("myapp", "/host", "/container", process_type: "web")
+    end
+
     it "#storage_unmount generates the correct command" do
-      expect(engine).to receive(:run).with("storage:unmount myapp /host:/container").and_return({ success: true, output: "" })
-      engine.storage_unmount("myapp", "/host", "/container")
+      expect(engine).to receive(:run).with("storage:unmount myapp /host --container-dir /container").and_return({ success: true, output: "" })
+      engine.storage_unmount("myapp", "/host", container_path: "/container")
+    end
+
+    it "#storage_list generates the correct command" do
+      expect(engine).to receive(:run).with("storage:list myapp").and_return({ success: true, output: "" })
+      engine.storage_list("myapp")
     end
   end
 
-  describe "nginx methods" do
-    it "#nginx_set generates the correct command" do
-      expect(engine).to receive(:run).with("nginx:set myapp client-max-body-size 50m").and_return({ success: true, output: "" })
-      engine.nginx_set("myapp", "client-max-body-size", "50m")
+  describe "ports methods" do
+    it "#ports_add generates the correct command" do
+      expect(engine).to receive(:run).with("ports:add myapp http:80:8080").and_return({ success: true, output: "" })
+      engine.ports_add("myapp", "http", 80, 8080)
     end
 
-    it "#nginx_show_config generates the correct command" do
-      expect(engine).to receive(:run).with("nginx:show-config myapp").and_return({ success: true, output: "" })
-      engine.nginx_show_config("myapp")
+    it "#ports_remove generates the correct command" do
+      expect(engine).to receive(:run).with("ports:remove myapp http:80:8080").and_return({ success: true, output: "" })
+      engine.ports_remove("myapp", "http", 80, 8080)
+    end
+
+    it "#ports_clear generates the correct command" do
+      expect(engine).to receive(:run).with("ports:clear myapp").and_return({ success: true, output: "" })
+      engine.ports_clear("myapp")
+    end
+
+    it "#ports_set generates the correct command" do
+      expect(engine).to receive(:run).with("ports:set myapp http:80:8080").and_return({ success: true, output: "" })
+      engine.ports_set("myapp", "http", 80, 8080)
+    end
+
+    it "#ports_list generates the correct command" do
+      expect(engine).to receive(:run).with("ports:list myapp").and_return({ success: true, output: "" })
+      engine.ports_list("myapp")
     end
   end
 
@@ -260,11 +285,6 @@ RSpec.describe DokkuEngine, type: :service do
     it "#proxy_disable generates the correct command" do
       expect(engine).to receive(:run).with("proxy:disable myapp").and_return({ success: true, output: "" })
       engine.proxy_disable("myapp")
-    end
-
-    it "#proxy_ports_set generates the correct command" do
-      expect(engine).to receive(:run).with("proxy:ports-set myapp http:80:8080").and_return({ success: true, output: "" })
-      engine.proxy_ports_set("myapp", "http", 80, 8080)
     end
 
     it "#proxy_set generates the correct command" do

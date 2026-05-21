@@ -9,10 +9,12 @@ N := \033[0m
 
 COMPOSE := docker compose -f docker-compose.yml -f docker-compose.dev.yml
 
-.PHONY: help install start stop restart status logs ps db console test seed setup-dev reset-db fix-hmr restart-backend
+.PHONY: help install uninstall start stop restart status logs ps db console test seed setup-dev reset-db fix-hmr restart-backend
 
 help:
-	@printf "\n$(B)RailDock Dev Commands$(N)\n\n"
+	@printf "\n$(B)RailDock Commands$(N)\n\n"
+	@printf "  $(G)make install$(N)        Install RailDock for production\n"
+	@printf "  $(G)make uninstall$(N)      Uninstall RailDock\n"
 	@printf "  $(G)make start$(N)          Start the full dev stack\n"
 	@printf "  $(G)make setup-dev$(N)      One-click dev setup (env, keys, server, migrations)\n"
 	@printf "  $(G)make stop$(N)           Stop all containers\n"
@@ -93,6 +95,9 @@ setup-dev:
 
 install:
 	@bash install.sh
+
+uninstall:
+	@bash uninstall.sh
 
 reset-db:
 	@printf "$(Y)[make]$(N) WARNING: This destroys all data in the dev database\n"

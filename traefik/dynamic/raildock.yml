@@ -14,6 +14,19 @@ http:
         customFrameOptionsValue: "SAMEORIGIN"
         contentTypeNosniff: true
         browserXssFilter: true
+        # Restrict content types to prevent MIME sniffing
+        contentTypeOptions: true
+
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    # Body size limits
+    body-limits:
+      headers:
+        maxRequestBytes: 1048576  # 1MB
 
   # routers:
   #   # Example: static route for a service that doesn't support Docker labels

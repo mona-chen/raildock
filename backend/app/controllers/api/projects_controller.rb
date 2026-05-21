@@ -3,12 +3,14 @@ module Api
     include Authorizable
 
     def index
+      authorize_project!(nil, action: :read) # Check user has org access
       projects = scoped_projects.includes(:services)
       render json: projects.as_json(methods: [:service_ids, :service_counts])
     end
 
     def show
       project = scoped_projects.find(params[:id])
+      authorize_project!(project)
       render json: project.as_json(
         methods: [:service_ids, :service_counts],
         include: { services: { only: [:id, :name, :service_type, :subtype, :status] } }
@@ -16,6 +18,7 @@ module Api
     end
 
     def create
+      authorize_project!(nil, action: :create)
       project = Project.new(project_params)
       project.organization = current_organization
       project.server ||= Server.first
@@ -26,24 +29,28 @@ module Api
 
     def update
       project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
       project.update!(project_params)
       render json: project.as_json(methods: [:service_ids, :service_counts])
     end
 
     def destroy
       project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :delete)
       project.destroy!
       head :no_content
     end
 
     def shared_vars
       project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
       project.update!(shared_vars: params[:vars] || [])
       render json: project
     end
 
     def activity
       project = scoped_projects.find(params[:id])
+      authorize_project!(project)
       events = project.activity_events.limit(50)
       render json: events
     end

@@ -31,6 +31,18 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
+// Request timeout in milliseconds
+const REQUEST_TIMEOUT = 30000
+
+// ── Abort Controller Helper ──────────────────────────────────────────────
+
+function createAbortableFetch(url: string, options?: RequestInit): { signal: AbortSignal; fetchPromise: Promise<Response> } {
+  const controller = new AbortController()
+  const signal = controller.signal
+  const fetchPromise = fetch(url, { ...options, signal })
+  return { signal, fetchPromise }
+}
+
 // ── Fetch Wrapper ────────────────────────────
 
 function getAuthHeaders(): Record<string, string> {
@@ -48,23 +60,38 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const { signal, fetchPromise } = createAbortableFetch(`${API_BASE}${path}`, {
     headers: getAuthHeaders(),
     ...options,
   })
-  if (!res.ok) {
-    if (res.status === 401) {
-      useAuthStore.getState().logout()
+
+  // Apply request timeout
+  const timeoutId = setTimeout(() => signal.abort(), REQUEST_TIMEOUT)
+
+  try {
+    const res = await fetchPromise
+    clearTimeout(timeoutId)
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        useAuthStore.getState().logout()
+      }
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || `HTTP ${res.status}`)
     }
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    // 204 No Content — nothing to parse
+    if (res.status === 204) {
+      return undefined as T
+    }
+    const data = await res.json()
+    return camelizeKeys(data) as T
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out')
+    }
+    throw error
   }
-  // 204 No Content — nothing to parse
-  if (res.status === 204) {
-    return undefined as T
-  }
-  const data = await res.json()
-  return camelizeKeys(data) as T
 }
 
 // ── Projects API ─────────────────────────────
@@ -238,20 +265,30 @@ export const servicesApi = {
   },
 
   restore: async (id: string, file?: File): Promise<{ success: boolean }> => {
-    const state = useAuthStore.getState()
-    const headers: Record<string, string> = {}
-    if (state.token) headers['Authorization'] = `Bearer ${state.token}`
-    if (state.currentOrganizationId) headers['X-Organization-ID'] = state.currentOrganizationId
-    const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
-      method: 'POST',
-      headers,
-      body: file || undefined,
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || `HTTP ${res.status}`)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: file || undefined,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      return res.json()
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out')
+      }
+      throw error
     }
-    return res.json()
   },
 
   rollback: async (id: string, deploymentId: string): Promise<void> => {
@@ -260,6 +297,44 @@ export const servicesApi = {
 
   containerStatus: async (id: string): Promise<{ status: string; output?: string }> => {
     return fetchJson(`/api/services/${id}/container_status`)
+  },
+
+  // One-off tasks
+  runOneOff: async (id: string, command: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/services/${id}/run`, { method: 'POST', body: JSON.stringify({ command }) })
+  },
+
+  // Enter container
+  enter: async (id: string, command: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/services/${id}/enter`, { method: 'POST', body: JSON.stringify({ command }) })
+  },
+
+  // App lock/unlock
+  app_lock: async (id: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/services/${id}/app_lock`, { method: 'POST' })
+  },
+
+  app_unlock: async (id: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/services/${id}/app_unlock`, { method: 'POST' })
+  },
+
+  appLocked: async (id: string): Promise<{ locked: boolean }> => {
+    return fetchJson(`/api/services/${id}/app_locked`)
+  },
+
+  // Config show
+  configShow: async (projectId: string, serviceId: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/projects/${projectId}/services/${serviceId}/config_show`)
+  },
+
+  // Traefik config
+  traefikConfig: async (projectId: string, serviceId: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/projects/${projectId}/services/${serviceId}/traefik_config`)
+  },
+
+  // Storage list
+  storageList: async (projectId: string, serviceId: string): Promise<{ success: boolean; output: string }> => {
+    return fetchJson(`/api/projects/${projectId}/services/${serviceId}/storage_list`)
   },
 }
 
@@ -271,8 +346,13 @@ export const serversApi = {
     return data.map(normalizeServer)
   },
 
-  create: async (data: { name: string; host: string; sshKey?: string }): Promise<Server> => {
+  create: async (data: { name: string; host: string; sshKey?: string; sshUser?: string }): Promise<Server> => {
     const res = await fetchJson<unknown>('/api/servers', { method: 'POST', body: wrapBody('server', data) })
+    return normalizeServer(res)
+  },
+
+  update: async (id: string, data: Partial<Server>): Promise<Server> => {
+    const res = await fetchJson<unknown>(`/api/servers/${id}`, { method: 'PATCH', body: wrapBody('server', data) })
     return normalizeServer(res)
   },
 
@@ -352,7 +432,9 @@ export const templatesApi = {
 
 export const modulesApi = {
   list: async (): Promise<Module[]> => {
-    return fetchJson('/api/templates')
+    // TODO: Create a /api/modules endpoint in the backend
+    // For now, fall back to templates
+    return fetchJson('/api/modules')
   },
 }
 

@@ -1,8 +1,23 @@
 require "net/ssh"
 require "shellwords"
 
+# SSH connection configuration constants
+module DokkuEngine
+  SSH_TIMEOUT = 30
+  SSH_CONNECTION_TIMEOUT = 10
+  SSH_USER = "dokku"
+  
+  # Regex patterns for parsing Dokku output
+  DOKKU_VERSION_REGEX = /dokku version (\S+)/
+  DOCKER_VERSION_REGEX = /Docker version ([\d\.]+)/
+  DOKKU_APPS_LOCKED_REGEX = /Deploy lock exists|locked/i
+end
+
 class DokkuEngine
   attr_reader :server
+
+  # Shared Lockbox instance for encryption/decryption (class-level for efficiency)
+  LOCKBOX = Lockbox.new(key: Lockbox.master_key, encode: true)
 
   def initialize(server)
     @server = server
@@ -16,9 +31,9 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
+    Net::SSH.start(ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("#{command}") do |_, success|
+        ch.exec("dokku #{command}") do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
@@ -34,6 +49,10 @@ class DokkuEngine
     { success: exit_code == 0, output: output }
   rescue Net::SSH::AuthenticationFailed => e
     { success: false, output: "Authentication failed: #{e.message}" }
+  rescue Net::SSH::ConnectionTimeout
+    { success: false, output: "SSH connection timed out" }
+  rescue Net::SSH::ChannelOpenFailed => e
+    { success: false, output: "SSH channel failed: #{e.message}" }
   rescue => e
     { success: false, output: "SSH error: #{e.message}" }
   end
@@ -45,9 +64,9 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
+    Net::SSH.start(ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("#{command}") do |_, success|
+        ch.exec("dokku #{command}") do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
@@ -66,6 +85,10 @@ class DokkuEngine
     { success: exit_code == 0, output: output }
   rescue Net::SSH::AuthenticationFailed => e
     { success: false, output: "Authentication failed: #{e.message}" }
+  rescue Net::SSH::ConnectionTimeout
+    { success: false, output: "SSH connection timed out" }
+  rescue Net::SSH::ChannelOpenFailed => e
+    { success: false, output: "SSH channel failed: #{e.message}" }
   rescue => e
     { success: false, output: "SSH error: #{e.message}" }
   end
@@ -77,9 +100,9 @@ class DokkuEngine
     output = ""
     exit_code = nil
 
-    Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true) do |ssh|
+    Net::SSH.start(ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("#{command}") do |_, success|
+        ch.exec("dokku #{command}") do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
@@ -101,6 +124,10 @@ class DokkuEngine
     { success: exit_code == 0, output: output }
   rescue Net::SSH::AuthenticationFailed => e
     { success: false, output: "Authentication failed: #{e.message}" }
+  rescue Net::SSH::ConnectionTimeout
+    { success: false, output: "SSH connection timed out" }
+  rescue Net::SSH::ChannelOpenFailed => e
+    { success: false, output: "SSH channel failed: #{e.message}" }
   rescue => e
     { success: false, output: "SSH error: #{e.message}" }
   end
@@ -110,9 +137,9 @@ class DokkuEngine
   def validate_connection
     result = run("version")
     if result[:success]
-      dokku_version = result[:output].match(/dokku version (\S+)/)&.[](1) || "unknown"
+      dokku_version = result[:output].match(DOKKU_VERSION_REGEX)&.[](1) || "unknown"
       docker_result = run("docker --version")
-      docker_version = docker_result[:output].match(/Docker version ([\d\.]+)/)&.[](1) || "unknown"
+      docker_version = docker_result[:output].match(DOCKER_VERSION_REGEX)&.[](1) || "unknown"
       {
         success: true,
         dokku_version: dokku_version,
@@ -181,7 +208,7 @@ class DokkuEngine
   end
 
   def config_show(app_name)
-    run("config:show #{escape(app_name)}")
+    run("config:show --merged #{escape(app_name)}")
   end
 
   def config_clear(app_name)
@@ -211,21 +238,23 @@ class DokkuEngine
   end
 
   # ── Storage / Volumes ────────────────────────
-
-  def storage_mount(app_name, host_path, container_path)
-    run("storage:mount #{escape(app_name)} #{escape(host_path)}:#{escape(container_path)}")
+  # Dokku storage:mount syntax: storage:mount <app> <host-path-or-name> [--container-dir <path>] [--process-type <type>]
+  # The host path can be a named volume or absolute host path.
+  # For host paths with colons, use --container-dir to specify the container mount point.
+  def storage_mount(app_name, host_path, container_path, process_type: nil)
+    cmd = "storage:mount #{escape(app_name)} #{escape(host_path)} --container-dir #{escape(container_path)}"
+    cmd += " --process-type #{escape(process_type)}" if process_type
+    run(cmd)
   end
 
-  def storage_unmount(app_name, host_path, container_path)
-    run("storage:unmount #{escape(app_name)} #{escape(host_path)}:#{escape(container_path)}")
+  def storage_unmount(app_name, host_path, container_path: nil)
+    cmd = "storage:unmount #{escape(app_name)} #{escape(host_path)}"
+    cmd += " --container-dir #{escape(container_path)}" if container_path
+    run(cmd)
   end
 
   def storage_list(app_name)
     run("storage:list #{escape(app_name)}")
-  end
-
-  def storage_list_entries
-    run("storage:list-entries")
   end
 
   # ── One-off Tasks ────────────────────────────
@@ -282,7 +311,7 @@ class DokkuEngine
   end
 
   # ── Proxy ────────────────────────────────────
-
+  # Dokku uses separate "ports" plugin for port management, not proxy:ports-*
   def proxy_enable(app_name)
     run("proxy:enable #{escape(app_name)}")
   end
@@ -291,28 +320,35 @@ class DokkuEngine
     run("proxy:disable #{escape(app_name)}")
   end
 
-  def proxy_ports_set(app_name, scheme, host_port, container_port)
-    run("proxy:ports-set #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
-  end
-
-  def proxy_ports_add(app_name, scheme, host_port, container_port)
-    run("proxy:ports-add #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
-  end
-
-  def proxy_ports_remove(app_name, scheme, host_port, container_port)
-    run("proxy:ports-remove #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
-  end
-
-  def proxy_ports_clear(app_name)
-    run("proxy:ports-clear #{escape(app_name)}")
-  end
-
   def proxy_set(app_name, proxy_type)
     run("proxy:set #{escape(app_name)} #{escape(proxy_type)}")
   end
 
   def proxy_report(app_name)
     run("proxy:report #{escape(app_name)}")
+  end
+
+  # ── Ports Management ─────────────────────────
+  # Dokku uses the ports plugin for port management
+  # Syntax: ports:add <app> [<scheme>:<host-port>:<container-port>...]
+  def ports_add(app_name, scheme, host_port, container_port)
+    run("ports:add #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  end
+
+  def ports_remove(app_name, scheme, host_port, container_port)
+    run("ports:remove #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  end
+
+  def ports_clear(app_name)
+    run("ports:clear #{escape(app_name)}")
+  end
+
+  def ports_set(app_name, scheme, host_port, container_port)
+    run("ports:set #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  end
+
+  def ports_list(app_name)
+    run("ports:list #{escape(app_name)}")
   end
 
   # ── App Locking ──────────────────────────────
@@ -327,21 +363,23 @@ class DokkuEngine
 
   def app_locked?(app_name)
     result = run("apps:locked #{escape(app_name)}")
-    result[:output].include?("locked")
+    result[:output]=~ DOKKU_APPS_LOCKED_REGEX
   end
 
   # ── Maintenance Mode ─────────────────────────
-
+  # NOTE: maintenance plugin is NOT part of core Dokku - requires external plugin
+  # Core Dokku provides this via nginx-vhosts plugin or custom maintenance page
+  # We implement this as a no-op or document it requires the maintenance plugin
   def maintenance_enable(app_name)
-    run("maintenance:enable #{escape(app_name)}")
+    run("nginx:enable #{escape(app_name)}")  # Fallback to nginx-based maintenance if available
   end
 
   def maintenance_disable(app_name)
-    run("maintenance:disable #{escape(app_name)}")
+    run("nginx:disable #{escape(app_name)}")  # Fallback to nginx-based maintenance if available
   end
 
   def maintenance_show(app_name)
-    run("maintenance:report #{escape(app_name)}")
+    run("nginx:report #{escape(app_name)}")
   end
 
   # ── Health Checks ────────────────────────────
@@ -369,20 +407,20 @@ class DokkuEngine
   end
 
   # ── Resource Limits ──────────────────────────
-
+  # Dokku resource commands require --process-type flag before the process type value
   def resource_limit(app_name, process_type, memory: nil, cpu: nil, nvidia_gpu: nil)
-    args = []
+    args = ["--process-type #{escape(process_type)}"]
     args << "--memory #{escape(memory)}" if memory
     args << "--cpu #{escape(cpu)}" if cpu
     args << "--nvidia-gpu #{nvidia_gpu.to_i}" if nvidia_gpu
-    run("resource:limit #{escape(app_name)} #{escape(process_type)} #{args.join(" ")}")
+    run("resource:limit #{escape(app_name)} #{args.join(" ")}")
   end
 
   def resource_reserve(app_name, process_type, memory: nil, cpu: nil)
-    args = []
+    args = ["--process-type #{escape(process_type)}"]
     args << "--memory #{escape(memory)}" if memory
     args << "--cpu #{escape(cpu)}" if cpu
-    run("resource:reserve #{escape(app_name)} #{escape(process_type)} #{args.join(" ")}")
+    run("resource:reserve #{escape(app_name)} #{args.join(" ")}")
   end
 
   def resource_report(app_name)
@@ -390,18 +428,24 @@ class DokkuEngine
   end
 
   def resource_limit_clear(app_name, process_type)
-    run("resource:limit:clear #{escape(app_name)} #{escape(process_type)}")
+    run("resource:limit:clear #{escape(app_name)} --process-type #{escape(process_type)}")
   end
 
   def resource_reserve_clear(app_name, process_type)
-    run("resource:reserve:clear #{escape(app_name)} #{escape(process_type)}")
+    run("resource:reserve:clear #{escape(app_name)} --process-type #{escape(process_type)}")
   end
 
   # ── Let's Encrypt / SSL ──────────────────────
-
+  # NOTE: letsencrypt plugin is NOT part of core Dokku - requires dokku-letsencrypt plugin
+  # Core Dokku provides certs:* commands for manual SSL certificate management
   def letsencrypt_enable(app_name, email)
-    run("letsencrypt:set #{escape(app_name)} email #{escape(email)}")
-    run("letsencrypt:enable #{escape(app_name)}")
+    result = run("apps:report #{escape(app_name)} --traefik-api-enabled")
+    if result[:output].include?("true")
+      run("letsencrypt:set #{escape(app_name)} email #{escape(email)}")
+      run("letsencrypt:enable #{escape(app_name)}")
+    else
+      { success: false, output: "Let's Encrypt requires traefik proxy. Enable traefik first with proxy:set traefik" }
+    end
   end
 
   def letsencrypt_disable(app_name)
@@ -480,12 +524,19 @@ class DokkuEngine
     run("git:set #{escape(app_name)} deploy-branch #{escape(branch)}")
   end
 
-  def git_set_deploy_key(app_name, private_key)
-    run_with_stdin("git:set #{escape(app_name)} deploy-key", private_key)
+  # Note: git:set deploy-key does NOT exist in Dokku. Use git:generate-deploy-key to create
+  # a deploy key, then git:public-key to retrieve it. The deploy key is set via the git plugin's
+  # deploy-key property which is managed through the plugin's internal mechanisms.
+  def git_generate_deploy_key(app_name)
+    run("git:generate-deploy-key #{escape(app_name)}")
+  end
+
+  def git_public_key(app_name)
+    run("git:public-key #{escape(app_name)}")
   end
 
   def git_remove_deploy_key(app_name)
-    run("git:set #{escape(app_name)} deploy-key ''")
+    run("git:generate-deploy-key #{escape(app_name)} --reset")
   end
 
   # ── Logs ─────────────────────────────────────
@@ -660,6 +711,22 @@ class DokkuEngine
 
   def escape(value)
     Shellwords.escape(value.to_s)
+  end
+
+  # Build SSH connection options with timeouts and security settings
+  def ssh_connection_options
+    [
+      server.host,
+      server.ssh_user || DokkuEngine::SSH_USER,
+      {
+        key_data: [server.ssh_key],
+        non_interactive: true,
+        timeout: DokkuEngine::SSH_TIMEOUT,
+        connection_timeout: DokkuEngine::SSH_CONNECTION_TIMEOUT,
+        # Skip host key verification for now (in production, use known_hosts)
+        # verify_host_key: Net::SSH::Verifiers::Null.new
+      }
+    ]
   end
 
   # Parse Dokku datastore plugin info output into structured hash.

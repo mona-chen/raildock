@@ -44,6 +44,5 @@ module Backend
     # Add cookies/session middleware required by ActionCable
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, key: '_raildock_session'
-    config.action_cable.disable_request_forgery_protection = true
   end
 end

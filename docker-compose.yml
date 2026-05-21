@@ -1,57 +1,18 @@
 name: raildock
 
 services:
-  traefik:
-    image: traefik:v3.7.0
-    command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-      - "--ping=true"
-      - "--log.level=INFO"
-      - "--entrypoints.http.address=:80"
-      - "--entrypoints.https.address=:443"
-      - "--entrypoints.http.http.redirections.entrypoint.to=https"
-      - "--entrypoints.http.http.redirections.entrypoint.scheme=https"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=raildock"
-      - "--providers.file.directory=/etc/traefik/dynamic"
-      - "--providers.file.watch=true"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@localhost}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:rw
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - letsencrypt:/letsencrypt
-    networks:
-      - raildock
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${RAILDOCK_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.traefik-dashboard.service=api@internal"
-      - "traefik.http.routers.traefik-dashboard.entrypoints=https"
-      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
-    restart: unless-stopped
-
   frontend:
     build:
       context: ./app
       dockerfile: Dockerfile.prod
     networks:
       - raildock
+      - raildock-bridge
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.raildock-web.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.raildock-web.priority=1"
+      - "traefik.http.routers.raildock-web.rule=Host(`raildock.localhost`)"
       - "traefik.http.routers.raildock-web.entrypoints=http"
-      - "traefik.http.routers.raildock-web-secure.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.raildock-web-secure.priority=1"
-      - "traefik.http.routers.raildock-web-secure.entrypoints=https"
-      - "traefik.http.routers.raildock-web-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.raildock-web.service=raildock-web"
       - "traefik.http.services.raildock-web.loadbalancer.server.port=80"
     restart: unless-stopped
 
@@ -61,6 +22,7 @@ services:
       dockerfile: Dockerfile
     environment:
       RAILS_ENV: production
+      RAILS_MAX_THREADS: "5"
       DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production
       DB_HOST: db
       DB_PORT: 5432
@@ -78,23 +40,20 @@ services:
         condition: service_healthy
     networks:
       - raildock
+      - raildock-bridge
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.raildock-api.rule=PathPrefix(`/api`)"
-      - "traefik.http.routers.raildock-api.priority=10"
+      - "traefik.http.routers.raildock-api.rule=Host(`api.raildock.localhost`)"
       - "traefik.http.routers.raildock-api.entrypoints=http"
       - "traefik.http.routers.raildock-api.service=raildock-api"
-      - "traefik.http.routers.raildock-api-secure.rule=PathPrefix(`/api`)"
-      - "traefik.http.routers.raildock-api-secure.priority=10"
+      - "traefik.http.routers.raildock-api-secure.rule=Host(`api.raildock.localhost`)"
       - "traefik.http.routers.raildock-api-secure.entrypoints=https"
       - "traefik.http.routers.raildock-api-secure.service=raildock-api"
       - "traefik.http.routers.raildock-api-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.raildock-cable.rule=PathPrefix(`/cable`)"
-      - "traefik.http.routers.raildock-cable.priority=10"
+      - "traefik.http.routers.raildock-cable.rule=Host(`api.raildock.localhost`) && PathPrefix(`/cable`)"
       - "traefik.http.routers.raildock-cable.entrypoints=http"
       - "traefik.http.routers.raildock-cable.service=raildock-api"
-      - "traefik.http.routers.raildock-cable-secure.rule=PathPrefix(`/cable`)"
-      - "traefik.http.routers.raildock-cable-secure.priority=10"
+      - "traefik.http.routers.raildock-cable-secure.rule=Host(`api.raildock.localhost`) && PathPrefix(`/cable`)"
       - "traefik.http.routers.raildock-cable-secure.entrypoints=https"
       - "traefik.http.routers.raildock-cable-secure.service=raildock-api"
       - "traefik.http.routers.raildock-cable-secure.tls.certresolver=letsencrypt"
@@ -114,18 +73,27 @@ services:
     command: ["./bin/rails", "solid_queue:start"]
     environment:
       RAILS_ENV: production
+      RAILS_MAX_THREADS: "5"
       DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD}@db:5432/raildock_production
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      FRONTEND_URL: https://${RAILDOCK_DOMAIN:-localhost}
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      RAILS_SERVE_STATIC_FILES: "true"
     depends_on:
-      backend:
+      db:
         condition: service_healthy
     networks:
       - raildock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   db:
@@ -150,9 +118,6 @@ services:
     hostname: dokku
     environment:
       DOKKU_HOSTNAME: ${RAILDOCK_DOMAIN:-localhost}
-      # Plugins create containers with bind mounts via the host daemon.
-      # The named volume 'dokku_data' is stored at this path on the Docker host.
-      # Override if your Docker root or Compose project name differs.
       DOKKU_HOST_ROOT: ${DOKKU_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/home/dokku}
       DOKKU_LIB_HOST_ROOT: ${DOKKU_LIB_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/var/lib/dokku}
     volumes:
@@ -160,16 +125,26 @@ services:
       - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
       - ./data/dokku-ssh:/data/dokku-ssh
       - ./scripts/dokku-init.sh:/etc/my_init.d/99-raildock-init.sh:ro
+      - letsencrypt:/var/lib/dokku/data/traefik
     ports:
       - "3022:22"
     networks:
       - raildock
+      - raildock-bridge
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3022 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
 networks:
   raildock:
     name: raildock
     driver: bridge
+  raildock-bridge:
+    external: true
 
 volumes:
   postgres_data:

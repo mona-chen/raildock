@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle } from 'lucide-react'
+import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight } from 'lucide-react'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { useUpdateService } from '@/hooks/useServices'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import type { Service } from '@/types'
+import { api } from '@/lib/api'
 import LogsTab from '@/features/service-panel/tabs/LogsTab'
+import ConsoleTab from '@/features/service-panel/tabs/ConsoleTab'
 
 const SVC_ICON: Record<string, React.ElementType> = {
   web: () => null, worker: Box, postgres: () => null, redis: () => null,
@@ -100,7 +102,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const db = svc.type === 'database'
   const tabs = db
     ? ['overview', 'logs', 'database', 'backups', 'variables', 'metrics', 'settings']
-    : ['overview', 'deploy', 'logs', 'variables', 'domains', 'storage', 'metrics', 'settings']
+    : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
   const Icon = SVC_ICON[svc.subtype] || Box
   const color = SVC_CLR[svc.subtype] || '#A0A0B0'
@@ -220,6 +222,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} onDeploy={handleDeploy} />}
         {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} />}
         {tab === 'logs' && <LogsTab serviceId={serviceId} />}
+        {tab === 'console' && <ConsoleTab serviceId={serviceId} serviceName={svc.name} />}
         {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}
         {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
         {tab === 'variables' && <VariablesTab svc={svc} />}
@@ -1181,7 +1184,7 @@ function SettingsTab({ svc }: { svc: Service }) {
   const updateService = useUpdateService()
   const destroyService = useDestroyService()
   const [sTab, setSTab] = useState('builder')
-  const sTabs = ['builder', 'resources', 'health', 'docker', 'cron', 'git', 'danger']
+  const sTabs = ['builder', 'resources', 'security', 'ssl', 'network', 'health', 'docker', 'cron', 'git', 'danger']
   const isApp = svc.type === 'app'
 
   const toggleField = (path: string, value: unknown) => {
@@ -1199,7 +1202,7 @@ function SettingsTab({ svc }: { svc: Service }) {
               sTab === t ? 'bg-white/[0.06] text-white/70' : 'text-white/40 hover:text-white/60'
             }`}
           >
-            {t === 'health' ? 'Health Checks' : t === 'docker' ? 'Docker Options' : t === 'cron' ? 'Cron Jobs' : t === 'danger' ? 'Danger Zone' : t}
+            {t === 'health' ? 'Health Checks' : t === 'docker' ? 'Docker Options' : t === 'cron' ? 'Cron Jobs' : t === 'danger' ? 'Danger Zone' : t === 'security' ? 'Security' : t === 'ssl' ? 'SSL/TLS' : t === 'network' ? 'Network' : t}
           </button>
         ))}
       </div>
@@ -1234,6 +1237,10 @@ function SettingsTab({ svc }: { svc: Service }) {
         {sTab === 'resources' && (
           <ResourceSettings svc={svc} />
         )}
+
+        {sTab === 'security' && <SecuritySettings svc={svc} />}
+        {sTab === 'ssl' && <SSLSettings svc={svc} />}
+        {sTab === 'network' && <NetworkSettings svc={svc} />}
 
         {sTab === 'health' && (
           <HealthSettings svc={svc} />
@@ -1679,6 +1686,171 @@ function StorageTab({ svc }: { svc: Service }) {
             Add
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Security Settings ───────────────────────
+function SecuritySettings({ svc }: { svc: Service }) {
+  const updateService = useUpdateService()
+  const [isLocked, setIsLocked] = useState(svc.locked || false)
+  const [loading, setLoading] = useState(false)
+
+  const toggleLock = async () => {
+    setLoading(true)
+    try {
+      const newLocked = !isLocked
+      if (newLocked) {
+        await api.services.app_lock(svc.id)
+      } else {
+        await api.services.app_unlock(svc.id)
+      }
+      setIsLocked(newLocked)
+      updateService.mutate({ id: svc.id, data: { locked: newLocked } })
+    } catch (err) {
+      console.error('Failed to toggle lock:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-[13px] font-medium text-white/70 mb-2">Security</div>
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[13px] text-white/70">App Lock</div>
+            <div className="text-[11px] text-white/40 mt-0.5">
+              Prevent deployments when locked. Use during maintenance or migrations.
+            </div>
+          </div>
+          <button
+            onClick={toggleLock}
+            disabled={loading}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium transition-all disabled:opacity-50 ${
+              isLocked
+                ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
+            }`}
+          >
+            {loading ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : isLocked ? (
+              '🔒 Locked'
+            ) : (
+              '🔓 Unlocked'
+            )}
+          </button>
+        </div>
+        {isLocked && (
+          <div className="mt-3 text-[11px] text-amber-400/60 bg-amber-500/5 rounded-lg p-2">
+            App is locked. Deployments and rebuilds are blocked.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── SSL/TLS Settings ─────────────────────────
+function SSLSettings({ svc }: { svc: Service }) {
+  const letsencrypt = svc.letsencrypt || { enabled: false, email: '', staging: false, autoRenew: true }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-[13px] font-medium text-white/70 mb-2">SSL/TLS</div>
+      {svc.domains.filter((d) => d.ssl).length > 0 ? (
+        <div className="space-y-3">
+          <div className="text-[11px] text-white/40 mb-2">Configured Certificates</div>
+          {svc.domains.filter((d) => d.ssl).map((d) => (
+            <div key={d.hostname} className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] text-white/70">{d.hostname}</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">SSL</span>
+                {d.letsencrypt && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">Let's Encrypt</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4 text-center">
+          <div className="text-[12px] text-white/40">No SSL certificates configured</div>
+          <div className="text-[11px] text-white/30 mt-1">Add a domain and enable SSL to secure connections</div>
+        </div>
+      )}
+
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[12px] text-white/60">Let's Encrypt</div>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            letsencrypt.enabled ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-white/5 text-white/40'
+          }`}>
+            {letsencrypt.enabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+        {letsencrypt.enabled && (
+          <div className="space-y-2 text-[11px] text-white/40">
+            <div>Email: {letsencrypt.email || 'not set'}</div>
+            <div>Auto-renew: {letsencrypt.autoRenew ? 'Yes' : 'No'}</div>
+            <div>Staging: {letsencrypt.staging ? 'Yes' : 'No'}</div>
+            {letsencrypt.lastIssued && <div>Last issued: {letsencrypt.lastIssued}</div>}
+            {letsencrypt.expiryDate && <div>Expires: {letsencrypt.expiryDate}</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Network Settings ─────────────────────────
+function NetworkSettings({ svc }: { svc: Service }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-[13px] font-medium text-white/70 mb-2">Networking</div>
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+        <div className="text-[11px] text-white/40 mb-2">Proxy Type</div>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-white/70 capitalize">{svc.proxy?.proxyType || 'traefik'}</span>
+          <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-white/40 rounded">
+            {svc.proxy?.enabled !== false ? 'enabled' : 'disabled'}
+          </span>
+        </div>
+      </div>
+
+      {svc.proxy?.portMappings && svc.proxy.portMappings.length > 0 && (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+          <div className="text-[11px] text-white/40 mb-2">Port Mappings</div>
+          <div className="space-y-2">
+            {svc.proxy.portMappings.map((pm, i) => (
+              <div key={i} className="flex items-center gap-3 text-[12px]">
+                <span className="text-white/50">{pm.scheme}://</span>
+                <span className="text-white/70 font-mono">{pm.hostPort}</span>
+                <ArrowRight size={12} className="text-white/20" />
+                <span className="text-white/70 font-mono">{pm.containerPort}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[12px] text-white/60">Linked Services</div>
+          <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
+            {svc.linkedServiceIds.length}
+          </span>
+        </div>
+        {svc.linkedServiceIds.length > 0 ? (
+          <div className="text-[11px] text-white/40">
+            {svc.linkedServiceIds.join(', ')}
+          </div>
+        ) : (
+          <div className="text-[11px] text-white/30">No linked services</div>
+        )}
       </div>
     </div>
   )

@@ -219,6 +219,7 @@ export interface Server {
   id: string
   name: string
   host: string
+  sshUser?: string          // SSH user (defaults to 'dokku')
   status: 'connected' | 'disconnected' | 'error'
   dokkuVersion: string
   dockerVersion: string

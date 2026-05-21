@@ -16,7 +16,7 @@ module Authenticatable
     end
 
     begin
-      jwt_secret = ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base }
+      jwt_secret = ENV.fetch("JWT_SECRET_KEY") { raise "JWT_SECRET_KEY must be set in production" }
       decoded = JWT.decode(token, jwt_secret, true, { algorithm: "HS256" })
       @current_user = User.find(decoded[0]["user_id"])
     rescue JWT::ExpiredSignature

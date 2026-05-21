@@ -183,6 +183,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_045012) do
     t.string "name"
     t.string "os"
     t.text "ssh_key_ciphertext"
+    t.string "ssh_user", default: "dokku"
     t.string "status"
     t.datetime "updated_at", null: false
     t.string "uptime"
