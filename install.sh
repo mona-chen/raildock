@@ -269,11 +269,15 @@ install_raildock() {
   create_env
   generate_ssh_key
 
-  log_step "Creating Docker network..."
+  log_step "Creating Docker networks..."
   docker network rm -f "$NETWORK_NAME" 2>/dev/null || true
-  docker network rm -f "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
   docker network create "$NETWORK_NAME" 2>/dev/null || true
-  docker network create "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
+  # Create raildock-bridge network with proper label for docker-compose
+  docker network rm -f "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
+  docker network create \
+    --driver bridge \
+    --label com.docker.compose.network=raildock-bridge \
+    "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
   log_ok "Networks ready"
 
   log_step "Starting RailDock stack..."

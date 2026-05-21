@@ -145,7 +145,7 @@ networks:
     driver: bridge
   raildock-bridge:
     name: raildock-bridge
-    driver: bridge
+    external: true
 
 volumes:
   postgres_data:
