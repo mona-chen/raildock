@@ -2,7 +2,7 @@ require "net/ssh"
 require "shellwords"
 
 # SSH connection configuration constants
-module DokkuEngine
+module DokkuEngineConstants
   SSH_TIMEOUT = 30
   SSH_CONNECTION_TIMEOUT = 10
   SSH_USER = "dokku"
@@ -717,12 +717,12 @@ class DokkuEngine
   def ssh_connection_options
     [
       server.host,
-      server.ssh_user || DokkuEngine::SSH_USER,
+      server.ssh_user || DokkuEngineConstants::SSH_USER,
       {
         key_data: [server.ssh_key],
         non_interactive: true,
-        timeout: DokkuEngine::SSH_TIMEOUT,
-        connection_timeout: DokkuEngine::SSH_CONNECTION_TIMEOUT,
+        timeout: DokkuEngineConstants::SSH_TIMEOUT,
+        connection_timeout: DokkuEngineConstants::SSH_CONNECTION_TIMEOUT,
         # Skip host key verification for now (in production, use known_hosts)
         # verify_host_key: Net::SSH::Verifiers::Null.new
       }

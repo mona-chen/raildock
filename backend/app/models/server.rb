@@ -34,7 +34,7 @@ class Server < ApplicationRecord
   end
 
   def ssh_user
-    self[:ssh_user].presence || DokkuEngine::SSH_USER
+    self[:ssh_user].presence || DokkuEngineConstants::SSH_USER
   end
 
   def default_proxy
