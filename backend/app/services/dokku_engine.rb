@@ -33,7 +33,7 @@ class DokkuEngine
 
     Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("dokku #{command}") do |_, success|
+        ch.exec(command) do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
@@ -66,7 +66,7 @@ class DokkuEngine
 
     Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("dokku #{command}") do |_, success|
+        ch.exec(command) do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
@@ -102,7 +102,7 @@ class DokkuEngine
 
     Net::SSH.start(*ssh_connection_options) do |ssh|
       channel = ssh.open_channel do |ch|
-        ch.exec("dokku #{command}") do |_, success|
+        ch.exec(command) do |_, success|
           unless success
             return { success: false, output: "Failed to execute command" }
           end
