@@ -137,9 +137,9 @@ class DokkuEngine
   def validate_connection
     result = run("version")
     if result[:success]
-      dokku_version = result[:output].match(DOKKU_VERSION_REGEX)&.[](1) || "unknown"
+      dokku_version = result[:output].match(DokkuEngineConstants::DOKKU_VERSION_REGEX)&.[](1) || "unknown"
       docker_result = run("docker --version")
-      docker_version = docker_result[:output].match(DOCKER_VERSION_REGEX)&.[](1) || "unknown"
+      docker_version = docker_result[:output].match(DokkuEngineConstants::DOCKER_VERSION_REGEX)&.[](1) || "unknown"
       {
         success: true,
         dokku_version: dokku_version,
@@ -363,7 +363,7 @@ class DokkuEngine
 
   def app_locked?(app_name)
     result = run("apps:locked #{escape(app_name)}")
-    result[:output]=~ DOKKU_APPS_LOCKED_REGEX
+    result[:output] =~ DokkuEngineConstants::DOKKU_APPS_LOCKED_REGEX
   end
 
   # ── Maintenance Mode ─────────────────────────
