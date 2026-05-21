@@ -316,49 +316,45 @@ install_raildock() {
     "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
   log_ok "Networks ready"
 
-  log_step "Starting RailDock stack..."
-  # Stop any existing containers first
-  docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
-  docker compose -f "$COMPOSE_FILE" up -d --build
-
-  # Generate encrypted credentials.yml.enc using the Rails container
-  # This ensures credentials can be decrypted with RAILS_MASTER_KEY
+  # Generate encrypted credentials.yml.enc BEFORE starting containers
+  # This prevents Docker from creating it as a directory via volume mount
   log_step "Generating encrypted credentials..."
   if [ -n "$RAILS_MASTER_KEY" ]; then
-    # Fix permissions so the container can write
-    chmod 777 "$INSTALL_DIR/backend/config"
-    rm -f "$INSTALL_DIR/backend/config/credentials.yml.enc"
-    touch "$INSTALL_DIR/backend/config/credentials.yml.enc"
-    chmod 666 "$INSTALL_DIR/backend/config/credentials.yml.enc"
+    # Remove any existing directory/file
+    rm -rf "$INSTALL_DIR/backend/config/credentials.yml.enc"
+    # Use a minimal Ruby image to encrypt credentials
     docker run --rm \
       -v "$INSTALL_DIR/backend/config:/config" \
       -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
-      raildock-backend:latest bash -c '
-        bundle exec ruby -e "
-        require \"bundler/setup\"
+      ruby:3.4-slim bash -c '
+        gem install activesupport -v "~> 8.0" --no-doc >/dev/null 2>&1
+        ruby -e "
         require \"active_support\"
-        require \"active_support/encrypted_file\"
+        require \"active_support/core_ext\"
         
         content = <<~YAML
         # Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
         secret_key_base: #{ENV[\"RAILS_MASTER_KEY\"]}
         YAML
         
-        ef = ActiveSupport::EncryptedFile.new(
-          content_path: \"/config/credentials.yml.enc\",
-          key_path: \"/config/master.key\",
-          env_key: \"RAILS_MASTER_KEY\",
-          raise_if_missing_key: true
-        )
+        key = ENV[\"RAILS_MASTER_KEY\"]
+        key_generator = ActiveSupport::KeyGenerator.new(key)
+        derived_key = key_generator.generate_key(\"ActiveSupport::MessageEncryptor\", 32)
         
-        encrypted = ef.send(:encrypt, content)
+        encryptor = ActiveSupport::MessageEncryptor.new(derived_key, serializer: YAML)
+        encrypted = encryptor.encrypt_and_sign(content)
+        
         File.write(\"/config/credentials.yml.enc\", encrypted)
         puts \"Credentials encrypted successfully\"
         "
-      ' 2>&1 || log_warn "Could not encrypt credentials, using plaintext fallback"
-    chmod 755 "$INSTALL_DIR/backend/config"
-    chmod 644 "$INSTALL_DIR/backend/config/credentials.yml.enc"
+      ' 2>&1 || log_warn "Could not encrypt credentials"
+    chmod 644 "$INSTALL_DIR/backend/config/credentials.yml.enc" 2>/dev/null || true
   fi
+
+  log_step "Starting RailDock stack..."
+  # Stop any existing containers first
+  docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" up -d --build
 
   wait_for_backend
   run_migrations
