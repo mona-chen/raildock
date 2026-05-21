@@ -45,8 +45,14 @@ print_success() {
   printf "${G}║${N}          ${G}🎉 RailDock is installed!${N}                           ${G}║${N}\n"
   printf "${G}║${N}                                                              ${G}║${N}\n"
   printf "${G}╚══════════════════════════════════════════════════════════════╝${N}\n\n"
-  printf "  ${B}Dashboard:${N}     %s\n" "$url"
+  printf "  ${B}Dashboard:${N}     http://%s:3000\n" "$url"
+  printf "  ${B}API:${N}           http://%s:3001\n" "$url"
   printf "  ${B}Dokku SSH:${N}     ssh -p 3022 dokku@%s\n" "$url"
+  printf "\n"
+  printf "  ${Y}With a domain (via Traefik):${N}\n"
+  printf "    Dashboard:  http://raildock.%s\n" "${RAILDOCK_DOMAIN:-localhost}"
+  printf "    API:        http://api.raildock.%s\n" "${RAILDOCK_DOMAIN:-localhost}"
+  printf "\n"
   printf "  ${B}First run:${N}     Open the dashboard and create your admin account\n"
   printf "  ${B}View logs:${N}     docker compose -f %s logs -f\n\n" "$COMPOSE_FILE"
 }
@@ -201,7 +207,7 @@ check_docker() {
 }
 
 check_ports() {
-  local ports=("80" "443" "3022")
+  local ports=("80" "443" "3000" "3001" "3022")
   local failed=0
   for port in "${ports[@]}"; do
     if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ":${port} "; then
