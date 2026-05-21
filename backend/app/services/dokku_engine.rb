@@ -722,7 +722,6 @@ class DokkuEngine
         key_data: [server.ssh_key],
         non_interactive: true,
         timeout: DokkuEngineConstants::SSH_TIMEOUT,
-        connection_timeout: DokkuEngineConstants::SSH_CONNECTION_TIMEOUT,
         # Skip host key verification for now (in production, use known_hosts)
         # verify_host_key: Net::SSH::Verifiers::Null.new
       }
