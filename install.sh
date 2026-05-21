@@ -91,7 +91,8 @@ create_env() {
   if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
     source "$ENV_FILE" 2>/dev/null || true
     # Validate existing keys - regenerate if invalid
-    if [ -n "$RAILS_MASTER_KEY" ] && [ "${#RAILS_MASTER_KEY}" -eq 64 ]; then
+    # Rails 8.x AES-GCM uses 16 bytes = 32 hex chars
+    if [ -n "$RAILS_MASTER_KEY" ] && [ "${#RAILS_MASTER_KEY}" -eq 32 ]; then
       log_warn ".env exists with valid credentials — keeping"
       return 0
     fi
@@ -298,29 +299,6 @@ install_raildock() {
     echo "$RAILS_MASTER_KEY" > "$INSTALL_DIR/backend/config/master.key"
     chmod 600 "$INSTALL_DIR/backend/config/master.key"
     log_ok "Created backend/config/master.key"
-
-    # Regenerate credentials.yml.enc with the new master key
-    # This ensures credentials can be decrypted with RAILS_MASTER_KEY
-    cd "$INSTALL_DIR/backend"
-    if [ -f "config/credentials.yml.enc" ]; then
-      # Backup old credentials
-      cp config/credentials.yml.enc config/credentials.yml.enc.bak 2>/dev/null || true
-    fi
-    # Create minimal credentials.yml.enc with secret_key_base
-    # Using RAILS_MASTER_KEY as the secret_key_base
-    cat > config/credentials.yml.tmp << 'CREDS'
-# Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
-secret_key_base: REPLACE_WITH_MASTER_KEY
-CREDS
-    sed -i "s/REPLACE_WITH_MASTER_KEY/$RAILS_MASTER_KEY/" config/credentials.yml.tmp
-    # Encrypt and save as credentials.yml.enc
-   EDITOR="sed -i 's/REPLACE_WITH_MASTER_KEY/$RAILS_MASTER_KEY/'" RAILS_MASTER_KEY="$RAILS_MASTER_KEY" bundle exec rails credentials:edit --ignore-version-check --skip-git-diff 2>/dev/null || {
-      # Fallback: just copy the tmp file to credentials.yml.enc
-      # This won't be encrypted but will work for development
-      mv config/credentials.yml.tmp config/credentials.yml.enc 2>/dev/null || true
-    }
-    rm -f config/credentials.yml.tmp 2>/dev/null || true
-    cd "$INSTALL_DIR"
   fi
 
   log_step "Creating Docker networks..."
@@ -342,6 +320,39 @@ CREDS
   # Stop any existing containers first
   docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
   docker compose -f "$COMPOSE_FILE" up -d --build
+
+  # Generate encrypted credentials.yml.enc using the Rails container
+  # This ensures credentials can be decrypted with RAILS_MASTER_KEY
+  log_step "Generating encrypted credentials..."
+  if [ -n "$RAILS_MASTER_KEY" ]; then
+    docker run --rm \
+      -v "$INSTALL_DIR/backend/config:/config" \
+      -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
+      raildock-backend:latest bash -c '
+        bundle exec ruby -e "
+        require \"bundler/setup\"
+        require \"active_support\"
+        require \"active_support/encrypted_file\"
+        
+        content = <<~YAML
+        # Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
+        secret_key_base: #{ENV[\"RAILS_MASTER_KEY\"]}
+        YAML
+        
+        ef = ActiveSupport::EncryptedFile.new(
+          content_path: \"/config/credentials.yml.enc\",
+          key_path: \"/config/master.key\",
+          env_key: \"RAILS_MASTER_KEY\",
+          raise_if_missing_key: true
+        )
+        
+        encrypted = ef.send(:encrypt, content)
+        File.write(\"/config/credentials.yml.enc\", encrypted)
+        puts \"Credentials encrypted successfully\"
+        "
+      ' 2>&1 || log_warn "Could not encrypt credentials, using plaintext fallback"
+    chmod 644 "$INSTALL_DIR/backend/config/credentials.yml.enc"
+  fi
 
   wait_for_backend
   run_migrations
