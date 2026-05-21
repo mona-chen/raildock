@@ -78,11 +78,11 @@ generate_password() {
 }
 
 generate_master_key() {
-  # Rails needs secret_key_base which should be 64 hex chars (32 bytes)
+  # Rails 8.x uses AES-GCM which requires 16 bytes (32 hex chars)
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex 64
+    openssl rand -hex 16
   else
-    tr -dc 'a-f0-9' < /dev/urandom | head -c 64
+    tr -dc 'a-f0-9' < /dev/urandom | head -c 32
   fi
 }
 
