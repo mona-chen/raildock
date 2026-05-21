@@ -270,10 +270,14 @@ install_raildock() {
   generate_ssh_key
 
   log_step "Creating Docker networks..."
+  # Remove any existing networks
   docker network rm -f "$NETWORK_NAME" 2>/dev/null || true
-  docker network create "$NETWORK_NAME" 2>/dev/null || true
-  # Create raildock-bridge network with proper label for docker-compose
   docker network rm -f "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
+  # Create networks with labels so docker-compose can find them as external
+  docker network create \
+    --driver bridge \
+    --label com.docker.compose.network=raildock \
+    "$NETWORK_NAME" 2>/dev/null || true
   docker network create \
     --driver bridge \
     --label com.docker.compose.network=raildock-bridge \
@@ -281,6 +285,8 @@ install_raildock() {
   log_ok "Networks ready"
 
   log_step "Starting RailDock stack..."
+  # Stop any existing containers first
+  docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
   docker compose -f "$COMPOSE_FILE" up -d --build
 
   wait_for_backend
