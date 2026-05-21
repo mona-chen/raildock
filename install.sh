@@ -134,9 +134,13 @@ generate_jwt_secret() {
 
 generate_ssh_key() {
   mkdir -p "$SSH_KEY_DIR"
-  chmod 700 "$SSH_KEY_DIR"
+  # 755 so container users (uid 1000/rails) can read the directory
+  chmod 755 "$SSH_KEY_DIR"
   if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
     ssh-keygen -t ed25519 -f "$SSH_KEY_DIR/id_ed25519" -N "" -C "raildock-$(date +%s)" >/dev/null 2>&1
+    # 644 so the rails user in the backend container (uid 1000) can read the key
+    chmod 644 "$SSH_KEY_DIR/id_ed25519"
+    chmod 644 "$SSH_KEY_DIR/id_ed25519.pub"
     log_ok "Generated Ed25519 SSH key pair for Dokku"
   fi
 }

@@ -48,7 +48,7 @@ module Api
 
       service = Service.create!(attrs)
 
-      # Create Dokku resource if server connected
+      # Create Dokku resource if server is connected and has SSH key
       with_dokku_engine(service) do |engine|
         if service.service_type == "database"
           result = case service.subtype
@@ -162,9 +162,11 @@ module Api
 
     def container_status
       with_dokku_engine(@service) do |engine|
-        result = engine.container_status(@service.dokku_app_name)
-        if result[:success]
-          return render json: { status: "running", output: result[:output] }
+        if engine
+          result = engine.container_status(@service.dokku_app_name)
+          if result[:success]
+            return render json: { status: "running", output: result[:output] }
+          end
         end
       end
 
@@ -587,7 +589,7 @@ module Api
 
     # Helper to create DokkuEngine only when server has SSH key
     def with_dokku_engine(service)
-      return yield(nil) unless service.project&.server&.ssh_key.present?
+      return unless service.project&.server&.ssh_key.present?
       engine = DokkuEngine.new(service.project.server)
       yield(engine)
     end
