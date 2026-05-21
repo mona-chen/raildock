@@ -30,7 +30,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
       FRONTEND_URL: https://${RAILDOCK_DOMAIN:-localhost}
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       RAILS_SERVE_STATIC_FILES: "true"
     volumes:
       - rails_storage:/rails/storage
