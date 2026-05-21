@@ -327,7 +327,8 @@ install_raildock() {
       log_warn "Backend build failed, cannot encrypt credentials"
     }
     # Use the built backend image to encrypt credentials
-    docker run --rm \
+    # Run as root to ensure we can write to the mounted host directory
+    docker run --rm --user root \
       -v "$INSTALL_DIR/backend/config:/config" \
       -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
       raildock-backend:latest bash -c '

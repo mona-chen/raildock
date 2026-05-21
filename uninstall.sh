@@ -262,6 +262,21 @@ remove_env_file() {
       log_info "Keeping .env file"
     fi
   fi
+  
+  # Also remove Rails credentials files
+  local creds_dir="$RAILDOCK_DIR/backend/config"
+  if [ -f "$creds_dir/master.key" ]; then
+    rm -f "$creds_dir/master.key"
+    log_ok "master.key removed"
+  fi
+  if [ -f "$creds_dir/credentials.yml.enc" ]; then
+    rm -f "$creds_dir/credentials.yml.enc"
+    log_ok "credentials.yml.enc removed"
+  fi
+  if [ -f "$creds_dir/credentials.yml.enc.bak" ]; then
+    rm -f "$creds_dir/credentials.yml.enc.bak"
+    log_ok "credentials.yml.enc.bak removed"
+  fi
 }
 
 # ── Clean Docker System ────────────────────────
