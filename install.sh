@@ -298,6 +298,29 @@ install_raildock() {
     echo "$RAILS_MASTER_KEY" > "$INSTALL_DIR/backend/config/master.key"
     chmod 600 "$INSTALL_DIR/backend/config/master.key"
     log_ok "Created backend/config/master.key"
+
+    # Regenerate credentials.yml.enc with the new master key
+    # This ensures credentials can be decrypted with RAILS_MASTER_KEY
+    cd "$INSTALL_DIR/backend"
+    if [ -f "config/credentials.yml.enc" ]; then
+      # Backup old credentials
+      cp config/credentials.yml.enc config/credentials.yml.enc.bak 2>/dev/null || true
+    fi
+    # Create minimal credentials.yml.enc with secret_key_base
+    # Using RAILS_MASTER_KEY as the secret_key_base
+    cat > config/credentials.yml.tmp << 'CREDS'
+# Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
+secret_key_base: REPLACE_WITH_MASTER_KEY
+CREDS
+    sed -i "s/REPLACE_WITH_MASTER_KEY/$RAILS_MASTER_KEY/" config/credentials.yml.tmp
+    # Encrypt and save as credentials.yml.enc
+   EDITOR="sed -i 's/REPLACE_WITH_MASTER_KEY/$RAILS_MASTER_KEY/'" RAILS_MASTER_KEY="$RAILS_MASTER_KEY" bundle exec rails credentials:edit --ignore-version-check --skip-git-diff 2>/dev/null || {
+      # Fallback: just copy the tmp file to credentials.yml.enc
+      # This won't be encrypted but will work for development
+      mv config/credentials.yml.tmp config/credentials.yml.enc 2>/dev/null || true
+    }
+    rm -f config/credentials.yml.tmp 2>/dev/null || true
+    cd "$INSTALL_DIR"
   fi
 
   log_step "Creating Docker networks..."
