@@ -36,11 +36,11 @@ const REQUEST_TIMEOUT = 30000
 
 // ── Abort Controller Helper ──────────────────────────────────────────────
 
-function createAbortableFetch(url: string, options?: RequestInit): { signal: AbortSignal; fetchPromise: Promise<Response> } {
+function createAbortableFetch(url: string, options?: RequestInit): { controller: AbortController; fetchPromise: Promise<Response> } {
   const controller = new AbortController()
   const signal = controller.signal
   const fetchPromise = fetch(url, { ...options, signal })
-  return { signal, fetchPromise }
+  return { controller, fetchPromise }
 }
 
 // ── Fetch Wrapper ────────────────────────────
@@ -60,13 +60,14 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const { signal, fetchPromise } = createAbortableFetch(`${API_BASE}${path}`, {
+  const { controller, fetchPromise } = createAbortableFetch(`${API_BASE}${path}`, {
     headers: getAuthHeaders(),
     ...options,
   })
 
+
   // Apply request timeout
-  const timeoutId = setTimeout(() => signal.abort(), REQUEST_TIMEOUT)
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
   try {
     const res = await fetchPromise
