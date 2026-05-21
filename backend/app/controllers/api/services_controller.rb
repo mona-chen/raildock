@@ -623,8 +623,8 @@ module Api
       end
 
       {
-        cpu: cpu_match&.[](1)&.to_i,
-        memory: memory_match&.[](1)&.to_i,
+        cpu: cpu_match ? cpu_match[1].to_i : nil,
+        memory: memory_match ? memory_match[1].to_i : nil,
         networkIn: 0,
         networkOut: 0
       }
