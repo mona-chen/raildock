@@ -5,10 +5,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/layout/AuthGuard'
+import RootRedirect from '@/components/RootRedirect'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
 
-const HomePage = lazy(() => import('./pages/HomePage'))
-const PricingPage = lazy(() => import('./pages/PricingPage'))
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'))
 const ProjectCanvas = lazy(() => import('./pages/ProjectCanvas'))
@@ -24,8 +23,7 @@ function App() {
         <ErrorBoundary>
           <Suspense fallback={<div className="min-h-screen bg-[#0B0B0D]" />}>
             <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/setup" element={<AuthPage />} />
               <Route path="/dashboard" element={
