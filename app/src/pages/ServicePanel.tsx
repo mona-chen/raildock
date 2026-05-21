@@ -8,7 +8,7 @@ import { useCanvasStore } from '@/stores/useCanvasStore'
 import type { Service } from '@/types'
 import { api } from '@/lib/api'
 import LogsTab from '@/features/service-panel/tabs/LogsTab'
-import ConsoleTab from '@/features/service-panel/tabs/ConsoleTab'
+import InteractiveTerminal from '@/features/service-panel/tabs/InteractiveTerminal'
 
 const SVC_ICON: Record<string, React.ElementType> = {
   web: () => null, worker: Box, postgres: () => null, redis: () => null,
@@ -222,7 +222,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} onDeploy={handleDeploy} />}
         {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} />}
         {tab === 'logs' && <LogsTab serviceId={serviceId} />}
-        {tab === 'console' && <ConsoleTab serviceId={serviceId} serviceName={svc.name} />}
+        {tab === 'console' && <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />}
         {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}
         {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
         {tab === 'variables' && <VariablesTab svc={svc} />}

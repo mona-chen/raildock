@@ -707,6 +707,13 @@ class DokkuEngine
     run("apps:report #{escape(app_name)}")
   end
 
+  # Open an interactive PTY shell inside a Dokku app container.
+  # Returns a DokkuTerminalSession handle that the caller manages.
+  def interactive_shell(app_name, process_type: "web", shell: "/bin/bash")
+    return nil if server.ssh_key.blank?
+    DokkuTerminalSession.new(server, app_name, process_type: process_type, shell: shell)
+  end
+
   private
 
   def escape(value)
@@ -770,5 +777,154 @@ class DokkuEngine
     info
   rescue => e
     { success: false, error: "Failed to parse info: #{e.message}" }
+  end
+end
+
+# Manages a persistent SSH PTY session for interactive terminal access.
+# Created by DokkuEngine#interactive_shell.
+class DokkuTerminalSession
+  attr_reader :app_name, :process_type
+
+  def initialize(server, app_name, process_type: "web", shell: "/bin/bash")
+    @server = server
+    @app_name = app_name
+    @process_type = process_type
+    @shell = shell
+    @ssh = nil
+    @channel = nil
+    @callbacks = {}
+    @closed = false
+    @mutex = Mutex.new
+  end
+
+  def open
+    return false if @server.ssh_key.blank?
+
+    opts = {
+      key_data: [@server.ssh_key],
+      non_interactive: true,
+      timeout: DokkuEngineConstants::SSH_TIMEOUT,
+    }
+
+    @ssh = Net::SSH.start(@server.host, @server.ssh_user || DokkuEngineConstants::SSH_USER, opts)
+
+    @channel = @ssh.open_channel do |ch|
+      ch.request_pty(term: "xterm-256color", chars_wide: 80, chars_high: 24) do |_, success|
+        unless success
+          @callbacks[:on_error]&.call("PTY allocation failed")
+          close
+          return
+        end
+
+        cmd = "enter #{Shellwords.escape(@app_name)} #{Shellwords.escape(@process_type)} #{Shellwords.escape(@shell)}"
+        ch.exec(cmd) do |_, exec_success|
+          unless exec_success
+            @callbacks[:on_error]&.call("Failed to execute shell command")
+            close
+            return
+          end
+
+          @callbacks[:on_open]&.call
+        end
+      end
+
+      ch.on_data do |_, data|
+        @callbacks[:on_data]&.call(data)
+      end
+
+      ch.on_extended_data do |_, type, data|
+        @callbacks[:on_data]&.call(data)
+      end
+
+      ch.on_close do |_, data|
+        @callbacks[:on_close]&.call
+        close
+      end
+
+      ch.on_process do
+        @ssh.process(0) if @ssh
+      end
+    end
+
+    # Start the SSH event loop in a background thread
+    @thread = Thread.new do
+      begin
+        @ssh.loop { !@closed }
+      rescue => e
+        @callbacks[:on_error]&.call("SSH loop error: #{e.message}")
+      ensure
+        @callbacks[:on_close]&.call
+      end
+    end
+
+    true
+  rescue Net::SSH::Exception => e
+    @callbacks[:on_error]&.call("SSH error: #{e.message}")
+    false
+  rescue => e
+    @callbacks[:on_error]&.call("Error: #{e.message}")
+    false
+  end
+
+  def on_data(&block)
+    @callbacks[:on_data] = block
+  end
+
+  def on_open(&block)
+    @callbacks[:on_open] = block
+  end
+
+  def on_close(&block)
+    @callbacks[:on_close] = block
+  end
+
+  def on_error(&block)
+    @callbacks[:on_error] = block
+  end
+
+  def send_data(data)
+    @mutex.synchronize do
+      return if @closed || @channel.nil?
+      @channel.send_data(data)
+    end
+  end
+
+  def resize(cols:, rows:)
+    @mutex.synchronize do
+      return if @closed || @channel.nil?
+      @channel.send_channel_request("window-change", :long, cols, :long, rows, :long, 0, :long, 0)
+    end
+  end
+
+  def close
+    @mutex.synchronize do
+      return if @closed
+      @closed = true
+
+      begin
+        @channel&.close
+      rescue
+        nil
+      end
+
+      begin
+        @ssh&.close
+      rescue
+        nil
+      end
+
+      begin
+        @thread&.kill
+      rescue
+        nil
+      end
+
+      @channel = nil
+      @ssh = nil
+    end
+  end
+
+  def closed?
+    @closed
   end
 end
