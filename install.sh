@@ -325,6 +325,8 @@ install_raildock() {
   # This ensures credentials can be decrypted with RAILS_MASTER_KEY
   log_step "Generating encrypted credentials..."
   if [ -n "$RAILS_MASTER_KEY" ]; then
+    # Fix permissions so the container can write
+    chmod 777 "$INSTALL_DIR/backend/config"
     docker run --rm \
       -v "$INSTALL_DIR/backend/config:/config" \
       -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
@@ -351,6 +353,7 @@ install_raildock() {
         puts \"Credentials encrypted successfully\"
         "
       ' 2>&1 || log_warn "Could not encrypt credentials, using plaintext fallback"
+    chmod 755 "$INSTALL_DIR/backend/config"
     chmod 644 "$INSTALL_DIR/backend/config/credentials.yml.enc"
   fi
 
