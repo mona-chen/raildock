@@ -35,8 +35,6 @@ services:
     volumes:
       - rails_storage:/rails/storage
       - ./data/dokku-ssh:/data/dokku-ssh:ro
-      - ./backend/config/master.key:/rails/config/master.key:ro
-      - ./backend/config/credentials.yml.enc:/rails/config/credentials.yml.enc:ro
     depends_on:
       db:
         condition: service_healthy
