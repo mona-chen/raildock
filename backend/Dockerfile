@@ -38,8 +38,10 @@ RUN apt-get update -qq && \
 # Install application gems
 COPY Gemfile Gemfile.lock vendor ./
 
-# bootsnap precompile disabled — causes secret_key_base mismatch when RAILS_MASTER_KEY changes
-# RUN bundle exec bootsnap precompile -j 1 --gemfile
+RUN bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
+    # bootsnap precompile disabled to avoid secret_key_base mismatch
+    true
 
 # Copy application code
 COPY . .
