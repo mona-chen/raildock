@@ -28,13 +28,13 @@ module Api
     end
 
     def ensure_local_dokku_server
-      return if Server.count > 0
-
       dokku_key_path = "/data/dokku-ssh/id_ed25519"
       return unless File.exist?(dokku_key_path)
 
       private_key = File.read(dokku_key_path).strip
-      server = Server.create!(
+
+      # Find existing local server or create one
+      server = Server.find_by(host: "dokku") || Server.create!(
         name: "Local Dokku",
         host: "dokku",
         ssh_key: private_key,
@@ -42,6 +42,7 @@ module Api
         default_proxy: "traefik"
       )
 
+      # Always validate connection — Dokku may not have been ready during auto-setup
       engine = DokkuEngine.new(server)
       result = engine.validate_connection
 
