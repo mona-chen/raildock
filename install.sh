@@ -327,6 +327,9 @@ install_raildock() {
   if [ -n "$RAILS_MASTER_KEY" ]; then
     # Fix permissions so the container can write
     chmod 777 "$INSTALL_DIR/backend/config"
+    rm -f "$INSTALL_DIR/backend/config/credentials.yml.enc"
+    touch "$INSTALL_DIR/backend/config/credentials.yml.enc"
+    chmod 666 "$INSTALL_DIR/backend/config/credentials.yml.enc"
     docker run --rm \
       -v "$INSTALL_DIR/backend/config:/config" \
       -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
