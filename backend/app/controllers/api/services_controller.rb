@@ -3,7 +3,7 @@ module Api
     include Authorizable
 
     # Standard error response format
-    ERROR_RESPONSE = ->(message, details = nil) {
+    ERROR_RESPONSE = ->(message = nil, details = nil) {
       response = { error: message }
       response[:details] = details if details
       response
