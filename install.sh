@@ -11,6 +11,7 @@ RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-$(pwd)}"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 NETWORK_NAME="raildock-network"
+NETWORK_BRIDGE_NAME="raildock-bridge"
 SSH_KEY_DIR="$INSTALL_DIR/data/dokku-ssh"
 ENV_FILE="$INSTALL_DIR/.env"
 
@@ -270,8 +271,10 @@ install_raildock() {
 
   log_step "Creating Docker network..."
   docker network rm -f "$NETWORK_NAME" 2>/dev/null || true
+  docker network rm -f "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
   docker network create "$NETWORK_NAME" 2>/dev/null || true
-  log_ok "Network '$NETWORK_NAME' ready"
+  docker network create "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
+  log_ok "Networks ready"
 
   log_step "Starting RailDock stack..."
   docker compose -f "$COMPOSE_FILE" up -d --build
