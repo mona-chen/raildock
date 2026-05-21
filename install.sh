@@ -204,6 +204,19 @@ check_ports() {
   local failed=0
   for port in "${ports[@]}"; do
     if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ":${port} "; then
+      # Check if it's a docker-proxy (conflicting container)
+      local docker_proc=$(ss -tulnp 2>/dev/null | grep ":${port} " | grep -o 'docker-proxy' | head -1)
+      if [ -n "$docker_proc" ]; then
+        log_warn "Port ${port} is in use by Docker. Stopping conflicting containers..."
+        docker ps -a --format '{{.Names}}' | grep -E 'traefik|nginx|proxy' | xargs -r docker stop 2>/dev/null || true
+        docker ps -a --format '{{.Names}}' | grep -E 'traefik|nginx|proxy' | xargs -r docker rm 2>/dev/null || true
+        sleep 2
+        # Recheck
+        if ! ss -tulnp 2>/dev/null | grep -q ":${port} "; then
+          log_ok "Port ${port} is now available"
+          continue
+        fi
+      fi
       log_error "Port ${port} is already in use"
       failed=1
     elif command -v lsof >/dev/null 2>&1 && lsof -Pi :"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
