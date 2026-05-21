@@ -78,17 +78,24 @@ generate_password() {
 }
 
 generate_master_key() {
+  # Rails needs secret_key_base which should be 64 hex chars (32 bytes)
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex 16
+    openssl rand -hex 64
   else
-    tr -dc 'a-f0-9' < /dev/urandom | head -c 32
+    tr -dc 'a-f0-9' < /dev/urandom | head -c 64
   fi
 }
 
 create_env() {
+  # Check if we need to generate new credentials
   if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
-    log_warn ".env already exists — keeping existing credentials"
-    return 0
+    source "$ENV_FILE" 2>/dev/null || true
+    # Validate existing keys - regenerate if invalid
+    if [ -n "$RAILS_MASTER_KEY" ] && [ "${#RAILS_MASTER_KEY}" -eq 64 ]; then
+      log_warn ".env exists with valid credentials — keeping"
+      return 0
+    fi
+    log_warn ".env exists but has invalid keys — regenerating"
   fi
 
   local pg_pass master_key jwt_secret
@@ -268,6 +275,17 @@ install_raildock() {
   log_step "Generating credentials..."
   create_env
   generate_ssh_key
+
+  # Create master.key for Rails credentials decryption
+  mkdir -p "$INSTALL_DIR/backend/config"
+  if [ -f "$INSTALL_DIR/.env" ]; then
+    source "$INSTALL_DIR/.env" 2>/dev/null || true
+  fi
+  if [ -n "$RAILS_MASTER_KEY" ]; then
+    echo "$RAILS_MASTER_KEY" > "$INSTALL_DIR/backend/config/master.key"
+    chmod 600 "$INSTALL_DIR/backend/config/master.key"
+    log_ok "Created backend/config/master.key"
+  fi
 
   log_step "Creating Docker networks..."
   # Remove any existing networks
