@@ -136,7 +136,7 @@ services:
       - raildock
       - raildock-bridge
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3022 || exit 1"]
+      test: ["CMD-SHELL", "ss -tln | grep -q ':22 ' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -709,9 +709,9 @@ class DokkuEngine
 
   # Open an interactive PTY shell inside a Dokku app container.
   # Returns a DokkuTerminalSession handle that the caller manages.
-  def interactive_shell(app_name, process_type: "web", shell: "/bin/sh")
+  def interactive_shell(app_name, process_type: "web", shell: "/bin/sh", database: false)
     return nil if server.ssh_key.blank?
-    DokkuTerminalSession.new(server, app_name, process_type: process_type, shell: shell)
+    DokkuTerminalSession.new(server, app_name, process_type: process_type, shell: shell, database: database)
   end
 
   private
@@ -729,8 +729,7 @@ class DokkuEngine
         key_data: [server.ssh_key],
         non_interactive: true,
         timeout: DokkuEngineConstants::SSH_TIMEOUT,
-        # Skip host key verification for now (in production, use known_hosts)
-        # verify_host_key: Net::SSH::Verifiers::Null.new
+        verify_host_key: :never,
       }
     ]
   end
@@ -785,15 +784,17 @@ end
 class DokkuTerminalSession
   attr_reader :app_name, :process_type
 
-  def initialize(server, app_name, process_type: "web", shell: "/bin/sh")
+  def initialize(server, app_name, process_type: "web", shell: "/bin/sh", database: false)
     @server = server
     @app_name = app_name
     @process_type = process_type
     @shell = shell
+    @database = database
     @ssh = nil
     @channel = nil
     @callbacks = {}
     @closed = false
+    @close_called = false
     @mutex = Mutex.new
   end
 
@@ -804,6 +805,7 @@ class DokkuTerminalSession
       key_data: [@server.ssh_key],
       non_interactive: true,
       timeout: DokkuEngineConstants::SSH_TIMEOUT,
+      verify_host_key: :never,
     }
 
     @ssh = Net::SSH.start(@server.host, @server.ssh_user || DokkuEngineConstants::SSH_USER, opts)
@@ -816,7 +818,11 @@ class DokkuTerminalSession
           return
         end
 
-        cmd = "enter #{Shellwords.escape(@app_name)} #{Shellwords.escape(@process_type)} #{Shellwords.escape(@shell)}"
+        cmd = if @database
+          "#{Shellwords.escape(@process_type)}:enter #{Shellwords.escape(@app_name)} #{Shellwords.escape(@shell)}"
+        else
+          "enter #{Shellwords.escape(@app_name)} #{Shellwords.escape(@process_type)} #{Shellwords.escape(@shell)}"
+        end
         ch.exec(cmd) do |_, exec_success|
           unless exec_success
             @callbacks[:on_error]&.call("Failed to execute shell command")
@@ -842,7 +848,6 @@ class DokkuTerminalSession
 
       ch.on_close do |_, data|
         Rails.logger.debug "[DokkuTerminalSession] on_close received"
-        @callbacks[:on_close]&.call
         close
       end
 
@@ -867,16 +872,16 @@ class DokkuTerminalSession
       rescue => e
         @callbacks[:on_error]&.call("SSH loop error: #{e.message}")
       ensure
-        @callbacks[:on_close]&.call
+        safe_on_close
       end
     end
 
     true
   rescue Net::SSH::Exception => e
-    @callbacks[:on_error]&.call("SSH error: #{e.message}")
+    Rails.logger.error "[DokkuTerminalSession] SSH error during open: #{e.message}"
     false
   rescue => e
-    @callbacks[:on_error]&.call("Error: #{e.message}")
+    Rails.logger.error "[DokkuTerminalSession] Error during open: #{e.message}"
     false
   end
 
@@ -936,9 +941,21 @@ class DokkuTerminalSession
       @channel = nil
       @ssh = nil
     end
+
+    safe_on_close
   end
 
   def closed?
     @closed
+  end
+
+  private
+
+  def safe_on_close
+    @mutex.synchronize do
+      return if @close_called
+      @close_called = true
+    end
+    @callbacks[:on_close]&.call
   end
 end

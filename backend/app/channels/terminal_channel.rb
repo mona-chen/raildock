@@ -52,9 +52,12 @@ class TerminalChannel < ApplicationCable::Channel
     end
 
     engine = DokkuEngine.new(server)
+    shell = params["shell"].presence || "/bin/sh"
     @session = engine.interactive_shell(
       @service.dokku_app_name,
-      process_type: @service.service_type == "database" ? @service.subtype : "web"
+      process_type: @service.service_type == "database" ? @service.subtype : "web",
+      shell: shell,
+      database: @service.service_type == "database"
     )
 
     unless @session
@@ -80,6 +83,8 @@ class TerminalChannel < ApplicationCable::Channel
     end
 
     unless @session.open
+      # Error callback may have already fired from within open(); only
+      # send a generic fallback if the session never signalled an error.
       transmit({ type: "error", data: "Failed to establish SSH connection" })
     end
   rescue => e

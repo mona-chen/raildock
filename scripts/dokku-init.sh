@@ -18,20 +18,20 @@ if [ ! -f "$SSH_DIR/id_ed25519" ]; then
   echo "[raildock-init] Generated new Ed25519 SSH key pair"
 fi
 
-# Ensure public key is in Dokku's authorized_keys
+# Ensure public key is registered with Dokku (wraps it with sshcommand)
 if [ -f "$SSH_DIR/id_ed25519.pub" ]; then
   mkdir -p "$DOKKU_HOME/.ssh"
   chmod 700 "$DOKKU_HOME/.ssh"
 
   PUB_KEY=$(cat "$SSH_DIR/id_ed25519.pub")
 
-  # Check if key already present (avoid duplicates)
-  if ! grep -Fq "$PUB_KEY" "$DOKKU_HOME/.ssh/authorized_keys" 2>/dev/null; then
-    # Dokku wraps authorized_keys entries with sshcommand for safety
-    echo "$PUB_KEY" >> "$DOKKU_HOME/.ssh/authorized_keys"
-    chmod 600 "$DOKKU_HOME/.ssh/authorized_keys"
-    chown -R "$DOKKU_USER:$DOKKU_USER" "$DOKKU_HOME/.ssh"
-    echo "[raildock-init] Added SSH key to Dokku authorized_keys"
+  # Use dokku ssh-keys:add so the key is properly wrapped with command="..."
+  # instead of appending a raw key which would grant unrestricted shell access.
+  if ! dokku ssh-keys:list 2>/dev/null | grep -Fq "$PUB_KEY"; then
+    cp "$SSH_DIR/id_ed25519.pub" /tmp/raildock.pub
+    dokku ssh-keys:add raildock /tmp/raildock.pub || true
+    rm -f /tmp/raildock.pub
+    echo "[raildock-init] Registered SSH key with Dokku"
   fi
 fi
 

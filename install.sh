@@ -177,6 +177,60 @@ inject_dokku_ssh_key() {
   log_ok "SSH key registered with Dokku"
 }
 
+inject_server() {
+  local backend_container="raildock-backend-1"
+  local priv_key="$SSH_KEY_DIR/id_ed25519"
+
+  if [ ! -f "$priv_key" ]; then
+    log_warn "SSH private key not found, skipping server configuration"
+    return 0
+  fi
+
+  log_step "Configuring RailDock server record..."
+
+  docker cp "$priv_key" "$backend_container:/tmp/id_ed25519"
+  docker exec --user root "$backend_container" chmod 644 /tmp/id_ed25519
+
+  docker exec "$backend_container" bin/rails runner "
+    privkey = File.read('/tmp/id_ed25519')
+    server = Server.first
+
+    if server
+      server.update!(
+        name: 'Dokku Server',
+        host: 'dokku',
+        ssh_key: privkey,
+        status: :connected,
+        dokku_version: '0.38.1',
+        docker_version: '26.1.0',
+        os: 'Alpine Linux',
+        default_proxy: 'traefik'
+      )
+      puts \"Updated server: \#{server.name}\"
+    else
+      server = Server.create!(
+        name: 'Dokku Server',
+        host: 'dokku',
+        ssh_key: privkey,
+        status: :connected,
+        dokku_version: '0.38.1',
+        docker_version: '26.1.0',
+        os: 'Alpine Linux',
+        default_proxy: 'traefik'
+      )
+      puts \"Created server: \#{server.name}\"
+    end
+
+    Project.where(server_id: nil).find_each do |project|
+      project.update!(server: server)
+      puts \"Assigned server to project: \#{project.name}\"
+    end
+  "
+
+  docker exec --user root "$backend_container" rm -f /tmp/id_ed25519
+  log_ok "Server record configured"
+}
+
 check_os() {
   local os
   os=$(uname -s)
@@ -375,6 +429,7 @@ install_raildock() {
   wait_for_backend
   run_migrations
   inject_dokku_ssh_key
+  inject_server
 
   local public_ip
   public_ip=$(get_public_ip)

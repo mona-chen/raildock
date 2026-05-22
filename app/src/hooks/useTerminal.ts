@@ -10,7 +10,11 @@ interface TerminalMessage {
   data?: string
 }
 
-export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTMLDivElement | null>) {
+export function useTerminal(
+  serviceId: string,
+  terminalRef: React.RefObject<HTMLDivElement | null>,
+  shell: string = '/bin/sh'
+) {
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -98,7 +102,7 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
 
     // Subscribe to ActionCable
     const subscription = getCable().subscriptions.create(
-      { channel: 'TerminalChannel', service_id: serviceId },
+      { channel: 'TerminalChannel', service_id: serviceId, shell },
       {
         connected() {
           setIsConnected(true)
@@ -164,7 +168,7 @@ export function useTerminal(serviceId: string, terminalRef: React.RefObject<HTML
       subscriptionRef.current = null
       setIsConnected(false)
     }
-  }, [serviceId, terminalRef, sendData, sendResize])
+  }, [serviceId, shell, terminalRef, sendData, sendResize])
 
   return { isConnected, error, term: termRef.current, findNext, findPrevious, clearSearch }
 }
