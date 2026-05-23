@@ -1171,10 +1171,25 @@ function VariablesTab({ svc }: { svc: Service }) {
       const eq = trimmed.indexOf('=')
       if (eq === -1) continue
       const key = trimmed.slice(0, eq).trim()
-      const value = trimmed.slice(eq + 1).trim()
+      let value = trimmed.slice(eq + 1).trim()
+      // Strip surrounding quotes (' or ") — common when pasting from .env files
+      if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
+        value = value.slice(1, -1)
+      }
       if (key) out.push({ key, value })
     }
     return out
+  }
+
+  const formatRawEnv = (vars: typeof svc.envVars): string => {
+    return vars
+      .filter((ev) => !ev.isDokkuInternal)
+      .map((ev) => {
+        // Quote values that contain spaces or special chars
+        const needsQuotes = ev.value.includes(' ') || ev.value.includes('#') || ev.value.includes('=')
+        return needsQuotes ? `${ev.key}="${ev.value}"` : `${ev.key}=${ev.value}`
+      })
+      .join('\n')
   }
 
   const handleRawSave = () => {
@@ -1323,7 +1338,14 @@ function VariablesTab({ svc }: { svc: Service }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setMode(mode === 'list' ? 'raw' : 'list')}
+            onClick={() => {
+              if (mode === 'list') {
+                setRawText(formatRawEnv(svc.envVars))
+                setMode('raw')
+              } else {
+                setMode('list')
+              }
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-white/50 rounded-lg text-[12px] hover:bg-white/10 hover:text-white/70 transition-all"
           >
             <FileCode size={13} />
