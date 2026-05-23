@@ -6,7 +6,7 @@ module Api
 
     # GET /api/projects/:project_id/manifest
     def show
-      content = @project.manifest_content || default_manifest_content
+      content = @project.manifest_content || ManifestGenerator.new(@project).generate(format: :toml)
       render json: {
         content: content,
         format: @project.manifest_format || "raildock.toml",
@@ -136,32 +136,6 @@ module Api
       stripped = content.to_s.strip
       return "app.json" if stripped.start_with?("{") && (stripped.include?("buildpacks") || stripped.include?("formation"))
       "raildock.toml"
-    end
-
-    def default_manifest_content
-      project_name = @project.name.parameterize
-      <<~TOML
-        # RailDock manifest for #{@project.name}
-        # Docs: https://raildock.dev/docs/manifest
-
-        [[services]]
-        name = "web"
-        category = "app"
-        subtype = "web"
-        builder = "nixpacks"
-        source = { type = "git" }
-
-          [services.scaling]
-          web = 1
-
-          [services.proxy]
-          enabled = true
-          type = "traefik"
-
-            [[services.proxy.ports]]
-            host = 80
-            container = 3000
-      TOML
     end
   end
 end
