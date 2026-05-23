@@ -29,7 +29,8 @@ module Api
         return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
       end
 
-      validation = ManifestSchema.validate(JSON.parse(content) rescue TomlRB.parse(content))
+      parsed = JSON.parse(content) rescue TomlRB.parse(content)
+      validation = ManifestSchema.validate(parsed)
       unless validation.success?
         return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity
       end
