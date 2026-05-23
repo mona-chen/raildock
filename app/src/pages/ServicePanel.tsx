@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight, Link2, Unlink, Copy, Check, Database, Eye, EyeOff, FileCode, Plus, RotateCcw } from 'lucide-react'
+import { Box, X, ArrowDownToLine, Trash2, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight, Link2, Unlink, Copy, Check, Database, Eye, EyeOff, FileCode, Plus, RotateCcw, Globe } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
+import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups, useLinkedByServices, useUnlinkService } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
@@ -13,14 +14,7 @@ import { toast } from 'sonner'
 import LogsTab from '@/features/service-panel/tabs/LogsTab'
 import InteractiveTerminal from '@/features/service-panel/tabs/InteractiveTerminal'
 
-const SVC_ICON: Record<string, React.ElementType> = {
-  web: () => null, worker: Box, postgres: () => null, redis: () => null,
-  mysql: () => null, mongo: () => null, clock: Box,
-}
-const SVC_CLR: Record<string, string> = {
-  web: '#22c55e', worker: '#3b82f6', postgres: '#8b5cf6',
-  redis: '#f59e0b', mysql: '#3b82f6', mongo: '#22c55e', clock: '#a855f7',
-}
+
 
 interface ServicePanelProps {
   serviceId: string
@@ -107,8 +101,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     ? ['overview', 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
-  const Icon = SVC_ICON[svc.subtype] || Box
-  const color = SVC_CLR[svc.subtype] || '#A0A0B0'
+  const color = getServiceColor(svc.subtype)
 
   return (
     <div data-service-panel className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40" onWheel={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
@@ -127,7 +120,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}15` }}
           >
-            <Icon size={17} style={{ color }} />
+            <ServiceIcon subtype={svc.subtype} size={17} />
           </div>
           <div>
             <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
@@ -239,13 +232,6 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
 }
 
 // ── Connection String Helpers ────────────────
-const DB_ICON: Record<string, React.ElementType> = {
-  postgres: Database, mysql: Database, mongo: Database, redis: Database,
-}
-const DB_CLR: Record<string, string> = {
-  postgres: '#8b5cf6', mysql: '#3b82f6', mongo: '#22c55e', redis: '#f59e0b',
-}
-
 function maskConnectionUrl(url: string): string {
   try {
     const u = new URL(url)
@@ -315,7 +301,7 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
                   <div key={ev.key} className="bg-black/30 border border-white/[0.04] rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Database size={13} className="text-white/40" />
+                        <ServiceIcon subtype={ev.key.includes('REDIS') ? 'redis' : ev.key.includes('MONGO') ? 'mongo' : ev.key.includes('MYSQL') ? 'mysql' : 'postgres'} size={13} />
                         <span className="text-[12px] font-medium text-white/60">{ev.key}</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -384,7 +370,7 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
               {linkedByServices.map((app) => (
                 <div key={app.id} className="flex items-center justify-between bg-black/30 border border-white/[0.04] rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Box size={13} className="text-white/40" />
+                    <ServiceIcon subtype={app.subtype} size={13} />
                     <span className="text-[12px] text-white/60">{app.name}</span>
                     <span className="text-[10px] text-white/30">{app.subtype}</span>
                   </div>
@@ -427,7 +413,7 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515' }}
             >
-              <Box size={20} style={{ color: svc.status === 'running' ? '#22c55e' : '#8A8A95' }} />
+              <ServiceIcon subtype={svc.subtype} size={20} />
             </div>
             <div>
               <div className="text-[14px] font-medium text-white/80">{svc.name}</div>
@@ -510,7 +496,7 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
           )}
           {svc.dockerImage && (
             <div className="flex items-center gap-2 text-[12px]">
-              <Box size={13} className="text-white/30" />
+              <ServiceIcon subtype="docker" size={13} />
               <span className="text-white/40">Image:</span>
               <span className="text-white/60 font-mono">{svc.dockerImage}</span>
             </div>

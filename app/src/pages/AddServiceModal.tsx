@@ -3,6 +3,7 @@ import {
   Box, Database, Zap, Cog, X, Plus, Rocket, Code2, Container,
   ChevronLeft, GitBranch, Settings2, HardDrive, Trash2, HelpCircle,
 } from 'lucide-react'
+import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
 import { useBuilders } from '@/hooks/useModules'
 
@@ -152,8 +153,8 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Source</label>
             <div className="flex gap-2">
-              <SourceButton active={sourceType === 'git'} onClick={() => setSourceType('git')} icon={Code2} label="Git Repository" />
-              <SourceButton active={sourceType === 'docker'} onClick={() => setSourceType('docker')} icon={Container} label="Docker Image" />
+              <SourceButton active={sourceType === 'git'} onClick={() => setSourceType('git')} icon={() => <ServiceIcon subtype="git" size={14} />} label="Git Repository" />
+              <SourceButton active={sourceType === 'docker'} onClick={() => setSourceType('docker')} icon={() => <ServiceIcon subtype="docker" size={14} />} label="Docker Image" />
             </div>
           </div>
 
@@ -274,7 +275,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                       : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
                   }`}
                 >
-                  <Database size={16} style={{ color: dbType === db.subtype ? '#3b82f6' : '#6b7280' }} />
+                  <ServiceIcon subtype={db.subtype} size={18} />
                   <div className="flex-1">
                     <div className="text-[13px] text-white/70">{db.name}</div>
                     <div className="text-[11px] text-white/40">{db.description} · v{db.defaultVersion}</div>
@@ -325,21 +326,21 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
         <div className="space-y-2">
           <ServiceOption
-            icon={Zap}
+            icon={() => <ServiceIcon subtype="redis" size={18} />}
             name="Redis"
             description="In-memory cache and session store"
             onClick={() => handleCreateService('redis')}
             isCreating={isCreating}
           />
           <ServiceOption
-            icon={Cog}
+            icon={() => <ServiceIcon subtype="rabbitmq" size={18} />}
             name="RabbitMQ"
             description="Message broker and queue system"
             onClick={() => handleCreateService('rabbitmq')}
             isCreating={isCreating}
           />
           <ServiceOption
-            icon={HardDrive}
+            icon={() => <ServiceIcon subtype="minio" size={18} />}
             name="MinIO"
             description="S3-compatible object storage"
             onClick={() => handleCreateService('minio')}

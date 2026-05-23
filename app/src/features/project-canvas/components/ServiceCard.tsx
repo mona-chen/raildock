@@ -1,30 +1,7 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { Box, Globe, Database, Zap, MessageSquare, Search, HardDrive, Link2, Unlink, X, Lock, Wrench } from 'lucide-react'
+import { Box, HardDrive, Link2, Unlink, X, Lock, Wrench } from 'lucide-react'
+import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import type { Service } from '@/types'
-
-const SVC_ICON: Record<string, React.ElementType> = {
-  web: Globe,
-  worker: Box,
-  postgres: Database,
-  redis: Zap,
-  mysql: Database,
-  mongo: Database,
-  rabbitmq: MessageSquare,
-  clock: Box,
-  elasticsearch: Search,
-}
-
-const SVC_CLR: Record<string, string> = {
-  web: '#22c55e',
-  worker: '#3b82f6',
-  postgres: '#8b5cf6',
-  redis: '#f59e0b',
-  mysql: '#3b82f6',
-  mongo: '#22c55e',
-  rabbitmq: '#f97316',
-  clock: '#a855f7',
-  elasticsearch: '#3b82f6',
-}
 
 interface ServiceCardProps {
   service: Service
@@ -37,8 +14,7 @@ interface ServiceCardProps {
 }
 
 function ServiceCard({ service, position, isSelected, onMouseDown, otherServices, onLink, onUnlink }: ServiceCardProps) {
-  const Icon = SVC_ICON[service.subtype] || Box
-  const color = SVC_CLR[service.subtype] || '#A0A0B0'
+  const color = getServiceColor(service.subtype)
   const isDb = service.type === 'database'
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -107,7 +83,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
               className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${color}15` }}
             >
-              <Icon size={18} style={{ color }} />
+              <ServiceIcon subtype={service.subtype} size={18} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold text-white truncate">{service.name}</div>
