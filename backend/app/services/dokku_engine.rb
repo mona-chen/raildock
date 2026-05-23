@@ -389,15 +389,15 @@ class DokkuEngine
   # Core Dokku provides this via nginx-vhosts plugin or custom maintenance page
   # We implement this as a no-op or document it requires the maintenance plugin
   def maintenance_enable(app_name)
-    run("nginx:enable #{escape(app_name)}")  # Fallback to nginx-based maintenance if available
+    run("maintenance:on #{escape(app_name)}")
   end
 
   def maintenance_disable(app_name)
-    run("nginx:disable #{escape(app_name)}")  # Fallback to nginx-based maintenance if available
+    run("maintenance:off #{escape(app_name)}")
   end
 
   def maintenance_show(app_name)
-    run("nginx:report #{escape(app_name)}")
+    run("maintenance:report #{escape(app_name)}")
   end
 
   # ── Health Checks ────────────────────────────
