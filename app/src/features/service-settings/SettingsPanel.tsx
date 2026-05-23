@@ -137,7 +137,12 @@ function GeneralSettings({ svc }: { svc: Service }) {
 // ── Deploy Settings ────────────────────────────────────────
 function DeploySettings({ svc }: { svc: Service }) {
   const { setConfigPath, setField } = useConfigUpdater(svc)
-  const checks = svc.checks || { enabled: false, wait: 5, timeout: 30, skipList: [] }
+  const checks = {
+    enabled: svc.checks?.enabled ?? false,
+    wait: svc.checks?.wait ?? 5,
+    timeout: svc.checks?.timeout ?? 30,
+    skipList: svc.checks?.skipList ?? [],
+  }
 
   return (
     <div className="space-y-4">
@@ -189,8 +194,17 @@ function DeploySettings({ svc }: { svc: Service }) {
 // ── Network Settings ───────────────────────────────────────
 function NetworkSettings({ svc }: { svc: Service }) {
   const { setConfigPath } = useConfigUpdater(svc)
-  const proxy = svc.proxy || { enabled: true, proxyType: 'traefik', portMappings: [] }
-  const letsencrypt = svc.letsencrypt || { enabled: false, email: '', staging: false, autoRenew: true }
+  const proxy = {
+    enabled: svc.proxy?.enabled ?? true,
+    proxyType: svc.proxy?.proxyType ?? 'traefik',
+    portMappings: svc.proxy?.portMappings ?? [],
+  }
+  const letsencrypt = {
+    enabled: svc.letsencrypt?.enabled ?? false,
+    email: svc.letsencrypt?.email ?? '',
+    staging: svc.letsencrypt?.staging ?? false,
+    autoRenew: svc.letsencrypt?.autoRenew ?? true,
+  }
 
   const addPort = () => {
     const next = [...proxy.portMappings, { scheme: 'http', hostPort: 80, containerPort: 3000 }]
