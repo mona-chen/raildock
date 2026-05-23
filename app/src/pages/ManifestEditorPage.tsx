@@ -97,8 +97,15 @@ export default function ManifestEditorPage() {
     setPreviewResult(null)
   }, [manifest?.content])
 
-  const handleTemplateSelect = useCallback((templateId: string) => {
-    toast.info(`Template "${templateId}" selected — apply to generate services`)
+  const handleUseAsManifest = useCallback((templateId: string, rawToml: string) => {
+    if (!rawToml) {
+      toast.error('Template source not available')
+      return
+    }
+    setContent(rawToml)
+    setPreviewResult(null)
+    setActiveTab('editor')
+    toast.success(`Loaded "${templateId}" into editor`)
   }, [])
 
   const hasChanges = content !== (manifest?.content || '')
@@ -309,7 +316,7 @@ export default function ManifestEditorPage() {
 
         {activeTab === 'templates' && (
           <div className="h-full overflow-y-auto p-4">
-            <TemplateGallery projectId={projectId!} onSelect={handleTemplateSelect} />
+            <TemplateGallery projectId={projectId!} onUseAsManifest={handleUseAsManifest} />
           </div>
         )}
       </div>

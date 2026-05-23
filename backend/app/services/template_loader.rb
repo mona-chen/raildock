@@ -53,6 +53,7 @@ class TemplateLoader
         services: @services,
         links: @links,
         source: @source,
+        raw: @raw,
         valid: valid?,
         warnings: @warnings,
         errors: @errors

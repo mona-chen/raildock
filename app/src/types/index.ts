@@ -181,6 +181,7 @@ export interface Template {
   category: string
   description: string
   services: TemplateService[]
+  raw?: string
 }
 
 export interface TemplateService {
