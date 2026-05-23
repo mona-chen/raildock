@@ -1,0 +1,152 @@
+name = "Chaskiq is an messaging platform for marketing, support & sales"
+description = "Chaskiq is an messaging platform for marketing, support & sales"
+category = "stack"
+logo = "svgs/chaskiq.png"
+[[services]]
+name = "chaskiq"
+category = "app"
+subtype = "docker"
+docker_image = "chaskiq/chaskiq:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CHASKIQ_3000 = ""
+    REDIS_URL = "redis://redis:6379/"
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DB:-chaskiq}"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    SERVICE_URL = "${SERVICE_URL_CHASKIQ}"
+    HOST = "${SERVICE_URL_CHASKIQ_3000}"
+    ASSET_HOST = "${SERVICE_URL_CHASKIQ_3000}"
+    WS = "wss://${SERVICE_URL_CHASKIQ}/cable"
+    SNS_CONFIGURATION_SET = "metrics"
+    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID:-}"
+    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY:-}"
+    AWS_S3_BUCKET = "${AWS_S3_BUCKET:-}"
+    AWS_S3_REGION = "${AWS_S3_REGION:-}"
+    ADMIN_EMAIL = "${ADMIN_EMAIL:-admin@example}"
+    ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    DEFAULT_SENDER_EMAIL = "${DEFAULT_SENDER_EMAIL:-admin@example}"
+    LOCAL_STORAGE_PATH = "/data/storage"
+    ACTIVE_STORAGE_SERVICE = "${ACTIVE_STORAGE_SERVICE:-local}"
+    SMTP_DELIVERY_METHOD = "${SMTP_DELIVERY_METHOD:-}"
+    SMTP_ADDRESS = "${SMTP_ADDRESS:-}"
+    SMTP_USERNAME = "${SMTP_USERNAME:-}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD:-}"
+    CHASKIQ_APPSTORE_TOKEN = "${CHASKIQ_APPSTORE_TOKEN:-}"
+    APP_ENV = "production"
+    RAILS_ENV = "production"
+    RACK_ENV = "production"
+    RAILS_SERVE_STATIC_FILES = "true"
+    SECRET_KEY_BASE = "$SERVICE_PASSWORD_64_SECRET"
+    RAILS_LOG_TO_STDOUT = "true"
+    ENABLED_AUDITS = "true"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "chaskiq-storage"
+      container = "/data/storage"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "sidekiq"
+category = "app"
+subtype = "docker"
+docker_image = "chaskiq/chaskiq:latest"
+start_command = "bundle exec sidekiq -C config/sidekiq.yml"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    REDIS_URL = "redis://redis:6379/"
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DB:-chaskiq}"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    HOST = "${SERVICE_URL_CHASKIQ_3000}"
+    ASSET_HOST = "${SERVICE_URL_CHASKIQ_3000}"
+    WS = "wss://${SERVICE_URL_CHASKIQ}/cable"
+    SNS_CONFIGURATION_SET = "metrics"
+    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID:-}"
+    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY:-}"
+    AWS_S3_BUCKET = "${AWS_S3_BUCKET:-}"
+    AWS_S3_REGION = "${AWS_S3_REGION:-}"
+    ADMIN_EMAIL = "${ADMIN_EMAIL:-admin@example}"
+    ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    DEFAULT_SENDER_EMAIL = "${DEFAULT_SENDER_EMAIL:-admin@example}"
+    LOCAL_STORAGE_PATH = "/data/storage"
+    ACTIVE_STORAGE_SERVICE = "${ACTIVE_STORAGE_SERVICE:-local}"
+    SMTP_DELIVERY_METHOD = "${SMTP_DELIVERY_METHOD:-}"
+    SMTP_ADDRESS = "${SMTP_ADDRESS:-}"
+    SMTP_USERNAME = "${SMTP_USERNAME:-}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD:-}"
+    CHASKIQ_APPSTORE_TOKEN = "${CHASKIQ_APPSTORE_TOKEN:-}"
+    APP_ENV = "production"
+    RAILS_ENV = "production"
+    RACK_ENV = "production"
+    RAILS_SERVE_STATIC_FILES = "true"
+    SECRET_KEY_BASE = "$SERVICE_PASSWORD_64_SECRET"
+    RAILS_LOG_TO_STDOUT = "true"
+    ENABLED_AUDITS = "true"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "chaskiq-storage"
+      container = "/data/storage"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:14-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-chaskiq}"
+    POSTGRES_INITDB_ARGS = " --data-checksums"
+    PSQL_HISTFILE = "/root/log/.psql_history"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:6-alpine"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "chaskiq"
+to = "postgresql"
+
+[[links]]
+from = "chaskiq"
+to = "redis"
+
+[[links]]
+from = "sidekiq"
+to = "postgresql"
+
+[[links]]
+from = "sidekiq"
+to = "redis"
+
+[[links]]
+from = "sidekiq"
+to = "chaskiq"

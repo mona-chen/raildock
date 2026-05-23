@@ -1,0 +1,26 @@
+name = "A low-code application platform for building internal tools."
+description = "A low-code application platform for building internal tools."
+category = "stack"
+logo = "svgs/appsmith.svg"
+[[services]]
+name = "appsmith"
+category = "app"
+subtype = "docker"
+docker_image = "index.docker.io/appsmith/appsmith-ce:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_APPSMITH = ""
+    APPSMITH_MAIL_ENABLED = "${APPSMITH_MAIL_ENABLED:-false}"
+    APPSMITH_DISABLE_TELEMETRY = "${APPSMITH_DISABLE_TELEMETRY:-false}"
+    APPSMITH_DISABLE_INTERCOM = "${APPSMITH_DISABLE_INTERCOM:-true}"
+    APPSMITH_SENTRY_DSN = "${APPSMITH_SENTRY_DSN}"
+    APPSMITH_SMART_LOOK_ID = "${APPSMITH_SMART_LOOK_ID}"
+    [[services.storage]]
+      host = "stacks-data"
+      container = "/appsmith-stacks"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

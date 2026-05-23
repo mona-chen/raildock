@@ -1,0 +1,72 @@
+name = "Castopod is a free & open-source hosting platform made for podcasters who want engage and interact with their audience."
+description = "Castopod is a free & open-source hosting platform made for podcasters who want engage and interact with their audience."
+category = "stack"
+logo = "svgs/castopod.svg"
+[[services]]
+name = "castopod"
+category = "app"
+subtype = "docker"
+docker_image = "castopod/castopod:1.15.4"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CASTOPOD_8080 = ""
+    MYSQL_DATABASE = "castopod"
+    MYSQL_USER = "$SERVICE_USER_MYSQL"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    CP_DISABLE_HTTPS = "${CP_DISABLE_HTTPS:-1}"
+    CP_BASEURL = "$SERVICE_URL_CASTOPOD"
+    CP_ANALYTICS_SALT = "$SERVICE_REALBASE64_64_SALT"
+    CP_CACHE_HANDLER = "redis"
+    CP_REDIS_HOST = "redis"
+    CP_REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    [[services.storage]]
+      host = "castopod-media"
+      container = "/var/www/castopod/public/media"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11.2"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MYSQL_DATABASE = "castopod"
+    MYSQL_USER = "$SERVICE_USER_MYSQL"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    [[services.storage]]
+      host = "castopod-db"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7.2-alpine"
+start_command = "--requirepass $SERVICE_PASSWORD_REDIS"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "castopod-cache"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "castopod"
+to = "mariadb"
+
+[[links]]
+from = "castopod"
+to = "redis"

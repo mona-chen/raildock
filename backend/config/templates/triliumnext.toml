@@ -1,0 +1,22 @@
+name = "Build your personal knowledge base with TriliumNext Notes."
+description = "Build your personal knowledge base with TriliumNext Notes."
+category = "stack"
+logo = "svgs/triliumnext.svg"
+[[services]]
+name = "triliumnext"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/triliumnext/trilium:stable"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_TRILIUMNEXT_8080 = ""
+    TZ = "${TZ:-Europe/Berlin}"
+    [[services.storage]]
+      host = "triliumnext_data"
+      container = "/home/node/trilium-data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

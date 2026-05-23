@@ -1,0 +1,46 @@
+name = "NocoBase is the most extensible AI-powered no-code/low-code platform."
+description = "NocoBase is the most extensible AI-powered no-code/low-code platform."
+category = "stack"
+logo = "svgs/nocobase.png"
+[[services]]
+name = "nocobase"
+category = "app"
+subtype = "docker"
+docker_image = "nocobase/nocobase:1.9.33"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NOCOBASE_13000 = ""
+    APP_KEY = "${SERVICE_BASE64_64_APPKEY}"
+    DB_DIALECT = "postgres"
+    DB_HOST = "postgres"
+    DB_PORT = "5432"
+    DB_DATABASE = "${POSTGRES_DB:-nocobase-db}"
+    DB_USER = "$SERVICE_USER_POSTGRES"
+    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    [[services.storage]]
+      host = "nocobase-storage"
+      container = "/app/nocobase/storage"
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:17-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-nocobase-db}"
+    [[services.storage]]
+      host = "postgres-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "nocobase"
+to = "postgres"

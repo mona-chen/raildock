@@ -1,0 +1,50 @@
+name = "Langflow is an open-source, Python-based, customizable framework for building AI applications."
+description = "Langflow is an open-source, Python-based, customizable framework for building AI applications."
+category = "stack"
+logo = "svgs/langflow.svg"
+[[services]]
+name = "langflow"
+category = "app"
+subtype = "docker"
+docker_image = "langflowai/langflow:1.7.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LANGFLOW_7860 = ""
+    LANGFLOW_AUTO_LOGIN = "${LANGFLOW_AUTO_LOGIN:-false}"
+    LANGFLOW_SUPERUSER = "$SERVICE_USER_LANGFLOW"
+    LANGFLOW_SUPERUSER_PASSWORD = "$SERVICE_PASSWORD_LANGFLOW"
+    LANGFLOW_DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/${POSTGRES_DB:-langflow-db}"
+    LANGFLOW_CONFIG_DIR = "app/langflow"
+    LANGFLOW_HOST = "0.0.0.0"
+    PORT = "7860"
+    [[services.storage]]
+      host = "langflow-data"
+      container = "/app/langflow"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:18-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-langflow-db}"
+    [[services.storage]]
+      host = "langflow-postgres"
+      container = "/var/lib/postgres/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "langflow"
+to = "postgres"

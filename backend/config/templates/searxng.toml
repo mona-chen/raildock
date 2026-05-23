@@ -1,0 +1,42 @@
+name = "SearXNG is a free internet metasearch engine which aggregates results from more than 70 search services."
+description = "SearXNG is a free internet metasearch engine which aggregates results from more than 70 search services."
+category = "stack"
+logo = "svgs/searxng.svg"
+[[services]]
+name = "searxng"
+category = "app"
+subtype = "docker"
+docker_image = "searxng/searxng"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SEARXNG_8080 = ""
+    INSTANCE_NAME = "${INSTANCE_NAME:-coolify}"
+    BASE_URL = "${SERVICE_URL_SEARXNG_8080}"
+    SEARXNG_URL = "${SERVICE_URL_SEARXNG_8080}"
+    SEARXNG_BIND_ADDRESS = "${SEARXNG_BIND_ADDRESS:-0.0.0.0}"
+    SEARXNG_SECRET = "${SERVICE_PASSWORD_SEARXNGSECRET}"
+    SEARXNG_REDIS_URL = "redis://redis:6379/0"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "searxng"
+to = "redis"

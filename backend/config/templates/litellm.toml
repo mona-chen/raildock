@@ -1,0 +1,78 @@
+name = "Call all LLM APIs using the OpenAI format. Use Bedrock, Azure, OpenAI, Cohere, Anthropic, Ollama, Sagemaker, HuggingFace, Replicate, Groq (100+ LLMs)"
+description = "Call all LLM APIs using the OpenAI format. Use Bedrock, Azure, OpenAI, Cohere, Anthropic, Ollama, Sagemaker, HuggingFace, Replicate, Groq (100+ LLMs)"
+category = "stack"
+logo = "svgs/litellm.svg"
+[[services]]
+name = "litellm"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/berriai/litellm-database:main-stable"
+start_command = "--config /app/config.yaml --port 4000 --num_workers 8"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LITELLM_4000 = ""
+    LITELLM_LOG = "${LITELLM_LOG:-ERROR}"
+    LITELLM_MODE = "${LITELLM_MODE:-PRODUCTION}"
+    LITELLM_MASTER_KEY = "${SERVICE_PASSWORD_MASTERKEY}"
+    UI_USERNAME = "${SERVICE_USER_UI}"
+    UI_PASSWORD = "${SERVICE_PASSWORD_UI}"
+    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-litellm}"
+    REDIS_HOST = "${REDIS_HOST:-redis}"
+    REDIS_PORT = "${REDIS_PORT:-6379}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-litellm}"
+    OPENAI_API_KEY = "${OPENAI_API_KEY}"
+    OPENAI_API_BASE = "${OPENAI_API_BASE}"
+    ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+    ANTHROPIC_API_BASE = "${ANTHROPIC_API_BASE}"
+    VOYAGE_API_KEY = "${VOYAGE_API_KEY}"
+    VOYAGE_API_BASE = "${VOYAGE_API_BASE}"
+    STORE_MODEL_IN_DB = "${STORE_MODEL_IN_DB}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRES_DB:-litellm}"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    [[services.storage]]
+      host = "pg-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+start_command = "redis-server --appendonly yes"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "litellm"
+to = "postgres"
+
+[[links]]
+from = "litellm"
+to = "redis"

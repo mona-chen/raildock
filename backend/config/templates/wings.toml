@@ -1,0 +1,28 @@
+name = "The server control plane for Pterodactyl Panel. Written from the ground-up with security, speed, and stability in mind."
+description = "The server control plane for Pterodactyl Panel. Written from the ground-up with security, speed, and stability in mind."
+category = "stack"
+logo = "svgs/pterodactyl.png"
+[[services]]
+name = "wings"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/pterodactyl/wings:v1.12.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WINGS_8443 = ""
+    TZ = "${TIMEZONE:-UTC}"
+    WINGS_USERNAME = "$SERVICE_USER_WINGS"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 2022
+      container = 2022
+    [[services.storage]]
+      host = "wings_lib"
+      container = "/var/lib/pterodactyl/"
+    [[services.storage]]
+      host = "wings_logs"
+      container = "/var/log/pterodactyl/"

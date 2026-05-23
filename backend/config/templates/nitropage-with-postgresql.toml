@@ -1,0 +1,46 @@
+name = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
+description = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
+category = "stack"
+logo = "svgs/nitropage.svg"
+[[services]]
+name = "nitropage"
+category = "app"
+subtype = "docker"
+docker_image = "nitropage/nitropage"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NITROPAGE_3000 = ""
+    NP_AUTH_SALT = "${SERVICE_BASE64_SALT}"
+    NP_AUTH_PASSWORD = "${SERVICE_PASSWORD_64_SESSION}"
+    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRESQL}:${SERVICE_PASSWORD_POSTGRESQL}@postgresql:5432/${POSTGRESQL_DATABASE:-nitropage}"
+    [[services.storage]]
+      host = "nitropage-data"
+      container = "/app/.data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-nitropage}"
+    [[services.storage]]
+      host = "nitropage-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "nitropage"
+to = "postgresql"

@@ -1,0 +1,85 @@
+name = "Open-Source Billing, Built for Hosting"
+description = "Open-Source Billing, Built for Hosting"
+category = "stack"
+logo = "svgs/paymenter.svg"
+[[services]]
+name = "paymenter"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/paymenter/paymenter:v1.4.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PAYMENTER = "${SERVICE_URL_PAYMENTER_80}"
+    DB_DATABASE = "${MYSQL_DATABASE:-paymenter-db}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    DB_USERNAME = "${SERVICE_USER_MYSQL}"
+    APP_ENV = "production"
+    CACHE_STORE = "redis"
+    SESSION_DRIVER = "redis"
+    QUEUE_CONNECTION = "redis"
+    REDIS_HOST = "redis"
+    REDIS_USERNAME = "default"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    DB_CONNECTION = "mariadb"
+    DB_HOST = "mariadb"
+    DB_PORT = "3306"
+    APP_KEY = "${SERVICE_BASE64_KEY}"
+    [[services.storage]]
+      host = "app_logs"
+      container = "/app/storage/logs"
+    [[services.storage]]
+      host = "extenstions"
+      container = "/app/extensions"
+    [[services.storage]]
+      host = "themes"
+      container = "/app/themes"
+    [[services.storage]]
+      host = "app_storage"
+      container = "/app/storage/app"
+    [[services.storage]]
+      host = "app_public_storage"
+      container = "/app/storage/app/public"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11.8"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-paymenter-db}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    [[services.storage]]
+      host = "paymenter_mariadb_data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:alpine"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1
+
+[[links]]
+from = "paymenter"
+to = "mariadb"
+
+[[links]]
+from = "paymenter"
+to = "redis"

@@ -1,0 +1,165 @@
+name = "Hatchet allows you to run background tasks at scale with a high-throughput, low-latency computing service built on an open-source, fault-tolerant queue."
+description = "Hatchet allows you to run background tasks at scale with a high-throughput, low-latency computing service built on an open-source, fault-tolerant queue."
+category = "stack"
+logo = "svgs/hatchet.svg"
+[[services]]
+name = "hatchet-dashboard"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/hatchet-dev/hatchet/hatchet-dashboard:latest"
+start_command = "sh ./entrypoint.sh --config /hatchet/config"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
+    SERVICE_URL_HATCHET_80 = ""
+    [[services.storage]]
+      host = "hatchet-certs"
+      container = "/hatchet/certs"
+    [[services.storage]]
+      host = "hatchet-config"
+      container = "/hatchet/config"
+
+[[services]]
+name = "hatchet-engine"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/hatchet-dev/hatchet/hatchet-engine:latest"
+start_command = "/hatchet/hatchet-engine --config /hatchet/config"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
+    SERVER_GRPC_BIND_ADDRESS = "${SERVER_GRPC_BIND_ADDRESS:-0.0.0.0}"
+    SERVER_GRPC_INSECURE = "${SERVER_GRPC_INSECURE:-t}"
+    [[services.storage]]
+      host = "hatchet-certs"
+      container = "/hatchet/certs"
+    [[services.storage]]
+      host = "hatchet-config"
+      container = "/hatchet/config"
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-hatchet}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "rabbitmq"
+category = "queue"
+subtype = "rabbitmq"
+docker_image = "rabbitmq:3-management"
+source = { type = "docker"  }
+  [services.env]
+    SERVICE_URL_RABBITMQ_15672 = ""
+    RABBITMQ_DEFAULT_USER = "$SERVICE_USER_RABBITMQ"
+    RABBITMQ_DEFAULT_PASS = "$SERVICE_PASSWORD_RABBITMQ"
+    PORT = "${RABBITMQ_PORT:-5672}"
+    [[services.storage]]
+      host = "rabbitmq-data"
+      container = "/var/lib/rabbitmq/"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[services]]
+name = "migration"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/hatchet-dev/hatchet/hatchet-migrate:latest"
+start_command = "/hatchet/hatchet-migrate"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
+
+[[services]]
+name = "setup-config"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/hatchet-dev/hatchet/hatchet-admin:latest"
+start_command = "/hatchet/hatchet-admin quickstart --skip certs --generated-config-dir /hatchet/config --overwrite=false"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
+    SERVER_TASKQUEUE_RABBITMQ_URL = "amqp://$SERVICE_USER_RABBITMQ:$SERVICE_PASSWORD_RABBITMQ@rabbitmq:5672/"
+    SERVER_AUTH_COOKIE_DOMAIN = "${SERVER_AUTH_COOKIE_DOMAIN:-localhost:8080}"
+    SERVER_AUTH_COOKIE_INSECURE = "${SERVER_AUTH_COOKIE_INSECURE:-t}"
+    SERVER_GRPC_BIND_ADDRESS = "${SERVER_GRPC_BIND_ADDRESS:-0.0.0.0}"
+    SERVER_GRPC_INSECURE = "${SERVER_GRPC_INSECURE:-t}"
+    SERVER_GRPC_BROADCAST_ADDRESS = "${SERVER_GRPC_BROADCAST_ADDRESS:-localhost:7077}"
+    SERVER_DEFAULT_ENGINE_VERSION = "V1"
+    SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS = "${SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS:-hatchet-engine:7077}"
+    [[services.storage]]
+      host = "hatchet_certs"
+      container = "/hatchet/certs"
+    [[services.storage]]
+      host = "hatchet_config"
+      container = "/hatchet/config"
+
+[[links]]
+from = "hatchet-dashboard"
+to = "postgres"
+
+[[links]]
+from = "hatchet-dashboard"
+to = "rabbitmq"
+
+[[links]]
+from = "hatchet-dashboard"
+to = "setup-config"
+
+[[links]]
+from = "hatchet-dashboard"
+to = "migration"
+
+[[links]]
+from = "hatchet-engine"
+to = "postgres"
+
+[[links]]
+from = "hatchet-engine"
+to = "rabbitmq"
+
+[[links]]
+from = "hatchet-engine"
+to = "setup-config"
+
+[[links]]
+from = "hatchet-engine"
+to = "migration"
+
+[[links]]
+from = "migration"
+to = "postgres"
+
+[[links]]
+from = "setup-config"
+to = "migration"
+
+[[links]]
+from = "setup-config"
+to = "rabbitmq"
+
+[[links]]
+from = "setup-config"
+to = "postgres"

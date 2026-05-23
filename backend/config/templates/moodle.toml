@@ -1,0 +1,60 @@
+name = "Moodle is the world’s most customisable and trusted eLearning solution that empowers educators to improve our world."
+description = "Moodle is the world’s most customisable and trusted eLearning solution that empowers educators to improve our world."
+category = "stack"
+logo = "svgs/moodle.png"
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11.1"
+source = { type = "docker"  }
+  [services.env]
+    ALLOW_EMPTY_PASSWORD = "no"
+    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_ROOT"
+    MYSQL_DATABASE = "bitnami_moodle"
+    MYSQL_USER = "$SERVICE_USER_MARIADB"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MARIADB"
+    MARIADB_CHARACTER_SET = "utf8mb4"
+    MARIADB_COLLATE = "utf8mb4_unicode_ci"
+    [[services.storage]]
+      host = "mariadb-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "moodle"
+category = "app"
+subtype = "docker"
+docker_image = "docker.io/bitnamilegacy/moodle:4.3"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MOODLE_8080 = ""
+    MOODLE_DATABASE_HOST = "mariadb"
+    MOODLE_DATABASE_PORT_NUMBER = "3306"
+    MOODLE_DATABASE_USER = "$SERVICE_USER_MARIADB"
+    MOODLE_DATABASE_NAME = "bitnami_moodle"
+    MOODLE_DATABASE_PASSWORD = "$SERVICE_PASSWORD_MARIADB"
+    ALLOW_EMPTY_PASSWORD = "no"
+    MOODLE_USERNAME = "${MOODLE_USERNAME:-user}"
+    MOODLE_PASSWORD = "$SERVICE_PASSWORD_MOODLE"
+    MOODLE_EMAIL = "user@example.com"
+    MOODLE_SITE_NAME = "${MOODLE_SITE_NAME:-New Site}"
+    [[services.storage]]
+      host = "moodle-data"
+      container = "/bitnami/moodle"
+    [[services.storage]]
+      host = "moodledata-data"
+      container = "/bitnami/moodledata"
+  [services.checks]
+    enabled = true
+    wait = 20
+    timeout = 10
+
+[[links]]
+from = "moodle"
+to = "mariadb"

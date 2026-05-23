@@ -1,0 +1,22 @@
+name = "Run macOS in a containerized environment."
+description = "Run macOS in a containerized environment."
+category = "stack"
+logo = "svgs/macos.svg"
+[[services]]
+name = "macos"
+category = "app"
+subtype = "docker"
+docker_image = "dockurr/macos"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MACOS_8006 = ""
+    VERSION = "15"
+    [[services.storage]]
+      host = "macos-storage"
+      container = "/storage"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

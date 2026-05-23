@@ -1,0 +1,118 @@
+name = "A one-of-a-kind resume builder that keeps your privacy in mind."
+description = "A one-of-a-kind resume builder that keeps your privacy in mind."
+category = "stack"
+logo = "svgs/rxresume.svg"
+[[services]]
+name = "reactive-resume"
+category = "app"
+subtype = "docker"
+docker_image = "amruthpillai/reactive-resume:v4.3.7"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_REACTIVERESUME_3000 = ""
+    PUBLIC_URL = "$SERVICE_URL_REACTIVERESUME"
+    STORAGE_URL = "${SERVICE_URL_MINIO}/default"
+    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/${POSTGRES_DB:-postgres}"
+    ACCESS_TOKEN_SECRET = "$SERVICE_PASSWORD_ACCESSTOKEN"
+    REFRESH_TOKEN_SECRET = "$SERVICE_PASSWORD_REFRESHTOKEN"
+    CHROME_TOKEN = "$SERVICE_PASSWORD_CHROMETOKEN"
+    CHROME_URL = "ws://chrome:3000/chrome"
+    REDIS_URL = "redis://redis:6379"
+    STORAGE_ENDPOINT = "minio"
+    STORAGE_PORT = "9000"
+    STORAGE_REGION = "us-east-1"
+    STORAGE_BUCKET = "default"
+    STORAGE_ACCESS_KEY = "$SERVICE_USER_MINIO"
+    STORAGE_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
+    STORAGE_USE_SSL = "false"
+    DISABLE_SIGNUPS = "${SERVICE_DISABLE_SIGNUPS:-false}"
+    DISABLE_EMAIL_AUTH = "${SERVICE_DISABLE_EMAIL_AUTH:-false}"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 3
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRES_DB:-postgres}"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    [[services.storage]]
+      host = "postgres-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "minio"
+category = "service"
+subtype = "s3"
+docker_image = "ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z"
+start_command = "server /data --console-address \":9001\""
+source = { type = "docker"  }
+  [services.env]
+    MINIO_SERVER_URL = "$MINIO_SERVER_URL"
+    MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
+    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
+    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    [[services.storage]]
+      host = "minio-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "chrome"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/browserless/chrome:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    HEALTH = "true"
+    TIMEOUT = "10000"
+    CONCURRENT = "10"
+    TOKEN = "$SERVICE_PASSWORD_CHROMETOKEN"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 3
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+start_command = "redis-server"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "reactive-resume"
+to = "postgres"
+
+[[links]]
+from = "reactive-resume"
+to = "minio"
+
+[[links]]
+from = "reactive-resume"
+to = "chrome"

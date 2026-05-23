@@ -1,0 +1,21 @@
+name = "A self-hosted dashboard that puts all your feeds in one place."
+description = "A self-hosted dashboard that puts all your feeds in one place."
+category = "stack"
+logo = "svgs/glance.png"
+[[services]]
+name = "glance"
+category = "app"
+subtype = "docker"
+docker_image = "glanceapp/glance:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_GLANCE_8080 = ""
+    [[services.storage]]
+      host = "glance-assets"
+      container = "/user/assets"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

@@ -1,0 +1,19 @@
+name = "A headless Chrome browser as a service."
+description = "A headless Chrome browser as a service."
+category = "stack"
+logo = "svgs/browserless.svg"
+[[services]]
+name = "browserless"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/browserless/chromium"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BROWSERLESS_3000 = ""
+    TOKEN = "$SERVICE_PASSWORD_BROWSERLESS"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

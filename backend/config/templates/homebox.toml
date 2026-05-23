@@ -1,0 +1,30 @@
+name = "Homebox is the inventory and organization system built for the Home User."
+description = "Homebox is the inventory and organization system built for the Home User."
+category = "stack"
+logo = "svgs/homebox.svg"
+[[services]]
+name = "homebox"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/sysadminsmedia/homebox:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HOMEBOX_7745 = ""
+    HBOX_OPTIONS_ALLOW_REGISTRATION = "${HBOX_OPTIONS_ALLOW_REGISTRATION:-false}"
+    HBOX_LOG_LEVEL = "${HBOX_LOG_LEVEL:-info}"
+    HBOX_LOG_FORMAT = "${HBOX_LOG_FORMAT:-text}"
+    HBOX_WEB_MAX_UPLOAD_SIZE = "${HBOX_WEB_MAX_UPLOAD_SIZE:-10}"
+    HBOX_MAILER_HOST = "${HBOX_MAILER_HOST}"
+    HBOX_MAILER_PORT = "${HBOX_MAILER_PORT:-587}"
+    HBOX_MAILER_USERNAME = "${HBOX_MAILER_USERNAME}"
+    HBOX_MAILER_PASSWORD = "${HBOX_MAILER_PASSWORD}"
+    HBOX_MAILER_FROM = "${HBOX_MAILER_FROM}"
+    [[services.storage]]
+      host = "homebox-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5

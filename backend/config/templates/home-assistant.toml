@@ -1,0 +1,23 @@
+name = "Open source home automation that puts local control and privacy first."
+description = "Open source home automation that puts local control and privacy first."
+category = "stack"
+logo = "svgs/home-assistant.svg"
+[[services]]
+name = "homeassistant"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/home-assistant/home-assistant:2025.10.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HOMEASSISTANT_8123 = ""
+    TZ = "${TZ:-UTC}"
+    DISABLE_JEMALLOC = "${DISABLE_JEMALLOC:-false}"
+    [[services.storage]]
+      host = "homeassistant-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

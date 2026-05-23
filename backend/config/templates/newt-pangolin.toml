@@ -1,0 +1,20 @@
+name = "Pangolin tunnels your services to the internet so you can access anything from anywhere."
+description = "Pangolin tunnels your services to the internet so you can access anything from anywhere."
+category = "stack"
+logo = "svgs/pangolin-logo.png"
+[[services]]
+name = "newt"
+category = "app"
+subtype = "docker"
+docker_image = "fosrl/newt:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    PANGOLIN_ENDPOINT = "${PANGOLIN_ENDPOINT:-https://pangolin.domain.tld}"
+    NEWT_ID = "${NEWT_ID:?}"
+    NEWT_SECRET = "${NEWT_SECRET:?}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

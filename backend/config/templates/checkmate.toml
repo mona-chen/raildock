@@ -1,0 +1,42 @@
+name = "An open source server and websites monitoring application"
+description = "An open source server and websites monitoring application"
+category = "stack"
+logo = "svgs/checkmate.png"
+[[services]]
+name = "checkmate"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/bluewave-labs/checkmate-backend-mono-multiarch:v3.2.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CHECKMATE_52345 = ""
+    UPTIME_APP_API_BASE_URL = "${SERVICE_URL_CHECKMATE}/api/v1"
+    UPTIME_APP_CLIENT_HOST = "${SERVICE_URL_CHECKMATE}"
+    DB_CONNECTION_STRING = "mongodb://mongodb:27017/uptime_db"
+    CLIENT_HOST = "${SERVICE_URL_CHECKMATE}"
+    JWT_SECRET = "${SERVICE_PASSWORD_64_JWT}"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5
+
+[[services]]
+name = "mongodb"
+category = "database"
+subtype = "mongo"
+docker_image = "ghcr.io/bluewave-labs/checkmate-mongo:v3.2.0"
+start_command = "mongod --quiet --bind_ip_all"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "checkmate-mongo"
+      container = "/data/db"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[links]]
+from = "checkmate"
+to = "mongodb"

@@ -1,0 +1,56 @@
+name = "osTicket is a widely-used open source support ticket system."
+description = "osTicket is a widely-used open source support ticket system."
+category = "stack"
+logo = "svgs/osticket.png"
+[[services]]
+name = "osticket"
+category = "app"
+subtype = "docker"
+docker_image = "tiredofit/osticket:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OSTICKET_80 = ""
+    APP_URL = "${SERVICE_URL_OSTICKET}"
+    CRON_INTERVAL = "${CRON_INTERVAL:-10}"
+    DB_HOST = "mariadb"
+    DB_NAME = "${OSTICKET_DATABASE:-osticket-db}"
+    DB_USER = "${SERVICE_USER_MARIADB}"
+    DB_PASS = "${SERVICE_PASSWORD_MARIADB}"
+    INSTALL_SECRET = "${SERVICE_PASSWORD_OSTICKETSECRET}"
+    ADMIN_FIRSTNAME = "${OSTICKET_FIRSTNAME:-Admin}"
+    ADMIN_LASTNAME = "${OSTICKET_LASTNAME:-istrator}"
+    ADMIN_EMAIL = "${OSTICKET_ADMIN_EMAIL:-admin@example.com}"
+    ADMIN_USER = "${SERVICE_USER_OSTICKETADMIN}"
+    ADMIN_PASS = "${SERVICE_PASSWORD_OSTICKETADMINPASS}"
+    [[services.storage]]
+      host = "osticket-data"
+      container = "/www/osticket"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11"
+source = { type = "docker"  }
+  [services.env]
+    MARIADB_ROOT_PASSWORD = "${SERVICE_PASSWORD_MARIADBROOT}"
+    MARIADB_DATABASE = "${OSTICKET_DATABASE:-osticket-db}"
+    MARIADB_USER = "${SERVICE_USER_MARIADB}"
+    MARIADB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    [[services.storage]]
+      host = "osticket-mariadb-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[links]]
+from = "osticket"
+to = "mariadb"

@@ -1,0 +1,59 @@
+name = "Mattermost is an open source, self-hosted Slack-alternative."
+description = "Mattermost is an open source, self-hosted Slack-alternative."
+category = "stack"
+logo = "svgs/mattermost.svg"
+[[services]]
+name = "mattermost"
+category = "app"
+subtype = "docker"
+docker_image = "mattermost/mattermost-team-edition:release-10"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MATTERMOST_8065 = ""
+    MM_SERVICESETTINGS_SITEURL = "${SERVICE_URL_MATTERMOST}"
+    TZ = "${TZ:-UTC}"
+    MM_SQLSETTINGS_DRIVERNAME = "postgres"
+    MM_SQLSETTINGS_DATASOURCE = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB?sslmode=disable&connect_timeout=10"
+    MM_BLEVESETTINGS_INDEXDIR = "/mattermost/bleve-indexes"
+    [[services.storage]]
+      host = "mattermost-data-config"
+      container = "/mattermost/config"
+    [[services.storage]]
+      host = "mattermost-data-data"
+      container = "/mattermost/data"
+    [[services.storage]]
+      host = "mattermost-data-logs"
+      container = "/mattermost/logs"
+    [[services.storage]]
+      host = "mattermost-data-plugins"
+      container = "/mattermost/plugins"
+    [[services.storage]]
+      host = "mattermost-data-client-plugins"
+      container = "/mattermost/client/plugins"
+    [[services.storage]]
+      host = "mattermost-data-bleve-indexes"
+      container = "/mattermost/bleve-indexes"
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-mattermost}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "mattermost"
+to = "postgres"

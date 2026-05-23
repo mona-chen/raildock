@@ -1,0 +1,23 @@
+name = "MinIO is a high performance object storage server compatible with Amazon S3 APIs."
+description = "MinIO is a high performance object storage server compatible with Amazon S3 APIs."
+category = "stack"
+logo = "svgs/minio.svg"
+[[services]]
+name = "minio"
+category = "service"
+subtype = "s3"
+docker_image = "quay.io/minio/minio:latest"
+start_command = "server /data --console-address \":9001\""
+source = { type = "docker"  }
+  [services.env]
+    MINIO_SERVER_URL = "$MINIO_SERVER_URL"
+    MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
+    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
+    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    [[services.storage]]
+      host = "minio-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

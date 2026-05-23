@@ -1,0 +1,19 @@
+name = "Jupyter Notebook is an open-source web application that allows you to create and share documents that contain live code, equations, visualizations, and narrative text."
+description = "Jupyter Notebook is an open-source web application that allows you to create and share documents that contain live code, equations, visualizations, and narrative text."
+category = "stack"
+logo = "svgs/jupyter.svg"
+[[services]]
+name = "jupyter-notebook-python"
+category = "app"
+subtype = "docker"
+docker_image = "quay.io/jupyter/base-notebook:latest"
+start_command = "start-notebook.sh"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_JUPYTER_8888 = ""
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 20

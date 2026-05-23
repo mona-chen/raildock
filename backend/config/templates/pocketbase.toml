@@ -1,0 +1,20 @@
+name = "Open Source backend for your next SaaS and Mobile app in 1 file"
+description = "Open Source backend for your next SaaS and Mobile app in 1 file"
+category = "stack"
+logo = "svgs/pocketbase.svg"
+[[services]]
+name = "pocketbase"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/coollabsio/pocketbase:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_POCKETBASE_8080 = ""
+    [[services.storage]]
+      host = "pocketbase-data"
+      container = "/app/pb_data"
+    [[services.storage]]
+      host = "pocketbase-hooks"
+      container = "/app/pb_hooks"

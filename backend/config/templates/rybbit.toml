@@ -1,0 +1,100 @@
+name = "Open-source, privacy-first web analytics."
+description = "Open-source, privacy-first web analytics."
+category = "stack"
+logo = "svgs/rybbit.svg"
+[[services]]
+name = "rybbit"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/rybbit-io/rybbit-client:v2.2.3"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_RYBBIT_3002 = ""
+    NODE_ENV = "production"
+    NEXT_PUBLIC_BACKEND_URL = "${SERVICE_URL_RYBBIT}"
+    NEXT_PUBLIC_DISABLE_SIGNUP = "${DISABLE_SIGNUP:-false}"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "rybbit_backend"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/rybbit-io/rybbit-backend:v2.2.3"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    NODE_ENV = "production"
+    TRUST_PROXY = "true"
+    BASE_URL = "${SERVICE_URL_RYBBIT}"
+    CLICKHOUSE_PASSWORD = "${SERVICE_PASSWORD_CLICKHOUSE}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    BETTER_AUTH_SECRET = "${SERVICE_BASE64_64_BACKEND}"
+    DISABLE_SIGNUP = "${DISABLE_SIGNUP:-false}"
+    DISABLE_TELEMETRY = "${DISABLE_TELEMETRY:-true}"
+    CLICKHOUSE_HOST = "http://rybbit_clickhouse:8123"
+    CLICKHOUSE_USER = "${CLICKHOUSE_USER:-default}"
+    CLICKHOUSE_DB = "${CLICKHOUSE_DB:-analytics}"
+    POSTGRES_HOST = "rybbit_postgres"
+    POSTGRES_PORT = "5432"
+    POSTGRES_DB = "${POSTGRES_DB:-analytics}"
+    POSTGRES_USER = "${POSTGRES_USER:-frog}"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "rybbit_postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:17.4"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRES_DB:-analytics}"
+    POSTGRES_USER = "${POSTGRES_USER:-frog}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    [[services.storage]]
+      host = "postgres_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "rybbit_clickhouse"
+category = "app"
+subtype = "docker"
+docker_image = "clickhouse/clickhouse-server:25.4.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    CLICKHOUSE_DB = "${CLICKHOUSE_DB:-analytics}"
+    CLICKHOUSE_USER = "${CLICKHOUSE_USER:-default}"
+    CLICKHOUSE_PASSWORD = "${SERVICE_PASSWORD_CLICKHOUSE}"
+    [[services.storage]]
+      host = "clickhouse_data"
+      container = "/var/lib/clickhouse"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "rybbit"
+to = "rybbit_backend"
+
+[[links]]
+from = "rybbit_backend"
+to = "rybbit_clickhouse"
+
+[[links]]
+from = "rybbit_backend"
+to = "rybbit_postgres"

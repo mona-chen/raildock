@@ -1,0 +1,25 @@
+name = "Prowlarr⁠ is a indexer manager/proxy built on the popular arr .net/reactjs base stack to integrate with your various PVR apps."
+description = "Prowlarr⁠ is a indexer manager/proxy built on the popular arr .net/reactjs base stack to integrate with your various PVR apps."
+category = "stack"
+logo = "svgs/prowlarr.svg"
+[[services]]
+name = "prowlarr"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/prowlarr:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PROWLARR_9696 = ""
+    _APP_URL = "$SERVICE_URL_PROWLARR"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-America/Toronto}"
+    [[services.storage]]
+      host = "prowlarr-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

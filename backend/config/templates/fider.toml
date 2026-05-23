@@ -1,0 +1,51 @@
+name = "Fider is a feedback platform for collecting and managing user feedback."
+description = "Fider is a feedback platform for collecting and managing user feedback."
+category = "stack"
+logo = "svgs/fider.svg"
+[[services]]
+name = "fider"
+category = "app"
+subtype = "docker"
+docker_image = "getfider/fider:stable"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FIDER_3000 = ""
+    BASE_URL = "$SERVICE_URL_FIDER_3000"
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@database:5432/fider?sslmode=disable"
+    JWT_SECRET = "$SERVICE_PASSWORD_64_FIDER"
+    EMAIL_NOREPLY = "${EMAIL_NOREPLY:-noreply@example.com}"
+    EMAIL_MAILGUN_API = "$EMAIL_MAILGUN_API"
+    EMAIL_MAILGUN_DOMAIN = "$EMAIL_MAILGUN_DOMAIN"
+    EMAIL_MAILGUN_REGION = "$EMAIL_MAILGUN_REGION"
+    EMAIL_SMTP_HOST = "${EMAIL_SMTP_HOST:-smtp.mailgun.com}"
+    EMAIL_SMTP_PORT = "${EMAIL_SMTP_PORT:-587}"
+    EMAIL_SMTP_USERNAME = "${EMAIL_SMTP_USERNAME:-postmaster@mailgun.com}"
+    EMAIL_SMTP_PASSWORD = "$EMAIL_SMTP_PASSWORD"
+    EMAIL_SMTP_ENABLE_STARTTLS = "$EMAIL_SMTP_ENABLE_STARTTLS"
+    EMAIL_AWSSES_REGION = "$EMAIL_AWSSES_REGION"
+    EMAIL_AWSSES_ACCESS_KEY_ID = "$EMAIL_AWSSES_ACCESS_KEY_ID"
+    EMAIL_AWSSES_SECRET_ACCESS_KEY = "$EMAIL_AWSSES_SECRET_ACCESS_KEY"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "database"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:12"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-fider}"
+    [[services.storage]]
+      host = "pg_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

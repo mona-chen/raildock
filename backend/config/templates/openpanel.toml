@@ -1,0 +1,181 @@
+name = "Open source alternative to Mixpanel and Plausible for product analytics"
+description = "Open source alternative to Mixpanel and Plausible for product analytics"
+category = "stack"
+logo = "svgs/openpanel.svg"
+[[services]]
+name = "openpanel-dashboard"
+category = "app"
+subtype = "docker"
+docker_image = "lindesvard/openpanel-dashboard:2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    NODE_ENV = "production"
+    SELF_HOSTED = "true"
+    SERVICE_URL_OPDASHBOARD_3000 = ""
+    API_URL = "${SERVICE_URL_OPAPI}"
+    DASHBOARD_URL = "${SERVICE_URL_OPDASHBOARD}"
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${OPENPANEL_POSTGRES_DB:-openpanel-db}?schema=public"
+    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379"
+    CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "openpanel-api"
+category = "app"
+subtype = "docker"
+docker_image = "lindesvard/openpanel-api:2"
+start_command = "sh -c \"\n  echo 'Running migrations...'\n  CI=true pnpm -r run migrate:deploy\n\n  pnpm start\n\"\n"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    NODE_ENV = "production"
+    SELF_HOSTED = "true"
+    SERVICE_URL_OPAPI = ""
+    API_URL = "${SERVICE_URL_OPAPI}"
+    DASHBOARD_URL = "${SERVICE_URL_OPDASHBOARD}"
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${OPENPANEL_POSTGRES_DB:-openpanel-db}?schema=public"
+    DATABASE_URL_DIRECT = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${OPENPANEL_POSTGRES_DB:-openpanel-db}?schema=public"
+    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379"
+    CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
+    COOKIE_SECRET = "${SERVICE_BASE64_COOKIESECRET}"
+    ALLOW_REGISTRATION = "${OPENPANEL_ALLOW_REGISTRATION:-false}"
+    ALLOW_INVITATION = "${OPENPANEL_ALLOW_INVITATION:-false}"
+    EMAIL_SENDER = "${OPENPANEL_EMAIL_SENDER}"
+    RESEND_API_KEY = "${RESEND_API_KEY}"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "openpanel-worker"
+category = "app"
+subtype = "docker"
+docker_image = "lindesvard/openpanel-worker:2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DISABLE_BULLBOARD = "${DISABLE_BULLBOARD:-1}"
+    NODE_ENV = "production"
+    SELF_HOSTED = "true"
+    SERVICE_URL_OPBULLBOARD = ""
+    API_URL = "${SERVICE_URL_OPAPI}"
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${OPENPANEL_POSTGRES_DB:-openpanel-db}?schema=public"
+    DATABASE_URL_DIRECT = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${OPENPANEL_POSTGRES_DB:-openpanel-db}?schema=public"
+    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379"
+    CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${OPENPANEL_POSTGRES_DB:-openpanel-db}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    [[services.storage]]
+      host = "openpanel_postgres_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7.4-alpine"
+start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS} --maxmemory-policy noeviction"
+source = { type = "docker"  }
+  [services.env]
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    [[services.storage]]
+      host = "openpanel_redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "clickhouse"
+category = "app"
+subtype = "docker"
+docker_image = "clickhouse/clickhouse-server:25.10.2.65"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    CLICKHOUSE_SKIP_USER_SETUP = "1"
+    [[services.storage]]
+      host = "openpanel_clickhouse_data"
+      container = "/var/lib/clickhouse"
+    [[services.storage]]
+      host = "openpanel_clickhouse_logs"
+      container = "/var/log/clickhouse-server"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[links]]
+from = "openpanel-dashboard"
+to = "openpanel-api"
+
+[[links]]
+from = "openpanel-dashboard"
+to = "openpanel-worker"
+
+[[links]]
+from = "openpanel-dashboard"
+to = "postgres"
+
+[[links]]
+from = "openpanel-dashboard"
+to = "redis"
+
+[[links]]
+from = "openpanel-dashboard"
+to = "clickhouse"
+
+[[links]]
+from = "openpanel-api"
+to = "postgres"
+
+[[links]]
+from = "openpanel-api"
+to = "clickhouse"
+
+[[links]]
+from = "openpanel-api"
+to = "redis"
+
+[[links]]
+from = "openpanel-worker"
+to = "openpanel-api"
+
+[[links]]
+from = "openpanel-worker"
+to = "postgres"
+
+[[links]]
+from = "openpanel-worker"
+to = "redis"
+
+[[links]]
+from = "openpanel-worker"
+to = "clickhouse"

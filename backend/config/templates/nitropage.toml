@@ -1,0 +1,24 @@
+name = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
+description = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
+category = "stack"
+logo = "svgs/nitropage.svg"
+[[services]]
+name = "nitropage"
+category = "app"
+subtype = "docker"
+docker_image = "nitropage/nitropage:sqlite"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NITROPAGE_3000 = ""
+    NP_AUTH_SALT = "${SERVICE_BASE64_SALT}"
+    NP_AUTH_PASSWORD = "${SERVICE_PASSWORD_64_SESSION}"
+    DATABASE_URL = "file:../.data/dev.db"
+    [[services.storage]]
+      host = "nitropage-data"
+      container = "/app/.data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

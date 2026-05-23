@@ -1,0 +1,42 @@
+name = "Syncthing synchronizes files between two or more computers in real time."
+description = "Syncthing synchronizes files between two or more computers in real time."
+category = "stack"
+logo = "svgs/syncthing.svg"
+[[services]]
+name = "syncthing"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/syncthing:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SYNCTHING_8384 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-Etc/UTC}"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 22000
+      container = 22000
+    [[services.proxy.ports]]
+      host = 22000
+      container = 22000
+    [[services.proxy.ports]]
+      host = 21027
+      container = 21027
+    [[services.storage]]
+      host = "syncthing_config"
+      container = "/config"
+    [[services.storage]]
+      host = "syncthing_data1"
+      container = "/data1"
+    [[services.storage]]
+      host = "syncthing_data2"
+      container = "/data2"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

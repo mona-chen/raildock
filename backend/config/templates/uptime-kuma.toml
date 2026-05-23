@@ -1,0 +1,21 @@
+name = "Uptime Kuma is a monitoring tool for tracking the status and performance of your applications in real-time."
+description = "Uptime Kuma is a monitoring tool for tracking the status and performance of your applications in real-time."
+category = "stack"
+logo = "svgs/uptime-kuma.svg"
+[[services]]
+name = "uptime-kuma"
+category = "app"
+subtype = "docker"
+docker_image = "louislam/uptime-kuma:2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_UPTIMEKUMA_3001 = ""
+    [[services.storage]]
+      host = "uptime-kuma-data"
+      container = "/app/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5

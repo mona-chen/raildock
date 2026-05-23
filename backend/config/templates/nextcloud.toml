@@ -1,0 +1,27 @@
+name = "NextCloud is a self-hosted, open-source platform that provides file storage, collaboration, and communication tools for seamless data management."
+description = "NextCloud is a self-hosted, open-source platform that provides file storage, collaboration, and communication tools for seamless data management."
+category = "stack"
+logo = "svgs/nextcloud.svg"
+[[services]]
+name = "nextcloud"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/nextcloud:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NEXTCLOUD_80 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-Europe/Madrid}"
+    [[services.storage]]
+      host = "nextcloud-config"
+      container = "/config"
+    [[services.storage]]
+      host = "nextcloud-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

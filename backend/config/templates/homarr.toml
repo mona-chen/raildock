@@ -1,0 +1,19 @@
+name = "Homarr is a self-hosted homepage for your services."
+description = "Homarr is a self-hosted homepage for your services."
+category = "stack"
+logo = "svgs/homarr.svg"
+[[services]]
+name = "homarr"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/homarr-labs/homarr:v1.40.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HOMARR_7575 = ""
+    SECRET_ENCRYPTION_KEY = "${SERVICE_HEX_64_HOMARR}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

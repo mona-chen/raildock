@@ -1,0 +1,43 @@
+name = "Self-hosted, secure and highly customizable open-source communication platform for organizations with sophisticated security and privacy concerns."
+description = "Self-hosted, secure and highly customizable open-source communication platform for organizations with sophisticated security and privacy concerns."
+category = "stack"
+logo = "svgs/rocketchat.svg"
+[[services]]
+name = "rocketchat"
+category = "app"
+subtype = "docker"
+docker_image = "registry.rocket.chat/rocketchat/rocket.chat:8.0.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ROCKETCHAT_3000 = ""
+    MONGO_URL = "mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/${MONGODB_DATABASE:-rocketchat}?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}"
+    MONGO_OPLOG_URL = "mongodb://${MONGODB_ADVERTISED_HOSTNAME:-mongodb}:${MONGODB_INITIAL_PRIMARY_PORT_NUMBER:-27017}/local?replicaSet=${MONGODB_REPLICA_SET_NAME:-rs0}"
+    ROOT_URL = "$SERVICE_URL_ROCKETCHAT"
+    DEPLOY_METHOD = "docker"
+    REG_TOKEN = "$REG_TOKEN"
+    MAIL_URL = "${MAIL_URL:-test@example.com}"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mongodb"
+category = "database"
+subtype = "mongo"
+docker_image = "mongo:7"
+start_command = "sh -c \"\n  mongod --replSet ${MONGODB_REPLICA_SET_NAME:-rs0} --bind_ip_all &\n  sleep 5 &&\n  mongosh --eval 'rs.initiate({_id:\\"${MONGODB_REPLICA_SET_NAME:-rs0}\\", members:[{_id:0, host:\\"mongodb:27017\\"}]})' ||\n  true &&\n  wait\n\"\n"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "mongodb_data"
+      container = "/data/db"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[links]]
+from = "rocketchat"
+to = "mongodb"

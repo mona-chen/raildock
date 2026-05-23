@@ -1,0 +1,15 @@
+name = "A modern, fully static, fast, secure fully proxied, highly customizable application dashboard"
+description = "A modern, fully static, fast, secure fully proxied, highly customizable application dashboard"
+category = "stack"
+logo = "svgs/homepage.png"
+[[services]]
+name = "homepage"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/gethomepage/homepage:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HOMEPAGE_3000 = ""
+    HOMEPAGE_VAR_BASE = "${SERVICE_URL_HOMEPAGE}"

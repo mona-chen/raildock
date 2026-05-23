@@ -1,0 +1,59 @@
+name = "SonarQube is a self-managed, automatic code review tool that systematically helps you deliver Clean Code"
+description = "SonarQube is a self-managed, automatic code review tool that systematically helps you deliver Clean Code"
+category = "stack"
+
+[[services]]
+name = "sonarqube"
+category = "app"
+subtype = "docker"
+docker_image = "sonarqube:community"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SONARQUBE_9000 = ""
+    SONAR_JDBC_URL = "jdbc:postgresql://postgresql:5432/${POSTGRES_DB:-sonar}"
+    SONAR_JDBC_USERNAME = "$SERVICE_USER_POSTGRES"
+    SONAR_JDBC_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    SONAR_ES_BOOTSTRAP_CHECKS_DISABLE = "true"
+    [[services.storage]]
+      host = "sonarqube-data"
+      container = "/opt/sonarqube"
+    [[services.storage]]
+      host = "sonarqube-conf"
+      container = "/opt/sonarqube/conf"
+    [[services.storage]]
+      host = "sonarqube-extensions"
+      container = "/opt/sonarqube/extensions"
+    [[services.storage]]
+      host = "sonarqube-logs"
+      container = "/opt/sonarqube/logs"
+    [[services.storage]]
+      host = "sonarqube-bundled-plugins"
+      container = "/opt/sonarqube/lib/bundled-plugins"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-sonar}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "sonarqube"
+to = "postgresql"

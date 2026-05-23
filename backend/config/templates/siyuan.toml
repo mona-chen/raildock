@@ -1,0 +1,25 @@
+name = "A privacy-first, self-hosted, fully open source personal knowledge management software, written in typescript and golang."
+description = "A privacy-first, self-hosted, fully open source personal knowledge management software, written in typescript and golang."
+category = "stack"
+logo = "svgs/siyuan.svg"
+[[services]]
+name = "siyuan"
+category = "app"
+subtype = "docker"
+docker_image = "b3log/siyuan:v3.3.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SIYUAN_6806 = ""
+    TZ = "${TZ:-UTC}"
+    PUID = "1000"
+    PGID = "1000"
+    SIYUAN_ACCESS_AUTH_CODE = "${SERVICE_PASSWORD_SIYUAN}"
+    [[services.storage]]
+      host = "siyuan_workspace"
+      container = "/siyuan/workspace"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 10

@@ -1,0 +1,68 @@
+name = "BookStack is a simple, self-hosted, easy-to-use platform for organising and storing information"
+description = "BookStack is a simple, self-hosted, easy-to-use platform for organising and storing information"
+category = "stack"
+logo = "svgs/bookstack.png"
+[[services]]
+name = "bookstack"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/bookstack:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BOOKSTACK_80 = ""
+    APP_URL = "${SERVICE_URL_BOOKSTACK}"
+    APP_KEY = "${SERVICE_PASSWORD_APPKEY}"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-Europe/Berlin}"
+    DB_HOST = "mariadb"
+    DB_PORT = "3306"
+    DB_USERNAME = "${SERVICE_USER_MYSQL}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    DB_DATABASE = "${MYSQL_DATABASE:-bookstackapp}"
+    QUEUE_CONNECTION = "${QUEUE_CONNECTION}"
+    GITHUB_APP_ID = "${GITHUB_APP_ID}"
+    GITHUB_APP_SECRET = "${GITHUB_APP_SECRET}"
+    MAIL_DRIVER = "${MAIL_DRIVER:-smtp}"
+    MAIL_HOST = "${MAIL_HOST}"
+    MAIL_PORT = "${MAIL_PORT:-587}"
+    MAIL_ENCRYPTION = "${MAIL_ENCRYPTION:-tls}"
+    MAIL_USERNAME = "${MAIL_USERNAME}"
+    MAIL_PASSWORD = "${MAIL_PASSWORD}"
+    MAIL_FROM = "${MAIL_FROM}"
+    MAIL_FROM_NAME = "${MAIL_FROM_NAME:-BookStack}"
+    [[services.storage]]
+      host = "bookstack-data"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "lscr.io/linuxserver/mariadb:latest"
+source = { type = "docker"  }
+  [services.env]
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-Europe/Berlin}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-bookstack}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    [[services.storage]]
+      host = "bookstack-mariadb-data"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "bookstack"
+to = "mariadb"

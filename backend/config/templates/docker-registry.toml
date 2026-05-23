@@ -1,0 +1,27 @@
+name = "The Docker Registry lets you distribute Docker images."
+description = "The Docker Registry lets you distribute Docker images."
+category = "stack"
+logo = "svgs/docker-registry.png"
+[[services]]
+name = "registry"
+category = "app"
+subtype = "docker"
+docker_image = "registry:3"
+start_command = "/entrypoint.sh"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_REGISTRY_5000 = ""
+    USERNAME = "${SERVICE_USER_REGISTRY}"
+    PASSWORD = "${SERVICE_PASSWORD_REGISTRY}"
+    REGISTRY_AUTH = "htpasswd"
+    REGISTRY_AUTH_HTPASSWD_REALM = "Registry Realm"
+    REGISTRY_AUTH_HTPASSWD_PATH = "/auth/registry.password"
+    [[services.storage]]
+      host = "registry-data"
+      container = "/var/lib/registry"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

@@ -1,0 +1,150 @@
+name = "Open Source Survey Platform"
+description = "Open Source Survey Platform"
+category = "stack"
+logo = "svgs/formbricks.png"
+[[services]]
+name = "formbricks"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/formbricks/formbricks:4.5.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FORMBRICKS_3000 = ""
+    WEBAPP_URL = "$SERVICE_URL_FORMBRICKS"
+    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRESQL:$SERVICE_PASSWORD_POSTGRESQL@postgresql:5432/${POSTGRESQL_DATABASE:-formbricks}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    NEXTAUTH_SECRET = "$SERVICE_BASE64_NEXTAUTH"
+    NEXTAUTH_URL = "$SERVICE_URL_FORMBRICKS"
+    ENCRYPTION_KEY = "$SERVICE_BASE64_ENCRYPTION"
+    CRON_SECRET = "$SERVICE_BASE64_CRON"
+    ENTERPRISE_LICENSE_KEY = "${ENTERPRISE_LICENSE_KEY}"
+    MAIL_FROM = "${MAIL_FROM:-test@example.com}"
+    SMTP_HOST = "${SMTP_HOST:-test.example.com}"
+    SMTP_PORT = "${SMTP_PORT:-587}"
+    SMTP_USER = "${SMTP_USER:-test}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD:-test}"
+    SMTP_SECURE_ENABLED = "${SMTP_SECURE_ENABLED:-0}"
+    SMTP_REJECT_UNAUTHORIZED_TLS = "${SMTP_REJECT_UNAUTHORIZED_TLS:-1}"
+    SHORT_URL_BASE = "${SHORT_URL_BASE}"
+    EMAIL_VERIFICATION_DISABLED = "${EMAIL_VERIFICATION_DISABLED:-1}"
+    PASSWORD_RESET_DISABLED = "${PASSWORD_RESET_DISABLED:-1}"
+    EMAIL_AUTH_DISABLED = "${EMAIL_AUTH_DISABLED:-0}"
+    INVITE_DISABLED = "${INVITE_DISABLED:-0}"
+    ASSET_PREFIX_URL = "${ASSET_PREFIX_URL}"
+    UNSPLASH_ACCESS_KEY = "${UNSPLASH_ACCESS_KEY}"
+    GITHUB_ID = "${GITHUB_ID}"
+    GITHUB_SECRET = "${GITHUB_SECRET}"
+    GOOGLE_CLIENT_ID = "${GOOGLE_CLIENT_ID}"
+    GOOGLE_CLIENT_SECRET = "${GOOGLE_CLIENT_SECRET}"
+    AZUREAD_CLIENT_ID = "${AZUREAD_CLIENT_ID}"
+    AZUREAD_CLIENT_SECRET = "${AZUREAD_CLIENT_SECRET}"
+    AZUREAD_TENANT_ID = "${AZUREAD_TENANT_ID}"
+    OIDC_CLIENT_ID = "${OIDC_CLIENT_ID}"
+    OIDC_CLIENT_SECRET = "${OIDC_CLIENT_SECRET}"
+    OIDC_ISSUER = "${OIDC_ISSUER}"
+    OIDC_DISPLAY_NAME = "${OIDC_DISPLAY_NAME}"
+    OIDC_SIGNING_ALGORITHM = "${OIDC_SIGNING_ALGORITHM}"
+    NOTION_OAUTH_CLIENT_ID = "${NOTION_OAUTH_CLIENT_ID}"
+    NOTION_OAUTH_CLIENT_SECRET = "${NOTION_OAUTH_CLIENT_SECRET}"
+    GOOGLE_SHEETS_CLIENT_ID = "${GOOGLE_SHEETS_CLIENT_ID}"
+    GOOGLE_SHEETS_CLIENT_SECRET = "${GOOGLE_SHEETS_CLIENT_SECRET}"
+    GOOGLE_SHEETS_REDIRECT_URL = "${GOOGLE_SHEETS_REDIRECT_URL}"
+    AIRTABLE_CLIENT_ID = "${AIRTABLE_CLIENT_ID}"
+    SLACK_CLIENT_ID = "${SLACK_CLIENT_ID}"
+    SLACK_CLIENT_SECRET = "${SLACK_CLIENT_SECRET}"
+    PRIVACY_URL = "${PRIVACY_URL}"
+    TERMS_URL = "${TERMS_URL}"
+    IMPRINT_URL = "${IMPRINT_URL}"
+    RATE_LIMITING_DISABLED = "${RATE_LIMITING_DISABLED:-0}"
+    OPENTELEMETRY_LISTENER_URL = "${OPENTELEMETRY_LISTENER_URL}"
+    REDIS_URL = "redis://valkey:6379"
+    DEFAULT_ORGANIZATION_ID = "${DEFAULT_ORGANIZATION_ID}"
+    DEFAULT_ORGANIZATION_ROLE = "${DEFAULT_ORGANIZATION_ROLE:-owner}"
+    S3_ACCESS_KEY = "$SERVICE_USER_MINIO"
+    S3_SECRET_KEY = "${SERVICE_PASSWORD_MINIO}"
+    S3_REGION = "us-east-1"
+    S3_BUCKET_NAME = "formbricks"
+    S3_ENDPOINT_URL = "$MINIO_SERVER_URL"
+    S3_FORCE_PATH_STYLE = "1"
+    [[services.storage]]
+      host = "formbricks-uploads"
+      container = "/apps/web/uploads/"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "app"
+subtype = "docker"
+docker_image = "pgvector/pgvector:pg16"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-formbricks}"
+    [[services.storage]]
+      host = "formbricks-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "valkey"
+category = "app"
+subtype = "docker"
+docker_image = "valkey/valkey:8-alpine"
+start_command = "valkey-server --appendonly yes"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "formbricks-valkey"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "minio"
+category = "service"
+subtype = "s3"
+docker_image = "ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z"
+start_command = "server /data --console-address \":9001\""
+source = { type = "docker"  }
+  [services.env]
+    MINIO_SERVER_URL = "$MINIO_SERVER_URL"
+    MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
+    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
+    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    [[services.storage]]
+      host = "formbricks-minio-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "formbricks"
+to = "postgresql"
+
+[[links]]
+from = "formbricks"
+to = "valkey"
+
+[[links]]
+from = "formbricks"
+to = "minio"
+
+[[links]]
+from = "minio-init"
+to = "minio"

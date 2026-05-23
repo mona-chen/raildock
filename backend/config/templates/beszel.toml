@@ -1,0 +1,54 @@
+name = "A lightweight server resource monitoring hub with historical data, docker stats, and alerts."
+description = "A lightweight server resource monitoring hub with historical data, docker stats, and alerts."
+category = "stack"
+logo = "svgs/beszel.svg"
+[[services]]
+name = "beszel"
+category = "app"
+subtype = "docker"
+docker_image = "henrygd/beszel:0.18.7"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BESZEL_8090 = ""
+    CONTAINER_DETAILS = "${CONTAINER_DETAILS:-true}"
+    SHARE_ALL_SYSTEMS = "${SHARE_ALL_SYSTEMS:-false}"
+    [[services.storage]]
+      host = "beszel_data"
+      container = "/beszel_data"
+    [[services.storage]]
+      host = "beszel_socket"
+      container = "/beszel_socket"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 20
+
+[[services]]
+name = "beszel-agent"
+category = "app"
+subtype = "docker"
+docker_image = "henrygd/beszel-agent:0.18.7"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    LISTEN = "/beszel_socket/beszel.sock"
+    HUB_URL = "$SERVICE_URL_BESZEL"
+    TOKEN = "${TOKEN}"
+    KEY = "${KEY}"
+    DISABLE_SSH = "${DISABLE_SSH:-false}"
+    LOG_LEVEL = "${LOG_LEVEL:-warn}"
+    SKIP_GPU = "${SKIP_GPU:-false}"
+    SYSTEM_NAME = "${SYSTEM_NAME}"
+    [[services.storage]]
+      host = "beszel_agent_data"
+      container = "/var/lib/beszel-agent"
+    [[services.storage]]
+      host = "beszel_socket"
+      container = "/beszel_socket"
+  [services.checks]
+    enabled = true
+    wait = 60
+    timeout = 20

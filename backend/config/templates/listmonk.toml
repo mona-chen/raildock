@@ -1,0 +1,54 @@
+name = "Self-hosted newsletter and mailing list manager"
+description = "Self-hosted newsletter and mailing list manager"
+category = "stack"
+logo = "svgs/listmonk.svg"
+[[services]]
+name = "listmonk"
+category = "app"
+subtype = "docker"
+docker_image = "listmonk/listmonk:v6.0.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LISTMONK_9000 = ""
+    LISTMONK_app__address = "0.0.0.0:9000"
+    LISTMONK_db__host = "postgres"
+    LISTMONK_db__database = "listmonk"
+    LISTMONK_db__user = "$SERVICE_USER_POSTGRES"
+    LISTMONK_db__password = "$SERVICE_PASSWORD_POSTGRES"
+    LISTMONK_db__port = "5432"
+    TZ = "Etc/UTC"
+    [[services.storage]]
+      host = "listmonk-data"
+      container = "/listmonk/uploads"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:18-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "listmonk"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    [[services.storage]]
+      host = "postgres-data"
+      container = "/var/lib/postgresql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "listmonk"
+to = "postgres"
+
+[[links]]
+from = "listmonk-initial-database-setup"
+to = "postgres"

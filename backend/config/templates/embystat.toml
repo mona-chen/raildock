@@ -1,0 +1,24 @@
+name = "EmbyStat is a web analytics tool, designed to provide insight into website traffic and user behavior."
+description = "EmbyStat is a web analytics tool, designed to provide insight into website traffic and user behavior."
+category = "stack"
+
+[[services]]
+name = "embystat"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/embystat:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_EMBYSTAT_6555 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "embystat-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

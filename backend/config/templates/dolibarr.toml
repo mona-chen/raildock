@@ -1,0 +1,55 @@
+name = "Dolibarr is a modern software package to manage your organization's activity (contacts, quotes, invoices, orders, stocks, agenda, hr, expense reports, accountancy, ecm, manufacturing, ...)."
+description = "Dolibarr is a modern software package to manage your organization's activity (contacts, quotes, invoices, orders, stocks, agenda, hr, expense reports, accountancy, ecm, manufacturing, ...)."
+category = "stack"
+logo = "svgs/dolibarr.png"
+[[services]]
+name = "dolibarr"
+category = "app"
+subtype = "docker"
+docker_image = "dolibarr/dolibarr:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DOLIBARR_80 = ""
+    WWW_USER_ID = "${WWW_USER_ID:-1000}"
+    WWW_GROUP_ID = "${WWW_GROUP_ID:-1000}"
+    DOLI_DB_HOST = "mariadb"
+    DOLI_DB_NAME = "${MYSQL_DATABASE:-dolibarr-db}"
+    DOLI_DB_USER = "${SERVICE_USER_MYSQL}"
+    DOLI_DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    DOLI_URL_ROOT = "${SERVICE_URL_DOLIBARR}"
+    DOLI_ADMIN_LOGIN = "${SERVICE_USER_DOLIBARR}"
+    DOLI_ADMIN_PASSWORD = "${SERVICE_PASSWORD_DOLIBARR}"
+    DOLI_CRON = "${DOLI_CRON:-0}"
+    DOLI_INIT_DEMO = "${DOLI_INIT_DEMO:-0}"
+    DOLI_COMPANY_NAME = "${DOLI_COMPANY_NAME:-MyBigCompany}"
+    [[services.storage]]
+      host = "dolibarr_docs"
+      container = "/var/www/documents"
+    [[services.storage]]
+      host = "dolibarr_custom"
+      container = "/var/www/html/custom"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:latest"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-dolibarr-db}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
+    [[services.storage]]
+      host = "dolibarr_mariadb_data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

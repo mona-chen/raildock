@@ -1,0 +1,25 @@
+name = "A self-hosted file sharing platform that combines lightness and beauty, perfect for seamless and efficient file sharing."
+description = "A self-hosted file sharing platform that combines lightness and beauty, perfect for seamless and efficient file sharing."
+category = "stack"
+logo = "svgs/pingvinshare.svg"
+[[services]]
+name = "pingvinshare"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/stonith404/pingvin-share"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PINGVINSHARE_3000 = ""
+    TRUST_PROXY = "${TRUST_PROXY:-true}"
+    [[services.storage]]
+      host = "pingvinshare_data"
+      container = "/opt/app/backend/data"
+    [[services.storage]]
+      host = "pingvinshare_images"
+      container = "/opt/app/frontend/public/img"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

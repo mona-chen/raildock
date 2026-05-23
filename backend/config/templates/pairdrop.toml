@@ -1,0 +1,22 @@
+name = "Pairdrop is a self-hosted file sharing and collaboration platform, offering secure file sharing and collaboration capabilities for efficient teamwork."
+description = "Pairdrop is a self-hosted file sharing and collaboration platform, offering secure file sharing and collaboration capabilities for efficient teamwork."
+category = "stack"
+logo = "svgs/pairdrop.png"
+[[services]]
+name = "pairdrop"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/pairdrop:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PAIRDROP_3000 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    DEBUG_MODE = "false"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

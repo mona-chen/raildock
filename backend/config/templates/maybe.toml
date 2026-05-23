@@ -1,0 +1,109 @@
+name = "Maybe, the OS for your personal finances."
+description = "Maybe, the OS for your personal finances."
+category = "stack"
+logo = "svgs/maybe.svg"
+[[services]]
+name = "maybe"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/maybe-finance/maybe:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MAYBE = ""
+    SELF_HOSTED = "true"
+    RAILS_FORCE_SSL = "${RAILS_FORCE_SSL:-false}"
+    RAILS_ASSUME_SSL = "${RAILS_ASSUME_SSL:-false}"
+    GOOD_JOB_EXECUTION_MODE = "${GOOD_JOB_EXECUTION_MODE:-async}"
+    SECRET_KEY_BASE = "${SERVICE_BASE64_64_SECRETKEYBASE}"
+    DB_HOST = "postgres"
+    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_PORT = "5432"
+    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379/1"
+    OPENAI_ACCESS_TOKEN = "${OPENAI_ACCESS_TOKEN}"
+    [[services.storage]]
+      host = "app_storage"
+      container = "/rails/storage"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 10
+
+[[services]]
+name = "worker"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/maybe-finance/maybe:latest"
+start_command = "bundle exec sidekiq"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
+    SECRET_KEY_BASE = "${SERVICE_BASE64_64_SECRETKEYBASE}"
+    SELF_HOSTED = "true"
+    RAILS_FORCE_SSL = "${RAILS_FORCE_SSL:-false}"
+    RAILS_ASSUME_SSL = "${RAILS_ASSUME_SSL:-false}"
+    GOOD_JOB_EXECUTION_MODE = "${GOOD_JOB_EXECUTION_MODE:-async}"
+    DB_HOST = "postgres"
+    DB_PORT = "5432"
+    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379/1"
+    OPENAI_ACCESS_TOKEN = "${OPENAI_ACCESS_TOKEN}"
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
+    [[services.storage]]
+      host = "maybe_postgres_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:8-alpine"
+start_command = "redis-server --appendonly yes --requirepass ${SERVICE_PASSWORD_REDIS}"
+source = { type = "docker"  }
+  [services.env]
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    REDIS_PORT = "6379"
+    REDIS_DB = "1"
+    [[services.storage]]
+      host = "redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 3
+
+[[links]]
+from = "maybe"
+to = "postgres"
+
+[[links]]
+from = "maybe"
+to = "redis"
+
+[[links]]
+from = "worker"
+to = "postgres"
+
+[[links]]
+from = "worker"
+to = "redis"

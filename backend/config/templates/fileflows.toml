@@ -1,0 +1,34 @@
+name = "FileFlows can drastically reduce your files, up to 90%, saving you space and money. No need to buy more hard drives, just shrink your files and start saving."
+description = "FileFlows can drastically reduce your files, up to 90%, saving you space and money. No need to buy more hard drives, just shrink your files and start saving."
+category = "stack"
+logo = "svgs/fileflows.svg"
+[[services]]
+name = "fileflows"
+category = "app"
+subtype = "docker"
+docker_image = "revenz/fileflows"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FILEFLOWS_5000 = ""
+    _APP_URL = "$SERVICE_URL_FILE_FLOWS"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-America/Toronto}"
+    [[services.storage]]
+      host = "fileflows_temp"
+      container = "/temp"
+    [[services.storage]]
+      host = "fileflows_configs"
+      container = "/app/Data"
+    [[services.storage]]
+      host = "fileflows_logs"
+      container = "/app/Logs"
+    [[services.storage]]
+      host = "fileflows_common"
+      container = "/app/common"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

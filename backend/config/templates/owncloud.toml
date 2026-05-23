@@ -1,0 +1,74 @@
+name = "OwnCloud with Open Web UI integrates file management with a powerful, user-friendly interface."
+description = "OwnCloud with Open Web UI integrates file management with a powerful, user-friendly interface."
+category = "stack"
+logo = "svgs/owncloud.svg"
+[[services]]
+name = "owncloud"
+category = "app"
+subtype = "docker"
+docker_image = "owncloud/server:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OWNCLOUD_8080 = ""
+    OWNCLOUD_DOMAIN = "${SERVICE_URL_OWNCLOUD}"
+    OWNCLOUD_TRUSTED_DOMAINS = "${SERVICE_URL_OWNCLOUD}"
+    OWNCLOUD_DB_TYPE = "mysql"
+    OWNCLOUD_DB_HOST = "mariadb"
+    OWNCLOUD_DB_NAME = "${DB_NAME:-owncloud}"
+    OWNCLOUD_DB_USERNAME = "${SERVICE_USER_MARIADB}"
+    OWNCLOUD_DB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    OWNCLOUD_ADMIN_USERNAME = "${SERVICE_USER_OWNCLOUD}"
+    OWNCLOUD_ADMIN_PASSWORD = "${SERVICE_PASSWORD_OWNCLOUD}"
+    OWNCLOUD_MYSQL_UTF8MB4 = "${MYSQL_UTF8MB4:-true}"
+    OWNCLOUD_REDIS_ENABLED = "${REDIS_ENABLED:-true}"
+    OWNCLOUD_REDIS_HOST = "redis"
+    [[services.storage]]
+      host = "owncloud-data"
+      container = "/mnt/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:latest"
+start_command = "--character-set-server=utf8mb4 --collation-server=utf8mb4_bin --max-allowed-packet=128M --innodb-log-file-size=64M"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MARIADBROOT}"
+    MYSQL_USER = "${SERVICE_USER_MARIADB}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    MYSQL_DATABASE = "${DB_NAME:-owncloud}"
+    TZ = "auto"
+    [[services.storage]]
+      host = "owncloud-mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:6"
+start_command = "--databases 1"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[links]]
+from = "owncloud"
+to = "mariadb"
+
+[[links]]
+from = "owncloud"
+to = "redis"

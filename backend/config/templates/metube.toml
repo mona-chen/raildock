@@ -1,0 +1,23 @@
+name = "A web GUI for youtube-dl with playlist support. It enables you to effortlessly download videos from YouTube and dozens of other sites."
+description = "A web GUI for youtube-dl with playlist support. It enables you to effortlessly download videos from YouTube and dozens of other sites."
+category = "stack"
+
+[[services]]
+name = "metube"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/alexta69/metube:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_METUBE_8081 = ""
+    UID = "1000"
+    GID = "1000"
+    [[services.storage]]
+      host = "metube-downloads"
+      container = "/downloads"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

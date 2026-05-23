@@ -1,0 +1,36 @@
+name = "Manage soketi websocket server and apps with ease."
+description = "Manage soketi websocket server and apps with ease."
+category = "stack"
+logo = "svgs/soketi-app-manager.svg"
+[[services]]
+name = "soketi-app-manager"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/rahulhaque/soketi-app-manager-filament-alpine:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_SOKETIAPPMANAGER_8080 = ""
+    AUTORUN_ENABLED = "true"
+    AUTORUN_LARAVEL_MIGRATION = "${AUTORUN_LARAVEL_MIGRATION:-true}"
+    APP_DEBUG = "${APP_DEBUG:-false}"
+    APP_URL = "$SERVICE_FQDN_SOKETIAPPMANAGER"
+    APP_KEY = "$APP_KEY"
+    DB_CONNECTION = "$DB_CONNECTION"
+    DB_HOST = "$DB_HOST"
+    DB_PORT = "$DB_PORT"
+    DB_DATABASE = "$DB_DATABASE"
+    DB_USERNAME = "$DB_USERNAME"
+    DB_PASSWORD = "$DB_PASSWORD"
+    PUSHER_HOST = "$PUSHER_HOST"
+    PUSHER_PORT = "$PUSHER_PORT"
+    PUSHER_SCHEME = "$PUSHER_SCHEME"
+    PUSHER_APP_CLUSTER = "$PUSHER_APP_CLUSTER"
+    SOKETI_DB_REDIS_USERNAME = "$SOKETI_DB_REDIS_USERNAME"
+    SOKETI_DB_REDIS_PASSWORD = "$SOKETI_DB_REDIS_PASSWORD"
+    METRICS_HOST = "$METRICS_HOST"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30

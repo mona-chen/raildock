@@ -1,0 +1,25 @@
+name = "Build, run, and manage data pipelines for integrating and transforming data."
+description = "Build, run, and manage data pipelines for integrating and transforming data."
+category = "stack"
+logo = "svgs/mage-ai.svg"
+[[services]]
+name = "mage-ai"
+category = "app"
+subtype = "docker"
+docker_image = "mageai/mageai:0.9.78"
+start_command = "mage start default_project"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MAGEAI_6789 = ""
+    PROJECT_NAME = "default_project"
+    USER_CODE_PATH = "/home/src/default_project"
+    ENV = "production"
+    [[services.storage]]
+      host = "mageai_data"
+      container = "/home/src/"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

@@ -1,0 +1,65 @@
+name = "Modern data exploration and visualization platform (unofficial community docker image)"
+description = "Modern data exploration and visualization platform (unofficial community docker image)"
+category = "stack"
+logo = "svgs/superset.svg"
+[[services]]
+name = "superset"
+category = "app"
+subtype = "docker"
+docker_image = "amancevice/superset:6.0.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SUPERSET_8088 = ""
+    SECRET_KEY = "${SERVICE_BASE64_64_SUPERSETSECRETKEY}"
+    MAPBOX_API_KEY = "${MAPBOX_API_KEY}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-superset-db}"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:18"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-superset-db}"
+    [[services.storage]]
+      host = "superset_postgres_data"
+      container = "/var/lib/postgresql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:8"
+start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS}"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "superset_redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "superset"
+to = "postgres"
+
+[[links]]
+from = "superset"
+to = "redis"

@@ -1,0 +1,25 @@
+name = "It helps parents track their baby's daily activities, growth, and health with ease."
+description = "It helps parents track their baby's daily activities, growth, and health with ease."
+category = "stack"
+logo = "svgs/babybuddy.png"
+[[services]]
+name = "babybuddy"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/babybuddy:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BABYBUDDY = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    CSRF_TRUSTED_ORIGINS = "$SERVICE_URL_BABYBUDDY"
+    [[services.storage]]
+      host = "babybuddy-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

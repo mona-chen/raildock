@@ -1,0 +1,287 @@
+name = "OpnForm is an open-source form builder that lets you create beautiful forms and share them anywhere. It's super fast, you don't need to know how to code"
+description = "OpnForm is an open-source form builder that lets you create beautiful forms and share them anywhere. It's super fast, you don't need to know how to code"
+category = "stack"
+logo = "svg/opnform.svg"
+[[services]]
+name = "opnform-api"
+category = "app"
+subtype = "docker"
+docker_image = "jhumanj/opnform-api:1.12.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    APP_NAME = "OpnForm"
+    APP_ENV = "production"
+    APP_KEY = "${SERVICE_BASE64_APIKEY}"
+    APP_DEBUG = "${APP_DEBUG:-false}"
+    APP_URL = "${SERVICE_URL_NGINX}"
+    LOG_CHANNEL = "errorlog"
+    LOG_LEVEL = "${LOG_LEVEL:-debug}"
+    FILESYSTEM_DRIVER = "${FILESYSTEM_DRIVER:-local}"
+    LOCAL_FILESYSTEM_VISIBILITY = "public"
+    CACHE_DRIVER = "redis"
+    QUEUE_CONNECTION = "redis"
+    SESSION_DRIVER = "redis"
+    SESSION_LIFETIME = "120"
+    MAIL_MAILER = "${MAIL_MAILER:-log}"
+    MAIL_HOST = "${MAIL_HOST}"
+    MAIL_PORT = "${MAIL_PORT}"
+    MAIL_USERNAME = "${MAIL_USERNAME:-your@email.com}"
+    MAIL_PASSWORD = "${MAIL_PASSWORD}"
+    MAIL_ENCRYPTION = "${MAIL_ENCRYPTION}"
+    MAIL_FROM_ADDRESS = "${MAIL_FROM_ADDRESS:-your@email.com}"
+    MAIL_FROM_NAME = "${MAIL_FROM_NAME:-OpnForm}"
+    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID}"
+    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY}"
+    AWS_DEFAULT_REGION = "${AWS_DEFAULT_REGION:-us-east-1}"
+    AWS_BUCKET = "${AWS_BUCKET}"
+    OPEN_AI_API_KEY = "${OPEN_AI_API_KEY}"
+    TELEGRAM_BOT_ID = "${TELEGRAM_BOT_ID}"
+    TELEGRAM_BOT_TOKEN = "${TELEGRAM_BOT_TOKEN}"
+    REDIS_HOST = "redis"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    DB_HOST = "postgresql"
+    DB_DATABASE = "${POSTGRESQL_DATABASE:-opnform}"
+    DB_USERNAME = "${SERVICE_USER_POSTGRESQL}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    DB_CONNECTION = "pgsql"
+    PHP_MEMORY_LIMIT = "1G"
+    PHP_MAX_EXECUTION_TIME = "600"
+    PHP_UPLOAD_MAX_FILESIZE = "64M"
+    PHP_POST_MAX_SIZE = "64M"
+    JWT_TTL = "${JWT_TTL:-1440}"
+    JWT_SECRET = "${SERVICE_PASSWORD_JWTSECRET}"
+    JWT_SKIP_IP_UA_VALIDATION = "${JWT_SKIP_IP_UA_VALIDATION:-true}"
+    H_CAPTCHA_SITE_KEY = "${H_CAPTCHA_SITE_KEY}"
+    H_CAPTCHA_SECRET_KEY = "${H_CAPTCHA_SECRET_KEY}"
+    RE_CAPTCHA_SITE_KEY = "${RE_CAPTCHA_SITE_KEY}"
+    RE_CAPTCHA_SECRET_KEY = "${RE_CAPTCHA_SECRET_KEY}"
+    SHOW_OFFICIAL_TEMPLATES = "${SHOW_OFFICIAL_TEMPLATES:-true}"
+    [[services.storage]]
+      host = "api-storage"
+      container = "/usr/share/nginx/html/storage"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 15
+
+[[services]]
+name = "api-worker"
+category = "app"
+subtype = "docker"
+docker_image = "jhumanj/opnform-api:1.12.1"
+start_command = "php artisan queue:work"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    APP_NAME = "OpnForm"
+    APP_ENV = "production"
+    APP_KEY = "${SERVICE_BASE64_APIKEY}"
+    APP_DEBUG = "${APP_DEBUG:-false}"
+    APP_URL = "${SERVICE_URL_NGINX}"
+    LOG_CHANNEL = "errorlog"
+    LOG_LEVEL = "${LOG_LEVEL:-debug}"
+    FILESYSTEM_DRIVER = "${FILESYSTEM_DRIVER:-local}"
+    LOCAL_FILESYSTEM_VISIBILITY = "public"
+    CACHE_DRIVER = "redis"
+    QUEUE_CONNECTION = "redis"
+    SESSION_DRIVER = "redis"
+    SESSION_LIFETIME = "120"
+    MAIL_MAILER = "${MAIL_MAILER:-log}"
+    MAIL_HOST = "${MAIL_HOST}"
+    MAIL_PORT = "${MAIL_PORT}"
+    MAIL_USERNAME = "${MAIL_USERNAME:-your@email.com}"
+    MAIL_PASSWORD = "${MAIL_PASSWORD}"
+    MAIL_ENCRYPTION = "${MAIL_ENCRYPTION}"
+    MAIL_FROM_ADDRESS = "${MAIL_FROM_ADDRESS:-your@email.com}"
+    MAIL_FROM_NAME = "${MAIL_FROM_NAME:-OpnForm}"
+    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID}"
+    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY}"
+    AWS_DEFAULT_REGION = "${AWS_DEFAULT_REGION:-us-east-1}"
+    AWS_BUCKET = "${AWS_BUCKET}"
+    OPEN_AI_API_KEY = "${OPEN_AI_API_KEY}"
+    TELEGRAM_BOT_ID = "${TELEGRAM_BOT_ID}"
+    TELEGRAM_BOT_TOKEN = "${TELEGRAM_BOT_TOKEN}"
+    REDIS_HOST = "redis"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    DB_HOST = "postgresql"
+    DB_DATABASE = "${POSTGRESQL_DATABASE:-opnform}"
+    DB_USERNAME = "${SERVICE_USER_POSTGRESQL}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    DB_CONNECTION = "pgsql"
+    PHP_MEMORY_LIMIT = "1G"
+    PHP_MAX_EXECUTION_TIME = "600"
+    PHP_UPLOAD_MAX_FILESIZE = "64M"
+    PHP_POST_MAX_SIZE = "64M"
+    [[services.storage]]
+      host = "api-storage"
+      container = "/usr/share/nginx/html/storage"
+  [services.checks]
+    enabled = true
+    wait = 60
+    timeout = 10
+
+[[services]]
+name = "api-scheduler"
+category = "app"
+subtype = "docker"
+docker_image = "jhumanj/opnform-api:1.12.1"
+start_command = "php artisan schedule:work"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    APP_NAME = "OpnForm"
+    APP_ENV = "production"
+    APP_KEY = "${SERVICE_BASE64_APIKEY}"
+    APP_DEBUG = "${APP_DEBUG:-false}"
+    APP_URL = "${SERVICE_URL_NGINX}"
+    LOG_CHANNEL = "errorlog"
+    LOG_LEVEL = "${LOG_LEVEL:-debug}"
+    FILESYSTEM_DRIVER = "${FILESYSTEM_DRIVER:-local}"
+    LOCAL_FILESYSTEM_VISIBILITY = "public"
+    CACHE_DRIVER = "redis"
+    QUEUE_CONNECTION = "redis"
+    SESSION_DRIVER = "redis"
+    SESSION_LIFETIME = "120"
+    MAIL_MAILER = "${MAIL_MAILER:-log}"
+    MAIL_HOST = "${MAIL_HOST}"
+    MAIL_PORT = "${MAIL_PORT}"
+    MAIL_USERNAME = "${MAIL_USERNAME:-your@email.com}"
+    MAIL_PASSWORD = "${MAIL_PASSWORD}"
+    MAIL_ENCRYPTION = "${MAIL_ENCRYPTION}"
+    MAIL_FROM_ADDRESS = "${MAIL_FROM_ADDRESS:-your@email.com}"
+    MAIL_FROM_NAME = "${MAIL_FROM_NAME:-OpnForm}"
+    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID}"
+    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY}"
+    AWS_DEFAULT_REGION = "${AWS_DEFAULT_REGION:-us-east-1}"
+    AWS_BUCKET = "${AWS_BUCKET}"
+    OPEN_AI_API_KEY = "${OPEN_AI_API_KEY}"
+    TELEGRAM_BOT_ID = "${TELEGRAM_BOT_ID}"
+    TELEGRAM_BOT_TOKEN = "${TELEGRAM_BOT_TOKEN}"
+    REDIS_HOST = "redis"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    DB_HOST = "postgresql"
+    DB_DATABASE = "${POSTGRESQL_DATABASE:-opnform}"
+    DB_USERNAME = "${SERVICE_USER_POSTGRESQL}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    DB_CONNECTION = "pgsql"
+    PHP_MEMORY_LIMIT = "1G"
+    PHP_MAX_EXECUTION_TIME = "600"
+    PHP_UPLOAD_MAX_FILESIZE = "64M"
+    PHP_POST_MAX_SIZE = "64M"
+    [[services.storage]]
+      host = "api-storage"
+      container = "/usr/share/nginx/html/storage"
+  [services.checks]
+    enabled = true
+    wait = 60
+    timeout = 30
+
+[[services]]
+name = "opnform-ui"
+category = "app"
+subtype = "docker"
+docker_image = "jhumanj/opnform-client:1.12.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    NUXT_PUBLIC_APP_URL = "/"
+    NUXT_PUBLIC_API_BASE = "/api"
+    NUXT_PRIVATE_API_BASE = "http://nginx/api"
+    NUXT_PUBLIC_ENV = "production"
+    NUXT_PUBLIC_H_CAPTCHA_SITE_KEY = "${H_CAPTCHA_SITE_KEY}"
+    NUXT_PUBLIC_RE_CAPTCHA_SITE_KEY = "${RE_CAPTCHA_SITE_KEY}"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-opnform}"
+    [[services.storage]]
+      host = "opnform-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7"
+start_command = "redis-server --requirepass ${SERVICE_PASSWORD_64_REDIS}"
+source = { type = "docker"  }
+  [services.env]
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 30
+
+[[services]]
+name = "nginx"
+category = "app"
+subtype = "docker"
+docker_image = "nginx:1.29.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NGINX = ""
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "opnform-api"
+to = "postgresql"
+
+[[links]]
+from = "opnform-api"
+to = "redis"
+
+[[links]]
+from = "api-worker"
+to = "postgresql"
+
+[[links]]
+from = "api-worker"
+to = "redis"
+
+[[links]]
+from = "api-scheduler"
+to = "postgresql"
+
+[[links]]
+from = "api-scheduler"
+to = "redis"
+
+[[links]]
+from = "opnform-ui"
+to = "opnform-api"
+
+[[links]]
+from = "nginx"
+to = "opnform-api"
+
+[[links]]
+from = "nginx"
+to = "opnform-ui"

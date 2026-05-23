@@ -1,0 +1,35 @@
+name = "Gitea is a self-hosted, lightweight Git service, offering version control, collaboration, and code hosting."
+description = "Gitea is a self-hosted, lightweight Git service, offering version control, collaboration, and code hosting."
+category = "stack"
+logo = "svgs/gitea.svg"
+[[services]]
+name = "gitea"
+category = "app"
+subtype = "docker"
+docker_image = "gitea/gitea:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_GITEA_3000 = ""
+    USER_UID = "1000"
+    USER_GID = "1000"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 80
+      container = 80000520
+    [[services.storage]]
+      host = "gitea-data"
+      container = "/data"
+    [[services.storage]]
+      host = "gitea-timezone"
+      container = "/etc/timezone"
+    [[services.storage]]
+      host = "gitea-localtime"
+      container = "/etc/localtime"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

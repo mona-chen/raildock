@@ -1,0 +1,53 @@
+name = "Observium is a comprehensive network monitoring platform designed to deliver powerful monitoring capabilities, combined with an elegant and intuitive user interface."
+description = "Observium is a comprehensive network monitoring platform designed to deliver powerful monitoring capabilities, combined with an elegant and intuitive user interface."
+category = "stack"
+logo = "svgs/observium.webp"
+[[services]]
+name = "observium"
+category = "app"
+subtype = "docker"
+docker_image = "mbixtech/observium:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OBSERVIUM = "${SERVICE_URL_OBSERVIUM}"
+    OBSERVIUM_ADMIN_PASS = "${SERVICE_PASSWORD_OBSERVIUMADMIN}"
+    OBSERVIUM_ADMIN_USER = "${SERVICE_USER_OBSERVIUMADMIN}"
+    OBSERVIUM_DB_HOST = "mariadb"
+    OBSERVIUM_DB_NAME = "${OBSERVIUM_DB_NAME:-observium-db}"
+    OBSERVIUM_DB_PASS = "${SERVICE_PASSWORD_MARIADB}"
+    OBSERVIUM_DB_USER = "${SERVICE_USER_MARIADB}"
+    [[services.storage]]
+      host = "observium_logs"
+      container = "/opt/observium/logs"
+    [[services.storage]]
+      host = "observium_rrd"
+      container = "/opt/observium/rrd"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:lts"
+source = { type = "docker"  }
+  [services.env]
+    MARIADB_ROOT_PASSWORD = "${SERVICE_PASSWORD_MARIADBROOT}"
+    MARIADB_USER = "${SERVICE_USER_MARIADB}"
+    MARIADB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    MARIADB_DATABASE = "${MARIADB_DATABASE:-observium-db}"
+    [[services.storage]]
+      host = "observium_mariadb_data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[links]]
+from = "observium"
+to = "mariadb"

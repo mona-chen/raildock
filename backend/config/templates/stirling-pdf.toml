@@ -1,0 +1,31 @@
+name = "Stirling is a powerful web based PDF manipulation tool"
+description = "Stirling is a powerful web based PDF manipulation tool"
+category = "stack"
+logo = "svgs/stirling.png"
+[[services]]
+name = "stirling-pdf"
+category = "app"
+subtype = "docker"
+docker_image = "stirlingtools/stirling-pdf:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SPDF_8080 = ""
+    DOCKER_ENABLE_SECURITY = "false"
+    [[services.storage]]
+      host = "stirling-training-data"
+      container = "/usr/share/tesseract-ocr/5/tessdata"
+    [[services.storage]]
+      host = "stirling-configs"
+      container = "/configs"
+    [[services.storage]]
+      host = "stirling-custom-files"
+      container = "/customFiles/"
+    [[services.storage]]
+      host = "stirling-logs"
+      container = "/logs/"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

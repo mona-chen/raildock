@@ -1,0 +1,114 @@
+name = "An all-in-one personal finance platform."
+description = "An all-in-one personal finance platform."
+category = "stack"
+logo = "svgs/sure.png"
+[[services]]
+name = "web"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/we-promise/sure:0.6.7"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SURE_3000 = ""
+    APP_DOMAIN = "$SERVICE_FQDN_SURE"
+    SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    REDIS_URL = "redis://valkey:6379"
+    DB_HOST = "postgresql"
+    DB_PORT = "5432"
+    SELF_HOSTED = "true"
+    RAILS_FORCE_SSL = "false"
+    RAILS_ASSUME_SSL = "false"
+    ONBOARDING_STATE = "${ONBOARDING_STATE:-open}"
+    [[services.storage]]
+      host = "sure-app-storage"
+      container = "/rails/storage"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 20
+
+[[services]]
+name = "worker"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/we-promise/sure:0.6.7"
+start_command = "bundle exec sidekiq"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    APP_DOMAIN = "$SERVICE_FQDN_SURE"
+    SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    REDIS_URL = "redis://valkey:6379"
+    DB_HOST = "postgresql"
+    DB_PORT = "5432"
+    SELF_HOSTED = "true"
+    RAILS_FORCE_SSL = "false"
+    RAILS_ASSUME_SSL = "false"
+    ONBOARDING_STATE = "${ONBOARDING_STATE:-open}"
+    [[services.storage]]
+      host = "sure-app-storage"
+      container = "/rails/storage"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    [[services.storage]]
+      host = "sure-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "valkey"
+category = "app"
+subtype = "docker"
+docker_image = "valkey/valkey:8-alpine"
+start_command = "valkey-server --appendonly yes"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "sure-valkey"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "web"
+to = "postgresql"
+
+[[links]]
+from = "web"
+to = "valkey"
+
+[[links]]
+from = "worker"
+to = "postgresql"
+
+[[links]]
+from = "worker"
+to = "valkey"

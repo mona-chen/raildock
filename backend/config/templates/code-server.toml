@@ -1,0 +1,27 @@
+name = "Code-Server is a web-based code editor that enables remote coding and collaboration from any device, anywhere."
+description = "Code-Server is a web-based code editor that enables remote coding and collaboration from any device, anywhere."
+category = "stack"
+logo = "svgs/code-server.svg"
+[[services]]
+name = "code-server"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/code-server:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CODESERVER_8443 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    PASSWORD = "$SERVICE_PASSWORD_64_PASSWORDCODESERVER"
+    SUDO_PASSWORD = "$SERVICE_PASSWORD_SUDOCODESERVER"
+    DEFAULT_WORKSPACE = "/config/workspace"
+    [[services.storage]]
+      host = "code-server-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

@@ -1,0 +1,25 @@
+name = "Redis Insight lets you do both GUI- and CLI-based interactions in a fully-featured desktop GUI client."
+description = "Redis Insight lets you do both GUI- and CLI-based interactions in a fully-featured desktop GUI client."
+category = "stack"
+logo = "svgs/redisinsight.png"
+[[services]]
+name = "redisinsight"
+category = "cache"
+subtype = "redis"
+docker_image = "redis/redisinsight:2.70"
+source = { type = "docker"  }
+  [services.env]
+    SERVICE_URL_REDISINSIGHT_5540 = ""
+    RI_APP_HOST = "0.0.0.0"
+    RI_APP_PORT = "5540"
+    RI_ENCRYPTION_KEY = "${SERVICE_PASSWORD_RI_ENCRYPTION_KEY}"
+    RI_LOG_LEVEL = "${RI_LOG_LEVEL:-info}"
+    RI_FILES_LOGGER = "${RI_FILES_LOGGER:-true}"
+    RI_STDOUT_LOGGER = "${RI_STDOUT_LOGGER:-true}"
+    [[services.storage]]
+      host = "redis_insight_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 10

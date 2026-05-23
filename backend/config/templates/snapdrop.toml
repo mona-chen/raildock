@@ -1,0 +1,24 @@
+name = "A self-hosted file-sharing service for secure and convenient file transfers, whether on a local network or the internet."
+description = "A self-hosted file-sharing service for secure and convenient file transfers, whether on a local network or the internet."
+category = "stack"
+
+[[services]]
+name = "snapdrop"
+category = "app"
+subtype = "docker"
+docker_image = "linuxserver/snapdrop:version-b8b78cc2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SNAPDROP = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "snapdrop-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

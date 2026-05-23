@@ -1,0 +1,72 @@
+name = "Weblate is a libre software web-based continuous localization system."
+description = "Weblate is a libre software web-based continuous localization system."
+category = "stack"
+logo = "svgs/weblate.webp"
+[[services]]
+name = "weblate"
+category = "app"
+subtype = "docker"
+docker_image = "weblate/weblate:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WEBLATE_8080 = ""
+    WEBLATE_SITE_DOMAIN = "$SERVICE_FQDN_WEBLATE"
+    WEBLATE_ADMIN_NAME = "${WEBLATE_ADMIN_NAME:-Admin}"
+    WEBLATE_ADMIN_EMAIL = "${WEBLATE_ADMIN_EMAIL:-admin@example.com}"
+    WEBLATE_ADMIN_PASSWORD = "$SERVICE_PASSWORD_WEBLATE"
+    DEFAULT_FROM_EMAIL = "${WEBLATE_ADMIN_EMAIL:-admin@example.com}"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_DATABASE = "${POSTGRES_DB:-weblate}"
+    POSTGRES_HOST = "postgresql"
+    POSTGRES_PORT = "5432"
+    REDIS_HOST = "redis"
+    REDIS_PORT = "6379"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    [[services.storage]]
+      host = "weblate-data"
+      container = "/app/data"
+    [[services.storage]]
+      host = "weblate-cache"
+      container = "/app/cache"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DB:-weblate}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+start_command = "--appendonly yes --requirepass ${SERVICE_PASSWORD_REDIS}\n"
+source = { type = "docker"  }
+  [services.env]
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    [[services.storage]]
+      host = "weblate-redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

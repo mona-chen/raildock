@@ -1,0 +1,186 @@
+name = "Mautic v5 Open Source Marketing Automation"
+description = "Mautic v5 Open Source Marketing Automation"
+category = "stack"
+logo = "svgs/mautic.svg"
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mysql"
+docker_image = "mysql:8.0"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_64_MYSQLROOT}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-mautic}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
+    [[services.storage]]
+      host = "mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "rabbitmq"
+category = "queue"
+subtype = "rabbitmq"
+docker_image = "rabbitmq:3"
+source = { type = "docker"  }
+  [services.env]
+    RABBITMQ_DEFAULT_VHOST = "${RABBITMQ_DEFAULT_VHOST:-mautic}"
+    [[services.storage]]
+      host = "rabbitmq-data"
+      container = "/var/lib/rabbitmq"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[services]]
+name = "mautic_web"
+category = "app"
+subtype = "docker"
+docker_image = "mautic/mautic:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MAUTIC_80 = ""
+    DOCKER_MAUTIC_LOAD_TEST_DATA = "${MAUTIC_LOAD_TEST_DATA:-false}"
+    DOCKER_MAUTIC_RUN_MIGRATIONS = "${MAUTIC_RUN_MIGRATIONS:-false}"
+    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
+    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
+    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
+    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
+    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
+    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    [[services.storage]]
+      host = "mautic_data/config"
+      container = "/var/www/html/config"
+    [[services.storage]]
+      host = "mautic_data/logs"
+      container = "/var/www/html/var/logs"
+    [[services.storage]]
+      host = "mautic_data/media/files"
+      container = "/var/www/html/docroot/media/files"
+    [[services.storage]]
+      host = "mautic_data/media/images"
+      container = "/var/www/html/docroot/media/images"
+    [[services.storage]]
+      host = "mautic_data/plugins"
+      container = "/var/www/html/docroot/plugins"
+    [[services.storage]]
+      host = "mautic_data/vendor"
+      container = "/var/www/html/vendor"
+    [[services.storage]]
+      host = "mautic_data/bin"
+      container = "/var/www/html/bin"
+    [[services.storage]]
+      host = "mautic_data/cron"
+      container = "/opt/mautic/cron"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 10
+
+[[services]]
+name = "mautic_cron"
+category = "app"
+subtype = "docker"
+docker_image = "mautic/mautic:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DOCKER_MAUTIC_ROLE = "mautic_cron"
+    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
+    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
+    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
+    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
+    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
+    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    [[services.storage]]
+      host = "mautic_data/config"
+      container = "/var/www/html/config"
+    [[services.storage]]
+      host = "mautic_data/logs"
+      container = "/var/www/html/var/logs"
+    [[services.storage]]
+      host = "mautic_data/media/files"
+      container = "/var/www/html/docroot/media/files"
+    [[services.storage]]
+      host = "mautic_data/media/images"
+      container = "/var/www/html/docroot/media/images"
+    [[services.storage]]
+      host = "mautic_data/plugins"
+      container = "/var/www/html/docroot/plugins"
+    [[services.storage]]
+      host = "mautic_data/vendor"
+      container = "/var/www/html/vendor"
+    [[services.storage]]
+      host = "mautic_data/bin"
+      container = "/var/www/html/bin"
+    [[services.storage]]
+      host = "mautic_data/cron"
+      container = "/opt/mautic/cron"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "mautic_worker"
+category = "app"
+subtype = "docker"
+docker_image = "mautic/mautic:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DOCKER_MAUTIC_ROLE = "mautic_worker"
+    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
+    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
+    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
+    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
+    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
+    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    [[services.storage]]
+      host = "mautic_data/config"
+      container = "/var/www/html/config"
+    [[services.storage]]
+      host = "mautic_data/logs"
+      container = "/var/www/html/var/logs"
+    [[services.storage]]
+      host = "mautic_data/media/files"
+      container = "/var/www/html/docroot/media/files"
+    [[services.storage]]
+      host = "mautic_data/media/images"
+      container = "/var/www/html/docroot/media/images"
+    [[services.storage]]
+      host = "mautic_data/plugins"
+      container = "/var/www/html/docroot/plugins"
+    [[services.storage]]
+      host = "mautic_data/vendor"
+      container = "/var/www/html/vendor"
+    [[services.storage]]
+      host = "mautic_data/bin"
+      container = "/var/www/html/bin"
+    [[services.storage]]
+      host = "mautic_data/cron"
+      container = "/opt/mautic/cron"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "mautic_cron"
+to = "mautic_web"
+
+[[links]]
+from = "mautic_worker"
+to = "mautic_web"

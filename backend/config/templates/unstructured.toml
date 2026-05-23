@@ -1,0 +1,19 @@
+name = "Unstructured provides a platform and tools to ingest and process unstructured documents for Retrieval Augmented Generation (RAG) and model fine-tuning."
+description = "Unstructured provides a platform and tools to ingest and process unstructured documents for Retrieval Augmented Generation (RAG) and model fine-tuning."
+category = "stack"
+logo = "svgs/unstructured.png"
+[[services]]
+name = "unstructured"
+category = "app"
+subtype = "docker"
+docker_image = "downloads.unstructured.io/unstructured-io/unstructured-api:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_UNSTRUCTURED_8000 = ""
+    UNSTRUCTURED_API_KEY = "${SERVICE_PASSWORD_APIKEY}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30

@@ -1,0 +1,81 @@
+name = "Self-hosted photo and video management solution."
+description = "Self-hosted photo and video management solution."
+category = "stack"
+logo = "svgs/immich.svg"
+[[services]]
+name = "immich"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_IMMICH_2283 = ""
+    UPLOAD_LOCATION = "./library"
+    DB_DATA_LOCATION = "./postgres"
+    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    DB_USERNAME = "$SERVICE_USER_POSTGRES"
+    DB_DATABASE_NAME = "${DB_DATABASE_NAME:-immich}"
+    TZ = "${TZ:-Etc/UTC}"
+    [[services.storage]]
+      host = "immich-uploads"
+      container = "/usr/src/app/upload"
+
+[[services]]
+name = "immich-machine-learning"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    UPLOAD_LOCATION = "./library"
+    DB_DATA_LOCATION = "./postgres"
+    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    DB_USERNAME = "$SERVICE_USER_POSTGRES"
+    DB_DATABASE_NAME = "${DB_DATABASE_NAME:-immich}"
+    TZ = "${TZ:-Etc/UTC}"
+    [[services.storage]]
+      host = "immich-model-cache"
+      container = "/cache"
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7.4-alpine"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "database"
+category = "database"
+subtype = "postgres"
+docker_image = "ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_DB = "${DB_DATABASE_NAME:-immich}"
+    POSTGRES_INITDB_ARGS = "--data-checksums"
+    DB_STORAGE_TYPE = "${DB_STORAGE_TYPE:-SSD}"
+    [[services.storage]]
+      host = "immich-postgres-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "immich"
+to = "redis"
+
+[[links]]
+from = "immich"
+to = "database"

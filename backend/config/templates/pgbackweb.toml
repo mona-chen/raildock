@@ -1,0 +1,42 @@
+name = "Effortless PostgreSQL backups with a user-friendly web interface!"
+description = "Effortless PostgreSQL backups with a user-friendly web interface!"
+category = "stack"
+logo = "svgs/pgbackweb.svg"
+[[services]]
+name = "pgbackweb"
+category = "app"
+subtype = "docker"
+docker_image = "eduardolat/pgbackweb:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PGBACKWEB_8085 = ""
+    PBW_ENCRYPTION_KEY = "${SERVICE_PASSWORD_64_PGBACKWEB}"
+    PBW_POSTGRES_CONN_STRING = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-pgbackweb-db}?sslmode=disable"
+    TZ = "${TIME_ZONE:-UTC}"
+    [[services.storage]]
+      host = "pgbackweb_backups"
+      container = "/backups"
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:17"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-pgbackweb-db}"
+    [[services.storage]]
+      host = "pgbackweb_postgres_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "pgbackweb"
+to = "postgres"

@@ -1,0 +1,19 @@
+name = "Smart Home Made Simple."
+description = "Smart Home Made Simple."
+category = "stack"
+logo = "svgs/esphome.svg"
+[[services]]
+name = "esphome"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/esphome/esphome:2025.12.4"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ESPHOME_6052 = ""
+    USERNAME = "${SERVICE_USER_ADMIN}"
+    PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    [[services.storage]]
+      host = "esp_config"
+      container = "/config"

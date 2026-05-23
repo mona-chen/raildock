@@ -1,0 +1,53 @@
+name = "Drupal is a free and open-source web content management system written in PHP and distributed under the GNU General Public License."
+description = "Drupal is a free and open-source web content management system written in PHP and distributed under the GNU General Public License."
+category = "stack"
+logo = "svgs/drupal.svg"
+[[services]]
+name = "drupal"
+category = "app"
+subtype = "docker"
+docker_image = "drupal:10-apache"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DRUPAL = ""
+    DB_HOST = "postgres"
+    DB_NAME = "postgres"
+    DB_USER = "postgres"
+    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    [[services.storage]]
+      host = "drupal_modules"
+      container = "/var/www/html/modules"
+    [[services.storage]]
+      host = "drupal_profiles"
+      container = "/var/www/html/profiles"
+    [[services.storage]]
+      host = "drupal_themes"
+      container = "/var/www/html/themes"
+    [[services.storage]]
+      host = "drupal_sites"
+      container = "/var/www/html/sites"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "postgres"
+    POSTGRES_USER = "postgres"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "drupal"
+to = "postgres"

@@ -1,0 +1,30 @@
+name = "A media server software that allows you to organize, stream, and access your multimedia content effortlessly."
+description = "A media server software that allows you to organize, stream, and access your multimedia content effortlessly."
+category = "stack"
+logo = "svgs/emby.png"
+[[services]]
+name = "emby"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/emby:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_EMBY_8096 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "emby-config"
+      container = "/config"
+    [[services.storage]]
+      host = "emby-tvshows"
+      container = "/tvshows"
+    [[services.storage]]
+      host = "emby-movies"
+      container = "/movies"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

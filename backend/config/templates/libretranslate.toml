@@ -1,0 +1,27 @@
+name = "Free and open-source machine translation API, entirely self-hosted."
+description = "Free and open-source machine translation API, entirely self-hosted."
+category = "stack"
+logo = "svgs/libretranslate.svg"
+[[services]]
+name = "libretranslate"
+category = "app"
+subtype = "docker"
+docker_image = "libretranslate/libretranslate:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LIBRETRANSLATE_5000 = ""
+    LT_SSL = "${LT_SSL:-true}"
+    LT_UPDATE_MODELS = "${LT_UPDATE_MODELS:-true}"
+    LT_LOAD_ONLY = "${LT_LOAD_ONLY:-en,es,fr,de,ja}"
+    [[services.storage]]
+      host = "libretranslate-api-keys"
+      container = "/app/db"
+    [[services.storage]]
+      host = "libretranslate-models"
+      container = "/home/libretranslate/.local"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30

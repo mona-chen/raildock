@@ -1,0 +1,141 @@
+name = "Delightful customer relationships at scale."
+description = "Delightful customer relationships at scale."
+category = "stack"
+logo = "svgs/chatwoot.svg"
+[[services]]
+name = "chatwoot"
+category = "app"
+subtype = "docker"
+docker_image = "chatwoot/chatwoot:latest"
+start_command = "sh -c \"bundle exec rails db:chatwoot_prepare && bundle exec rails s -p 3000 -b 0.0.0.0\""
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CHATWOOT_3000 = ""
+    SECRET_KEY_BASE = "$SERVICE_PASSWORD_CHATWOOT"
+    FRONTEND_URL = "${SERVICE_URL_CHATWOOT}"
+    DEFAULT_LOCALE = "${CHATWOOT_DEFAULT_LOCALE}"
+    FORCE_SSL = "${FORCE_SSL:-false}"
+    ENABLE_ACCOUNT_SIGNUP = "${ENABLE_ACCOUNT_SIGNUP:-false}"
+    REDIS_URL = "redis://default@redis:6379"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_OPENSSL_VERIFY_MODE = "${REDIS_OPENSSL_VERIFY_MODE:-none}"
+    POSTGRES_DATABASE = "${POSTGRES_DB:-chatwoot}"
+    POSTGRES_HOST = "${POSTGRES_HOST:-postgres}"
+    POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    RAILS_MAX_THREADS = "${RAILS_MAX_THREADS:-5}"
+    NODE_ENV = "${NODE_ENV:-production}"
+    RAILS_ENV = "${RAILS_ENV:-production}"
+    INSTALLATION_ENV = "${INSTALLATION_ENV:-docker}"
+    MAILER_SENDER_EMAIL = "${CHATWOOT_MAILER_SENDER_EMAIL}"
+    SMTP_ADDRESS = "${CHATWOOT_SMTP_ADDRESS}"
+    SMTP_AUTHENTICATION = "${CHATWOOT_SMTP_AUTHENTICATION}"
+    SMTP_DOMAIN = "${CHATWOOT_SMTP_DOMAIN}"
+    SMTP_ENABLE_STARTTLS_AUTO = "${CHATWOOT_SMTP_ENABLE_STARTTLS_AUTO}"
+    SMTP_PORT = "${CHATWOOT_SMTP_PORT}"
+    SMTP_USERNAME = "${CHATWOOT_SMTP_USERNAME}"
+    SMTP_PASSWORD = "${CHATWOOT_SMTP_PASSWORD}"
+    ACTIVE_STORAGE_SERVICE = "${ACTIVE_STORAGE_SERVICE:-local}"
+    [[services.storage]]
+      host = "rails-data"
+      container = "/app/storage"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "sidekiq"
+category = "app"
+subtype = "docker"
+docker_image = "chatwoot/chatwoot:latest"
+start_command = "bundle exec sidekiq -C config/sidekiq.yml"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SECRET_KEY_BASE = "$SERVICE_PASSWORD_CHATWOOT"
+    FRONTEND_URL = "${SERVICE_URL_CHATWOOT}"
+    DEFAULT_LOCALE = "${CHATWOOT_DEFAULT_LOCALE}"
+    FORCE_SSL = "${FORCE_SSL:-false}"
+    ENABLE_ACCOUNT_SIGNUP = "${ENABLE_ACCOUNT_SIGNUP:-false}"
+    REDIS_URL = "redis://default@redis:6379"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_OPENSSL_VERIFY_MODE = "${REDIS_OPENSSL_VERIFY_MODE:-none}"
+    POSTGRES_DATABASE = "${POSTGRES_DB:-chatwoot}"
+    POSTGRES_HOST = "${POSTGRES_HOST:-postgres}"
+    POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    RAILS_MAX_THREADS = "${RAILS_MAX_THREADS:-5}"
+    NODE_ENV = "${NODE_ENV:-production}"
+    RAILS_ENV = "${RAILS_ENV:-production}"
+    INSTALLATION_ENV = "${INSTALLATION_ENV:-docker}"
+    MAILER_SENDER_EMAIL = "${CHATWOOT_MAILER_SENDER_EMAIL}"
+    SMTP_ADDRESS = "${CHATWOOT_SMTP_ADDRESS}"
+    SMTP_AUTHENTICATION = "${CHATWOOT_SMTP_AUTHENTICATION}"
+    SMTP_DOMAIN = "${CHATWOOT_SMTP_DOMAIN}"
+    SMTP_ENABLE_STARTTLS_AUTO = "${CHATWOOT_SMTP_ENABLE_STARTTLS_AUTO}"
+    SMTP_PORT = "${CHATWOOT_SMTP_PORT}"
+    SMTP_USERNAME = "${CHATWOOT_SMTP_USERNAME}"
+    SMTP_PASSWORD = "${CHATWOOT_SMTP_PASSWORD}"
+    ACTIVE_STORAGE_SERVICE = "${ACTIVE_STORAGE_SERVICE:-local}"
+    [[services.storage]]
+      host = "rails-data"
+      container = "/app/storage"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "postgres"
+category = "app"
+subtype = "docker"
+docker_image = "pgvector/pgvector:pg12"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_DB = "${POSTGRES_DB:-chatwoot}"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    [[services.storage]]
+      host = "postgres-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:alpine"
+start_command = "sh -c redis-server --requirepass \"$SERVICE_PASSWORD_REDIS\""
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "chatwoot"
+to = "postgres"
+
+[[links]]
+from = "chatwoot"
+to = "redis"
+
+[[links]]
+from = "sidekiq"
+to = "postgres"
+
+[[links]]
+from = "sidekiq"
+to = "redis"

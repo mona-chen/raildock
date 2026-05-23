@@ -1,0 +1,44 @@
+name = "Roll your own tracker! Ryot is a self-hosted platform for tracking various aspects of life such as media consumption, fitness activities, and more."
+description = "Roll your own tracker! Ryot is a self-hosted platform for tracking various aspects of life such as media consumption, fitness activities, and more."
+category = "stack"
+logo = "svgs/ryot.svg"
+[[services]]
+name = "ryot"
+category = "app"
+subtype = "docker"
+docker_image = "ignisda/ryot:v8"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_RYOT_8000 = ""
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB}"
+    SERVER_ADMIN_ACCESS_TOKEN = "${SERVICE_PASSWORD_64_RYOT}"
+    TZ = "${TZ:-Europe/Amsterdam}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-ryot-db}"
+    TZ = "${TZ:-Europe/Amsterdam}"
+    [[services.storage]]
+      host = "ryot_postgresql_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "ryot"
+to = "postgresql"

@@ -1,0 +1,32 @@
+name = "Plex organizes video, music and photos from personal media libraries and streams them to smart TVs, streaming boxes and mobile devices."
+description = "Plex organizes video, music and photos from personal media libraries and streams them to smart TVs, streaming boxes and mobile devices."
+category = "stack"
+logo = "svgs/plex.svg"
+[[services]]
+name = "plex"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/plex:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PLEX_32400 = ""
+    _APP_URL = "$SERVICE_URL_PLEX"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-America/Toronto}"
+    PLEX_CLAIM = "${PLEX_CLAIM}"
+    [[services.storage]]
+      host = "plex-config"
+      container = "/config"
+    [[services.storage]]
+      host = "plex-tv"
+      container = "/tv"
+    [[services.storage]]
+      host = "plex-movies"
+      container = "/movies"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

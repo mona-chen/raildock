@@ -1,0 +1,24 @@
+name = "Heimdall is a dashboard for managing and organizing your server applications."
+description = "Heimdall is a dashboard for managing and organizing your server applications."
+category = "stack"
+logo = "svgs/heimdall.svg"
+[[services]]
+name = "heimdall"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/heimdall:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HEIMDALL = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    [[services.storage]]
+      host = "heimdall-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

@@ -1,0 +1,58 @@
+name = "A beautiful and performant vault to save all your files in the cloud."
+description = "A beautiful and performant vault to save all your files in the cloud."
+category = "stack"
+logo = "svgs/chibisafe.svg"
+[[services]]
+name = "chibisafe"
+category = "app"
+subtype = "docker"
+docker_image = "chibisafe/chibisafe:v6.5.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    BASE_API_URL = "http://chibisafe-server:8000"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "chibisafe-server"
+category = "app"
+subtype = "docker"
+docker_image = "chibisafe/chibisafe-server:v6.5.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "chibisafe-database"
+      container = "/app/database"
+    [[services.storage]]
+      host = "chibisafe-uploads"
+      container = "/app/uploads"
+    [[services.storage]]
+      host = "chibisafe-logs"
+      container = "/app/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "caddy"
+category = "app"
+subtype = "docker"
+docker_image = "caddy:2-alpine"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CHIBISAFE_80 = ""
+    [[services.storage]]
+      host = "uploads"
+      container = "/app/uploads"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

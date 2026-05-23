@@ -1,0 +1,41 @@
+name = "An open-source authentication solution that simplifies the implementation of secure user authentication and session management for web and mobile applications."
+description = "An open-source authentication solution that simplifies the implementation of secure user authentication and session management for web and mobile applications."
+category = "stack"
+logo = "svgs/supertokens.svg"
+[[services]]
+name = "supertokens"
+category = "database"
+subtype = "mysql"
+docker_image = "registry.supertokens.io/supertokens/supertokens-mysql:latest"
+source = { type = "docker"  }
+  [services.env]
+    SERVICE_URL_SUPERTOKENS_3567 = ""
+    API_KEYS = "${API_KEYS:-}"
+    MYSQL_CONNECTION_URI = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@mysql:3306/${MYSQL_DATABASE:-supertokens}"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mysql"
+docker_image = "mysql:latest"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MYSQL_USER = "$SERVICE_USER_MYSQL"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-supertokens}"
+    [[services.storage]]
+      host = "supertokens-mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "supertokens"
+to = "mysql"

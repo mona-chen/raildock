@@ -1,0 +1,22 @@
+name = "Homelab Services Organizer"
+description = "Homelab Services Organizer"
+category = "stack"
+logo = "svgs/organizr.png"
+[[services]]
+name = "organizr"
+category = "app"
+subtype = "docker"
+docker_image = "organizr/organizr:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ORGANIZR_80 = ""
+    branch = "${branch:-v2-master}"
+    [[services.storage]]
+      host = "organizr-data"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1

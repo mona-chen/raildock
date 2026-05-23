@@ -1,0 +1,47 @@
+name = "Paperless-ngx is a community-supported open-source document management system that transforms your physical documents into a searchable online archive so you can keep, well, less paper."
+description = "Paperless-ngx is a community-supported open-source document management system that transforms your physical documents into a searchable online archive so you can keep, well, less paper."
+category = "stack"
+logo = "svgs/paperless.svg"
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7.4"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "paperless-redis"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "paperless"
+category = "app"
+subtype = "docker"
+docker_image = "paperlessngx/paperless-ngx:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PAPERLESS_8000 = ""
+    PAPERLESS_URL = "$SERVICE_URL_PAPERLESS"
+    PAPERLESS_ADMIN_PASSWORD = "${SERVICE_PASSWORD_PAPERLESS}"
+    PAPERLESS_ADMIN_USER = "${SERVICE_USER_PAPERLESS}"
+    PAPERLESS_REDIS = "redis://redis:6379"
+    PAPERLESS_SECRET_KEY = "${SERVICE_REALBASE64_64_PAPERLESS}"
+    [[services.storage]]
+      host = "paperless-data"
+      container = "/usr/src/paperless/data"
+    [[services.storage]]
+      host = "paperless-media"
+      container = "/usr/src/paperless/media"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "paperless"
+to = "redis"

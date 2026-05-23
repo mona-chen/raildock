@@ -1,0 +1,36 @@
+name = "A user-friendly IRC bouncer with a modern web interface"
+description = "A user-friendly IRC bouncer with a modern web interface"
+category = "stack"
+logo = "svgs/soju.svg"
+[[services]]
+name = "soju"
+category = "app"
+subtype = "docker"
+docker_image = "codeberg.org/emersion/soju:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "soju-db"
+      container = "/db"
+    [[services.storage]]
+      host = "soju-uploads"
+      container = "/uploads"
+    [[services.storage]]
+      host = "soju-run"
+      container = "/run/soju"
+
+[[services]]
+name = "gamja"
+category = "app"
+subtype = "docker"
+docker_image = "codeberg.org/emersion/gamja:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_GAMJA_80 = ""
+
+[[links]]
+from = "gamja"
+to = "soju"

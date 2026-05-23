@@ -1,0 +1,21 @@
+name = "A self-hostable personal dashboard built for you. Includes status-checking, widgets, themes, icon packs, a UI editor and tons more!"
+description = "A self-hostable personal dashboard built for you. Includes status-checking, widgets, themes, icon packs, a UI editor and tons more!"
+category = "stack"
+logo = "svgs/dashy.png"
+[[services]]
+name = "dashy"
+category = "app"
+subtype = "docker"
+docker_image = "lissy93/dashy"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DASHY_8080 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TIMEZONE:-UTC}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

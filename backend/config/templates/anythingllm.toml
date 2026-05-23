@@ -1,0 +1,38 @@
+name = "AnythingLLM is the easiest to use, all-in-one AI application that can do RAG, AI Agents, and much more with no code or infrastructure headaches."
+description = "AnythingLLM is the easiest to use, all-in-one AI application that can do RAG, AI Agents, and much more with no code or infrastructure headaches."
+category = "stack"
+logo = "svgs/anythingllm.svg"
+[[services]]
+name = "anything-llm"
+category = "app"
+subtype = "docker"
+docker_image = "mintplexlabs/anythingllm"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ANYTHINGLLM_3001 = ""
+    STORAGE_DIR = "/app/server/storage"
+    DISABLE_TELEMETRY = "${DISABLE_TELEMETRY:-true}"
+    PASSWORDLOWERCASE = "${PASSWORDLOWERCASE:-1}"
+    PASSWORDMAXCHAR = "${PASSWORDMAXCHAR:-250}"
+    PASSWORDMINCHAR = "${PASSWORDMINCHAR:-6}"
+    PASSWORDNUMERIC = "${PASSWORDNUMERIC:-1}"
+    PASSWORDREQUIREMENTS = "${PASSWORDREQUIREMENTS:-1}"
+    PASSWORDSYMBOL = "${PASSWORDSYMBOL:-1}"
+    PASSWORDUPPERCASE = "${PASSWORDUPPERCASE:-1}"
+    SIG_KEY = "${SERVICE_PASSWORD_SIGKEY}"
+    SIG_SALT = "${SERVICE_PASSWORD_SIGSALT}"
+    JWT_SECRET = "${SERVICE_PASSWORD_JWTSECRET}"
+    AUTH_TOKEN = "${SERVICE_PASSWORD_AUTHTOKEN}"
+    SERVER_PORT = "${SERVER_PORT:-3001}"
+    VECTOR_DB = "lancedb"
+    [[services.storage]]
+      host = "anythingllm-storage"
+      container = "/app/server/storage"
+    [[services.storage]]
+      host = "anythingllm-hot"
+      container = "/app/collector/hotdir"
+    [[services.storage]]
+      host = "anythingllm-outputs"
+      container = "/app/collector/outputs"

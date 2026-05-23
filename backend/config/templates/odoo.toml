@@ -1,0 +1,45 @@
+name = "Odoo is a suite of open-source business apps that cover all your company needs."
+description = "Odoo is a suite of open-source business apps that cover all your company needs."
+category = "stack"
+logo = "svgs/odoo.svg"
+[[services]]
+name = "odoo"
+category = "app"
+subtype = "docker"
+docker_image = "odoo:18"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ODOO_8069 = ""
+    HOST = "postgresql"
+    USER = "$SERVICE_USER_POSTGRES"
+    PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    [[services.storage]]
+      host = "odoo-web-data"
+      container = "/var/lib/odoo"
+    [[services.storage]]
+      host = "odoo-extra-addons"
+      container = "/mnt/extra-addons"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "postgres"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

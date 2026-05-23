@@ -1,0 +1,19 @@
+name = "An Eye on your system"
+description = "An Eye on your system"
+category = "stack"
+logo = "svgs/glances.png"
+[[services]]
+name = "glances"
+category = "app"
+subtype = "docker"
+docker_image = "nicolargo/glances:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    GLANCES_OPT = "-w"
+    SERVICE_URL_GLANCES_61208 = ""
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

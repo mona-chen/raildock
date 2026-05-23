@@ -1,0 +1,31 @@
+name = "Docker multi-arch Image for Terraria Server."
+description = "Docker multi-arch Image for Terraria Server."
+category = "stack"
+logo = "svgs/terraria.svg"
+[[services]]
+name = "terraria-server"
+category = "app"
+subtype = "docker"
+docker_image = "hexlo/terraria-server-docker:1.4.4.9"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    WORLD = "${WORLD:-/root/.local/share/Terraria/Worlds/world1.wld}"
+    AUTOCREATE = "${AUTOCREATE:-2}"
+    WORLDNAME = "${WORLDNAME:-world1}"
+    DIFFICULTY = "${DIFFICULTY:-1}"
+    MAXPLAYERS = "${MAXPLAYERS:-8}"
+    PASSWORD = "${PASSWORD:-mypassword}"
+    MOTD = "${MOTD:-Welcome to the server!}"
+    LANGUAGE = "${LANGUAGE:-en/US}"
+    SECURE = "${SECURE:-1}"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 7777
+      container = 7777
+    [[services.storage]]
+      host = "terraria-server"
+      container = "/root/.local/share/Terraria/Worlds"

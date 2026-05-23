@@ -1,0 +1,31 @@
+name = "Self-hosted audiobook, ebook, and podcast server"
+description = "Self-hosted audiobook, ebook, and podcast server"
+category = "stack"
+logo = "svgs/audiobookshelf.svg"
+[[services]]
+name = "audiobookshelf"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/advplyr/audiobookshelf:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_AUDIOBOOKSHELF_80 = ""
+    TZ = "${TIMEZONE:-America/Toronto}"
+    [[services.storage]]
+      host = "audiobookshelf-audiobooks"
+      container = "/audiobooks"
+    [[services.storage]]
+      host = "audiobookshelf-podcasts"
+      container = "/podcasts"
+    [[services.storage]]
+      host = "audiobookshelf-config"
+      container = "/config"
+    [[services.storage]]
+      host = "audiobookshelf-metadata"
+      container = "/metadata"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

@@ -1,0 +1,58 @@
+name = "Redmine is a flexible project management web application."
+description = "Redmine is a flexible project management web application."
+category = "stack"
+logo = "svgs/redmine.svg"
+[[services]]
+name = "redmine"
+category = "app"
+subtype = "docker"
+docker_image = "redmine:6-alpine"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_REDMINE_3000 = ""
+    SECRET_KEY_BASE = "${SERVICE_PASSWORD_64_REDMINE}"
+    REDMINE_DB_POSTGRES = "postgresql"
+    REDMINE_DB_PORT = "5432"
+    REDMINE_DB_USERNAME = "${SERVICE_USER_POSTGRES}"
+    REDMINE_DB_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
+    REDMINE_DB_DATABASE = "${POSTGRES_DATABASE:-redmine-db}"
+    [[services.storage]]
+      host = "redmine-config"
+      container = "/usr/src/redmine/config"
+    [[services.storage]]
+      host = "redmine-files"
+      container = "/usr/src/redmine/files"
+    [[services.storage]]
+      host = "redmine-themes"
+      container = "/usr/src/redmine/themes"
+    [[services.storage]]
+      host = "redmine-plugins"
+      container = "/usr/src/redmine/plugins"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:17-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DATABASE:-redmine-db}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "redmine"
+to = "postgresql"

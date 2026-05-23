@@ -1,0 +1,22 @@
+name = "Cutting-edge, in-memory search engine for mere mortals. Knowledge of rocket science optional."
+description = "Cutting-edge, in-memory search engine for mere mortals. Knowledge of rocket science optional."
+category = "stack"
+logo = "svgs/typesense.png"
+[[services]]
+name = "typesense"
+category = "search"
+subtype = "typesense"
+docker_image = "typesense/typesense:28.0"
+source = { type = "docker"  }
+  [services.env]
+    SERVICE_URL_TYPESENSE_8108 = ""
+    TYPESENSE_ENABLE_CORS = "${TYPESENSE_ENABLE_CORS:-true}"
+    TYPESENSE_DATA_DIR = "/data"
+    TYPESENSE_API_KEY = "${TYPESENSE_API_KEY:?}"
+    [[services.storage]]
+      host = "typesense_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 7

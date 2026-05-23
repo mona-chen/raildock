@@ -1,0 +1,187 @@
+name = "Low code platform for building business apps and workflows in minutes. Supports PostgreSQL, MySQL, MSSQL, MongoDB, Rest API, Docker, K8s, and more."
+description = "Low code platform for building business apps and workflows in minutes. Supports PostgreSQL, MySQL, MSSQL, MongoDB, Rest API, Docker, K8s, and more."
+category = "stack"
+logo = "svgs/budibase.svg"
+[[services]]
+name = "app-service"
+category = "app"
+subtype = "docker"
+docker_image = "budibase.docker.scarf.sh/budibase/apps"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SELF_HOSTED = "1"
+    COUCH_DB_URL = "http://$SERVICE_USER_COUCHDB:$SERVICE_PASSWORD_COUCHDB@couchdb-service:5984"
+    WORKER_URL = "http://worker-service:4003"
+    MINIO_URL = "http://minio-service:9000"
+    MINIO_ACCESS_KEY = "$SERVICE_USER_MINIO"
+    MINIO_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
+    INTERNAL_API_KEY = "$SERVICE_BASE64_128_BUDIBASE"
+    BUDIBASE_ENVIRONMENT = "${BUDIBASE_ENVIRONMENT:-PRODUCTION}"
+    PORT = "4002"
+    API_ENCRYPTION_KEY = "$SERVICE_BASE64_64_BUDIBASEAPI"
+    ENCRYPTION_KEY = "$SERVICE_BASE64_64_BUDIBASE"
+    JWT_SECRET = "$SERVICE_BASE64_64_BUDIBASEJWT"
+    LOG_LEVEL = "info"
+    ENABLE_ANALYTICS = "${ENABLE_ANALYTICS:-true}"
+    REDIS_URL = "redis-service:6379"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    BB_ADMIN_USER_EMAIL = ""
+    BB_ADMIN_USER_PASSWORD = ""
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 15
+
+[[services]]
+name = "worker-service"
+category = "app"
+subtype = "docker"
+docker_image = "budibase.docker.scarf.sh/budibase/worker"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SELF_HOSTED = "1"
+    PORT = "4003"
+    CLUSTER_PORT = "10000"
+    API_ENCRYPTION_KEY = "$SERVICE_BASE64_64_BUDIBASEAPI"
+    JWT_SECRET = "$SERVICE_BASE64_64_BUDIBASEJWT"
+    MINIO_ACCESS_KEY = "$SERVICE_USER_MINIO"
+    MINIO_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
+    MINIO_URL = "http://minio-service:9000"
+    APPS_URL = "http://app-service:4002"
+    COUCH_DB_USERNAME = "$SERVICE_USER_COUCHDB"
+    COUCH_DB_PASSWORD = "$SERVICE_PASSWORD_COUCHDB"
+    COUCH_DB_URL = "http://$SERVICE_USER_COUCHDB:$SERVICE_PASSWORD_COUCHDB@couchdb-service:5984"
+    INTERNAL_API_KEY = "$SERVICE_BASE64_128_BUDIBASE"
+    REDIS_URL = "redis-service:6379"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 15
+
+[[services]]
+name = "minio-service"
+category = "service"
+subtype = "s3"
+docker_image = "ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z"
+start_command = "server /data --console-address \":9001\""
+source = { type = "docker"  }
+  [services.env]
+    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
+    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    MINIO_BROWSER = "off"
+    [[services.storage]]
+      host = "minio_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "proxy-service"
+category = "app"
+subtype = "docker"
+docker_image = "budibase/proxy"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BUDIBASE_10000 = ""
+    PROXY_RATE_LIMIT_WEBHOOKS_PER_SECOND = "10"
+    PROXY_RATE_LIMIT_API_PER_SECOND = "20"
+    APPS_UPSTREAM_URL = "http://app-service:4002"
+    WORKER_UPSTREAM_URL = "http://worker-service:4003"
+    MINIO_UPSTREAM_URL = "http://minio-service:9000"
+    COUCHDB_UPSTREAM_URL = "http://couchdb-service:5984"
+    WATCHTOWER_UPSTREAM_URL = "http://watchtower-service:8080"
+    RESOLVER = "127.0.0.11"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 15
+
+[[services]]
+name = "couchdb-service"
+category = "app"
+subtype = "docker"
+docker_image = "budibase/couchdb"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    COUCHDB_PASSWORD = "$SERVICE_PASSWORD_COUCHDB"
+    COUCHDB_USER = "$SERVICE_USER_COUCHDB"
+    TARGETBUILD = "docker-compose"
+    [[services.storage]]
+      host = "couchdb3_data"
+      container = "/opt/couchdb/data"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 15
+
+[[services]]
+name = "redis-service"
+category = "cache"
+subtype = "redis"
+docker_image = "redis"
+start_command = "redis-server --requirepass \"$SERVICE_PASSWORD_REDIS\""
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 15
+
+[[services]]
+name = "watchtower-service"
+category = "app"
+subtype = "docker"
+docker_image = "containrrr/watchtower"
+start_command = "--debug --http-api-update bbapps bbworker bbproxy"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    WATCHTOWER_HTTP_API = "true"
+    WATCHTOWER_HTTP_API_TOKEN = "$SERVICE_PASSWORD_WATCHTOWER"
+    WATCHTOWER_CLEANUP = "true"
+
+[[links]]
+from = "app-service"
+to = "worker-service"
+
+[[links]]
+from = "app-service"
+to = "redis-service"
+
+[[links]]
+from = "worker-service"
+to = "redis-service"
+
+[[links]]
+from = "worker-service"
+to = "minio-service"
+
+[[links]]
+from = "proxy-service"
+to = "minio-service"
+
+[[links]]
+from = "proxy-service"
+to = "worker-service"
+
+[[links]]
+from = "proxy-service"
+to = "app-service"
+
+[[links]]
+from = "proxy-service"
+to = "couchdb-service"

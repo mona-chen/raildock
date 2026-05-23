@@ -1,0 +1,38 @@
+name = "High-performance large file sharing, native no-code automation, and a collaboration-centric architecture that simplifies access control without compromising security or compliance."
+description = "High-performance large file sharing, native no-code automation, and a collaboration-centric architecture that simplifies access control without compromising security or compliance."
+category = "stack"
+logo = "svgs/cells.svg"
+[[services]]
+name = "cells"
+category = "app"
+subtype = "docker"
+docker_image = "pydio/cells:4.4"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CELLS_8080 = ""
+    CELLS_SITE_EXTERNAL = "${SERVICE_URL_CELLS}"
+    CELLS_SITE_NO_TLS = "1"
+    [[services.storage]]
+      host = "cells_data"
+      container = "/var/cells"
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-cells}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    [[services.storage]]
+      host = "mysql_data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 20

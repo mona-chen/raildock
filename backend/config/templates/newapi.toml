@@ -1,0 +1,63 @@
+name = "The next-generation LLM gateway and AI asset management system supports multiple languages."
+description = "The next-generation LLM gateway and AI asset management system supports multiple languages."
+category = "stack"
+logo = "svgs/newapi.png"
+[[services]]
+name = "new-api"
+category = "app"
+subtype = "docker"
+docker_image = "calciumion/new-api:v0.9.2.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NEW_API_3000 = ""
+    SQL_DSN = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DATABASE:-newapi}?sslmode=disable&TimeZone=${TZ:-Asia/Shanghai}"
+    REDIS_CONN_STRING = "redis://redis:6379"
+    TZ = "${TZ:-Asia/Shanghai}"
+    SESSION_SECRET = "$SERVICE_BASE64_64_SESSION_SECRET"
+    ERROR_LOG_ENABLED = "${ERROR_LOG_ENABLED:-true}"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "${POSTGRES_DATABASE:-newapi}"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "new-api"
+to = "postgresql"
+
+[[links]]
+from = "new-api"
+to = "redis"

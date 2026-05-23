@@ -1,0 +1,24 @@
+name = "Grafana is the open source analytics & monitoring solution for every database."
+description = "Grafana is the open source analytics & monitoring solution for every database."
+category = "stack"
+logo = "svgs/grafana.svg"
+[[services]]
+name = "grafana"
+category = "app"
+subtype = "docker"
+docker_image = "grafana/grafana-oss"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_GRAFANA_3000 = ""
+    GF_SERVER_ROOT_URL = "${SERVICE_URL_GRAFANA}"
+    GF_SERVER_DOMAIN = "${SERVICE_FQDN_GRAFANA}"
+    GF_SECURITY_ADMIN_PASSWORD = "${SERVICE_PASSWORD_GRAFANA}"
+    [[services.storage]]
+      host = "grafana-data"
+      container = "/var/lib/grafana"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

@@ -1,0 +1,21 @@
+name = "Flipt is a fully managed feature flag solution that enables you to keep your feature flags and remote config next to your code in Git."
+description = "Flipt is a fully managed feature flag solution that enables you to keep your feature flags and remote config next to your code in Git."
+category = "stack"
+logo = "svgs/flipt.svg"
+[[services]]
+name = "flipt"
+category = "app"
+subtype = "docker"
+docker_image = "docker.flipt.io/flipt/flipt:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FLIPT_8080 = ""
+    [[services.storage]]
+      host = "flipt-data"
+      container = "/var/opt/flipt"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

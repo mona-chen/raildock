@@ -1,0 +1,77 @@
+name = "Infisical is the open source secret management platform that developers use to centralize their application configuration and secrets like API keys and database credentials."
+description = "Infisical is the open source secret management platform that developers use to centralize their application configuration and secrets like API keys and database credentials."
+category = "stack"
+logo = "svgs/infisical.png"
+[[services]]
+name = "backend"
+category = "app"
+subtype = "docker"
+docker_image = "infisical/infisical:v0.154.6"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_BACKEND_8080 = ""
+    SITE_URL = "${SERVICE_URL_BACKEND_8080}"
+    NODE_ENV = "${NODE_ENV:-production}"
+    ENCRYPTION_KEY = "${SERVICE_PASSWORD_ENCRYPTIONKEY}"
+    AUTH_SECRET = "${SERVICE_REALBASE64_64_AUTHSECRET}"
+    SMTP_HOST = "${SMTP_HOST}"
+    SMTP_USERNAME = "${SMTP_USERNAME}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD}"
+    SMTP_PORT = "${SMTP_PORT}"
+    SMTP_FROM_ADDRESS = "${SMTP_FROM_ADDRESS}"
+    SMTP_FROM_NAME = "${SMTP_FROM_NAME}"
+    INF_APP_CONNECTION_GITHUB_APP_CLIENT_ID = "${INF_APP_CONNECTION_GITHUB_APP_CLIENT_ID}"
+    INF_APP_CONNECTION_GITHUB_APP_CLIENT_SECRET = "${INF_APP_CONNECTION_GITHUB_APP_CLIENT_SECRET}"
+    INF_APP_CONNECTION_GITHUB_APP_SLUG = "${INF_APP_CONNECTION_GITHUB_APP_SLUG}"
+    INF_APP_CONNECTION_GITHUB_APP_ID = "${INF_APP_CONNECTION_GITHUB_APP_ID}"
+    INF_APP_CONNECTION_GITHUB_APP_PRIVATE_KEY = "${INF_APP_CONNECTION_GITHUB_APP_PRIVATE_KEY}"
+    DB_CONNECTION_URI = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db:5432/${POSTGRES_DB}"
+    REDIS_URL = "redis://redis:6379"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7"
+source = { type = "docker"  }
+  [services.env]
+    ALLOW_EMPTY_PASSWORD = "${ALLOW_EMPTY_PASSWORD:-yes}"
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "db"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:14-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-infisical}"
+    [[services.storage]]
+      host = "pg_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "backend"
+to = "redis"
+
+[[links]]
+from = "backend"
+to = "db"

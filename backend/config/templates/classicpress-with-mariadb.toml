@@ -1,0 +1,48 @@
+name = "A lightweight, stable, instantly familiar free open-source content management system, based on WordPress without the block editor (Gutenberg)."
+description = "A lightweight, stable, instantly familiar free open-source content management system, based on WordPress without the block editor (Gutenberg)."
+category = "stack"
+logo = "svgs/classicpress.svg"
+[[services]]
+name = "classicpress"
+category = "app"
+subtype = "docker"
+docker_image = "classicpress/classicpress:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CLASSICPRESS = ""
+    CLASSICPRESS_DB_HOST = "mariadb"
+    CLASSICPRESS_DB_USER = "$SERVICE_USER_CLASSICPRESS"
+    CLASSICPRESS_DB_PASSWORD = "$SERVICE_PASSWORD_CLASSICPRESS"
+    CLASSICPRESS_DB_NAME = "classicpress"
+    [[services.storage]]
+      host = "classicpress-files"
+      container = "/var/www/html"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_ROOT"
+    MYSQL_DATABASE = "classicpress"
+    MYSQL_USER = "$SERVICE_USER_CLASSICPRESS"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_CLASSICPRESS"
+    [[services.storage]]
+      host = "mariadb-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "classicpress"
+to = "mariadb"

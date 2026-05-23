@@ -1,0 +1,51 @@
+name = "Tolgee is a localization management platform for developers and translators."
+description = "Tolgee is a localization management platform for developers and translators."
+category = "stack"
+logo = "svgs/tolgee.svg"
+[[services]]
+name = "tolgee"
+category = "app"
+subtype = "docker"
+docker_image = "tolgee/tolgee"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_TOLGEE_8080 = ""
+    TOLGEE_AUTHENTICATION_ENABLED = "true"
+    TOLGEE_AUTHENTICATION_INITIAL_PASSWORD = "$SERVICE_PASSWORD_TOLGEE"
+    TOLGEE_AUTHENTICATION_INITIAL_USERNAME = "admin"
+    TOLGEE_AUTHENTICATION_JWT_SECRET = "$SERVICE_PASSWORD_JWT"
+    TOLGEE_POSTGRES_AUTOSTART_ENABLED = "false"
+    SPRING_DATASOURCE_URL = "jdbc:postgresql://postgresql:5432/${POSTGRES_DB:-tolgee}"
+    SPRING_DATASOURCE_USERNAME = "${SERVICE_USER_POSTGRESQL}"
+    SPRING_DATASOURCE_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    [[services.storage]]
+      host = "tolgee-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-tolgee}"
+    [[services.storage]]
+      host = "tolgee-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "tolgee"
+to = "postgresql"

@@ -1,0 +1,19 @@
+name = "Client for Cloudflare Tunnel, a daemon that exposes private services through the Cloudflare edge."
+description = "Client for Cloudflare Tunnel, a daemon that exposes private services through the Cloudflare edge."
+category = "stack"
+logo = "svgs/cloudflared.svg"
+[[services]]
+name = "cloudflared"
+category = "app"
+subtype = "docker"
+docker_image = "cloudflare/cloudflared:latest"
+start_command = "tunnel --no-autoupdate run"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    TUNNEL_TOKEN = "${CLOUDFLARE_TUNNEL_TOKEN}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

@@ -1,0 +1,24 @@
+name = "Overseerr is a request management and media discovery tool built to work with your existing Plex ecosystem."
+description = "Overseerr is a request management and media discovery tool built to work with your existing Plex ecosystem."
+category = "stack"
+logo = "svgs/overseerr.svg"
+[[services]]
+name = "overseerr"
+category = "app"
+subtype = "docker"
+docker_image = "sctx/overseerr:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OVERSEERR_5055 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-America/Toronto}"
+    [[services.storage]]
+      host = "overseerr-config"
+      container = "/app/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

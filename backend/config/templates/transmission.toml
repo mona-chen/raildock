@@ -1,0 +1,31 @@
+name = "Fast, easy, and free BitTorrent client."
+description = "Fast, easy, and free BitTorrent client."
+category = "stack"
+logo = "svgs/transmission.svg"
+[[services]]
+name = "transmission"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/transmission:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_TRANSMISSION_9091 = ""
+    PUID = "1000"
+    PGID = "1000"
+    USER = "${SERVICE_USER_ADMIN}"
+    PASS = "${SERVICE_PASSWORD_ADMIN}"
+    [[services.storage]]
+      host = "transmission-config"
+      container = "/config"
+    [[services.storage]]
+      host = "transmission-downloads"
+      container = "/downloads"
+    [[services.storage]]
+      host = "transmission-watch"
+      container = "/watch"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

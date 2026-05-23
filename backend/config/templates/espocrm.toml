@@ -1,0 +1,90 @@
+name = "EspoCRM is a free and open-source CRM platform."
+description = "EspoCRM is a free and open-source CRM platform."
+category = "stack"
+logo = "svgs/espocrm.svg"
+[[services]]
+name = "espocrm"
+category = "app"
+subtype = "docker"
+docker_image = "espocrm/espocrm:9"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ESPOCRM = ""
+    ESPOCRM_ADMIN_USERNAME = "${ESPOCRM_ADMIN_USERNAME:-admin}"
+    ESPOCRM_ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    ESPOCRM_DATABASE_PLATFORM = "Mysql"
+    ESPOCRM_DATABASE_HOST = "espocrm-db"
+    ESPOCRM_DATABASE_NAME = "${MARIADB_DATABASE:-espocrm}"
+    ESPOCRM_DATABASE_USER = "${SERVICE_USER_MARIADB}"
+    ESPOCRM_DATABASE_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    ESPOCRM_SITE_URL = "${SERVICE_URL_ESPOCRM}"
+    [[services.storage]]
+      host = "espocrm"
+      container = "/var/www/html"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "espocrm-daemon"
+category = "app"
+subtype = "docker"
+docker_image = "espocrm/espocrm:9"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "espocrm"
+      container = "/var/www/html"
+
+[[services]]
+name = "espocrm-websocket"
+category = "app"
+subtype = "docker"
+docker_image = "espocrm/espocrm:9"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ESPOCRM_WEBSOCKET_8080 = ""
+    ESPOCRM_CONFIG_USE_WEB_SOCKET = "true"
+    ESPOCRM_CONFIG_WEB_SOCKET_URL = "$SERVICE_URL_ESPOCRM_WEBSOCKET"
+    ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN = "tcp://*:7777"
+    ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN = "tcp://espocrm-websocket:7777"
+    [[services.storage]]
+      host = "espocrm"
+      container = "/var/www/html"
+
+[[services]]
+name = "espocrm-db"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11.8"
+source = { type = "docker"  }
+  [services.env]
+    MARIADB_DATABASE = "${MARIADB_DATABASE:-espocrm}"
+    MARIADB_USER = "${SERVICE_USER_MARIADB}"
+    MARIADB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    MARIADB_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
+    [[services.storage]]
+      host = "espocrm-db"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 20
+    timeout = 10
+
+[[links]]
+from = "espocrm"
+to = "espocrm-db"
+
+[[links]]
+from = "espocrm-daemon"
+to = "espocrm"
+
+[[links]]
+from = "espocrm-websocket"
+to = "espocrm"

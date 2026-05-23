@@ -1,0 +1,23 @@
+name = "The Denoland key-value database"
+description = "The Denoland key-value database"
+category = "stack"
+logo = "svgs/denokv.svg"
+[[services]]
+name = "denokv"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/denoland/denokv:latest"
+start_command = "--sqlite-path /data/denokv.sqlite serve --access-token ${SERVICE_PASSWORD_DENOKV}"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    ACCESS_TOKEN = "${SERVICE_PASSWORD_DENOKV}"
+    SERVICE_URL_DENOKV_4512 = ""
+    [[services.storage]]
+      host = "${COOLIFY_VOLUME_APP}"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5

@@ -1,0 +1,31 @@
+name = "Garage is an S3-compatible distributed object storage service designed for self-hosting."
+description = "Garage is an S3-compatible distributed object storage service designed for self-hosting."
+category = "stack"
+logo = "svgs/garage.svg"
+[[services]]
+name = "garage"
+category = "app"
+subtype = "docker"
+docker_image = "dxflrs/garage:v2.1.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    GARAGE_S3_API_URL = "$GARAGE_S3_API_URL"
+    GARAGE_WEB_URL = "$GARAGE_WEB_URL"
+    GARAGE_ADMIN_URL = "$GARAGE_ADMIN_URL"
+    GARAGE_RPC_SECRET = "${SERVICE_HEX_32_RPCSECRET}"
+    GARAGE_ADMIN_TOKEN = "$SERVICE_PASSWORD_GARAGE"
+    GARAGE_METRICS_TOKEN = "$SERVICE_PASSWORD_GARAGEMETRICS"
+    GARAGE_ALLOW_WORLD_READABLE_SECRETS = "true"
+    RUST_LOG = "${RUST_LOG:-garage=info}"
+    [[services.storage]]
+      host = "garage-meta"
+      container = "/var/lib/garage/meta"
+    [[services.storage]]
+      host = "garage-data"
+      container = "/var/lib/garage/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5

@@ -1,0 +1,72 @@
+name = "Zep enhances your AI agent's knowledge through continuous learning from user interactions, enabling personalized experiences and improved accuracy."
+description = "Zep enhances your AI agent's knowledge through continuous learning from user interactions, enabling personalized experiences and improved accuracy."
+category = "stack"
+logo = "svgs/zep.png"
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "ghcr.io/getzep/postgres:postgres-15"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    [[services.storage]]
+      host = "pg_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "nlp"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/getzep/zep-nlp-server:0.4"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NLP_5557 = ""
+    ZEP_OPENAI_API_KEY = "${OPENAI_API_KEY}"
+    ZEP_AUTH_SECRET = "${SERVICE_PASSWORD_AUTHSECRET}"
+    ZEP_SERVER_WEB_ENABLED = "${ZEP_SERVER_WEB_ENABLED:-false}"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "zep"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/getzep/zep:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ZEP_8000 = ""
+    ZEP_STORE_POSTGRES_DSN = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/postgres?sslmode=disable"
+    ZEP_NLP_SERVER_URL = "http://nlp:5557"
+    ZEP_EXTRACTORS_DOCUMENTS_EMBEDDINGS_SERVICE = "${EXTRACTORS_DOCUMENTS_EMBEDDINGS_SERVICE:-openai}"
+    ZEP_EXTRACTORS_DOCUMENTS_EMBEDDINGS_DIMENSIONS = "${EXTRACTORS_DOCUMENTS_EMBEDDINGS_DIMENSIONS:-1536}"
+    ZEP_EXTRACTORS_MESSAGES_EMBEDDINGS_SERVICE = "${EXTRACTORS_MESSAGES_EMBEDDINGS_SERVICE:-openai}"
+    ZEP_EXTRACTORS_MESSAGES_EMBEDDINGS_DIMENSIONS = "${EXTRACTORS_MESSAGES_EMBEDDINGS_DIMENSIONS:-1536}"
+    ZEP_EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_SERVICE = "${EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_SERVICE:-openai}"
+    ZEP_EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_DIMENSIONS = "${EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_DIMENSIONS:-1536}"
+    ZEP_OPENAI_API_KEY = "${OPENAI_API_KEY}"
+    ZEP_AUTH_SECRET = "${SERVICE_PASSWORD_AUTHSECRET}"
+    ZEP_SERVER_WEB_ENABLED = "${ZEP_SERVER_WEB_ENABLED:-false}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "zep"
+to = "postgres"
+
+[[links]]
+from = "zep"
+to = "nlp"

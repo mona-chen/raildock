@@ -1,0 +1,25 @@
+name = "Sonarr⁠ (formerly NZBdrone) is a PVR for usenet and bittorrent users. It can monitor multiple RSS feeds for new episodes of your favorite shows and will grab, sort and rename them. It can also be configured to automatically upgrade the quality of files already downloaded when a better quality format becomes available."
+description = "Sonarr⁠ (formerly NZBdrone) is a PVR for usenet and bittorrent users. It can monitor multiple RSS feeds for new episodes of your favorite shows and will grab, sort and rename them. It can also be configured to automatically upgrade the quality of files already downloaded when a better quality format becomes available."
+category = "stack"
+logo = "svgs/sonarr.svg"
+[[services]]
+name = "sonarr"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/sonarr:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SONARR_8989 = ""
+    _APP_URL = "$SERVICE_URL_SONARR"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-America/Toronto}"
+    [[services.storage]]
+      host = "sonarr-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

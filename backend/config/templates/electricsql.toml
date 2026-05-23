@@ -1,0 +1,25 @@
+name = "Sync shape-based subsets of your Postgres data over HTTP."
+description = "Sync shape-based subsets of your Postgres data over HTTP."
+category = "stack"
+logo = "svgs/electricsql.svg"
+[[services]]
+name = "electric"
+category = "app"
+subtype = "docker"
+docker_image = "electricsql/electric:1.4.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ELECTRIC_3000 = ""
+    DATABASE_URL = "${DATABASE_URL:?}"
+    ELECTRIC_SECRET = "${SERVICE_PASSWORD_64_ELECTRIC}"
+    ELECTRIC_STORAGE_DIR = "/app/persistent"
+    ELECTRIC_USAGE_REPORTING = "${ELECTRIC_USAGE_REPORTING:-false}"
+    [[services.storage]]
+      host = "electric_data"
+      container = "/app/persistent"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5

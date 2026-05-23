@@ -1,0 +1,21 @@
+name = "Effortlessly deploy a status page and start monitoring endpoints in minutes"
+description = "Effortlessly deploy a status page and start monitoring endpoints in minutes"
+category = "stack"
+logo = "svgs/statusnook.svg"
+[[services]]
+name = "statusnook"
+category = "app"
+subtype = "docker"
+docker_image = "goksan/statusnook"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_STATUSNOOK_8000 = ""
+    [[services.storage]]
+      host = "statusnook-data"
+      container = "/app/statusnook-data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

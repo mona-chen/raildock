@@ -1,0 +1,74 @@
+name = "Open-source collaborative wiki and documentation software"
+description = "Open-source collaborative wiki and documentation software"
+category = "stack"
+logo = "svgs/docmost.png"
+[[services]]
+name = "docmost"
+category = "app"
+subtype = "docker"
+docker_image = "docmost/docmost:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DOCMOST_3000 = ""
+    APP_SECRET = "$SERVICE_BASE64_APPKEY"
+    APP_URL = "$SERVICE_URL_DOCMOST_3000"
+    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql/docmost?schema=public"
+    REDIS_URL = "redis://redis:6379"
+    MAIL_DRIVER = "${MAIL_DRIVER:?}"
+    SMTP_HOST = "${SMTP_HOST}"
+    SMTP_PORT = "${SMTP_PORT}"
+    SMTP_USERNAME = "${SMTP_USERNAME}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD}"
+    SMTP_SECURE = "${SMTP_SECURE}"
+    MAIL_FROM_ADDRESS = "${MAIL_FROM_ADDRESS}"
+    MAIL_FROM_NAME = "${MAIL_FROM_NAME}"
+    POSTMARK_TOKEN = "${POSTMARK_TOKEN}"
+    [[services.storage]]
+      host = "docmost"
+      container = "/app/data/storage"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_DB = "docmost"
+    [[services.storage]]
+      host = "postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7.2-alpine"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "docmost"
+to = "postgresql"
+
+[[links]]
+from = "docmost"
+to = "redis"

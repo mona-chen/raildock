@@ -1,0 +1,26 @@
+name = "phpMyAdmin is a web-based database management tool for administering your MySQL and MariaDB databases through a user-friendly interface."
+description = "phpMyAdmin is a web-based database management tool for administering your MySQL and MariaDB databases through a user-friendly interface."
+category = "stack"
+logo = "svgs/phpmyadmin.svg"
+[[services]]
+name = "phpmyadmin"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/phpmyadmin:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PHPMYADMIN = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    PMA_ARBITRARY = "1"
+    PMA_ABSOLUTE_URI = "$SERVICE_URL_PHPMYADMIN"
+    [[services.storage]]
+      host = "phpmyadmin-config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

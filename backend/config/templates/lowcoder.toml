@@ -1,0 +1,24 @@
+name = "Lowcoder (forked from OpenBlocks) is a self-hosted, open-source, low-code platform for building internal tools."
+description = "Lowcoder (forked from OpenBlocks) is a self-hosted, open-source, low-code platform for building internal tools."
+category = "stack"
+logo = "svgs/lowcoder.svg"
+[[services]]
+name = "lowcoder"
+category = "app"
+subtype = "docker"
+docker_image = "lowcoderorg/lowcoder-ce"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LOWCODER_3000 = ""
+    LOWCODER_EMAIL_SIGNUP_ENABLED = "${LOWCODER_EMAIL_SIGNUP_ENABLED:-true}"
+    LOWCODER_DB_ENCRYPTION_PASSWORD = "${SERVICE_PASSWORD_ENCRYPTION}"
+    LOWCODER_DB_ENCRYPTION_SALT = "${SERVICE_PASSWORD_SALT}"
+    [[services.storage]]
+      host = "lowcoder_data"
+      container = "/lowcoder-stacks"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

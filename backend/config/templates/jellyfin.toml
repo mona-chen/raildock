@@ -1,0 +1,31 @@
+name = "Jellyfin is a media server for hosting and streaming your media collection."
+description = "Jellyfin is a media server for hosting and streaming your media collection."
+category = "stack"
+logo = "svgs/jellyfin.svg"
+[[services]]
+name = "jellyfin"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/jellyfin:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_JELLYFIN_8096 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Madrid"
+    JELLYFIN_PublishedServerUrl = "$SERVICE_URL_JELLYFIN"
+    [[services.storage]]
+      host = "jellyfin-config"
+      container = "/config"
+    [[services.storage]]
+      host = "jellyfin-tvshows"
+      container = "/data/tvshows"
+    [[services.storage]]
+      host = "jellyfin-movies"
+      container = "/data/movies"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

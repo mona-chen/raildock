@@ -1,0 +1,21 @@
+name = "Gotenberg is a Docker-powered stateless API for PDF files."
+description = "Gotenberg is a Docker-powered stateless API for PDF files."
+category = "stack"
+logo = "svgs/gotenberg.png"
+[[services]]
+name = "gotenberg"
+category = "app"
+subtype = "docker"
+docker_image = "gotenberg/gotenberg:latest"
+start_command = "gotenberg --api-enable-basic-auth --api-disable-health-check-logging"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_GOTENBERG_3000 = ""
+    GOTENBERG_API_BASIC_AUTH_USERNAME = "${SERVICE_USER_GOTENBERG}"
+    GOTENBERG_API_BASIC_AUTH_PASSWORD = "${SERVICE_PASSWORD_GOTENBERG}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

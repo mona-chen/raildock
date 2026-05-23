@@ -1,0 +1,21 @@
+name = "User-friendly AI Interface (Supports Ollama, OpenAI API, ...)"
+description = "User-friendly AI Interface (Supports Ollama, OpenAI API, ...)"
+category = "stack"
+logo = "svgs/openwebui.svg"
+[[services]]
+name = "open-webui"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/open-webui/open-webui:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OPENWEBUI_8080 = ""
+    [[services.storage]]
+      host = "open-webui"
+      container = "/app/backend/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30

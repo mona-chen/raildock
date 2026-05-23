@@ -1,0 +1,67 @@
+name = "Mixpost is a robust and versatile social media management software, designed to streamline social media operations and enhance content marketing strategies."
+description = "Mixpost is a robust and versatile social media management software, designed to streamline social media operations and enhance content marketing strategies."
+category = "stack"
+logo = "svgs/mixpost.svg"
+[[services]]
+name = "mixpost"
+category = "app"
+subtype = "docker"
+docker_image = "inovector/mixpost:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MIXPOST = ""
+    APP_NAME = "Mixpost"
+    APP_KEY = "${SERVICE_BASE64_MIXPOST}"
+    APP_DEBUG = "false"
+    APP_DOMAIN = "${SERVICE_URL_MIXPOST}"
+    APP_URL = "${SERVICE_URL_MIXPOST}"
+    DB_DATABASE = "${MYSQL_DATABASE:-mixpost_db}"
+    DB_USERNAME = "${SERVICE_USER_MYSQL}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    SSL_EMAIL = "${SSL_EMAIL:-user@example.com}"
+    [[services.storage]]
+      host = "mixpost-storage"
+      container = "/var/www/html/storage/app"
+    [[services.storage]]
+      host = "mixpost-logs"
+      container = "/var/www/html/storage/logs"
+
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mysql"
+docker_image = "mysql/mysql-server:8.0"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-mixpost_db}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    [[services.storage]]
+      host = "mixpost-mysql"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:alpine"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[links]]
+from = "mixpost"
+to = "mysql"
+
+[[links]]
+from = "mixpost"
+to = "redis"

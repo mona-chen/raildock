@@ -1,0 +1,69 @@
+name = "Allows anyone to create engaging conversational forms for surveys, questionnaires, quizzes, and polls. No coding skills required."
+description = "Allows anyone to create engaging conversational forms for surveys, questionnaires, quizzes, and polls. No coding skills required."
+category = "stack"
+logo = "svgs/heyform.svg"
+[[services]]
+name = "heyform"
+category = "app"
+subtype = "docker"
+docker_image = "heyform/community-edition:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HEYFORM_9157 = ""
+    APP_HOMEPAGE_URL = "${SERVICE_URL_HEYFORM}"
+    SESSION_KEY = "${SERVICE_BASE64_64_SESSION}"
+    FORM_ENCRYPTION_KEY = "${SERVICE_BASE64_64_FORM}"
+    MONGO_URI = "mongodb://mongo:27017/heyform"
+    REDIS_HOST = "keydb"
+    REDIS_PORT = "6379"
+    REDIS_PASSWORD = "${SERVICE_PASSWORD_KEYDB}"
+    [[services.storage]]
+      host = "heyform-assets"
+      container = "/app/static/upload"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "mongo"
+category = "database"
+subtype = "mongo"
+docker_image = "percona/percona-server-mongodb:latest"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "heyform-mongo-data"
+      container = "/data/db"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "keydb"
+category = "app"
+subtype = "docker"
+docker_image = "eqalpha/keydb:latest"
+start_command = "keydb-server --appendonly yes"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    KEYDB_PASSWORD = "${SERVICE_PASSWORD_KEYDB}"
+    [[services.storage]]
+      host = "heyform-keydb-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[links]]
+from = "heyform"
+to = "mongo"
+
+[[links]]
+from = "heyform"
+to = "keydb"

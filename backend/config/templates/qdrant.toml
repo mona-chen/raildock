@@ -1,0 +1,22 @@
+name = "Qdrant is a vector similarity search engine that provides a production-ready service with a convenient API to store, search, and manage points (i.e. vectors) with an additional payload."
+description = "Qdrant is a vector similarity search engine that provides a production-ready service with a convenient API to store, search, and manage points (i.e. vectors) with an additional payload."
+category = "stack"
+logo = "svgs/qdrant.png"
+[[services]]
+name = "qdrant"
+category = "app"
+subtype = "docker"
+docker_image = "qdrant/qdrant:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_QDRANT_6333 = ""
+    QDRANT__SERVICE__API_KEY = "${SERVICE_PASSWORD_QDRANTAPIKEY}"
+    [[services.storage]]
+      host = "qdrant-storage"
+      container = "/qdrant/storage"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5

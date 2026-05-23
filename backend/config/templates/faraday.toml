@@ -1,0 +1,68 @@
+name = "Faraday is a powerful, open-source, web-based vulnerability management tool."
+description = "Faraday is a powerful, open-source, web-based vulnerability management tool."
+category = "stack"
+logo = "svgs/faraday.png"
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:latest"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRES_DB:-faraday}"
+    [[services.storage]]
+      host = "faraday-db"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 10
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:alpine"
+start_command = "--save 60 1 --loglevel warning"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 15
+    timeout = 10
+
+[[services]]
+name = "faraday"
+category = "app"
+subtype = "docker"
+docker_image = "faradaysec/faraday:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FARADAY_5985 = ""
+    AUTHENTIK_POSTGRESQL__PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    PGSQL_USER = "${SERVICE_USER_POSTGRESQL}"
+    PGSQL_PASSWD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    PGSQL_DBNAME = "${POSTGRES_DB}"
+    PGSQL_HOST = "postgresql"
+    REDIS_SERVER = "redis"
+    [[services.storage]]
+      host = "faraday"
+      container = "/home/faraday/.faraday"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "faraday"
+to = "postgresql"
+
+[[links]]
+from = "faraday"
+to = "redis"

@@ -1,0 +1,155 @@
+name = "Self-hosted, powerful, and privacy-focused chat UI for multiple AI models"
+description = "Self-hosted, powerful, and privacy-focused chat UI for multiple AI models"
+category = "stack"
+logo = "svgs/librechat.svg"
+[[services]]
+name = "librechat"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/danny-avila/librechat-dev-api:6ecd1b510faaa593ad954fb6276c18e5f12a8e53"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LIBRECHAT_3080 = ""
+    DOMAIN_CLIENT = "${SERVICE_URL_LIBRECHAT}"
+    DOMAIN_SERVER = "${SERVICE_URL_LIBRECHAT}"
+    HOST = "0.0.0.0"
+    PORT = "3080"
+    MONGO_URI = "mongodb://${SERVICE_USER_MONGO}:${SERVICE_PASSWORD_MONGO}@mongodb:27017/librechat?authSource=admin"
+    MEILI_HOST = "http://meilisearch:7700"
+    MEILI_MASTER_KEY = "${SERVICE_PASSWORD_MEILI}"
+    RAG_PORT = "8000"
+    RAG_API_URL = "http://rag-api:8000"
+    JWT_SECRET = "${SERVICE_PASSWORD_JWT}"
+    JWT_REFRESH_SECRET = "${SERVICE_PASSWORD_64_JWT}"
+    APP_TITLE = "${APP_TITLE:-LibreChat}"
+    ALLOW_EMAIL_LOGIN = "${ALLOW_EMAIL_LOGIN:-true}"
+    ALLOW_REGISTRATION = "${ALLOW_REGISTRATION:-true}"
+    ALLOW_SOCIAL_LOGIN = "${ALLOW_SOCIAL_LOGIN:-false}"
+    ALLOW_SOCIAL_REGISTRATION = "${ALLOW_SOCIAL_REGISTRATION:-false}"
+    ALLOW_PASSWORD_RESET = "${ALLOW_PASSWORD_RESET:-false}"
+    ALLOW_UNVERIFIED_EMAIL_LOGIN = "${ALLOW_UNVERIFIED_EMAIL_LOGIN:-true}"
+    CREDS_KEY = "${SERVICE_PASSWORD_64_CREDS}"
+    CREDS_IV = "${SERVICE_PASSWORD_CREDS}"
+    ANTHROPIC_API_KEY = "${SERVICE_ANTHROPIC_API_KEY:-user_provided}"
+    GOOGLE_KEY = "${SERVICE_GOOGLE_API_KEY:-user_provided}"
+    OPENAI_API_KEY = "${SERVICE_OPENAI_API_KEY:-user_provided}"
+    ASSISTANTS_API_KEY = "${SERVICE_ASSISTANTS_API_KEY:-user_provided}"
+    DEBUG_LOGGING = "${DEBUG_LOGGING:-false}"
+    DEBUG_OPENAI = "${DEBUG_OPENAI:-false}"
+    DEBUG_PLUGINS = "${DEBUG_OPENAI:-false}"
+    NO_INDEX = "${NO_INDEX:-true}"
+    [[services.storage]]
+      host = "librechat-images"
+      container = "/app/client/public/images"
+    [[services.storage]]
+      host = "librechat-logs"
+      container = "/app/api/logs"
+    [[services.storage]]
+      host = "librechat-uploads"
+      container = "/app/uploads"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "mongodb"
+category = "database"
+subtype = "mongo"
+docker_image = "mongo:8"
+source = { type = "docker"  }
+  [services.env]
+    MONGO_INITDB_ROOT_USERNAME = "${SERVICE_USER_MONGO}"
+    MONGO_INITDB_ROOT_PASSWORD = "${SERVICE_PASSWORD_MONGO}"
+    [[services.storage]]
+      host = "mongodb-data"
+      container = "/data/db"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "meilisearch"
+category = "search"
+subtype = "meilisearch"
+docker_image = "getmeili/meilisearch:v1.35.1"
+source = { type = "docker"  }
+  [services.env]
+    MEILI_MASTER_KEY = "${SERVICE_PASSWORD_MEILI}"
+    MEILI_NO_ANALYTICS = "${MEILI_NO_ANALYTICS:-false}"
+    MEILI_ENV = "production"
+    MEILI_HOST = "http://meilisearch:7700"
+    [[services.storage]]
+      host = "meilisearch-data"
+      container = "/meili_data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "vectordb"
+category = "app"
+subtype = "docker"
+docker_image = "ankane/pgvector:v0.5.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_DB = "rag"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_HOST_AUTH_METHOD = "trust"
+    [[services.storage]]
+      host = "vectordb-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 1
+
+[[services]]
+name = "rag-api"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/danny-avila/librechat-rag-api-dev-lite:v0.7.3"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_DB = "rag"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_HOST = "vectordb"
+    DB_USER = "${SERVICE_USER_POSTGRES}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_NAME = "rag"
+    RAG_PORT = "8000"
+    RAG_OPENAI_API_KEY = "${SERVICE_OPENAI_API_KEY:-user_provided}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[links]]
+from = "librechat"
+to = "mongodb"
+
+[[links]]
+from = "librechat"
+to = "meilisearch"
+
+[[links]]
+from = "librechat"
+to = "vectordb"
+
+[[links]]
+from = "librechat"
+to = "rag-api"
+
+[[links]]
+from = "rag-api"
+to = "vectordb"

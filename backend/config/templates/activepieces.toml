@@ -1,0 +1,79 @@
+name = "Open source no-code business automation."
+description = "Open source no-code business automation."
+category = "stack"
+logo = "svgs/activepieces.png"
+[[services]]
+name = "activepieces"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/activepieces/activepieces:0.75.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ACTIVEPIECES = ""
+    AP_API_KEY = "$SERVICE_PASSWORD_64_APIKEY"
+    AP_ENCRYPTION_KEY = "$SERVICE_PASSWORD_ENCRYPTIONKEY"
+    AP_ENGINE_EXECUTABLE_PATH = "${AP_ENGINE_EXECUTABLE_PATH:-dist/packages/engine/main.js}"
+    AP_ENVIRONMENT = "${AP_ENVIRONMENT:-prod}"
+    AP_EXECUTION_MODE = "${AP_EXECUTION_MODE:-UNSANDBOXED}"
+    AP_FRONTEND_URL = "${SERVICE_URL_ACTIVEPIECES}"
+    AP_JWT_SECRET = "$SERVICE_PASSWORD_64_JWT"
+    AP_POSTGRES_DATABASE = "${POSTGRES_DB:-activepieces}"
+    AP_POSTGRES_HOST = "${POSTGRES_HOST:-postgres}"
+    AP_POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    AP_POSTGRES_PORT = "${POSTGRES_PORT:-5432}"
+    AP_POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
+    AP_REDIS_HOST = "${REDIS_HOST:-redis}"
+    AP_REDIS_PORT = "${REDIS_PORT:-6379}"
+    AP_SANDBOX_RUN_TIME_SECONDS = "${AP_SANDBOX_RUN_TIME_SECONDS:-600}"
+    AP_TELEMETRY_ENABLED = "${AP_TELEMETRY_ENABLED:-false}"
+    AP_TEMPLATES_SOURCE_URL = "${AP_TEMPLATES_SOURCE_URL:-https://cloud.activepieces.com/api/v1/flow-templates}"
+    AP_TRIGGER_DEFAULT_POLL_INTERVAL = "${AP_TRIGGER_DEFAULT_POLL_INTERVAL:-5}"
+    AP_SIGN_UP_ENABLED = "${AP_SIGN_UP_ENABLED:-true}"
+    AP_WEBHOOK_TIMEOUT_SECONDS = "${AP_WEBHOOK_TIMEOUT_SECONDS:-30}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:18-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRES_DB:-activepieces}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PORT = "${POSTGRES_PORT:-5432}"
+    [[services.storage]]
+      host = "pg-data"
+      container = "/var/lib/postgresql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "activepieces"
+to = "postgres"
+
+[[links]]
+from = "activepieces"
+to = "redis"

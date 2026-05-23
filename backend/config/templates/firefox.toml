@@ -1,0 +1,21 @@
+name = "Fast, private, and self-hosted secure browser for browsing without limits."
+description = "Fast, private, and self-hosted secure browser for browsing without limits."
+category = "stack"
+logo = "svgs/firefox.svg"
+[[services]]
+name = "firefox"
+category = "app"
+subtype = "docker"
+docker_image = "jlesage/firefox"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FIREFOX_5800 = ""
+    [[services.storage]]
+      host = "firefox_config"
+      container = "/config"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

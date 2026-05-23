@@ -1,0 +1,21 @@
+name = "An open source, self-hosted links shortener and sharing platform."
+description = "An open source, self-hosted links shortener and sharing platform."
+category = "stack"
+
+[[services]]
+name = "slash"
+category = "app"
+subtype = "docker"
+docker_image = "yourselfhosted/slash"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SLASH_5231 = ""
+    [[services.storage]]
+      host = "slash-data"
+      container = "/var/opt/slash"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

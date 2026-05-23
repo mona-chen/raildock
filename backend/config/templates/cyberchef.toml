@@ -1,0 +1,21 @@
+name = "The Cyber Swiss Army Knife - a web app for encryption, encoding, compression and data analysis"
+description = "The Cyber Swiss Army Knife - a web app for encryption, encoding, compression and data analysis"
+category = "stack"
+logo = "svgs/cyberchef.jpeg"
+[[services]]
+name = "cyberchef"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/gchq/cyberchef:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CYBERCHEF_80 = ""
+    [[services.storage]]
+      host = "cyberchef-data"
+      container = "/app/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10

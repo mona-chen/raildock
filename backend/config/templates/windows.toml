@@ -1,0 +1,22 @@
+name = "Run Windows in a containerized environment."
+description = "Run Windows in a containerized environment."
+category = "stack"
+logo = "svgs/windows.svg"
+[[services]]
+name = "windows"
+category = "app"
+subtype = "docker"
+docker_image = "dockurr/windows"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WINDOWS_8006 = ""
+    VERSION = "11"
+    [[services.storage]]
+      host = "windows-storage"
+      container = "/storage"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

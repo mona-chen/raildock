@@ -1,0 +1,21 @@
+name = "Push Notifications API"
+description = "Push Notifications API"
+category = "stack"
+logo = "svgs/apprise.png"
+[[services]]
+name = "apprise-api"
+category = "app"
+subtype = "docker"
+docker_image = "linuxserver/apprise-api:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_APPRISE_8000 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "UTC"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

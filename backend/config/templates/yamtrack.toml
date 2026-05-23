@@ -1,0 +1,44 @@
+name = "Yamtrack is a self hosted media tracker for movies, tv shows, anime, manga, video games and books."
+description = "Yamtrack is a self hosted media tracker for movies, tv shows, anime, manga, video games and books."
+category = "stack"
+logo = "svgs/yamtrack.svg"
+[[services]]
+name = "yamtrack"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/fuzzygrim/yamtrack"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_YAMTRACK_8000 = ""
+    URLS = "${SERVICE_URL_YAMTRACK}"
+    TZ = "${TZ:-Europe/Berlin}"
+    SECRET = "${SERVICE_PASSWORD_SECRET}"
+    REGISTRATION = "${REGISTRATION_ENABLED:-true}"
+    REDIS_URL = "redis://redis:6379"
+    [[services.storage]]
+      host = "yamtrack_data"
+      container = "/yamtrack/db"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "yamtrack_redis_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "yamtrack"
+to = "redis"

@@ -1,0 +1,66 @@
+name = "Forgejo is a self-hosted lightweight software forge. Easy to install and low maintenance, it just does the job."
+description = "Forgejo is a self-hosted lightweight software forge. Easy to install and low maintenance, it just does the job."
+category = "stack"
+logo = "svgs/forgejo.svg"
+[[services]]
+name = "forgejo"
+category = "app"
+subtype = "docker"
+docker_image = "codeberg.org/forgejo/forgejo:8"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FORGEJO_3000 = ""
+    FORGEJO__server__ROOT_URL = "${SERVICE_URL_FORGEJO}"
+    FORGEJO__migrations__ALLOWED_DOMAINS = "${FORGEJO__migrations__ALLOWED_DOMAINS}"
+    FORGEJO__migrations__ALLOW_LOCALNETWORKS = "${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}"
+    USER_UID = "1000"
+    USER_GID = "1000"
+    FORGEJO__database__DB_TYPE = "mysql"
+    FORGEJO__database__HOST = "mysql"
+    FORGEJO__database__NAME = "${MYSQL_DATABASE-forgejo}"
+    FORGEJO__database__USER = "$SERVICE_USER_MYSQL"
+    FORGEJO__database__PASSWD = "$SERVICE_PASSWORD_MYSQL"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 80
+      container = 80000520
+    [[services.storage]]
+      host = "forgejo-data"
+      container = "/data"
+    [[services.storage]]
+      host = "forgejo-timezone"
+      container = "/etc/timezone"
+    [[services.storage]]
+      host = "forgejo-localtime"
+      container = "/etc/localtime"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mysql"
+docker_image = "mysql:8"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    [[services.storage]]
+      host = "forgejo-mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "forgejo"
+to = "mysql"

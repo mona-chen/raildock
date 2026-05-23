@@ -1,0 +1,25 @@
+name = "A free, self-hostable feed aggregator."
+description = "A free, self-hostable feed aggregator."
+category = "stack"
+logo = "svgs/freshrss.png"
+[[services]]
+name = "freshrss"
+category = "app"
+subtype = "docker"
+docker_image = "freshrss/freshrss:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FRESHRSS_80 = ""
+    CRON_MIN = "${CRON_MIN:-1,31}"
+    [[services.storage]]
+      host = "freshrss-data"
+      container = "/var/www/FreshRSS/data"
+    [[services.storage]]
+      host = "freshrss-extensions"
+      container = "/var/www/FreshRSS/extensions"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

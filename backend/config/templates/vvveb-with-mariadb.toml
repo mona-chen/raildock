@@ -1,0 +1,49 @@
+name = "Powerful and easy to use cms to build websites, blogs or ecommerce stores."
+description = "Powerful and easy to use cms to build websites, blogs or ecommerce stores."
+category = "stack"
+logo = "svgs/vvveb.svg"
+[[services]]
+name = "vvveb"
+category = "app"
+subtype = "docker"
+docker_image = "vvveb/vvvebcms:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_VVVEB_80 = ""
+    DB_ENGINE = "mysqli"
+    DB_HOST = "mariadb"
+    DB_USER = "${SERVICE_USER_VVVEB}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_VVVEB}"
+    DB_NAME = "${MARIADB_DATABASE:-vvveb}"
+    [[services.storage]]
+      host = "vvveb-data"
+      container = "/var/www/html"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
+    MYSQL_DATABASE = "${MARIADB_DATABASE:-vvveb}"
+    MYSQL_USER = "${SERVICE_USER_VVVEB}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_VVVEB}"
+    [[services.storage]]
+      host = "vvveb-mariadb-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "vvveb"
+to = "mariadb"

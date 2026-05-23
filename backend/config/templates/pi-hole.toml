@@ -1,0 +1,35 @@
+name = "Network-wide Ad Blocking"
+description = "Network-wide Ad Blocking"
+category = "stack"
+logo = "svgs/pihole.svg"
+[[services]]
+name = "pihole"
+category = "app"
+subtype = "docker"
+docker_image = "pihole/pihole:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PIHOLE_80 = ""
+    TZ = "${TZ:-Europe/London}"
+    FTLCONF_webserver_api_password = "${SERVICE_PASSWORD_PIHOLE}"
+    FTLCONF_dns_listeningMode = "${FTLCONF_dns_listeningMode:-all}"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 53
+      container = 53
+    [[services.proxy.ports]]
+      host = 53
+      container = 53
+    [[services.proxy.ports]]
+      host = 67
+      container = 67
+    [[services.proxy.ports]]
+      host = 123
+      container = 123
+    [[services.storage]]
+      host = "pihole-data"
+      container = "/etc/pihole"

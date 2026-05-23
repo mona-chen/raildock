@@ -1,0 +1,32 @@
+name = "Email & SMTP testing tool with API for developers"
+description = "Email & SMTP testing tool with API for developers"
+category = "stack"
+logo = "svgs/mailpit.svg"
+[[services]]
+name = "mailpit"
+category = "app"
+subtype = "docker"
+docker_image = "axllent/mailpit"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MAILPIT_8025 = ""
+    MP_MAX_MESSAGES = "5000"
+    MP_DATABASE = "/data/mailpit.db"
+    MP_SMTP_AUTH_ACCEPT_ANY = "1"
+    MP_SMTP_AUTH_ALLOW_INSECURE = "1"
+    MP_UI_AUTH_FILE = "/data/htpasswd"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 1025
+      container = 1025
+    [[services.storage]]
+      host = "mailpit-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

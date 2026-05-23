@@ -1,0 +1,68 @@
+name = "Open-source headless CMS to build powerful APIs with built-in content management."
+description = "Open-source headless CMS to build powerful APIs with built-in content management."
+category = "stack"
+logo = "svgs/strapi.svg"
+[[services]]
+name = "strapi"
+category = "app"
+subtype = "docker"
+docker_image = "elestio/strapi-production:v5.33.4"
+start_command = "-c cat > /opt/app/src/admin/vite.config.js << 'EOFVITE'\nconst { mergeConfig } = require('vite');\nmodule.exports = (config) => {\n  return mergeConfig(config, {\n    resolve: {\n      alias: {\n        '@': '/src',\n      },\n    },\n    server: {\n      allowedHosts: ['$SERVICE_FQDN_STRAPI']\n    }\n  });\n};\nEOFVITE\nexec npm run develop\n"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_STRAPI = ""
+    SERVICE_URL_STRAPI_1337 = ""
+    DATABASE_CLIENT = "postgres"
+    DATABASE_HOST = "postgresql"
+    DATABASE_PORT = "5432"
+    DATABASE_NAME = "${POSTGRESQL_DATABASE:-strapi}"
+    DATABASE_USERNAME = "$SERVICE_USER_POSTGRESQL"
+    DATABASE_PASSWORD = "$SERVICE_PASSWORD_POSTGRESQL"
+    JWT_SECRET = "$SERVICE_BASE64_64_SECRET"
+    ADMIN_JWT_SECRET = "$SERVICE_BASE64_64_SECRET"
+    APP_KEYS = "$SERVICE_BASE64_64_KEY"
+    STRAPI_TELEMETRY_DISABLED = "${STRAPI_TELEMETRY_DISABLED:-true}"
+    STRAPI_LICENSE = "${STRAPI_LICENSE}"
+    NODE_ENV = "${NODE_ENV:-development}"
+    BROWSER = "${BROWSER:-true}"
+    STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE = "${STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE:-en}"
+    STRAPI_ENFORCE_SOURCEMAPS = "${STRAPI_ENFORCE_SOURCEMAPS:-false}"
+    FAST_REFRESH = "${FAST_REFRESH:-true}"
+    [[services.storage]]
+      host = "strapi-config"
+      container = "/opt/app/config"
+    [[services.storage]]
+      host = "strapi-src"
+      container = "/opt/app/src"
+    [[services.storage]]
+      host = "strapi-uploads"
+      container = "/opt/app/public/uploads"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "elestio/postgres:latest"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-strapi}"
+    POSTGRES_USER = "$SERVICE_USER_POSTGRESQL"
+    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRESQL"
+    PGDATA = "/var/lib/postgresql/data"
+    [[services.storage]]
+      host = "strapi-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "strapi"
+to = "postgresql"

@@ -1,0 +1,48 @@
+name = "An open-source database designed as a spiritual successor to SQL and the relational paradigm. Powered by the Postgres query engine under the hood."
+description = "An open-source database designed as a spiritual successor to SQL and the relational paradigm. Powered by the Postgres query engine under the hood."
+category = "stack"
+logo = "svgs/edgedb.svg"
+[[services]]
+name = "edgedb"
+category = "app"
+subtype = "docker"
+docker_image = "edgedb/edgedb"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_EDGEDB_5656 = ""
+    EDGEDB_SERVER_ADMIN_UI = "${EDGEDB_SERVER_ADMIN_UI:-enabled}"
+    EDGEDB_SERVER_BACKEND_DSN = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB:-edgedb}"
+    EDGEDB_SERVER_SECURITY = "${EDGEDB_SERVER_SECURITY:-strict}"
+    EDGEDB_SERVER_PASSWORD = "${SERVICE_PASSWORD_EDGEDB}"
+    POSTGRES_DB = "${POSTGRES_DB:-edgedb}"
+    [[services.storage]]
+      host = "edgedb-data"
+      container = "/dbschema"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-edgedb}"
+    [[services.storage]]
+      host = "edgedb-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "edgedb"
+to = "postgresql"

@@ -1,0 +1,27 @@
+name = "The easiest way to run WireGuard VPN + Web-based Admin UI."
+description = "The easiest way to run WireGuard VPN + Web-based Admin UI."
+category = "stack"
+logo = "svgs/wireguard.svg"
+[[services]]
+name = "wg-easy"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/wg-easy/wg-easy:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WIREGUARDEASY_51821 = ""
+    WG_HOST = "${SERVICE_FQDN_WIREGUARDEASY}"
+    LANG = "${LANG:-en}"
+    WG_PORT = "51820"
+    _PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 51820
+      container = 51820
+    [[services.storage]]
+      host = "wg-easy"
+      container = "/etc/wireguard"

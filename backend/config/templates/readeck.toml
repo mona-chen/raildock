@@ -1,0 +1,22 @@
+name = "Simple web application that lets you save the precious readable content of web pages you like and want to keep forever."
+description = "Simple web application that lets you save the precious readable content of web pages you like and want to keep forever."
+category = "stack"
+logo = "svgs/readeck.svg"
+[[services]]
+name = "readeck"
+category = "app"
+subtype = "docker"
+docker_image = "codeberg.org/readeck/readeck:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_READECK = ""
+    READECK_USE_X_FORWARDED = "${READECK_USE_X_FORWARDED:-true}"
+    [[services.storage]]
+      host = "readeck_data"
+      container = "/readeck"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 2

@@ -25,7 +25,7 @@ class TemplateLoader
   REMOTE_DIR = Rails.root.join("tmp", "raildock-templates").to_s
 
   class Template
-    attr_reader :id, :name, :description, :category, :services, :links, :source, :raw, :warnings, :errors
+    attr_reader :id, :name, :description, :category, :services, :links, :source, :raw, :warnings, :errors, :logo
 
     def initialize(attrs = {})
       @id = attrs[:id]
@@ -38,6 +38,7 @@ class TemplateLoader
       @raw = attrs[:raw]
       @warnings = attrs[:warnings] || []
       @errors = attrs[:errors] || []
+      @logo = attrs[:logo]
     end
 
     def valid?
@@ -54,6 +55,7 @@ class TemplateLoader
         links: @links,
         source: @source,
         raw: @raw,
+        logo: @logo,
         valid: valid?,
         warnings: @warnings,
         errors: @errors
@@ -116,6 +118,7 @@ class TemplateLoader
       name = hash["name"] || id.humanize
       description = hash["description"] || ""
       category = hash["category"] || "stack"
+      logo = hash["logo"] || nil
 
       # Validate against manifest schema (raildock format)
       validation = ManifestSchema.validate(hash)
@@ -132,6 +135,7 @@ class TemplateLoader
         links: desired.links,
         source: source,
         raw: raw,
+        logo: logo,
         warnings: desired.warnings,
         errors: validation.errors
       )

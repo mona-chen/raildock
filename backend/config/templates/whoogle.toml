@@ -1,0 +1,18 @@
+name = "Whoogle is a self-hosted, privacy-focused search engine front-end for accessing Google search results without tracking and data collection."
+description = "Whoogle is a self-hosted, privacy-focused search engine front-end for accessing Google search results without tracking and data collection."
+category = "stack"
+logo = "svgs/whoogle.png"
+[[services]]
+name = "whoogle"
+category = "app"
+subtype = "docker"
+docker_image = "benbusby/whoogle-search:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WHOOGLE_5000 = ""
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

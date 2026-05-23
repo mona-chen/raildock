@@ -1,0 +1,24 @@
+name = "Email observability platform for monitoring and analyzing email systems."
+description = "Email observability platform for monitoring and analyzing email systems."
+category = "stack"
+logo = "svgs/sessy.svg"
+[[services]]
+name = "sessy"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/marckohlbrugge/sessy:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SESSY_80 = ""
+    SECRET_KEY_BASE = "$SERVICE_HEX_64_SESSYSECRET"
+    HTTP_AUTH_USERNAME = "$SERVICE_USER_SESSY"
+    HTTP_AUTH_PASSWORD = "$SERVICE_PASSWORD_SESSY"
+    [[services.storage]]
+      host = "sessy-data"
+      container = "/rails/storage"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10

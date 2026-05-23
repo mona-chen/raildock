@@ -1,0 +1,47 @@
+name = "Open source helpdesk solution designed to enhance the user experience for teams currently utilizing costly software alternatives"
+description = "Open source helpdesk solution designed to enhance the user experience for teams currently utilizing costly software alternatives"
+category = "stack"
+logo = "svgs/peppermint.png"
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-peppermint-db}"
+    [[services.storage]]
+      host = "peppermint-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "peppermint"
+category = "app"
+subtype = "docker"
+docker_image = "pepperlabs/peppermint:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PEPPERMINT_3000 = ""
+    SERVICE_URL_PEPPERMINT_5003 = ""
+    DB_USERNAME = "${SERVICE_USER_POSTGRES}"
+    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_HOST = "postgres"
+    DB_NAME = "${POSTGRES_DB:-peppermint-db}"
+    SECRET = "${SERVICE_PASSWORD_PEPPERMINT}"
+    API_URL = "${SERVICE_URL_PEPPERMINT_5003}"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[links]]
+from = "peppermint"
+to = "postgres"

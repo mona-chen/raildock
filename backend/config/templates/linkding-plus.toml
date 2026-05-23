@@ -1,0 +1,23 @@
+name = "A self-hosted bookmark manager designed to be minimal, fast, and easy to set up. (Includes feature for archiving websites as HTML snapshots)"
+description = "A self-hosted bookmark manager designed to be minimal, fast, and easy to set up. (Includes feature for archiving websites as HTML snapshots)"
+category = "stack"
+logo = "svgs/linkding.svg"
+[[services]]
+name = "linkding-plus"
+category = "app"
+subtype = "docker"
+docker_image = "sissbruecker/linkding:latest-plus"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_LINKDING_9090 = ""
+    LD_SUPERUSER_NAME = "${SERVICE_USER_LINKDING}"
+    LD_SUPERUSER_PASSWORD = "${SERVICE_PASSWORD_LINKDING}"
+    [[services.storage]]
+      host = "linkding_data"
+      container = "/etc/linkding/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5

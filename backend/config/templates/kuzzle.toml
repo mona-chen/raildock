@@ -1,0 +1,66 @@
+name = "Kuzzle is a generic backend offering the basic building blocks common to every application."
+description = "Kuzzle is a generic backend offering the basic building blocks common to every application."
+category = "stack"
+logo = "svgs/kuzzle.png"
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:7-alpine"
+start_command = "redis-server --appendonly yes"
+source = { type = "docker"  }
+    [[services.storage]]
+      host = "elastic-redis-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "elasticsearch"
+category = "search"
+subtype = "elasticsearch"
+docker_image = "kuzzleio/elasticsearch:7"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 2
+
+[[services]]
+name = "kuzzle"
+category = "app"
+subtype = "docker"
+docker_image = "kuzzleio/kuzzle:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_KUZZLE_7512 = ""
+    kuzzle_services__storageEngine__client__node = "http://elasticsearch:9200"
+    kuzzle_services__storageEngine__commonMapping__dynamic = "true"
+    kuzzle_services__internalCache__node__host = "redis"
+    kuzzle_services__memoryStorage__node__host = "redis"
+    kuzzle_server__protocols__mqtt__enabled = "true"
+    kuzzle_server__protocols__mqtt__developmentMode = "false"
+    kuzzle_limits__loginsPerSecond = "50"
+    NODE_ENV = "production"
+    DEBUG = "${DEBUG:-kuzzle:cluster:sync}"
+    DEBUG_DEPTH = "${DEBUG_DEPTH:-0}"
+    DEBUG_MAX_ARRAY_LENGTH = "${DEBUG_MAX_ARRAY:-100}"
+    DEBUG_EXPAND = "${DEBUG_EXPAND:-off}"
+    DEBUG_SHOW_HIDDEN = "{$DEBUG_SHOW_HIDDEN:-on}"
+    DEBUG_COLORS = "${DEBUG_COLORS:-on}"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 1
+
+[[links]]
+from = "kuzzle"
+to = "redis"
+
+[[links]]
+from = "kuzzle"
+to = "elasticsearch"

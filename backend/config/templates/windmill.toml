@@ -1,0 +1,169 @@
+name = "Windmill is a developer platform to build production-grade multi-steps automations and internal apps."
+description = "Windmill is a developer platform to build production-grade multi-steps automations and internal apps."
+category = "stack"
+logo = "svgs/windmill.svg"
+[[services]]
+name = "db"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-windmill-db}"
+    [[services.storage]]
+      host = "db-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "windmill-server"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WINDMILL_8000 = ""
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    MODE = "server"
+    BASE_URL = "${SERVICE_URL_WINDMILL}"
+    [[services.storage]]
+      host = "worker-logs"
+      container = "/tmp/windmill/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "windmill-worker-1"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    MODE = "worker"
+    WORKER_GROUP = "default"
+    [[services.storage]]
+      host = "worker-dependency-cache"
+      container = "/tmp/windmill/cache"
+    [[services.storage]]
+      host = "worker-logs"
+      container = "/tmp/windmill/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "windmill-worker-2"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    MODE = "worker"
+    WORKER_GROUP = "default"
+    [[services.storage]]
+      host = "worker-dependency-cache"
+      container = "/tmp/windmill/cache"
+    [[services.storage]]
+      host = "worker-logs"
+      container = "/tmp/windmill/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "windmill-worker-3"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    MODE = "worker"
+    WORKER_GROUP = "default"
+    [[services.storage]]
+      host = "worker-dependency-cache"
+      container = "/tmp/windmill/cache"
+    [[services.storage]]
+      host = "worker-logs"
+      container = "/tmp/windmill/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "windmill-worker-native"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    MODE = "worker"
+    WORKER_GROUP = "native"
+    NUM_WORKERS = "8"
+    SLEEP_QUEUE = "200"
+    [[services.storage]]
+      host = "worker-logs"
+      container = "/tmp/windmill/logs"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[services]]
+name = "lsp"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/windmill-labs/windmill-lsp:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "lsp-cache"
+      container = "/root/.cache"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "windmill-server"
+to = "db"
+
+[[links]]
+from = "windmill-worker-1"
+to = "db"
+
+[[links]]
+from = "windmill-worker-2"
+to = "db"
+
+[[links]]
+from = "windmill-worker-3"
+to = "db"
+
+[[links]]
+from = "windmill-worker-native"
+to = "db"

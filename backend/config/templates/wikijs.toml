@@ -1,0 +1,46 @@
+name = "The most powerful and extensible open source Wiki software."
+description = "The most powerful and extensible open source Wiki software."
+category = "stack"
+logo = "svgs/wikijs.svg"
+[[services]]
+name = "wikijs"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/requarks/wiki:2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WIKIJS_3000 = ""
+    DB_TYPE = "postgres"
+    DB_HOST = "postgres"
+    DB_PORT = "5432"
+    DB_USER = "${SERVICE_USER_POSTGRES}"
+    DB_PASS = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_NAME = "${POSTGRESQL_DATABASE:-wiki-db}"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-wiki-db}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    [[services.storage]]
+      host = "wikijs-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "wikijs"
+to = "postgres"

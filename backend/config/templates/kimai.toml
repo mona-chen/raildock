@@ -1,0 +1,52 @@
+name = "Open source time-tracking app."
+description = "Open source time-tracking app."
+category = "stack"
+logo = "svgs/kimai.svg"
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mysql"
+docker_image = "mysql:8"
+start_command = "--default-storage-engine innodb"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-kimai}"
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
+    [[services.storage]]
+      host = "kimai-mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "kimai"
+category = "app"
+subtype = "docker"
+docker_image = "kimai/kimai2:apache"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_KIMAI_8001 = ""
+    APP_SECRET = "${SERVICE_PASSWORD_APPSECRET}"
+    MAILER_FROM = "${MAILER_FROM:-kimai@example.com}"
+    MAILER_URL = "${MAILER_URL:-null://null}"
+    ADMINMAIL = "${ADMINMAIL:-admin@kimai.local}"
+    ADMINPASS = "${SERVICE_PASSWORD_ADMINPASS}"
+    DATABASE_URL = "mysql://${SERVICE_USER_MYSQL}:${SERVICE_PASSWORD_MYSQL}@mysql/${MYSQL_DATABASE}?charset=utf8mb4&serverVersion=8.3.0"
+    TRUSTED_HOSTS = "${TRUSTED_HOSTS}|localhost|127.0.0.1"
+    [[services.storage]]
+      host = "kimai-data"
+      container = "/opt/kimai/var/data"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[links]]
+from = "kimai"
+to = "mysql"

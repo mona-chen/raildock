@@ -1,0 +1,58 @@
+name = "Scheduling infrastructure for everyone."
+description = "Scheduling infrastructure for everyone."
+category = "stack"
+logo = "svgs/calcom.svg"
+[[services]]
+name = "calcom"
+category = "app"
+subtype = "docker"
+docker_image = "calcom.docker.scarf.sh/calcom/cal.com"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_CALCOM_3000 = ""
+    NEXT_PUBLIC_LICENSE_CONSENT = "agree"
+    NODE_ENV = "production"
+    NEXT_PUBLIC_WEBAPP_URL = "${SERVICE_URL_CALCOM}"
+    NEXT_PUBLIC_API_V2_URL = "${SERVICE_URL_CALCOM}/api/v2"
+    NEXTAUTH_URL = "${SERVICE_URL_CALCOM}/api/auth"
+    NEXTAUTH_SECRET = "${SERVICE_BASE64_CALCOMSECRET}"
+    CALENDSO_ENCRYPTION_KEY = "${SERVICE_BASE64_CALCOMKEY}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-calendso}"
+    DATABASE_HOST = "postgresql"
+    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@${DATABASE_HOST:-postgresql}/${POSTGRES_DB:-calendso}"
+    DATABASE_DIRECT_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@${DATABASE_HOST:-postgresql}/${POSTGRES_DB:-calendso}"
+    CALCOM_TELEMETRY_DISABLED = "1"
+    EMAIL_FROM = "${EMAIL_FROM}"
+    EMAIL_FROM_NAME = "${EMAIL_FROM_NAME}"
+    EMAIL_SERVER_HOST = "${EMAIL_SERVER_HOST}"
+    EMAIL_SERVER_PORT = "${EMAIL_SERVER_PORT}"
+    EMAIL_SERVER_USER = "${EMAIL_SERVER_USER}"
+    EMAIL_SERVER_PASSWORD = "${EMAIL_SERVER_PASSWORD}"
+    NEXT_PUBLIC_APP_NAME = "\"Cal.com\""
+    ALLOWED_HOSTNAMES = "[\"${SERVICE_URL_CALCOM}\"]"
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-calendso}"
+    [[services.storage]]
+      host = "calcom-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "calcom"
+to = "postgresql"

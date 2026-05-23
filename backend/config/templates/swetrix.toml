@@ -1,0 +1,102 @@
+name = "Privacy-friendly and cookieless European web analytics alternative to Google Analytics."
+description = "Privacy-friendly and cookieless European web analytics alternative to Google Analytics."
+category = "stack"
+logo = "svgs/swetrix.svg"
+[[services]]
+name = "swetrix"
+category = "app"
+subtype = "docker"
+docker_image = "swetrix/swetrix-fe:v4.0.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SWETRIX_3000 = ""
+    API_URL = "$SERVICE_URL_SWETRIXAPI"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5
+
+[[services]]
+name = "swetrix-api"
+category = "app"
+subtype = "docker"
+docker_image = "swetrix/swetrix-api:v4.0.5"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SECRET_KEY_BASE = "$SERVICE_BASE64_64_SECRETKEYBASE"
+    SERVICE_URL_SWETRIXAPI = ""
+    DISABLE_REGISTRATION = "${DISABLE_REGISTRATION:-false}"
+    IP_GEOLOCATION_DB_PATH = "${IP_GEOLOCATION_DB_PATH:-}"
+    DEBUG_MODE = "${DEBUG_MODE:-false}"
+    CLOUDFLARE_PROXY_ENABLED = "${CLOUDFLARE_PROXY_ENABLED:-false}"
+    SMTP_HOST = "${SMTP_HOST:-}"
+    SMTP_PORT = "${SMTP_PORT:-}"
+    SMTP_USER = "${SMTP_USER:-}"
+    SMTP_PASSWORD = "${SMTP_PASSWORD:-}"
+    FROM_EMAIL = "${FROM_EMAIL:-}"
+    SMTP_MOCK = "${SMTP_MOCK:-false}"
+    OIDC_ENABLED = "${OIDC_ENABLED:-false}"
+    OIDC_ONLY_AUTH = "${OIDC_ONLY_AUTH:-false}"
+    OIDC_DISCOVERY_URL = "${OIDC_DISCOVERY_URL:-}"
+    OIDC_CLIENT_ID = "${OIDC_CLIENT_ID:-}"
+    OIDC_CLIENT_SECRET = "${OIDC_CLIENT_SECRET:-}"
+    REDIS_HOST = "redis"
+    CLICKHOUSE_HOST = "http://clickhouse"
+    CLICKHOUSE_PASSWORD = "$SERVICE_PASSWORD_CLICKHOUSE"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:8.2-alpine"
+source = { type = "docker"  }
+  [services.env]
+    REDIS_PORT = "${REDIS_PORT:-6379}"
+    REDIS_USER = "${REDIS_USER:-default}"
+    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5
+
+[[services]]
+name = "clickhouse"
+category = "app"
+subtype = "docker"
+docker_image = "clickhouse/clickhouse-server:24.10-alpine"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    CLICKHOUSE_DATABASE = "${CLICKHOUSE_DATABASE:-analytics}"
+    CLICKHOUSE_USER = "${CLICKHOUSE_USER:-default}"
+    CLICKHOUSE_PORT = "${CLICKHOUSE_PORT:-8123}"
+    CLICKHOUSE_PASSWORD = "$SERVICE_PASSWORD_CLICKHOUSE"
+    [[services.storage]]
+      host = "swetrix-events-data"
+      container = "/var/lib/clickhouse"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5
+
+[[links]]
+from = "swetrix"
+to = "swetrix-api"
+
+[[links]]
+from = "swetrix-api"
+to = "redis"
+
+[[links]]
+from = "swetrix-api"
+to = "clickhouse"

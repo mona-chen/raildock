@@ -1,0 +1,47 @@
+name = "Self-hosted sync server for Joplin"
+description = "Self-hosted sync server for Joplin"
+category = "stack"
+logo = "svgs/joplin.png"
+[[services]]
+name = "postgres"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_DB = "joplin"
+    [[services.storage]]
+      host = "joplin-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "joplin"
+category = "app"
+subtype = "docker"
+docker_image = "joplin/server:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_JOPLIN_22300 = ""
+    APP_BASE_URL = "${SERVICE_URL_JOPLIN}"
+    DB_CLIENT = "pg"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
+    POSTGRES_DATABASE = "joplin"
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PORT = "5432"
+    POSTGRES_HOST = "postgres"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "joplin"
+to = "postgres"

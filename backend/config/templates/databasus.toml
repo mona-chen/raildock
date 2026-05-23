@@ -1,0 +1,21 @@
+name = "Databasus is a free, open source and self-hosted tool to backup PostgreSQL, MySQL, and MongoDB."
+description = "Databasus is a free, open source and self-hosted tool to backup PostgreSQL, MySQL, and MongoDB."
+category = "stack"
+logo = "svgs/databasus.svg"
+[[services]]
+name = "databasus"
+category = "app"
+subtype = "docker"
+docker_image = "databasus/databasus:v3.16.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DATABASUS_4005 = ""
+    [[services.storage]]
+      host = "databasus-data"
+      container = "/databasus-data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10

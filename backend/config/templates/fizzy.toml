@@ -1,0 +1,33 @@
+name = "Kanban tracking tool for issues and ideas by 37signals"
+description = "Kanban tracking tool for issues and ideas by 37signals"
+category = "stack"
+logo = "svgs/fizzy.png"
+[[services]]
+name = "fizzy"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/basecamp/fizzy:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_FIZZY_80 = ""
+    SECRET_KEY_BASE = "$SERVICE_PASSWORD_FIZZY"
+    RAILS_MASTER_KEY = "$SERVICE_PASSWORD_64_MASTERKEY"
+    RAILS_ENV = "production"
+    RAILS_LOG_TO_STDOUT = "true"
+    RAILS_SERVE_STATIC_FILES = "true"
+    DATABASE_ADAPTER = "sqlite"
+    SOLID_QUEUE_CONNECTS_TO = "false"
+    VAPID_PRIVATE_KEY = "$VAPID_PRIVATE_KEY"
+    VAPID_PUBLIC_KEY = "$VAPID_PUBLIC_KEY"
+    [[services.storage]]
+      host = "fizzy-data"
+      container = "/rails/db"
+    [[services.storage]]
+      host = "fizzy-storage"
+      container = "/rails/storage"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5

@@ -1,0 +1,19 @@
+name = "Free self-hosted Drizzle Studio on steroids"
+description = "Free self-hosted Drizzle Studio on steroids"
+category = "stack"
+logo = "svgs/drizzle.jpeg"
+[[services]]
+name = "drizzle-gateway"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/drizzle-team/gateway:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DRIZZLE_4983 = ""
+    STORE_PATH = "/app"
+    MASTERPASS = "$SERVICE_PASSWORD_DRIZZLE"
+    [[services.storage]]
+      host = "drizzle-gateway-data"
+      container = "/app"

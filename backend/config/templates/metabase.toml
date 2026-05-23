@@ -1,0 +1,42 @@
+name = "Fast analytics with the friendly UX and integrated tooling to let your company explore data on their own."
+description = "Fast analytics with the friendly UX and integrated tooling to let your company explore data on their own."
+category = "stack"
+logo = "svgs/metabase.svg"
+[[services]]
+name = "metabase"
+category = "app"
+subtype = "docker"
+docker_image = "metabase/metabase:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_METABASE_3000 = ""
+    MB_DB_TYPE = "postgres"
+    MB_DB_HOST = "postgresql"
+    MB_DB_PORT = "5432"
+    MB_DB_DBNAME = "${POSTGRESQL_DATABASE:-metabase}"
+    MB_DB_USER = "$SERVICE_USER_POSTGRESQL"
+    MB_DB_PASS = "$SERVICE_PASSWORD_POSTGRESQL"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "postgresql"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:16-alpine"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
+    POSTGRES_DB = "${POSTGRESQL_DATABASE:-metabase}"
+    [[services.storage]]
+      host = "metabase-postgresql-data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

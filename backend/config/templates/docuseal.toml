@@ -1,0 +1,22 @@
+name = "Document Signing for Everyone free forever for individuals, extensible for businesses and developers. Open Source Alternative to DocuSign, PandaDoc and more."
+description = "Document Signing for Everyone free forever for individuals, extensible for businesses and developers. Open Source Alternative to DocuSign, PandaDoc and more."
+category = "stack"
+logo = "svgs/docuseal.png"
+[[services]]
+name = "docuseal"
+category = "app"
+subtype = "docker"
+docker_image = "docuseal/docuseal:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DOCUSEAL_3000 = ""
+    HOST = "${SERVICE_URL_DOCUSEAL}"
+    [[services.storage]]
+      host = "docuseal-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

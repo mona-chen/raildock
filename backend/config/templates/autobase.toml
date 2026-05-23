@@ -1,0 +1,65 @@
+name = "Autobase for PostgreSQL® is an open-source alternative to cloud-managed databases (self-hosted DBaaS)."
+description = "Autobase for PostgreSQL® is an open-source alternative to cloud-managed databases (self-hosted DBaaS)."
+category = "stack"
+logo = "svgs/autobase.svg"
+[[services]]
+name = "autobase"
+category = "app"
+subtype = "docker"
+docker_image = "autobase/console_ui:2.5.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_AUTOBASE_80 = ""
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "${SERVICE_PASSWORD_UI}"
+    PG_CONSOLE_API_HOST = "autobase-api"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "autobase-db"
+category = "app"
+subtype = "docker"
+docker_image = "autobase/console_db:2.5.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    [[services.storage]]
+      host = "autobase-db-data"
+      container = "/var/lib/postgresql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5
+
+[[services]]
+name = "autobase-api"
+category = "app"
+subtype = "docker"
+docker_image = "autobase/console_api:2.5.2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    PG_CONSOLE_DB_HOST = "autobase-db"
+    PG_CONSOLE_DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "${SERVICE_PASSWORD_UI}"
+    PG_CONSOLE_ENCRYPTIONKEY = "${SERVICE_BASE64_ENCRYPTIONKEY}"
+    PG_CONSOLE_LOGGER_LEVEL = "${PG_CONSOLE_LOGGER_LEVEL:-info}"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[links]]
+from = "autobase"
+to = "autobase-api"
+
+[[links]]
+from = "autobase-api"
+to = "autobase-db"

@@ -1,0 +1,110 @@
+name = "Pterodactyl is a free, open-source game server management panel"
+description = "Pterodactyl is a free, open-source game server management panel"
+category = "stack"
+logo = "svgs/pterodactyl.png"
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11.8"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQLROOT"
+    MYSQL_DATABASE = "pterodactyl-db"
+    MYSQL_USER = "$SERVICE_USER_MYSQL"
+    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    [[services.storage]]
+      host = "pterodactyl-db"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1
+
+[[services]]
+name = "redis"
+category = "cache"
+subtype = "redis"
+docker_image = "redis:alpine"
+source = { type = "docker"  }
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1
+
+[[services]]
+name = "pterodactyl"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/pterodactyl/panel:v1.12.0"
+start_command = "/entrypoint.sh"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    HASHIDS_SALT = "$SERVICE_PASSWORD_HASHIDS"
+    HASHIDS_LENGTH = "8"
+    SERVICE_URL_PTERODACTYL_80 = ""
+    ADMIN_EMAIL = "${ADMIN_EMAIL:-admin@example.com}"
+    ADMIN_USERNAME = "${SERVICE_USER_ADMIN}"
+    ADMIN_FIRSTNAME = "${ADMIN_FIRSTNAME:-Admin}"
+    ADMIN_LASTNAME = "${ADMIN_LASTNAME:-User}"
+    ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    PTERODACTYL_HTTPS = "${PTERODACTYL_HTTPS:-false}"
+    APP_ENV = "production"
+    APP_ENVIRONMENT_ONLY = "false"
+    APP_URL = "$SERVICE_URL_PTERODACTYL"
+    APP_TIMEZONE = "${TIMEZONE:-UTC}"
+    APP_SERVICE_AUTHOR = "${APP_SERVICE_AUTHOR:-author@example.com}"
+    LOG_LEVEL = "${LOG_LEVEL:-debug}"
+    CACHE_DRIVER = "redis"
+    SESSION_DRIVER = "redis"
+    QUEUE_DRIVER = "redis"
+    REDIS_HOST = "redis"
+    DB_DATABASE = "pterodactyl-db"
+    DB_USERNAME = "$SERVICE_USER_MYSQL"
+    DB_HOST = "mariadb"
+    DB_PORT = "3306"
+    DB_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MAIL_FROM = "$MAIL_FROM"
+    MAIL_DRIVER = "$MAIL_DRIVER"
+    MAIL_HOST = "$MAIL_HOST"
+    MAIL_PORT = "$MAIL_PORT"
+    MAIL_USERNAME = "$MAIL_USERNAME"
+    MAIL_PASSWORD = "$MAIL_PASSWORD"
+    MAIL_ENCRYPTION = "$MAIL_ENCRYPTION"
+    [[services.storage]]
+      host = "panel-var"
+      container = "/app/var/"
+    [[services.storage]]
+      host = "panel-nginx"
+      container = "/etc/nginx/http.d/"
+    [[services.storage]]
+      host = "panel-certs"
+      container = "/etc/letsencrypt/"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 1
+
+[[services]]
+name = "wings"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/pterodactyl/wings:v1.12.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_WINGS_8443 = ""
+    TZ = "${TIMEZONE:-UTC}"
+    WINGS_USERNAME = "pterodactyl"
+  [services.proxy]
+    enabled = true
+    type = "traefik"
+    [[services.proxy.ports]]
+      host = 2022
+      container = 2022
+    [[services.storage]]
+      host = "wings-logs"
+      container = "/var/log/pterodactyl/"

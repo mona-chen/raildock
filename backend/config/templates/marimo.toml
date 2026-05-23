@@ -1,0 +1,23 @@
+name = "An open-source reactive notebook for Python — reproducible, git-friendly, SQL built-in, executable as a script, and shareable as an app."
+description = "An open-source reactive notebook for Python — reproducible, git-friendly, SQL built-in, executable as a script, and shareable as an app."
+category = "stack"
+logo = "svgs/marimo.svg"
+[[services]]
+name = "marimo"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/marimo-team/marimo:latest-sql"
+start_command = "marimo edit --token-password ${SERVICE_PASSWORD_MARIMO} --port 8080 --host 0.0.0.0"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_MARIMO_8080 = ""
+    TOKEN_PASSWORD = "$SERVICE_PASSWORD_MARIMO"
+    [[services.storage]]
+      host = "marimo"
+      container = "/app"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 5

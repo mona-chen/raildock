@@ -1,0 +1,29 @@
+name = "Keycloak is an open-source Identity and Access Management tool."
+description = "Keycloak is an open-source Identity and Access Management tool."
+category = "stack"
+logo = "svgs/keycloak.svg"
+[[services]]
+name = "keycloak"
+category = "app"
+subtype = "docker"
+docker_image = "quay.io/keycloak/keycloak:26.1"
+start_command = "start"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_KEYCLOAK_8080 = ""
+    TZ = "${TIMEZONE:-UTC}"
+    KC_BOOTSTRAP_ADMIN_USERNAME = "${SERVICE_USER_ADMIN}"
+    KC_BOOTSTRAP_ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    KC_HOSTNAME = "${SERVICE_URL_KEYCLOAK}"
+    KC_HTTP_ENABLED = "${KC_HTTP_ENABLED:-true}"
+    KC_HEALTH_ENABLED = "${KC_HEALTH_ENABLED:-true}"
+    KC_PROXY_HEADERS = "${KC_PROXY_HEADERS:-xforwarded}"
+    [[services.storage]]
+      host = "keycloak-data"
+      container = "/opt/keycloak/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

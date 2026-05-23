@@ -1,0 +1,22 @@
+name = "SilverBullet is a tool to develop, organize, and structure your personal knowledge and to make it universally accessible across all your devices."
+description = "SilverBullet is a tool to develop, organize, and structure your personal knowledge and to make it universally accessible across all your devices."
+category = "stack"
+logo = "svgs/silverbullet.png"
+[[services]]
+name = "silverbullet"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/silverbulletmd/silverbullet:v2"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_SILVERBULLET_3000 = ""
+    SB_USER = "${SERVICE_USER_SILVERBULLET}:${SERVICE_PASSWORD_SILVERBULLET}"
+    [[services.storage]]
+      host = "silverbullet-space"
+      container = "/space"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

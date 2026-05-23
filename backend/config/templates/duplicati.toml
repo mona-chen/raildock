@@ -1,0 +1,29 @@
+name = "Duplicati is a backup solution, allowing you to make scheduled backups with encryption."
+description = "Duplicati is a backup solution, allowing you to make scheduled backups with encryption."
+category = "stack"
+logo = "svgs/duplicati.webp"
+[[services]]
+name = "duplicati"
+category = "app"
+subtype = "docker"
+docker_image = "lscr.io/linuxserver/duplicati:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_DUPLICATI_8200 = ""
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "${TZ:-Europe/London}"
+    SETTINGS_ENCRYPTION_KEY = "${SERVICE_PASSWORD_ENCRYPT}"
+    DUPLICATI__WEBSERVICE_PASSWORD = "${SERVICE_PASSWORD_WEB}"
+    [[services.storage]]
+      host = "duplicati-config"
+      container = "/config"
+    [[services.storage]]
+      host = "duplicati-backups"
+      container = "/backups"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10

@@ -1,0 +1,21 @@
+name = "Portainer is a lightweight management UI for Docker"
+description = "Portainer is a lightweight management UI for Docker"
+category = "stack"
+logo = "svgs/portainer.png"
+[[services]]
+name = "portainer"
+category = "app"
+subtype = "docker"
+docker_image = "portainer/portainer-ce:alpine"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_PORTAINER_9000 = ""
+    [[services.storage]]
+      host = "portainer_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 20
+    timeout = 20

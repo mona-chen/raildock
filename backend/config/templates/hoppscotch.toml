@@ -1,0 +1,73 @@
+name = "The Open Source API Development Platform"
+description = "The Open Source API Development Platform"
+category = "stack"
+logo = "svgs/hoppscotch.png"
+[[services]]
+name = "backend"
+category = "app"
+subtype = "docker"
+docker_image = "hoppscotch/hoppscotch:2026.2.1"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_HOPPSCOTCH_80 = ""
+    VITE_ALLOWED_AUTH_PROVIDERS = "${VITE_ALLOWED_AUTH_PROVIDERS:-GOOGLE,GITHUB,MICROSOFT,EMAIL}"
+    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@hoppscotch-db:5432/${POSTGRES_DB}"
+    DATA_ENCRYPTION_KEY = "${SERVICE_BASE64_DATAENCRYPTIONKEY}"
+    WHITELISTED_ORIGINS = "${SERVICE_URL_HOPPSCOTCH}/backend,${SERVICE_URL_HOPPSCOTCH},${SERVICE_URL_HOPPSCOTCH}/admin"
+    MAILER_USE_CUSTOM_CONFIGS = "${MAILER_USE_CUSTOM_CONFIGS:-true}"
+    VITE_BASE_URL = "${SERVICE_URL_HOPPSCOTCH}"
+    VITE_SHORTCODE_BASE_URL = "${SERVICE_URL_HOPPSCOTCH}"
+    VITE_ADMIN_URL = "${SERVICE_URL_HOPPSCOTCH}/admin"
+    VITE_BACKEND_GQL_URL = "${SERVICE_URL_HOPPSCOTCH}/backend/graphql"
+    VITE_BACKEND_WS_URL = "wss://${SERVICE_FQDN_HOPPSCOTCH}/backend/graphql"
+    VITE_BACKEND_API_URL = "${SERVICE_URL_HOPPSCOTCH}/backend/v1"
+    VITE_APP_TOS_LINK = "https://docs.hoppscotch.io/support/terms"
+    VITE_APP_PRIVACY_POLICY_LINK = "https://docs.hoppscotch.io/support/privacy"
+    ENABLE_SUBPATH_BASED_ACCESS = "true"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "hoppscotch-db"
+category = "database"
+subtype = "postgres"
+docker_image = "postgres:15"
+source = { type = "docker"  }
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-hoppscotch}"
+    [[services.storage]]
+      host = "postgres_data"
+      container = "/var/lib/postgresql/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 10
+
+[[services]]
+name = "db-migration"
+category = "app"
+subtype = "docker"
+docker_image = "hoppscotch/hoppscotch:2026.2.1"
+start_command = "pnpx prisma migrate deploy"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "${POSTGRES_DB:-hoppscotch}"
+    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@hoppscotch-db:5432/${POSTGRES_DB:-hoppscotch}"
+
+[[links]]
+from = "backend"
+to = "db-migration"
+
+[[links]]
+from = "db-migration"
+to = "hoppscotch-db"

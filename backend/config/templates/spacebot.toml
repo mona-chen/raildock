@@ -1,0 +1,30 @@
+name = "An agentic AI system with specialized processes for thinking, working, and remembering."
+description = "An agentic AI system with specialized processes for thinking, working, and remembering."
+category = "stack"
+logo = "svgs/spacebot.png"
+[[services]]
+name = "spacebot"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/spacedriveapp/spacebot:full"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_FQDN_SPACEBOT_19898 = ""
+    ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+    OPENAI_API_KEY = "${OPENAI_API_KEY}"
+    OPENROUTER_API_KEY = "${OPENROUTER_API_KEY}"
+    DISCORD_BOT_TOKEN = "${DISCORD_BOT_TOKEN}"
+    SLACK_BOT_TOKEN = "${SLACK_BOT_TOKEN}"
+    SLACK_APP_TOKEN = "${SLACK_APP_TOKEN}"
+    BRAVE_SEARCH_API_KEY = "${BRAVE_SEARCH_API_KEY}"
+    SPACEBOT_CHANNEL_MODEL = "${SPACEBOT_CHANNEL_MODEL}"
+    SPACEBOT_WORKER_MODEL = "${SPACEBOT_WORKER_MODEL}"
+    [[services.storage]]
+      host = "spacebot-data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 5

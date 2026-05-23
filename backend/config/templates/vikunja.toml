@@ -1,0 +1,42 @@
+name = "The open-source, self-hostable to-do app. Organize everything, on all platforms."
+description = "The open-source, self-hostable to-do app. Organize everything, on all platforms."
+category = "stack"
+logo = "svgs/vikunja.svg"
+[[services]]
+name = "vikunja"
+category = "app"
+subtype = "docker"
+docker_image = "vikunja/vikunja"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_VIKUNJA = ""
+    VIKUNJA_SERVICE_PUBLICURL = "$SERVICE_URL_VIKUNJA"
+    VIKUNJA_SERVICE_JWTSECRET = "$SERVICE_PASSWORD_JWTSECRET"
+    VIKUNJA_SERVICE_ENABLEREGISTRATION = "true"
+    VIKUNJA_DATABASE_PATH = "/db/vikunja.db"
+    VIKUNJA_DATABASE_TYPE = "sqlite"
+    [[services.storage]]
+      host = "vikunja-data"
+      container = "/app/vikunja/"
+    [[services.storage]]
+      host = "vikunja-sqlite-data"
+      container = "/db"
+
+[[services]]
+name = "init"
+category = "app"
+subtype = "docker"
+docker_image = "busybox"
+start_command = "sh -c touch /db/vikunja.db && chown -R 1000 /db"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "vikunja-sqlite-data"
+      container = "/db"
+
+[[links]]
+from = "vikunja"
+to = "init"

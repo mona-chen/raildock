@@ -1,0 +1,22 @@
+name = "A local-first personal finance app."
+description = "A local-first personal finance app."
+category = "stack"
+logo = "svgs/actualbudget.png"
+[[services]]
+name = "actual_server"
+category = "app"
+subtype = "docker"
+docker_image = "actualbudget/actual-server:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_ACTUAL_5006 = ""
+    ACTUAL_LOGIN_METHOD = "password"
+    [[services.storage]]
+      host = "actual_data"
+      container = "/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20

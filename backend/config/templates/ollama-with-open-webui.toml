@@ -1,0 +1,42 @@
+name = "Ollama with Open Web UI integrates AI model deployment with a user-friendly interface."
+description = "Ollama with Open Web UI integrates AI model deployment with a user-friendly interface."
+category = "stack"
+logo = "svgs/ollama.svg"
+[[services]]
+name = "ollama-api"
+category = "app"
+subtype = "docker"
+docker_image = "ollama/ollama:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+    [[services.storage]]
+      host = "ollama"
+      container = "/root/.ollama"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[services]]
+name = "open-webui"
+category = "app"
+subtype = "docker"
+docker_image = "ghcr.io/open-webui/open-webui:main"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_OLLAMA_8080 = ""
+    OLLAMA_BASE_URL = "http://ollama-api:11434"
+    [[services.storage]]
+      host = "open-webui"
+      container = "/app/backend/data"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 30
+
+[[links]]
+from = "open-webui"
+to = "ollama-api"

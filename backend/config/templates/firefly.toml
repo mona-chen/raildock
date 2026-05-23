@@ -1,0 +1,68 @@
+name = "A personal finances manager that can help you save money."
+description = "A personal finances manager that can help you save money."
+category = "stack"
+logo = "svgs/firefly.svg"
+[[services]]
+name = "firefly"
+category = "app"
+subtype = "docker"
+docker_image = "fireflyiii/core:latest"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_FIREFLY_8080 = ""
+    APP_KEY = "$SERVICE_BASE64_APPKEY"
+    DB_HOST = "mysql"
+    DB_PORT = "3306"
+    DB_CONNECTION = "mysql"
+    DB_DATABASE = "${MYSQL_DATABASE:-firefly}"
+    DB_USERNAME = "$SERVICE_USER_MYSQL"
+    DB_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    STATIC_CRON_TOKEN = "$SERVICE_BASE64_CRONTOKEN"
+    TRUSTED_PROXIES = "*"
+    [[services.storage]]
+      host = "firefly-upload"
+      container = "/var/www/html/storage/upload"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "mysql"
+category = "database"
+subtype = "mariadb"
+docker_image = "mariadb:11"
+source = { type = "docker"  }
+  [services.env]
+    MYSQL_USER = "${SERVICE_USER_MYSQL}"
+    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_DATABASE = "${MYSQL_DATABASE:-firefly}"
+    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    [[services.storage]]
+      host = "firefly-mysql-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[services]]
+name = "cron"
+category = "app"
+subtype = "docker"
+docker_image = "alpine"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    STATIC_CRON_TOKEN = "$SERVICE_BASE64_CRONTOKEN"
+  [services.checks]
+    enabled = true
+    wait = 30
+    timeout = 10
+
+[[links]]
+from = "firefly"
+to = "mysql"

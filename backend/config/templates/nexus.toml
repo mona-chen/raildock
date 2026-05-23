@@ -1,0 +1,23 @@
+name = "Open source Universal Repository Manager (x86_64 version, official), default credentials: admin/admin123"
+description = "Open source Universal Repository Manager (x86_64 version, official), default credentials: admin/admin123"
+category = "stack"
+logo = "svgs/nexus.png"
+[[services]]
+name = "nexus"
+category = "app"
+subtype = "docker"
+docker_image = "sonatype/nexus3"
+source = { type = "docker"  }
+  [services.scaling]
+    web = 1
+  [services.env]
+    SERVICE_URL_NEXUS_8081 = ""
+    NEXUS_SECURITY_RANDOMPASSWORD = "${NEXUS_SECURITY_RANDOMPASSWORD:-false}"
+    INSTALL4J_ADD_VM_PARAMS = "-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m -Djava.util.prefs.userRoot=/nexus-data/javaprefs"
+    [[services.storage]]
+      host = "nexus_data"
+      container = "/nexus-data"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 10
