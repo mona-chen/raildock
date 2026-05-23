@@ -45,3 +45,4 @@ coverage/
 # Dokku (submodule - clone separately)
 # git submodule add https://github.com/dokku/dokku.git dokku
 dokku/
+.playwright-mcp/
