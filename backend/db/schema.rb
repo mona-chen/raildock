@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -186,6 +186,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
     t.integer "memory_used"
     t.string "name"
     t.string "os"
+    t.string "public_ip"
     t.text "ssh_key_ciphertext"
     t.string "ssh_user", default: "dokku"
     t.string "status"
@@ -204,6 +205,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
   end
 
   create_table "services", force: :cascade do |t|
+    t.boolean "auto_deploy", default: true, null: false
     t.string "branch"
     t.string "builder"
     t.jsonb "config", default: {}
@@ -214,12 +216,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
     t.string "git_repo"
     t.string "last_deployed"
     t.boolean "locked"
+    t.boolean "maintenance_mode", default: false, null: false
     t.string "name"
     t.integer "port"
     t.bigint "project_id", null: false
     t.integer "restart_max_retries"
     t.string "restart_policy"
+    t.string "root_directory"
     t.string "service_type"
+    t.string "start_command"
     t.string "status"
     t.string "subtype"
     t.datetime "updated_at", null: false

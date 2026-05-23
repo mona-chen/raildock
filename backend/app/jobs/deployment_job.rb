@@ -34,29 +34,21 @@ class DeploymentJob < ApplicationJob
         engine.storage_mount(service.dokku_app_name, mount.host_path, mount.container_path)
       end
 
-      # 5. Apply nginx settings from config (only when proxy is nginx)
-      if service.config&.dig("proxy", "proxyType") == "nginx" && service.config&.dig("nginx")
-        nginx = service.config["nginx"]
-        engine.nginx_set(service.dokku_app_name, "client-max-body-size", nginx["clientMaxBodySize"]) if nginx["clientMaxBodySize"]
-        engine.nginx_set(service.dokku_app_name, "proxy-read-timeout", nginx["readTimeout"]) if nginx["readTimeout"]
-        engine.nginx_set(service.dokku_app_name, "proxy-send-timeout", nginx["keepaliveTimeout"]) if nginx["keepaliveTimeout"]
-      end
-
-      # 6. Apply proxy settings
+      # 5. Apply proxy settings
       if service.config&.dig("proxy", "enabled") == false
         engine.proxy_disable(service.dokku_app_name)
       else
         engine.proxy_enable(service.dokku_app_name)
       end
 
-      # 7. Apply docker options
+      # 6. Apply docker options
       if service.config&.dig("dockerOptions")
         service.config["dockerOptions"].each do |opt|
           engine.docker_option_add(service.dokku_app_name, opt["phase"], opt["option"]) if opt["phase"] && opt["option"]
         end
       end
 
-      # 8. Apply resource limits
+      # 7. Apply resource limits
       if service.config&.dig("resourceLimits")
         service.config["resourceLimits"].each do |res|
           engine.resource_limit(
@@ -69,10 +61,10 @@ class DeploymentJob < ApplicationJob
         end
       end
 
-      # 9. Set git deploy branch
+      # 8. Set git deploy branch
       engine.git_set_deploy_branch(service.dokku_app_name, service.branch || "main")
 
-      # 10. Deploy (with real-time log streaming)
+      # 9. Deploy (with real-time log streaming)
       deployment.update!(status: :deploying)
       DeploymentsChannel.broadcast_to(service, {
         deployment_id: deployment.id,
@@ -132,12 +124,12 @@ class DeploymentJob < ApplicationJob
         return mark_failed(deployment, service, "Deploy failed", deploy_output)
       end
 
-      # 11. Scale processes (Dokku deploy already started the app)
+      # 10. Scale processes (Dokku deploy already started the app)
       service.process_types.each do |pt|
         engine.ps_scale(service.dokku_app_name, pt.name, pt.quantity)
       end
 
-      # 12. Mark success
+      # 11. Mark success
       deployment.update!(
         status: :succeeded,
         deploy_log: deploy_output,

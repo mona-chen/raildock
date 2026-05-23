@@ -105,6 +105,11 @@ module Api
     def update
       authorize_service!(@service, action: :update)
       @service.update!(service_params)
+
+      with_dokku_engine(@service) do |engine|
+        ServiceSettingsSync.new(@service, engine).sync_config_changes!
+      end
+
       render json: @service
     end
 
@@ -686,21 +691,31 @@ module Api
     end
 
     def service_params
-      params.require(:service).permit(
+      base_permitted = [
         :name, :service_type, :subtype, :status, :builder,
         :git_repo, :branch, :version, :exposed, :port,
         :locked, :restart_policy, :restart_max_retries,
-        :docker_image,
-        config: {}
-      )
+        :docker_image, :auto_deploy, :root_directory,
+        :start_command, :maintenance_mode,
+        config: config_permitted_params
+      ]
+      params.require(:service).permit(base_permitted)
     rescue ActionController::ParameterMissing
-      params.permit(
-        :name, :service_type, :subtype, :status, :builder,
-        :git_repo, :branch, :version, :exposed, :port,
-        :locked, :restart_policy, :restart_max_retries,
-        :docker_image,
-        config: {}
-      )
+      params.permit(base_permitted)
+    end
+
+    def config_permitted_params
+      [
+        :cron,
+        proxy: [:enabled, :proxyType, { portMappings: [:scheme, :hostPort, :containerPort] }],
+        dockerOptions: [:phase, :option],
+        resourceLimits: [:processType, :cpu, :memory, :memorySwap, :nvidiaGpu],
+        resourceReservations: [:processType, :cpu, :memory, :memorySwap, :nvidiaGpu],
+        checks: [:enabled, :wait, :timeout, { skipList: [] }],
+        letsencrypt: [:enabled, :email, :staging, :autoRenew],
+        git: [:deployBranch, :keepGitDir, :revEnvVar],
+        traefik: [:labels, :properties]
+      ]
     end
 
     def backup_schedule_params

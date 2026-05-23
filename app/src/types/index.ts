@@ -55,7 +55,6 @@ export interface Service {
   logs: LogEntry[]
   backups: Backup[]
   // Plugin configs (baked-in, not exposed as "plugins")
-  nginx: NginxSettings
   proxy: ProxySettings
   dockerOptions: DockerOption[]
   resourceLimits: ResourceSetting[]
@@ -63,9 +62,14 @@ export interface Service {
   checks: ChecksSettings
   letsencrypt: LetsEncryptSettings
   git: GitSettings
+  traefik: TraefikSettings
   restartPolicy: 'on-failure' | 'always' | 'unless-stopped'
   restartMaxRetries: number
   locked: boolean
+  autoDeploy: boolean
+  rootDirectory?: string
+  startCommand?: string
+  maintenanceMode: boolean
   config?: Record<string, any>
 }
 
@@ -113,16 +117,9 @@ export interface Backup {
 // Baked-in Plugin Settings (always available)
 // ───────────────────────────────────────────────
 
-export interface NginxSettings {
-  clientMaxBodySize: string
-  readTimeout: string
-  keepaliveTimeout: string
-  hsts: boolean
-  hstsMaxAge: number
-  hstsIncludeSubdomains: boolean
-  hstsPreload: boolean
-  bindAddressIpv4: string
-  bindAddressIpv6: string
+export interface TraefikSettings {
+  labels: Record<string, string>
+  properties: Record<string, string>
 }
 
 export interface ProxySettings {

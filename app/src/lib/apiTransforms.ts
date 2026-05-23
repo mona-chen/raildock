@@ -52,7 +52,6 @@ export function normalizeService(data: unknown): Service {
   const config = (camel.config || {}) as Record<string, unknown>
   delete camel.config
   const defaults = {
-    nginx: { clientMaxBodySize: '1m', readTimeout: '60s', keepaliveTimeout: '75s', hsts: true, hstsMaxAge: 15724800, hstsIncludeSubdomains: true, hstsPreload: false, bindAddressIpv4: '0.0.0.0', bindAddressIpv6: '[::]' },
     proxy: { enabled: true, proxyType: 'traefik', portMappings: [] },
     dockerOptions: [],
     resourceLimits: [],
@@ -60,6 +59,7 @@ export function normalizeService(data: unknown): Service {
     checks: { enabled: true, wait: 10, timeout: 60, skipList: [] },
     letsencrypt: { enabled: false, email: '', staging: false, autoRenew: true },
     git: { deployBranch: 'main', keepGitDir: false, revEnvVar: true },
+    traefik: { labels: {}, properties: {} },
     envVars: [],
     domains: [],
     storageMounts: [],
@@ -68,6 +68,8 @@ export function normalizeService(data: unknown): Service {
     linkedServiceIds: [],
     processTypes: [],
     locked: false,
+    autoDeploy: true,
+    maintenanceMode: false,
     restartPolicy: 'on-failure',
     restartMaxRetries: 10,
   }

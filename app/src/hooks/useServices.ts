@@ -57,6 +57,19 @@ export function useUpdateService() {
   })
 }
 
+export function useUpdateServiceConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, config }: { id: string; config: Record<string, unknown> }) =>
+      api.services.update(id, { config }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id] })
+      toast.success('Settings synced to Dokku')
+    },
+    onError: (err) => toast.error(`Failed to sync settings: ${err.message}`),
+  })
+}
+
 export function useDeployService() {
   const queryClient = useQueryClient()
   return useMutation({
