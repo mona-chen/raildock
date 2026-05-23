@@ -52,13 +52,13 @@ class ChangeClassifier
   # Given a list of changes, return the aggregate severity
   def self.aggregate(changes)
     return :reload if changes.empty?
-    max_sev = changes.map { |c| SEVERITY.fetch(classify(c[:field]), 0) }.max
+    max_sev = changes.map { |c| SEVERITY.fetch(classify(c.field), 0) }.max
     SEVERITY.key(max_sev)
   end
 
   # Group changes by severity
   def self.group_by_severity(changes)
-    changes.group_by { |c| classify(c[:field]) }
+    changes.group_by { |c| classify(c.field) }
   end
 
   # Return human-readable description of severity
