@@ -1,3 +1,12 @@
+/**
+ * Service Icons — Real brand logos via @icons-pack/react-simple-icons
+ *
+ * NOTE: This file imports 40+ simple-icons components statically. If bundle
+ * size becomes a concern (~80KB added to the ProjectCanvas chunk), switch to:
+ *   1. Individual SVG imports from simple-icons (tree-shake friendly)
+ *   2. Dynamic import() per subtype
+ *   3. A lightweight custom SVG sprite sheet for just the brands we use
+ */
 import type { FC } from 'react'
 import {
   SiPostgresql,
