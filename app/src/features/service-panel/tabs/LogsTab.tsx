@@ -3,6 +3,7 @@ import {
   Pause, Play, Search, X, Copy, Check, WrapText, UnfoldVertical,
   Download, Filter, Terminal, ClipboardCopy, Maximize2, Minimize2
 } from 'lucide-react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useServiceLogs } from '@/hooks/useServices'
 import { useWebSocketLogs } from '@/hooks/useWebSocketLogs'
 
@@ -242,25 +243,31 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
 
   const copyLine = async (line: LogLine & { id: number; level: LogLevel; cleanMessage: string }) => {
     const text = formatFullLine(line)
-    await navigator.clipboard.writeText(text)
-    setCopiedId(line.id)
-    setTimeout(() => setCopiedId(null), 1500)
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedId(line.id)
+      setTimeout(() => setCopiedId(null), 1500)
+    }
   }
 
   const copySelection = async () => {
     if (!selectedRange) return
     const lines = filteredLines.slice(selectedRange.start, selectedRange.end + 1)
     const text = lines.map(formatFullLine).join('\n')
-    await navigator.clipboard.writeText(text)
-    setCopiedAll(true)
-    setTimeout(() => setCopiedAll(false), 1500)
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedAll(true)
+      setTimeout(() => setCopiedAll(false), 1500)
+    }
   }
 
   const copyAll = async () => {
     const text = filteredLines.map(formatFullLine).join('\n')
-    await navigator.clipboard.writeText(text)
-    setCopiedAll(true)
-    setTimeout(() => setCopiedAll(false), 1500)
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedAll(true)
+      setTimeout(() => setCopiedAll(false), 1500)
+    }
   }
 
   const exportLogs = () => {

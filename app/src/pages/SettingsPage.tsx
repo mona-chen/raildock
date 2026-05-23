@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key } from 'lucide-react'
+import { useCopy } from '@/hooks/useCopy'
 import { useModules } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
 import { useDeployKeys, useCreateDeployKey, useDeleteDeployKey } from '@/hooks/useDeployKeys'
@@ -93,7 +94,7 @@ function DeployKeysTab() {
   const deleteKey = useDeleteDeployKey()
   const [name, setName] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const { copiedKey, copy } = useCopy(2000)
 
   const handleCreate = () => {
     if (!name.trim()) return
@@ -103,12 +104,6 @@ function DeployKeysTab() {
         setDialogOpen(false)
       },
     })
-  }
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
   }
 
   return (
@@ -195,10 +190,10 @@ function DeployKeysTab() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(key.publicKey, key.id)}
+                  onClick={() => copy(key.publicKey, key.id)}
                   className="text-[10px] text-[#A0A0B0] hover:text-white h-7 shrink-0"
                 >
-                  {copiedId === key.id ? 'Copied!' : 'Copy'}
+                  {copiedKey === key.id ? 'Copied!' : 'Copy'}
                 </Button>
               </div>
             </div>

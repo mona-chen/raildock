@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight, Link2, Unlink, Copy, Check, Database, Eye, EyeOff, FileCode, Plus, RotateCcw } from 'lucide-react'
+import { useCopy } from '@/hooks/useCopy'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups, useLinkedByServices, useUnlinkService } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
@@ -278,14 +279,8 @@ function quickConnectCommand(subtype: string, url: string): string {
 function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }) {
   const unlinkService = useUnlinkService()
   const { data: linkedByServices } = useLinkedByServices(serviceId)
-  const [copied, setCopied] = useState<string | null>(null)
+  const { copiedKey, copy } = useCopy(1500)
   const [expanded, setExpanded] = useState<string | null>(null)
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 1500)
-  }
 
   // Find connection URL env vars injected by Dokku linking
   const connectionVars = (svc.envVars || []).filter(
@@ -325,11 +320,11 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
                       </div>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => handleCopy(ev.value, ev.key)}
+                          onClick={() => copy(ev.value, ev.key)}
                           className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
                           title="Copy connection string"
                         >
-                          {copied === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+                          {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
@@ -354,10 +349,10 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
                           {cmd}
                         </div>
                         <button
-                          onClick={() => handleCopy(cmd, `${ev.key}-cmd`)}
+                          onClick={() => copy(cmd, `${ev.key}-cmd`)}
                           className="absolute right-1.5 top-1.5 p-1 rounded hover:bg-white/[0.06] text-white/20 hover:text-white/50 transition-colors"
                         >
-                          {copied === `${ev.key}-cmd` ? <Check size={10} className="text-[#22c55e]" /> : <Copy size={10} />}
+                          {copiedKey === `${ev.key}-cmd` ? <Check size={10} className="text-[#22c55e]" /> : <Copy size={10} />}
                         </button>
                       </div>
                     )}
@@ -840,13 +835,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
 // ── Database Tab ─────────────────────────────
 function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
   const { data: info, isLoading } = useDatabaseInfo(serviceId)
-  const [copied, setCopied] = useState<string | null>(null)
-
-  const handleCopy = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(label)
-    setTimeout(() => setCopied(null), 2000)
-  }
+  const { copiedKey, copy } = useCopy(2000)
 
   const connectionUrl = info?.url || info?.dsn || svc.envVars.find((e) => e.key.includes('URL'))?.value
 
@@ -907,10 +896,10 @@ function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
                 <div className="text-[11px] text-white/40">Connection URL</div>
                 <button
                   type="button"
-                  onClick={() => handleCopy(connectionUrl, 'url')}
+                  onClick={() => copy(connectionUrl, 'url')}
                   className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
                 >
-                  {copied === 'url' ? 'Copied!' : 'Copy'}
+                  {copiedKey === 'url' ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               <div className="text-[12px] text-white/70 font-mono break-all">{connectionUrl}</div>
@@ -924,10 +913,10 @@ function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
                       <div className="text-[11px] text-white/40">{f.label}</div>
                       <button
                         type="button"
-                        onClick={() => handleCopy(f.value!, f.label)}
+                        onClick={() => copy(f.value!, f.label)}
                         className="opacity-0 group-hover:opacity-100 text-[10px] text-white/30 hover:text-white/60 transition-all"
                       >
-                        {copied === f.label ? 'Copied!' : 'Copy'}
+                        {copiedKey === f.label ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
                     <div className="text-[12px] text-white/70 font-mono break-all">{f.value}</div>
@@ -942,10 +931,10 @@ function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
                   <div className="text-[11px] text-white/40">Quick Connect</div>
                   <button
                     type="button"
-                    onClick={() => handleCopy(quickConnect, 'cmd')}
+                    onClick={() => copy(quickConnect, 'cmd')}
                     className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
                   >
-                    {copied === 'cmd' ? 'Copied!' : 'Copy'}
+                    {copiedKey === 'cmd' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
                 <div className="text-[12px] text-white/70 font-mono break-all">{quickConnect}</div>
@@ -1170,19 +1159,13 @@ function VariablesTab({ svc }: { svc: Service }) {
   const [newKey, setNewKey] = useState('')
   const [newVal, setNewVal] = useState('')
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
-  const [copied, setCopied] = useState<string | null>(null)
+  const { copiedKey, copy } = useCopy(1500)
   const setEnvVar = useSetEnvVar()
   const unsetEnvVar = useUnsetEnvVar()
 
   const userVars = svc.envVars.filter((ev) => !ev.isDokkuInternal)
   const dokkuVars = svc.envVars.filter((ev) => ev.isDokkuInternal)
   const sharedVars = project?.sharedVars || []
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 1500)
-  }
 
   const toggleReveal = (key: string) => {
     setRevealed((prev) => {
@@ -1306,11 +1289,11 @@ function VariablesTab({ svc }: { svc: Service }) {
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={() => handleCopy(ev.value, ev.key)}
+            onClick={() => copy(ev.value, ev.key)}
             className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
             title="Copy value"
           >
-            {copied === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+            {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
           </button>
           {!readonly && (
             <>

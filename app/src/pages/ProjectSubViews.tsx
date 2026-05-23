@@ -7,6 +7,7 @@ import { useServices } from '@/hooks/useServices'
 import { useGitSources, useConnectGitSource, useDisconnectGitSource } from '@/hooks/useGitSources'
 import { useProject, useUpdateProjectSharedVars } from '@/hooks/useProjects'
 import { useServers } from '@/hooks/useServers'
+import { CopyButton } from '@/components/ui/CopyButton'
 
 const WEBHOOK_URL = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.host}/api/webhooks/deploy`
@@ -210,13 +211,7 @@ function GitSourcesSection() {
                 <div className="text-[11px] text-white/40 mb-1">Webhook URL — paste into {gs.provider} repository settings</div>
                 <div className="flex gap-2">
                   <code className="flex-1 text-[11px] font-mono text-white/50 bg-black/40 rounded px-2 py-1 truncate">{WEBHOOK_URL}</code>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(WEBHOOK_URL)}
-                    className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1]"
-                  >
-                    Copy
-                  </button>
+                  <CopyButton text={WEBHOOK_URL} size={11} className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1]" title="Copy webhook URL" />
                 </div>
               </div>
             </div>

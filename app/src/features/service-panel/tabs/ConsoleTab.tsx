@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Terminal, Play, Loader2, Copy, Check, ArrowRight, Monitor } from 'lucide-react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useRunOneOff } from '@/hooks/useServices'
 
 interface ConsoleTabProps {
@@ -62,10 +63,12 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
 
   const enterCommand = `dokku enter ${serviceName}`
 
-  const copyEnterCommand = () => {
-    navigator.clipboard.writeText(enterCommand)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const copyEnterCommand = async () => {
+    const success = await copyToClipboard(enterCommand)
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   const typeColors: Record<OutputLine['type'], string> = {
