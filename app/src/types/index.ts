@@ -70,6 +70,8 @@ export interface Service {
   rootDirectory?: string
   startCommand?: string
   maintenanceMode: boolean
+  managedBy?: 'ui' | 'manifest' | 'hybrid'
+  configOverrides?: Record<string, any>
   config?: Record<string, any>
 }
 

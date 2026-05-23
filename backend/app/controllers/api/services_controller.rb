@@ -104,6 +104,12 @@ module Api
 
     def update
       authorize_service!(@service, action: :update)
+
+      # For hybrid/manifest-managed services, store UI overrides separately
+      if @service.managed_by_hybrid? || @service.managed_by_manifest?
+        merge_config_overrides!
+      end
+
       @service.update!(service_params)
 
       with_dokku_engine(@service) do |engine|
@@ -690,6 +696,14 @@ module Api
       Rails.logger.error "Failed to remove linked env vars for #{service.dokku_app_name}: #{e.message}"
     end
 
+    def merge_config_overrides!
+      return unless params[:service] && params[:service][:config].present?
+      overrides = @service.config_overrides || {}
+      incoming = params[:service][:config].to_unsafe_h
+      overrides = overrides.deep_merge(incoming)
+      @service.config_overrides = overrides
+    end
+
     def service_params
       base_permitted = [
         :name, :service_type, :subtype, :status, :builder,
@@ -697,7 +711,8 @@ module Api
         :locked, :restart_policy, :restart_max_retries,
         :docker_image, :auto_deploy, :root_directory,
         :start_command, :maintenance_mode,
-        config: config_permitted_params
+        config: config_permitted_params,
+        config_overrides: config_permitted_params
       ]
       params.require(:service).permit(base_permitted)
     rescue ActionController::ParameterMissing

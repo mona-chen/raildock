@@ -1,0 +1,44 @@
+name = "Laravel"
+description = "PHP Laravel with MySQL and Redis"
+category = "stack"
+
+[[services]]
+name = "web"
+category = "app"
+subtype = "php"
+builder = "nixpacks"
+source = { type = "git" }
+
+  [services.scaling]
+  web = 1
+
+  [services.env]
+  APP_ENV = "production"
+  APP_DEBUG = "false"
+
+  [services.proxy]
+  enabled = true
+  type = "traefik"
+
+    [[services.proxy.ports]]
+    host = 80
+    container = 80
+
+[[services]]
+name = "database"
+category = "database"
+subtype = "mysql"
+version = "8.0"
+
+[[services]]
+name = "cache"
+category = "cache"
+subtype = "redis"
+
+[[links]]
+from = "web"
+to = "database"
+
+[[links]]
+from = "web"
+to = "cache"

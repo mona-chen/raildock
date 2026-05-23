@@ -434,6 +434,71 @@ export const templatesApi = {
   },
 }
 
+// ── Manifest API ─────────────────────────────
+
+export interface ManifestChange {
+  serviceName: string
+  field: string
+  changeType: 'added' | 'removed' | 'modified'
+  oldValue: unknown
+  newValue: unknown
+  severity: 'reload' | 'restart' | 'redeploy'
+}
+
+export interface ManifestPreview {
+  changes: ManifestChange[]
+  severity: 'reload' | 'restart' | 'redeploy'
+  totalChanges: number
+  bySeverity: Record<string, number>
+  warnings: string[]
+}
+
+export const manifestApi = {
+  get: async (projectId: string): Promise<{
+    content: string
+    format: string
+    driftDetected: boolean
+    lastSyncedAt: string | null
+    lastAppliedAt: string | null
+    synced: boolean
+  }> => {
+    return fetchJson(`/api/projects/${projectId}/manifest`)
+  },
+
+  update: async (projectId: string, content: string, format?: string): Promise<{
+    content: string
+    format: string
+    preview: ManifestChange[]
+    severity: string
+    warnings: string[]
+    synced: boolean
+  }> => {
+    return fetchJson(`/api/projects/${projectId}/manifest`, {
+      method: 'PATCH',
+      body: wrapBody('manifest', { content, format }),
+    })
+  },
+
+  preview: async (projectId: string): Promise<ManifestPreview> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/preview`, { method: 'POST' })
+  },
+
+  apply: async (projectId: string): Promise<{ jobId: string; status: string; message: string }> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/apply`, { method: 'POST' })
+  },
+
+  status: async (projectId: string): Promise<{
+    synced: boolean
+    driftDetected: boolean
+    lastSyncedAt: string | null
+    lastAppliedAt: string | null
+    format: string | null
+    hasManifest: boolean
+  }> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/status`)
+  },
+}
+
 // ── Modules API ──────────────────────────────
 
 export const modulesApi = {
@@ -522,4 +587,5 @@ export const api = {
   networks: networksApi,
   organizations: organizationsApi,
   deployKeys: deployKeysApi,
+  manifest: manifestApi,
 }

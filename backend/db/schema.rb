@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -126,6 +126,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
     t.index ["user_id"], name: "index_git_sources_on_user_id"
   end
 
+  create_table "manifest_changes", force: :cascade do |t|
+    t.string "change_type", null: false
+    t.datetime "created_at", null: false
+    t.string "field", null: false
+    t.string "job_id"
+    t.jsonb "new_value"
+    t.jsonb "old_value"
+    t.bigint "project_id", null: false
+    t.string "service_name", null: false
+    t.string "severity", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "service_name"], name: "index_manifest_changes_on_project_id_and_service_name"
+    t.index ["project_id", "status"], name: "index_manifest_changes_on_project_id_and_status"
+    t.index ["project_id"], name: "index_manifest_changes_on_project_id"
+  end
+
   create_table "organization_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "organization_id", null: false
@@ -163,6 +180,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
     t.datetime "created_at", null: false
     t.string "description"
     t.string "environment"
+    t.text "manifest_content"
+    t.boolean "manifest_drift_detected", default: false, null: false
+    t.string "manifest_format"
+    t.datetime "manifest_last_applied_at"
+    t.datetime "manifest_last_synced_at"
     t.string "name"
     t.bigint "organization_id"
     t.bigint "server_id"
@@ -209,6 +231,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
     t.string "branch"
     t.string "builder"
     t.jsonb "config", default: {}
+    t.jsonb "config_overrides", default: {}, null: false
     t.datetime "created_at", null: false
     t.string "docker_image"
     t.string "dokku_app_name"
@@ -217,6 +240,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
     t.string "last_deployed"
     t.boolean "locked"
     t.boolean "maintenance_mode", default: false, null: false
+    t.string "managed_by", default: "ui", null: false
     t.string "name"
     t.integer "port"
     t.bigint "project_id", null: false
@@ -229,17 +253,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
     t.string "subtype"
     t.datetime "updated_at", null: false
     t.string "version"
+    t.index ["managed_by"], name: "index_services_on_managed_by"
     t.index ["project_id"], name: "index_services_on_project_id"
-  end
-
-  create_table "solid_cable_messages", force: :cascade do |t|
-    t.binary "channel", null: false
-    t.bigint "channel_hash", null: false
-    t.datetime "created_at", null: false
-    t.binary "payload", null: false
-    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
-    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
-    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
   create_table "storage_mounts", force: :cascade do |t|
@@ -271,6 +286,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_143321) do
   add_foreign_key "environment_variables", "services"
   add_foreign_key "git_sources", "organizations"
   add_foreign_key "git_sources", "users"
+  add_foreign_key "manifest_changes", "projects"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organizations", "users", column: "owner_id"

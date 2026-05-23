@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Keyboard } from 'lucide-react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Box, Activity, Settings, Rocket, Plus, Search,
+  Box, Activity, Settings, Rocket, Plus, Search, FileCode,
 } from 'lucide-react'
 import { useServices, useUpdateService, useLinkService, useUnlinkService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
@@ -26,6 +26,9 @@ import ServicePanel from './ServicePanel'
 
 // ── Add Service Modal ─────────────────────────
 import AddServiceModal from './AddServiceModal'
+
+// ── Manifest Editor ────────────────────────────
+import ManifestEditorPage from './ManifestEditorPage'
 
 // ── Helpers ───────────────────────────────────
 
@@ -331,6 +334,7 @@ export default function ProjectCanvas() {
   const sidebarItems = [
     { key: 'services', label: 'Services', icon: Box },
     { key: 'activity', label: 'Activity', icon: Activity },
+    { key: 'manifest', label: 'Manifest', icon: FileCode },
     { key: 'settings', label: 'Settings', icon: Settings },
   ]
 
@@ -489,6 +493,7 @@ export default function ProjectCanvas() {
         )}
 
         {view === 'activity' && <ActivityPage />}
+        {view === 'manifest' && <ManifestEditorPage />}
         {view === 'settings' && <ProjectSettingsView />}
       </div>
 

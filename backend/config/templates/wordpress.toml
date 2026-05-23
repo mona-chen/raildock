@@ -1,0 +1,34 @@
+name = "WordPress"
+description = "WordPress with MySQL"
+category = "stack"
+
+[[services]]
+name = "web"
+category = "app"
+subtype = "php"
+builder = "herokuish"
+source = { type = "git" }
+
+  [services.scaling]
+  web = 1
+
+  [services.env]
+  WORDPRESS_DB_HOST = "database"
+
+  [services.proxy]
+  enabled = true
+  type = "traefik"
+
+    [[services.proxy.ports]]
+    host = 80
+    container = 80
+
+[[services]]
+name = "database"
+category = "database"
+subtype = "mysql"
+version = "8.0"
+
+[[links]]
+from = "web"
+to = "database"

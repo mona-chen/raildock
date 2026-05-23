@@ -451,3 +451,24 @@ export function useStorageList(projectId: string, serviceId: string) {
     enabled: !!projectId && !!serviceId,
   })
 }
+
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: () => api.templates.list(),
+  })
+}
+
+export function useDeployTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ templateId, projectId }: { templateId: string; projectId: string }) =>
+      api.templates.deploy(templateId, projectId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId] })
+      toast.success('Template deployed')
+    },
+    onError: (err) => toast.error(`Failed to deploy template: ${err.message}`),
+  })
+}

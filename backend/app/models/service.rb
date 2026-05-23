@@ -50,6 +50,12 @@ class Service < ApplicationRecord
     unless_stopped: "unless-stopped"
   }
 
+  enum :managed_by, {
+    ui: "ui",
+    manifest: "manifest",
+    hybrid: "hybrid"
+  }, prefix: true, default: :ui
+
   # Default Docker images for one-click service subtypes that don't have a git repo
   DEFAULT_DOCKER_IMAGES = {
     "minio" => "minio/minio:latest",
@@ -101,7 +107,8 @@ class Service < ApplicationRecord
         backups: { only: [:id, :status, :size, :created_at] }
       }
     )).merge(
-      "config" => config || {}
+      "config" => config || {},
+      "configOverrides" => config_overrides || {}
     )
   end
 

@@ -42,9 +42,14 @@ class Project < ApplicationRecord
     read_attribute(:shared_vars) || []
   end
 
+  def manifest_synced?
+    return false if manifest_last_applied_at.nil?
+    manifest_last_synced_at.present? && manifest_last_applied_at >= manifest_last_synced_at
+  end
+
   def as_json(options = {})
     super(options.merge(
-      methods: [:service_ids, :service_counts, :shared_vars]
+      methods: [:service_ids, :service_counts, :shared_vars, :manifest_synced?]
     ))
   end
 end

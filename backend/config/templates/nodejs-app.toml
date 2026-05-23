@@ -1,0 +1,34 @@
+name = "Node.js App"
+description = "Node.js / Express application with MongoDB"
+category = "stack"
+
+[[services]]
+name = "web"
+category = "app"
+subtype = "node"
+builder = "nixpacks"
+source = { type = "git" }
+
+  [services.scaling]
+  web = 1
+
+  [services.env]
+  NODE_ENV = "production"
+
+  [services.proxy]
+  enabled = true
+  type = "traefik"
+
+    [[services.proxy.ports]]
+    host = 80
+    container = 3000
+
+[[services]]
+name = "database"
+category = "database"
+subtype = "mongo"
+version = "7.0"
+
+[[links]]
+from = "web"
+to = "database"

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock } from 'lucide-react'
+import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
 import type { Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
 import { api } from '@/lib/api'
@@ -13,6 +14,42 @@ const tabs = [
   { key: 'advanced', label: 'Advanced', icon: Wrench },
   { key: 'danger', label: 'Danger Zone', icon: AlertTriangle },
 ] as const
+
+function ManifestBanner({ svc }: { svc: Service }) {
+  const navigate = useNavigate()
+  const { projectId } = useParams<{ projectId: string }>()
+
+  if (svc.managedBy === 'ui' || !svc.managedBy) return null
+
+  const isManifest = svc.managedBy === 'manifest'
+  const isHybrid = svc.managedBy === 'hybrid'
+
+  return (
+    <div className={`mb-4 p-3 rounded-lg border ${
+      isManifest
+        ? 'bg-[#8b5cf6]/5 border-[#8b5cf6]/15'
+        : 'bg-amber-500/5 border-amber-500/15'
+    }`}>
+      <div className="flex items-center gap-2">
+        <FileCode size={14} className={isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'} />
+        <span className={`text-[12px] font-medium ${isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'}`}>
+          {isManifest ? 'Managed by Manifest' : 'Hybrid Mode'}
+        </span>
+      </div>
+      <div className="text-[11px] text-white/40 mt-1">
+        {isManifest
+          ? 'This service is fully controlled by the project manifest. Edit in the Manifest Editor to make changes.'
+          : 'This service is mostly managed by the manifest, but UI overrides are allowed for certain fields.'}
+      </div>
+      <button
+        onClick={() => navigate(`/dashboard/project/${projectId}/manifest`)}
+        className={`mt-2 text-[11px] hover:underline ${isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'}`}
+      >
+        Open Manifest Editor →
+      </button>
+    </div>
+  )
+}
 
 export function SettingsPanel({ svc }: { svc: Service }) {
   const [tab, setTab] = useState<string>('general')
@@ -34,6 +71,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-5">
+        <ManifestBanner svc={svc} />
         {tab === 'general' && <GeneralSettings svc={svc} />}
         {tab === 'deploy' && <DeploySettings svc={svc} />}
         {tab === 'network' && <NetworkSettings svc={svc} />}

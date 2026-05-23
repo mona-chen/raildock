@@ -1,188 +1,489 @@
-# RailDock - Technical Specification
+# RailDock Declarative Config Architecture Plan
 
-## Dependencies
+## Executive Summary
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| react | ^19.2.0 | UI framework |
-| react-dom | ^19.2.0 | DOM rendering |
-| react-router-dom | ^7.14.1 | Multi-page routing |
-| three | ^0.184.0 | 3D spline tunnel hero effect |
-| meshline | ^3.3.1 | MeshLine for 3D tube trail |
-| gsap | ^3.15.0 | Scroll animations, hero sequence, transitions |
-| @gsap/react | ^2.1.2 | GSAP React integration (useGSAP) |
-| lucide-react | ^0.562.0 | Icons throughout |
-| framer-motion | ^12.38.0 | Page transitions, UI micro-interactions |
-| class-variance-authority | ^0.7.1 | Component variant styling |
-| clsx | ^2.1.1 | Conditional classnames |
-| tailwind-merge | ^3.4.0 | Tailwind class deduplication |
-| typescript | ~5.9.3 | Type checking |
-| vite | ^7.2.4 | Build tool |
-| @vitejs/plugin-react | ^5.1.1 | Vite React plugin |
-| tailwindcss | ^3.4.19 | Utility CSS |
-| postcss | ^8.5.6 | CSS processing |
-| autoprefixer | ^10.4.23 | CSS vendor prefixes |
+RailDock will adopt Dokku's `app.json` as the **foundation** for declarative configuration, then extend it with a `raildock` namespace to cover everything Dokku doesn't natively support (domains, storage, proxy, Traefik labels, resource limits, database provisioning, and inter-service links). This gives us Heroku compatibility *and* full platform coverage.
 
-### Backend (Ruby)
+The system is built around a **reconciliation engine** that reads a manifest, diffs it against current DB + Dokku state, and applies minimal deltas — no blind re-pushes, no unnecessary redeploys.
 
-| Gem | Version | Purpose |
+---
+
+## 1. The Manifest Format
+
+### 1.1 File Discovery
+
+The system looks for config in this priority order:
+
+1. `raildock.json` (RailDock-native, full feature set)
+2. `raildock.toml` (TOML variant for developer ergonomics)
+3. `app.json` (Dokku/Heroku compatible, limited to Dokku-native features)
+
+Only **one** file is processed per service. If `raildock.json` exists, `app.json` is ignored.
+
+### 1.2 Schema
+
+```json
+{
+  "buildpacks": [
+    { "url": "heroku/ruby" },
+    { "url": "heroku/nodejs" }
+  ],
+
+  "env": {
+    "RAILS_ENV": { "value": "production" },
+    "SECRET_KEY_BASE": { "generator": "secret", "description": "Session encryption key" },
+    "FEATURE_FLAGS": { "value": "new_ui", "sync": true }
+  },
+
+  "cron": [
+    { "command": "rake cleanup", "schedule": "0 4 * * *" }
+  ],
+
+  "formation": {
+    "web": { "quantity": 2, "max_parallel": 1 },
+    "worker": { "quantity": 1 }
+  },
+
+  "healthchecks": {
+    "web": [
+      {
+        "type": "startup",
+        "name": "ready check",
+        "path": "/health/ready",
+        "attempts": 3,
+        "wait": 5
+      }
+    ]
+  },
+
+  "scripts": {
+    "dokku": {
+      "predeploy": "bundle exec rails assets:precompile",
+      "postdeploy": "curl -X POST https://monitoring.internal/deploy"
+    },
+    "postdeploy": "bundle exec rails db:seed"
+  },
+
+  "raildock": {
+    "databases": [
+      {
+        "name": "postgres",
+        "type": "postgres",
+        "version": "16"
+      },
+      {
+        "name": "redis",
+        "type": "redis",
+        "version": "7.2"
+      }
+    ],
+
+    "links": [
+      { "from": "postgres", "to": "web", "env_var": "DATABASE_URL" },
+      { "from": "redis", "to": "web", "env_var": "REDIS_URL" }
+    ],
+
+    "domains": [
+      {
+        "hostname": "api.myapp.com",
+        "port": 80,
+        "ssl": true,
+        "letsencrypt": true
+      }
+    ],
+
+    "storage": [
+      {
+        "host_path": "/var/lib/dokku/data/storage/myapp-uploads",
+        "container_path": "/app/public/uploads"
+      }
+    ],
+
+    "proxy": {
+      "enabled": true,
+      "proxyType": "traefik",
+      "portMappings": [
+        { "scheme": "http", "hostPort": 80, "containerPort": 3000 }
+      ]
+    },
+
+    "traefik": {
+      "labels": {
+        "traefik.http.routers.myapp.middlewares": "compress",
+        "traefik.http.middlewares.compress.compress": "true"
+      }
+    },
+
+    "dockerOptions": [
+      { "phase": "run", "option": "--add-host=host.docker.internal:host-gateway" }
+    ],
+
+    "resourceLimits": [
+      { "processType": "web", "memory": "512M", "cpu": "1.0" }
+    ],
+
+    "checks": {
+      "enabled": true,
+      "wait": 10,
+      "timeout": 60
+    },
+
+    "letsencrypt": {
+      "enabled": true,
+      "email": "admin@myapp.com",
+      "autoRenew": true
+    },
+
+    "maintenanceMode": false,
+
+    "autoDeploy": true
+  }
+}
+```
+
+### 1.3 Top-Level Keys (Dokku-Native)
+
+These are passed through to Dokku's native `app.json` processor. RailDock does not intercept them — Dokku handles them during build/release.
+
+| Key | Dokku Support | RailDock Role |
+|-----|--------------|---------------|
+| `buildpacks` | ✅ | Pass-through |
+| `env` | ✅ | Pass-through (with `sync` semantics) |
+| `cron` | ✅ | Pass-through |
+| `formation` | ✅ | Pass-through |
+| `healthchecks` | ✅ | Pass-through |
+| `scripts` | ✅ | Pass-through |
+
+### 1.4 `raildock` Namespace (RailDock-Extended)
+
+Everything Dokku cannot do natively lives here.
+
+| Key | Purpose | Maps To |
 |-----|---------|---------|
-| rails | ~> 8.1.1 | Web framework |
-| pg | ~> 1.1 | PostgreSQL adapter |
-| puma | >= 5.0 | Web server |
-| jwt | ~> 2.8 | JSON Web Tokens |
-| lockbox | ~> 2.0 | Encryption at rest |
-| net-ssh | ~> 7.2 | SSH for Dokku |
-| net-scp | ~> 4.0 | SCP for file transfer |
-| rack-attack | latest | Rate limiting |
-| concurrent-ruby | latest | Thread-safe collections |
-| solid_cache | latest | Cache backend |
-| solid_queue | latest | Job queue |
-| solid_cable | latest | ActionCable backend |
+| `databases` | Provision plugin datastores | `postgres:create`, `mysql:create`, `redis:create`, `mongo:create` |
+| `links` | Connect datastores to apps | `postgres:link`, `redis:link` |
+| `domains` | Custom domains + SSL | `domains:add`, `letsencrypt:enable` |
+| `storage` | Persistent volume mounts | `storage:mount` |
+| `proxy` | Proxy enable/disable, type, ports | `proxy:enable`, `proxy:set`, `ports:add` |
+| `traefik` | Custom Traefik labels | `traefik:labels:add` |
+| `dockerOptions` | Docker runtime flags | `docker-options:add` |
+| `resourceLimits` | Per-process CPU/memory limits | `resource:limit` |
+| `checks` | Zero-downtime check config | `checks:enable`, `checks:set` |
+| `letsencrypt` | SSL certificate settings | `letsencrypt:enable` |
+| `maintenanceMode` | Serve maintenance page | `maintenance:on` |
+| `autoDeploy` | Auto-deploy on git push | Stored in DB; triggers deploy job on push |
 
-## Component Inventory
+---
 
-### Layout
+## 2. The Reconciliation Engine
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| Navigation | Custom | Fixed glassmorphism nav, changes on scroll past hero. Contains scroll-aware transparency state. |
-| Footer | Custom | 4-column grid, reused across all pages. |
+### 2.1 Architecture
 
-### Sections (Home Page)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     ManifestReconciler                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────────────┐  │
+│  │   Parser    │──▶│   Planner   │──▶│      Executor       │  │
+│  │             │   │  (diff)     │   │   (DokkuEngine)     │  │
+│  └─────────────┘   └─────────────┘   └─────────────────────┘  │
+│         │                  │                    │               │
+│         ▼                  ▼                    ▼               │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────────────┐  │
+│  │ raildock.   │   │ DesiredState│   │   ActualState       │  │
+│  │ json / toml │   │   (DB rows) │   │  (Dokku queries)    │  │
+│  └─────────────┘   └─────────────┘   └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| HeroSection | Custom | Contains HybridRenderer (3D + 2D canvas), content overlay, CTA buttons. Most complex section. |
-| LogoMarquee | Custom | CSS animation infinite scroll, 12 logos in flex row. |
-| PlatformOverview | Custom | 3-column feature card grid. |
-| HowItWorks | Custom | 3-step layout with dashed connector lines. |
-| FeatureShowcase | Custom | 3x2 image grid with scroll-triggered center reveal (simplified from full 3D to CSS/GL fade). |
-| DeploymentSources | Custom | Two-column with accordion left, interactive terminal right. |
-| MetricsPreview | Custom | Browser-frame mockup with animated bar chart. |
-| Testimonials | Custom | Horizontal scroll snap row of testimonial cards. |
-| CTABanner | Custom | Simple centered CTA section. |
+### 2.2 Two Modes of Operation
 
-### Pages
+#### A. Creation-Time Reconciliation
+When a service is first created from a manifest (template deploy or import):
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| HomePage | Custom | Composes all home sections. |
-| DashboardPage | Custom | Full demo dashboard - the star feature. Local state only, no backend. |
-| PricingPage | Custom | Pricing tiers + FAQ accordion. |
+1. Parse manifest
+2. Create `Service` DB record with `managed_by: 'manifest'`
+3. Create related records: `EnvironmentVariable`, `Domain`, `StorageMount`, `ProcessType`
+4. Create Dokku app (`apps:create`) or database (`postgres:create`)
+5. Run full reconciliation to push all config to Dokku
+6. Deploy if `autoDeploy: true`
 
-### Dashboard Components (Demo Mode)
+#### B. Update-Time Reconciliation
+When a manifest changes (git push with updated `raildock.json`):
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| DashboardLayout | Custom | Flex row: sidebar + canvas + right panel. |
-| Sidebar | Custom | Project list, system nav, user avatar. |
-| Canvas | Custom | Dark dot-grid background, draggable service cards, SVG connection lines. |
-| ServiceCard | Custom | Draggable node, 200px wide, shows icon, name, status. |
-| TopBar | Custom | Breadcrumb, env tabs, deploy/add buttons. |
-| RightPanel | Custom | Collapsible 320px panel with Settings/Variables/Logs/Metrics tabs. |
-| LogViewer | Custom | Color-coded streaming logs, auto-scroll. |
-| MetricsChart | Custom | CPU/memory bar charts with random data updates. |
-| AddServiceModal | Custom | Modal to add new service types. |
-| Toast | Custom | Deployment notification toasts. |
+1. Parse new manifest
+2. Build `DesiredState` from manifest
+3. Query `ActualState` from Dokku + DB
+4. Compute diff
+5. Apply deltas via targeted Dokku commands
+6. Update DB records to reflect new state
+7. Redeploy only if source code changed **OR** if deploy-affecting config changed (builder, docker options, etc.)
 
-### Reusable Components
+### 2.3 Diff Engine Detail
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| PillButton | Custom | Variant: primary (teal), secondary (outline), ghost. Used everywhere. |
-| SectionHeader | Custom | Eyebrow + headline + subline pattern repeated in multiple sections. |
-| FeatureCard | Custom | Icon circle + title + description. Used in PlatformOverview. |
-| TestimonialCard | Custom | Avatar + name + role + quote + stars. |
-| PricingCard | Custom | Name + price + features + CTA. 3 variants (Free/Pro/Enterprise). |
-| BrowserFrame | Custom | Mock browser chrome for MetricsPreview. |
-| Accordion | Custom | Expandable items for FAQ and DeploymentSources. |
+For each config category, the diff logic:
 
-### 3D/Canvas Components
+```ruby
+class ManifestDiff
+  def env_vars(desired, actual)
+    to_set = desired.reject { |k, v| actual[k] == resolve_value(v) }
+    to_unset = actual.keys - desired.keys
+    { set: to_set, unset: to_unset }
+  end
 
-| Component | Source | Notes |
-|-----------|--------|-------|
-| SplineScene | Custom | Three.js CatmullRomCurve3 tube with MeshLine, grid floor, animated shader. Renders to its own canvas. |
-| ParticleCanvas | Custom | HTML5 Canvas 2D, 500 particles, Brownian motion, mouse repulsion. Clip-path portal reveals SplineScene beneath. |
-| HybridRenderer | Custom | Manages both SplineScene and ParticleCanvas, handles resize, coordinates portal position. |
+  def domains(desired, actual)
+    desired_set = desired.map { |d| [d['hostname'], d['port']] }.to_set
+    actual_set = actual.map { |d| [d['hostname'], d['port']] }.to_set
+    {
+      add: desired_set - actual_set,
+      remove: actual_set - desired_set
+    }
+  end
 
-## Animation Implementation
+  def storage(desired, actual)
+    # ... same pattern
+  end
 
-| Animation | Library | Implementation Approach | Complexity |
-|-----------|---------|------------------------|------------|
-| 3D Spline Fly-Through | Three.js + meshline | CatmullRomCurve3 path, camera follows path at 0.00045/frame. MeshLine with rainbow dash texture. Animated vertex shader with simplex noise displacement. Grid floor with reflection. | **High** 🔒 |
-| 2D Particle Field | Canvas 2D API | 500 particles with Brownian motion, radial gradient auras, mouse repulsion, wraparound. Custom Particle class with update/render cycle. | **High** 🔒 |
-| Clip Portal with Liquid Border | CSS clip-path + SVG filter | clip-path:inset() on particle canvas reveals 3D scene. SVG feMorphology+feTurbulence+feDisplacementMap creates liquid border. Animated feTurbulence seed. | **High** 🔒 |
-| Portal Drag Interaction | GSAP Draggable + quickTo | GSAP Draggable on portal element. quickTo for smooth position updates. Velocity maps to 3D camera FOV (50-90). Spring return on release. | **High** 🔒 |
-| Hero Load Sequence | GSAP timeline | 5-step timeline: 3D scene starts, particles fade in, portal border animates, headline words stagger, CTAs slide up. | **Medium** |
-| Scroll-Triggered Reveals | GSAP ScrollTrigger | Generic fade-up pattern for all sections. IntersectionObserver-like triggering at 'top 80%'. | **Low** |
-| Feature Grid Center Reveal | GSAP ScrollTrigger | Center cell scales up while surrounding cells fade out. Simplified from full 3D FLIP to CSS transforms + opacity. | **Medium** |
-| Logo Marquee | CSS @keyframes | translateX(0) to translateX(-50%), 60s linear infinite. Duplicate logo set for seamless loop. | **Low** |
-| Terminal Typing | GSAP | Character-by-character reveal of terminal content on tab switch. | **Medium** |
-| Bar Chart Stagger | GSAP ScrollTrigger | Bars animate from height:0 with 0.1s stagger when scrolled into view. | **Low** |
-| Service Card Drag | Pointer Events | Custom drag handler updates x/y state. SVG bezier connections redraw on position change. | **Medium** |
-| Connection Pulse | CSS animation | stroke-dashoffset animation on SVG path for flowing data effect. | **Low** |
-| Metrics Live Update | setInterval | Random data every 2s, CSS transition on bar height. | **Low** |
-| Log Stream | setInterval | New lines every 500ms during deployment, auto-scroll to bottom. | **Low** |
-| Page Transitions | Framer Motion | AnimatePresence with fade/slide on route change. | **Low** |
-| Nav Scroll Effect | Scroll event listener | Toggle glassmorphism class based on scroll position past hero height. | **Low** |
-| Card Hover Effects | CSS transitions | translateY(-4px) + shadow on hover. 0.3s ease. | **Low** |
-| Button Hover Effects | CSS transitions | Background darken, scale(1.02). 0.2s ease. | **Low** |
-| Testimonial Scroll Snap | CSS scroll-snap | scroll-snap-type: x mandatory on container. | **Low** |
-| Deploy Toast | Framer Motion | Animate in from top, auto-dismiss after 3s. | **Low** |
+  def links(desired, actual)
+    desired_set = desired.map { |l| [l['from'], l['to']] }.to_set
+    actual_set = actual.map { |l| [l['from'], l['to']] }.to_set
+    { add: desired_set - actual_set, remove: actual_set - desired_set }
+  end
+end
+```
 
-## State & Logic
+### 2.4 What Triggers a Redeploy vs Just Reconfiguration
 
-### Dashboard State (React Context)
+**Reconfig only (no rebuild/restart):**
+- Env vars
+- Domains
+- Storage mounts
+- Proxy settings
+- Traefik labels
+- Resource limits
+- Cron
+- Maintenance mode
+- Let's Encrypt email
 
-The dashboard demo uses a single `DashboardContext` with `useReducer` to manage all state:
+**Reconfig + container restart (ps:restart):**
+- Docker options (change runtime flags)
+- Port mappings (change exposed ports)
 
-- **projects**: Array of project objects (id, name, services[])
-- **activeProject**: Currently selected project ID
-- **activeService**: Currently selected service ID (for right panel)
-- **services**: Map of service objects (id, name, type, status, position{x,y}, variables[], logs[], metrics{cpu,memory})
-- **connections**: Array of {from, to} pairs for SVG lines
-- **rightPanelTab**: Active tab in right panel (settings/variables/logs/metrics)
-- **deploymentState**: 'idle' | 'deploying' | 'success' | 'failed'
-- **toasts**: Array of toast notifications
+**Full redeploy (git:sync / git:from-image / ps:rebuild):**
+- Builder change
+- Source change (new commit, new image tag)
+- Buildpacks change
+- `app.json` scripts change (predeploy/postdeploy are build-time)
+- Healthcheck type/path changes (Dokku embeds these in container config)
 
-### Key Interactions
+---
 
-**Drag System**: Custom pointer-event hook (`useDraggable`) that captures mousedown/mousemove/mouseup, computes delta from initial position, updates service position in state. Connection SVG paths recalculate from card edge points on each position change.
+## 3. Change Handling & State Ownership
 
-**Log Streaming**: During deployment, a `setInterval` generates realistic Dokku-style log lines ("-----> Building app...", "-----> Node.js detected", etc.) and appends to the active service's log array. Log viewer uses `useRef` to auto-scroll to bottom.
+### 3.1 The Ownership Model
 
-**Metrics Simulation**: `setInterval` every 2s randomizes CPU (10-80%) and memory (20-90%) values for running services. Bar charts use CSS `transition: height 0.5s ease` for smooth changes.
+Every service has a `managed_by` field:
 
-**Portal Position (Hero)**: Managed by HybridRenderer class. Lissajous pattern when idle, GSAP Draggable when interacting. Position state updates clip-path inset values on the particle canvas.
+| Value | Behavior |
+|-------|----------|
+| `manifest` | Config is owned by `raildock.json`. UI shows read-only badges. User edits trigger a warning: "This service is manifest-managed. Changes will be overwritten on next deploy." |
+| `ui` | Config is owned by the UI/database. Manifest is ignored for this service. |
+| `hybrid` *(future)* | Manifest provides baseline; UI edits overlay. Reconciliation merges with UI changes winning for specific fields. |
 
-## Other Key Decisions
+### 3.2 Drift Detection
 
-### Routing
-React Router v6 with BrowserRouter. Three routes: `/` (Home), `/dashboard` (Demo), `/pricing` (Pricing). Dashboard route is the key destination - the "View Demo" CTA links here.
+A background job (or deploy-time check) can detect drift:
 
-### No Backend
-The entire application is frontend-only. The dashboard demo simulates all Dokku operations with mock data and timers. In production, a real backend would proxy SSH commands to a Dokku host.
+```ruby
+class DriftDetector
+  def check(service)
+    return unless service.managed_by == 'manifest'
+    manifest = fetch_manifest(service)
+    return unless manifest
 
-### Canvas Architecture
-The hero uses two separate `<canvas>` elements stacked with z-index. The 3D canvas (Three.js) is at z-index 0, the 2D particle canvas at z-index 1. The particle canvas has `clip-path: inset()` that creates the portal hole revealing the 3D scene. A separate div with SVG filter creates the liquid border effect around the portal edge.
+    desired = build_desired_state(manifest)
+    actual = build_actual_state(service)
 
-### Responsive Strategy
-Desktop-first design. Breakpoint at 768px:
-- Hero portal shrinks to 80vw
-- Particle count drops to 200
-- Feature grid becomes single column
-- Dashboard sidebar collapses to icon-only or hamburger
-- How It Works steps stack vertically
+    diff = ManifestDiff.new.diff(desired, actual)
+    diff.empty? ? :synced : { status: :drifted, diff: diff }
+  end
+end
+```
 
-### Performance
-- Cap DPR at 2 for both canvases
-- Use `requestAnimationFrame` for all animation loops
-- Pause 3D and particle animations when hero is not visible (IntersectionObserver)
-- Lazy load dashboard page with React.lazy + Suspense
+**Use cases:**
+- Admin runs `dokku config:set` manually on the host → drift detected → next deploy reconciles
+- User edits env var in UI on a manifest-managed service → drift detected → warning shown
 
-### Accessibility
-- `prefers-reduced-motion`: Disable Lissajous, reduce particle speed to 10%
-- All canvas elements have `role="img"` and `aria-label`
-- Keyboard navigation for portal (arrow keys)
-- Focus visible states on all interactive elements
+### 3.3 The `sync` Flag for Env Vars
+
+Borrowed from Dokku's `app.json` semantics:
+
+```json
+{
+  "env": {
+    "FEATURE_FLAGS": { "value": "new_ui,dark_mode", "sync": true }
+  }
+}
+```
+
+- `sync: false` (default): Set once on first deploy. Subsequent UI edits are preserved.
+- `sync: true`: Overwrite on every deploy. Guarantees the manifest is the source of truth.
+
+This is critical for manifest-managed services where some env vars should be sticky (database URLs) and others should be authoritative (feature flags).
+
+---
+
+## 4. Database & Link Lifecycle
+
+### 4.1 Database Provisioning
+
+```json
+{
+  "raildock": {
+    "databases": [
+      { "name": "main-db", "type": "postgres", "version": "16" }
+    ]
+  }
+}
+```
+
+**Reconciliation:**
+- If `main-db` does not exist → `dokku postgres:create main-db`
+- If version differs → warning (Dokku plugins don't support in-place version upgrades; user must migrate manually)
+- If removed from manifest → **do not auto-destroy** (too dangerous). Mark as "orphaned" in UI. User manually destroys.
+
+### 4.2 Link Lifecycle
+
+```json
+{
+  "raildock": {
+    "links": [
+      { "from": "main-db", "to": "web", "env_var": "DATABASE_URL" }
+    ]
+  }
+}
+```
+
+**Reconciliation:**
+- If link does not exist → `dokku postgres:link main-db web` (injects `DATABASE_URL`)
+- If `env_var` changes → unlink with old var, relink with new var
+- If removed from manifest → **unlink** (safe operation, just removes env var)
+
+### 4.3 Cross-Service References
+
+A manifest can reference services in the same project:
+
+```json
+{
+  "env": {
+    "DATABASE_URL": { "value": "${raildock.services.postgres.url}" }
+  }
+}
+```
+
+The reconciler resolves `${raildock.services.<name>.url}` before applying.
+
+---
+
+## 5. Integration with Existing RailDock Components
+
+### 5.1 What Gets Replaced
+
+| Current Component | New Approach |
+|-------------------|-------------|
+| `DeploymentJob` blind re-push | Replaced with diff-based reconciliation |
+| `ServiceSettingsSync` | Merged into `ManifestReconciler#reconcile_config` |
+| `TemplatesController` (hardcoded stacks) | Becomes a manifest generator + deployer |
+| `AddServiceModal` manual forms | Can optionally import from manifest URL/file |
+
+### 5.2 What Stays
+
+- `DokkuEngine` — the command executor stays; the reconciler calls it
+- `Service`, `EnvironmentVariable`, `Domain`, `StorageMount` models — used as the DB cache of desired state
+- `DeploymentJob` — still orchestrates git sync / image pull, but config push is handled by reconciler
+- `ServiceSettingsSync` — still used for UI-driven updates on `ui`-managed services
+
+### 5.3 New Components Needed
+
+```
+backend/app/services/
+├── manifest/
+│   ├── parser.rb              # raildock.json / raildock.toml / app.json
+│   ├── validator.rb           # JSON schema validation
+│   ├── diff_engine.rb         # desired vs actual
+│   └── reconciler.rb          # orchestrates apply
+├── dokku/
+│   └── state_reader.rb        # queries Dokku for actual state
+└── templates/
+    └── manifest_generator.rb  # converts templates to manifests
+```
+
+---
+
+## 6. Implementation Phases
+
+### Phase 1: Manifest Parser + Creation-Time Apply (Week 1-2)
+
+- [ ] Add `managed_by` column to `services`
+- [ ] Create `ManifestParser` (JSON + TOML)
+- [ ] Create `ManifestValidator` (JSON Schema)
+- [ ] On `ServicesController#create`, if manifest present:
+  - Parse and validate
+  - Populate DB records (env vars, domains, storage, process types)
+  - Set `managed_by: 'manifest'`
+- [ ] Extend `DeploymentJob` to read manifest and apply config before deploy
+
+### Phase 2: Diff-Based Reconciliation (Week 3-4)
+
+- [ ] Create `DokkuStateReader` (queries actual Dokku state)
+- [ ] Create `ManifestDiff` engine
+- [ ] Create `ManifestReconciler` (applies deltas via `DokkuEngine`)
+- [ ] On deploy, diff manifest vs actual state → apply only changes
+- [ ] Mark deploy-affecting changes vs reconfig-only changes
+
+### Phase 3: Template → Manifest Migration (Week 5)
+
+- [ ] Rewrite `TemplatesController#deploy` to generate manifests
+- [ ] Template deploy creates services with `managed_by: 'manifest'`
+- [ ] Remove hardcoded service creation logic; delegate to reconciler
+
+### Phase 4: Drift Detection + UI Integration (Week 6)
+
+- [ ] Drift detection endpoint `/api/services/:id/drift`
+- [ ] UI read-only mode for manifest-managed services
+- [ ] "Sync from manifest" button in service panel
+- [ ] Warning modal when editing manifest-managed config in UI
+
+### Phase 5: Cross-Service References + Advanced Features (Future)
+
+- [ ] `${raildock.services.*}` variable resolution
+- [ ] `hybrid` management mode
+- [ ] Manifest import/export in UI
+- [ ] PR preview environments (deploy manifest to isolated app)
+
+---
+
+## 7. Open Questions
+
+1. **Should `raildock.json` live in the repo root or in a `.raildock/` directory?**
+   - Repo root: discoverable, Heroku-like
+   - `.raildock/`: can have multiple files (`production.json`, `staging.json`)
+
+2. **Should env vars in the manifest be stored in `EnvironmentVariable` model or only in `config` JSONB?**
+   - Model: enables UI queries, search, audit log
+   - JSONB only: simpler, but loses relational features
+
+3. **How do we handle secrets in manifests?**
+   - Option A: Never commit secrets; use `generator: "secret"` only
+   - Option B: Support encrypted values (SOPS, Rails encrypted credentials)
+   - Option C: Store secrets in RailDock vault; manifest references by key
+
+4. **Should database services be separate `Service` records or a different model?**
+   - Separate `Service` records: consistent with current architecture
+   - Different model: cleaner separation, but more complexity
+
+---
+
+## 8. Summary
+
+RailDock's declarative config system builds on Dokku's `app.json` rather than replacing it. The `raildock` namespace extends it to cover the full platform surface. The reconciliation engine diffs desired vs actual state and applies minimal deltas, making deploys fast and predictable. Templates become manifest generators. UI-managed and manifest-managed services can coexist with clear ownership boundaries.

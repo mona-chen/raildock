@@ -1,0 +1,30 @@
+name = "Elasticsearch Stack"
+description = "Application with Elasticsearch search engine"
+category = "stack"
+
+[[services]]
+name = "web"
+category = "app"
+subtype = "web"
+builder = "nixpacks"
+source = { type = "git" }
+
+  [services.scaling]
+  web = 1
+
+  [services.proxy]
+  enabled = true
+  type = "traefik"
+
+    [[services.proxy.ports]]
+    host = 80
+    container = 3000
+
+[[services]]
+name = "search"
+category = "search"
+subtype = "elasticsearch"
+
+[[links]]
+from = "web"
+to = "search"
