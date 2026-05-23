@@ -1,7 +1,8 @@
-name = "A GitHub Actions runner for Docker"
+name = "Github Runner"
 description = "A GitHub Actions runner for Docker"
 category = "stack"
 logo = "svgs/github-runner.png"
+
 [[services]]
 name = "runner"
 category = "app"
@@ -11,14 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    REPO_URL = "${REPO_URL}"
-    RUNNER_NAME_PREFIX = "${RUNNER_NAME_PREFIX:-coolify-runner}"
-    RUNNER_NAME_SUFFIX = "${RUNNER_NAME_SUFFIX:-false}"
-    ACCESS_TOKEN = "${ACCESS_TOKEN}"
+    REPO_URL = "https://example.com"
+    RUNNER_NAME_PREFIX = "coolify-runner"
+    RUNNER_NAME_SUFFIX = "false"
+    ACCESS_TOKEN = "CHANGE_ME"
     RUNNER_WORKDIR = "/runner/work"
-    RUNNER_SCOPE = "${RUNNER_SCOPE:-repo}"
-    LABELS = "${LABELS:-default}"
-    ORG_NAME = "${ORG_NAME}"
+    RUNNER_SCOPE = "repo"
+    LABELS = "default"
+    ORG_NAME = "ORG_NAME_VALUE"
     [[services.storage]]
       host = "runner-data"
       container = "/runner"

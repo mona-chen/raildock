@@ -1,7 +1,8 @@
-name = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
+name = "Nitropage"
 description = "Nitropage is an extensible, visual website builder, offering a growing library of versatile building blocks, focal-point image cropping and sovereign font management."
 category = "stack"
 logo = "svgs/nitropage.svg"
+
 [[services]]
 name = "nitropage"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_NITROPAGE_3000 = ""
-    NP_AUTH_SALT = "${SERVICE_BASE64_SALT}"
-    NP_AUTH_PASSWORD = "${SERVICE_PASSWORD_64_SESSION}"
+    NP_AUTH_SALT = "BASE64_GENERATED"
+    NP_AUTH_PASSWORD = "CHANGE_ME"
     DATABASE_URL = "file:../.data/dev.db"
     [[services.storage]]
       host = "nitropage-data"

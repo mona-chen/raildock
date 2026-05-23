@@ -1,7 +1,8 @@
-name = "Schedule Anything. Let's start with easy! Get the best free online appointment scheduler on your server, today."
+name = "Easyappointments"
 description = "Schedule Anything. Let's start with easy! Get the best free online appointment scheduler on your server, today."
 category = "stack"
 logo = "svgs/easyappointments.png"
+
 [[services]]
 name = "easyappointments"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_EASYAPPOINTMENTS_80 = ""
-    BASE_URL = "${SERVICE_URL_EASYAPPOINTMENTS}"
+    BASE_URL = "https://example.com"
     DB_HOST = "mysql"
     DB_NAME = "easyappointments"
     DB_USERNAME = "root"
-    DB_PASSWORD = "${SERVICE_PASSWORD_EASYAPPOINTMENTS}"
+    DB_PASSWORD = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 2
@@ -29,7 +29,7 @@ subtype = "mysql"
 docker_image = "mysql:8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_EASYAPPOINTMENTS}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
     MYSQL_DATABASE = "easyappointments"
     [[services.storage]]
       host = "easyappointments-mysql-data"

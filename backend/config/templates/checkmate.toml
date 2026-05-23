@@ -1,7 +1,8 @@
-name = "An open source server and websites monitoring application"
+name = "Checkmate"
 description = "An open source server and websites monitoring application"
 category = "stack"
 logo = "svgs/checkmate.png"
+
 [[services]]
 name = "checkmate"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CHECKMATE_52345 = ""
-    UPTIME_APP_API_BASE_URL = "${SERVICE_URL_CHECKMATE}/api/v1"
-    UPTIME_APP_CLIENT_HOST = "${SERVICE_URL_CHECKMATE}"
+    UPTIME_APP_API_BASE_URL = "https://example.com/api/v1"
+    UPTIME_APP_CLIENT_HOST = "https://example.com"
     DB_CONNECTION_STRING = "mongodb://mongodb:27017/uptime_db"
-    CLIENT_HOST = "${SERVICE_URL_CHECKMATE}"
-    JWT_SECRET = "${SERVICE_PASSWORD_64_JWT}"
+    CLIENT_HOST = "https://example.com"
+    JWT_SECRET = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 30

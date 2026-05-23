@@ -1,7 +1,8 @@
-name = "Connect your devices into a secure WireGuard®-based overlay network with SSO, MFA and granular access controls."
+name = "Netbird Client"
 description = "Connect your devices into a secure WireGuard®-based overlay network with SSO, MFA and granular access controls."
 category = "stack"
 logo = "svgs/netbird.png"
+
 [[services]]
 name = "netbird-client"
 category = "app"
@@ -11,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    NB_SETUP_KEY = "${NB_SETUP_KEY}"
-    NB_ENABLE_ROSENPASS = "${NB_ENABLE_ROSENPASS:-false}"
-    NB_ENABLE_EXPERIMENTAL_LAZY_CONN = "${NB_ENABLE_EXPERIMENTAL_LAZY_CONN:-false}"
+    NB_SETUP_KEY = "CHANGE_ME"
+    NB_ENABLE_ROSENPASS = "false"
+    NB_ENABLE_EXPERIMENTAL_LAZY_CONN = "false"
     [[services.storage]]
       host = "netbird-client"
       container = "/var/lib/netbird"

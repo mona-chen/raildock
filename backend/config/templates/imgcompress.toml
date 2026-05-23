@@ -1,7 +1,8 @@
-name = "Offline image compression, conversion, and AI background removal for Docker homelabs."
+name = "Imgcompress"
 description = "Offline image compression, conversion, and AI background removal for Docker homelabs."
 category = "stack"
 logo = "svgs/imgcompress.png"
+
 [[services]]
 name = "imgcompress"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_IMGCOMPRESS_5000 = ""
-    DISABLE_LOGO = "${DISABLE_LOGO:-false}"
-    DISABLE_STORAGE_MANAGEMENT = "${DISABLE_STORAGE_MANAGEMENT:-false}"
+    DISABLE_LOGO = "false"
+    DISABLE_STORAGE_MANAGEMENT = "false"
   [services.checks]
     enabled = true
     wait = 30

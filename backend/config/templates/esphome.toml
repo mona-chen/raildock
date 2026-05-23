@@ -1,7 +1,8 @@
-name = "Smart Home Made Simple."
+name = "Esphome"
 description = "Smart Home Made Simple."
 category = "stack"
 logo = "svgs/esphome.svg"
+
 [[services]]
 name = "esphome"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ESPHOME_6052 = ""
-    USERNAME = "${SERVICE_USER_ADMIN}"
-    PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    USERNAME = "user"
+    PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "esp_config"
       container = "/config"

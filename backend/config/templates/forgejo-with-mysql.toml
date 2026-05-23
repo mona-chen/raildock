@@ -1,7 +1,8 @@
-name = "Forgejo is a self-hosted lightweight software forge. Easy to install and low maintenance, it just does the job."
+name = "Forgejo With Mysql"
 description = "Forgejo is a self-hosted lightweight software forge. Easy to install and low maintenance, it just does the job."
 category = "stack"
 logo = "svgs/forgejo.svg"
+
 [[services]]
 name = "forgejo"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_FORGEJO_3000 = ""
-    FORGEJO__server__ROOT_URL = "${SERVICE_URL_FORGEJO}"
+    FORGEJO__server__ROOT_URL = "https://example.com"
     FORGEJO__migrations__ALLOWED_DOMAINS = "${FORGEJO__migrations__ALLOWED_DOMAINS}"
     FORGEJO__migrations__ALLOW_LOCALNETWORKS = "${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}"
     USER_UID = "1000"
@@ -49,10 +49,10 @@ subtype = "mysql"
 docker_image = "mysql:8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE}"
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "MYSQL_DATABASE_VALUE"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "forgejo-mysql-data"
       container = "/var/lib/mysql"

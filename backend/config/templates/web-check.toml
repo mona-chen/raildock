@@ -1,7 +1,8 @@
-name = "All-in-one OSINT tool for analysing any website"
+name = "Web Check"
 description = "All-in-one OSINT tool for analysing any website"
 category = "stack"
 logo = "svgs/web-check.png"
+
 [[services]]
 name = "web-check"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "lissy93/web-check"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_WEBCHECK_3000 = ""
   [services.checks]
     enabled = true
     wait = 5

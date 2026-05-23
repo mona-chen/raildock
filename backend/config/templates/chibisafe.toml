@@ -1,7 +1,8 @@
-name = "A beautiful and performant vault to save all your files in the cloud."
+name = "Chibisafe"
 description = "A beautiful and performant vault to save all your files in the cloud."
 category = "stack"
 logo = "svgs/chibisafe.svg"
+
 [[services]]
 name = "chibisafe"
 category = "app"
@@ -47,8 +48,6 @@ docker_image = "caddy:2-alpine"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_CHIBISAFE_80 = ""
     [[services.storage]]
       host = "uploads"
       container = "/app/uploads"

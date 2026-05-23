@@ -1,7 +1,8 @@
-name = "Homelab Services Organizer"
+name = "Organizr"
 description = "Homelab Services Organizer"
 category = "stack"
 logo = "svgs/organizr.png"
+
 [[services]]
 name = "organizr"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ORGANIZR_80 = ""
-    branch = "${branch:-v2-master}"
+    branch = "v2-master"
     [[services.storage]]
       host = "organizr-data"
       container = "/config"

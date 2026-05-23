@@ -1,7 +1,8 @@
-name = "A one-of-a-kind resume builder that keeps your privacy in mind."
+name = "Reactive Resume"
 description = "A one-of-a-kind resume builder that keeps your privacy in mind."
 category = "stack"
 logo = "svgs/rxresume.svg"
+
 [[services]]
 name = "reactive-resume"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_REACTIVERESUME_3000 = ""
     PUBLIC_URL = "$SERVICE_URL_REACTIVERESUME"
-    STORAGE_URL = "${SERVICE_URL_MINIO}/default"
-    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/${POSTGRES_DB:-postgres}"
+    STORAGE_URL = "https://example.com/default"
+    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/postgres"
     ACCESS_TOKEN_SECRET = "$SERVICE_PASSWORD_ACCESSTOKEN"
     REFRESH_TOKEN_SECRET = "$SERVICE_PASSWORD_REFRESHTOKEN"
     CHROME_TOKEN = "$SERVICE_PASSWORD_CHROMETOKEN"
@@ -27,8 +27,8 @@ source = { type = "docker"  }
     STORAGE_ACCESS_KEY = "$SERVICE_USER_MINIO"
     STORAGE_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
     STORAGE_USE_SSL = "false"
-    DISABLE_SIGNUPS = "${SERVICE_DISABLE_SIGNUPS:-false}"
-    DISABLE_EMAIL_AUTH = "${SERVICE_DISABLE_EMAIL_AUTH:-false}"
+    DISABLE_SIGNUPS = "false"
+    DISABLE_EMAIL_AUTH = "false"
   [services.checks]
     enabled = true
     wait = 10
@@ -41,7 +41,7 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_DB = "${POSTGRES_DB:-postgres}"
+    POSTGRES_DB = "postgres"
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     [[services.storage]]

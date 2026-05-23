@@ -1,7 +1,8 @@
-name = "Miniflux is a minimalist and opinionated feed reader."
+name = "Miniflux"
 description = "Miniflux is a minimalist and opinionated feed reader."
 category = "stack"
 logo = "svgs/miniflux.svg"
+
 [[services]]
 name = "miniflux"
 category = "app"
@@ -11,14 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MINIFLUX = ""
-    BASE_URL = "${SERVICE_URL_MINIFLUX}"
-    PORT = "${PORT:-8080}"
-    RUN_MIGRATIONS = "${RUN_MIGRATIONS:-1}"
-    CREATE_ADMIN = "${CREATE_ADMIN:-1}"
-    ADMIN_USERNAME = "${SERVICE_USER_ADMIN}"
-    ADMIN_PASSWORD = "${SERVICE_PASSWORD_64_ADMIN}"
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-miniflux-db}?sslmode=disable"
+    BASE_URL = "https://example.com"
+    PORT = "8080"
+    RUN_MIGRATIONS = "1"
+    CREATE_ADMIN = "1"
+    ADMIN_USERNAME = "user"
+    ADMIN_PASSWORD = "CHANGE_ME"
+    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/miniflux-db?sslmode=disable"
   [services.checks]
     enabled = true
     wait = 5
@@ -31,9 +31,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-miniflux-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "miniflux-db"
     [[services.storage]]
       host = "miniflux-postgres-data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "Teable is a powerful visual interface built on relational databases (PostgreSQL)."
+name = "Teable"
 description = "Teable is a powerful visual interface built on relational databases (PostgreSQL)."
 category = "stack"
 logo = "svgs/teable.png"
+
 [[services]]
 name = "teable"
 category = "app"
@@ -11,24 +12,23 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_TEABLE_3000 = ""
-    PUBLIC_ORIGIN = "${SERVICE_URL_TEABLE}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    SECRET_KEY = "${SERVICE_PASSWORD_64_SECRET}"
-    TZ = "${TIMEZONE}"
-    PRISMA_DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@teable-db:${POSTGRES_PORT}/${POSTGRES_DB}"
+    PUBLIC_ORIGIN = "https://example.com"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    SECRET_KEY = "CHANGE_ME"
+    TZ = "TIMEZONE_VALUE"
+    PRISMA_DATABASE_URL = "postgresql://user:CHANGE_ME@teable-db:3000/POSTGRES_DB_VALUE"
     NEXT_ENV_IMAGES_ALL_REMOTE = "true"
     PORT = "3000"
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    REDIS_PASSWORD = "CHANGE_ME"
     BACKEND_CACHE_PROVIDER = "redis"
-    BACKEND_CACHE_REDIS_URI = "redis://default:${SERVICE_PASSWORD_REDIS}@teable-cache:6379/0"
-    BACKEND_MAIL_HOST = "${BACKEND_MAIL_HOST}"
-    BACKEND_MAIL_PORT = "${BACKEND_MAIL_PORT}"
-    BACKEND_MAIL_SECURE = "${BACKEND_MAIL_SECURE}"
-    BACKEND_MAIL_SENDER = "${BACKEND_MAIL_SENDER}"
-    BACKEND_MAIL_SENDER_NAME = "${BACKEND_MAIL_SENDER_NAME}"
-    BACKEND_MAIL_AUTH_USER = "${BACKEND_MAIL_AUTH_USER}"
-    BACKEND_MAIL_AUTH_PASS = "${BACKEND_MAIL_AUTH_PASS}"
+    BACKEND_CACHE_REDIS_URI = "redis://default:CHANGE_ME@teable-cache:6379/0"
+    BACKEND_MAIL_HOST = "https://example.com"
+    BACKEND_MAIL_PORT = "3000"
+    BACKEND_MAIL_SECURE = "BACKEND_MAIL_SECURE_VALUE"
+    BACKEND_MAIL_SENDER = "BACKEND_MAIL_SENDER_VALUE"
+    BACKEND_MAIL_SENDER_NAME = "BACKEND_MAIL_SENDER_NAME_VALUE"
+    BACKEND_MAIL_AUTH_USER = "BACKEND_MAIL_AUTH_USER_VALUE"
+    BACKEND_MAIL_AUTH_PASS = "BACKEND_MAIL_AUTH_PASS_VALUE"
     [[services.storage]]
       host = "teable_data"
       container = "/app/.assets"
@@ -44,11 +44,11 @@ subtype = "postgres"
 docker_image = "postgres:15.4"
 source = { type = "docker"  }
   [services.env]
-    TZ = "${TIMEZONE}"
-    POSTGRES_DB = "${POSTGRES_DB:-teable}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PORT = "${POSTGRES_PORT:-5432}"
+    TZ = "TIMEZONE_VALUE"
+    POSTGRES_DB = "teable"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_USER = "user"
+    POSTGRES_PORT = "5432"
     [[services.storage]]
       host = "teable_db_data"
       container = "/var/lib/postgresql/data"
@@ -66,8 +66,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    TZ = "${TIMEZONE}"
-    PRISMA_DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@teable-db:${POSTGRES_PORT}/${POSTGRES_DB}"
+    TZ = "TIMEZONE_VALUE"
+    PRISMA_DATABASE_URL = "postgresql://user:CHANGE_ME@teable-db:3000/POSTGRES_DB_VALUE"
 
 [[services]]
 name = "teable-cache"
@@ -79,7 +79,7 @@ source = { type = "docker"  }
   [services.env]
     REDIS_PORT = "6379"
     REDIS_DB = "0"
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    REDIS_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "teable_cache_data"
       container = "/data"

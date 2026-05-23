@@ -1,7 +1,8 @@
-name = "The Cyber Swiss Army Knife - a web app for encryption, encoding, compression and data analysis"
+name = "Cyberchef"
 description = "The Cyber Swiss Army Knife - a web app for encryption, encoding, compression and data analysis"
 category = "stack"
 logo = "svgs/cyberchef.jpeg"
+
 [[services]]
 name = "cyberchef"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "ghcr.io/gchq/cyberchef:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_CYBERCHEF_80 = ""
     [[services.storage]]
       host = "cyberchef-data"
       container = "/app/data"

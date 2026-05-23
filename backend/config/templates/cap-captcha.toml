@@ -1,7 +1,8 @@
-name = "The self-hosted CAPTCHA for the modern web."
+name = "Cap Captcha"
 description = "The self-hosted CAPTCHA for the modern web."
 category = "stack"
 logo = "svgs/cap-captcha.png"
+
 [[services]]
 name = "cap"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CAP_3000 = ""
     ADMIN_KEY = "$SERVICE_PASSWORD_ADMIN"
     REDIS_URL = "redis://valkey:6379"
   [services.checks]

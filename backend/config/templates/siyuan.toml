@@ -1,7 +1,8 @@
-name = "A privacy-first, self-hosted, fully open source personal knowledge management software, written in typescript and golang."
+name = "Siyuan"
 description = "A privacy-first, self-hosted, fully open source personal knowledge management software, written in typescript and golang."
 category = "stack"
 logo = "svgs/siyuan.svg"
+
 [[services]]
 name = "siyuan"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SIYUAN_6806 = ""
-    TZ = "${TZ:-UTC}"
+    TZ = "UTC"
     PUID = "1000"
     PGID = "1000"
-    SIYUAN_ACCESS_AUTH_CODE = "${SERVICE_PASSWORD_SIYUAN}"
+    SIYUAN_ACCESS_AUTH_CODE = "CHANGE_ME"
     [[services.storage]]
       host = "siyuan_workspace"
       container = "/siyuan/workspace"

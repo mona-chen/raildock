@@ -1,7 +1,8 @@
-name = "Open-source, privacy-first web analytics."
+name = "Rybbit"
 description = "Open-source, privacy-first web analytics."
 category = "stack"
 logo = "svgs/rybbit.svg"
+
 [[services]]
 name = "rybbit"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_RYBBIT_3002 = ""
     NODE_ENV = "production"
-    NEXT_PUBLIC_BACKEND_URL = "${SERVICE_URL_RYBBIT}"
-    NEXT_PUBLIC_DISABLE_SIGNUP = "${DISABLE_SIGNUP:-false}"
+    NEXT_PUBLIC_BACKEND_URL = "https://example.com"
+    NEXT_PUBLIC_DISABLE_SIGNUP = "false"
   [services.checks]
     enabled = true
     wait = 30
@@ -31,19 +31,19 @@ source = { type = "docker"  }
   [services.env]
     NODE_ENV = "production"
     TRUST_PROXY = "true"
-    BASE_URL = "${SERVICE_URL_RYBBIT}"
-    CLICKHOUSE_PASSWORD = "${SERVICE_PASSWORD_CLICKHOUSE}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    BETTER_AUTH_SECRET = "${SERVICE_BASE64_64_BACKEND}"
-    DISABLE_SIGNUP = "${DISABLE_SIGNUP:-false}"
-    DISABLE_TELEMETRY = "${DISABLE_TELEMETRY:-true}"
+    BASE_URL = "https://example.com"
+    CLICKHOUSE_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    BETTER_AUTH_SECRET = "BASE64_GENERATED"
+    DISABLE_SIGNUP = "false"
+    DISABLE_TELEMETRY = "true"
     CLICKHOUSE_HOST = "http://rybbit_clickhouse:8123"
-    CLICKHOUSE_USER = "${CLICKHOUSE_USER:-default}"
-    CLICKHOUSE_DB = "${CLICKHOUSE_DB:-analytics}"
+    CLICKHOUSE_USER = "default"
+    CLICKHOUSE_DB = "analytics"
     POSTGRES_HOST = "rybbit_postgres"
     POSTGRES_PORT = "5432"
-    POSTGRES_DB = "${POSTGRES_DB:-analytics}"
-    POSTGRES_USER = "${POSTGRES_USER:-frog}"
+    POSTGRES_DB = "analytics"
+    POSTGRES_USER = "frog"
   [services.checks]
     enabled = true
     wait = 30
@@ -56,9 +56,9 @@ subtype = "postgres"
 docker_image = "postgres:17.4"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_DB = "${POSTGRES_DB:-analytics}"
-    POSTGRES_USER = "${POSTGRES_USER:-frog}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "analytics"
+    POSTGRES_USER = "frog"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "postgres_data"
       container = "/var/lib/postgresql/data"
@@ -76,9 +76,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    CLICKHOUSE_DB = "${CLICKHOUSE_DB:-analytics}"
-    CLICKHOUSE_USER = "${CLICKHOUSE_USER:-default}"
-    CLICKHOUSE_PASSWORD = "${SERVICE_PASSWORD_CLICKHOUSE}"
+    CLICKHOUSE_DB = "analytics"
+    CLICKHOUSE_USER = "default"
+    CLICKHOUSE_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "clickhouse_data"
       container = "/var/lib/clickhouse"

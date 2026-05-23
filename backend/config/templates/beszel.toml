@@ -1,7 +1,8 @@
-name = "A lightweight server resource monitoring hub with historical data, docker stats, and alerts."
+name = "Beszel"
 description = "A lightweight server resource monitoring hub with historical data, docker stats, and alerts."
 category = "stack"
 logo = "svgs/beszel.svg"
+
 [[services]]
 name = "beszel"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_BESZEL_8090 = ""
-    CONTAINER_DETAILS = "${CONTAINER_DETAILS:-true}"
-    SHARE_ALL_SYSTEMS = "${SHARE_ALL_SYSTEMS:-false}"
+    CONTAINER_DETAILS = "true"
+    SHARE_ALL_SYSTEMS = "false"
     [[services.storage]]
       host = "beszel_data"
       container = "/beszel_data"
@@ -36,12 +36,12 @@ source = { type = "docker"  }
   [services.env]
     LISTEN = "/beszel_socket/beszel.sock"
     HUB_URL = "$SERVICE_URL_BESZEL"
-    TOKEN = "${TOKEN}"
-    KEY = "${KEY}"
-    DISABLE_SSH = "${DISABLE_SSH:-false}"
-    LOG_LEVEL = "${LOG_LEVEL:-warn}"
-    SKIP_GPU = "${SKIP_GPU:-false}"
-    SYSTEM_NAME = "${SYSTEM_NAME}"
+    TOKEN = "CHANGE_ME"
+    KEY = "CHANGE_ME"
+    DISABLE_SSH = "false"
+    LOG_LEVEL = "warn"
+    SKIP_GPU = "false"
+    SYSTEM_NAME = "SYSTEM_NAME_VALUE"
     [[services.storage]]
       host = "beszel_agent_data"
       container = "/var/lib/beszel-agent"

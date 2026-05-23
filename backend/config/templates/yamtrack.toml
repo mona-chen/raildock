@@ -1,7 +1,8 @@
-name = "Yamtrack is a self hosted media tracker for movies, tv shows, anime, manga, video games and books."
+name = "Yamtrack"
 description = "Yamtrack is a self hosted media tracker for movies, tv shows, anime, manga, video games and books."
 category = "stack"
 logo = "svgs/yamtrack.svg"
+
 [[services]]
 name = "yamtrack"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_YAMTRACK_8000 = ""
-    URLS = "${SERVICE_URL_YAMTRACK}"
-    TZ = "${TZ:-Europe/Berlin}"
-    SECRET = "${SERVICE_PASSWORD_SECRET}"
-    REGISTRATION = "${REGISTRATION_ENABLED:-true}"
+    URLS = "https://example.com"
+    TZ = "Europe/Berlin"
+    SECRET = "CHANGE_ME"
+    REGISTRATION = "true"
     REDIS_URL = "redis://redis:6379"
     [[services.storage]]
       host = "yamtrack_data"

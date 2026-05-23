@@ -1,7 +1,8 @@
-name = "The fastest Postgres change data capture"
+name = "Sequin"
 description = "The fastest Postgres change data capture"
 category = "stack"
 logo = "svgs/sequin.svg"
+
 [[services]]
 name = "sequin"
 category = "app"
@@ -11,21 +12,20 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SEQUIN_7376 = ""
-    SERVER_HOST = "${SERVICE_FQDN_SEQUIN}"
+    SERVER_HOST = "app.example.com"
     PG_HOSTNAME = "postgres"
-    PG_DATABASE = "${POSTGRES_DB:-sequin-db}"
+    PG_DATABASE = "sequin-db"
     PG_PORT = "5432"
-    PG_USERNAME = "${SERVICE_USER_POSTGRES}"
-    PG_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    PG_USERNAME = "user"
+    PG_PASSWORD = "CHANGE_ME"
     PG_POOL_SIZE = "20"
-    SECRET_KEY_BASE = "${SERVICE_REALBASE64_64_SECRETKEY}"
-    VAULT_KEY = "${SERVICE_REALBASE64_VAULTKEY}"
+    SECRET_KEY_BASE = "CHANGE_ME"
+    VAULT_KEY = "CHANGE_ME"
     REDIS_URL = "redis://redis:6379"
     CONFIG_FILE_PATH = "/config/playground.yml"
-    FEATURE_ACCOUNT_SELF_SIGNUP = "${FEATURE_ACCOUNT_SELF_SIGNUP:-false}"
-    SEQUIN_TELEMETRY_DISABLED = "${SEQUIN_TELEMETRY_DISABLED:-false}"
-    CRASH_REPORTING_DISABLED = "${CRASH_REPORTING_DISABLED:-false}"
+    FEATURE_ACCOUNT_SELF_SIGNUP = "false"
+    SEQUIN_TELEMETRY_DISABLED = "false"
+    CRASH_REPORTING_DISABLED = "false"
   [services.checks]
     enabled = true
     wait = 5
@@ -39,9 +39,9 @@ docker_image = "postgres:16"
 start_command = "postgres -c wal_level=logical"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_DB = "${POSTGRES_DB:-sequin-db}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "sequin-db"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "postgres_data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "Realtime collaborative markdown notes on all platforms"
+name = "Codimd"
 description = "Realtime collaborative markdown notes on all platforms"
 category = "stack"
 logo = "svgs/codimd.png"
+
 [[services]]
 name = "codimd"
 category = "app"
@@ -11,14 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CODIMD_3000 = ""
-    CMD_DOMAIN = "${SERVICE_FQDN_CODIMD}"
-    CMD_PROTOCOL_USESSL = "${CMD_PROTOCOL_USESSL:-true}"
-    CMD_SESSION_SECRET = "${SERVICE_PASSWORD_SESSIONSECRET}"
-    CMD_USECDN = "${CMD_USECDN:-false}"
-    CMD_DB_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-codimd-db}"
-    CMD_EMAIL = "${CMD_EMAIL:-true}"
-    CMD_ALLOW_EMAIL_REGISTER = "${CMD_ALLOW_EMAIL_REGISTER:-true}"
+    CMD_DOMAIN = "app.example.com"
+    CMD_PROTOCOL_USESSL = "true"
+    CMD_SESSION_SECRET = "CHANGE_ME"
+    CMD_USECDN = "false"
+    CMD_DB_URL = "postgres://user:CHANGE_ME@postgres:5432/codimd-db"
+    CMD_EMAIL = "true"
+    CMD_ALLOW_EMAIL_REGISTER = "true"
     [[services.storage]]
       host = "uploads_data"
       container = "/home/hackmd/app/public/uploads"
@@ -34,9 +34,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-codimd-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "codimd-db"
     [[services.storage]]
       host = "codimd_postgres_data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "EspoCRM is a free and open-source CRM platform."
+name = "Espocrm"
 description = "EspoCRM is a free and open-source CRM platform."
 category = "stack"
 logo = "svgs/espocrm.svg"
+
 [[services]]
 name = "espocrm"
 category = "app"
@@ -11,15 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ESPOCRM = ""
-    ESPOCRM_ADMIN_USERNAME = "${ESPOCRM_ADMIN_USERNAME:-admin}"
-    ESPOCRM_ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    ESPOCRM_ADMIN_USERNAME = "admin"
+    ESPOCRM_ADMIN_PASSWORD = "CHANGE_ME"
     ESPOCRM_DATABASE_PLATFORM = "Mysql"
     ESPOCRM_DATABASE_HOST = "espocrm-db"
-    ESPOCRM_DATABASE_NAME = "${MARIADB_DATABASE:-espocrm}"
-    ESPOCRM_DATABASE_USER = "${SERVICE_USER_MARIADB}"
-    ESPOCRM_DATABASE_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
-    ESPOCRM_SITE_URL = "${SERVICE_URL_ESPOCRM}"
+    ESPOCRM_DATABASE_NAME = "espocrm"
+    ESPOCRM_DATABASE_USER = "user"
+    ESPOCRM_DATABASE_PASSWORD = "CHANGE_ME"
+    ESPOCRM_SITE_URL = "https://example.com"
     [[services.storage]]
       host = "espocrm"
       container = "/var/www/html"
@@ -49,7 +49,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ESPOCRM_WEBSOCKET_8080 = ""
     ESPOCRM_CONFIG_USE_WEB_SOCKET = "true"
     ESPOCRM_CONFIG_WEB_SOCKET_URL = "$SERVICE_URL_ESPOCRM_WEBSOCKET"
     ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN = "tcp://*:7777"
@@ -65,10 +64,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11.8"
 source = { type = "docker"  }
   [services.env]
-    MARIADB_DATABASE = "${MARIADB_DATABASE:-espocrm}"
-    MARIADB_USER = "${SERVICE_USER_MARIADB}"
-    MARIADB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
-    MARIADB_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
+    MARIADB_DATABASE = "espocrm"
+    MARIADB_USER = "user"
+    MARIADB_PASSWORD = "CHANGE_ME"
+    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "espocrm-db"
       container = "/var/lib/mysql"

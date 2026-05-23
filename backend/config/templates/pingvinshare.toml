@@ -1,7 +1,8 @@
-name = "A self-hosted file sharing platform that combines lightness and beauty, perfect for seamless and efficient file sharing."
+name = "Pingvinshare"
 description = "A self-hosted file sharing platform that combines lightness and beauty, perfect for seamless and efficient file sharing."
 category = "stack"
 logo = "svgs/pingvinshare.svg"
+
 [[services]]
 name = "pingvinshare"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PINGVINSHARE_3000 = ""
-    TRUST_PROXY = "${TRUST_PROXY:-true}"
+    TRUST_PROXY = "true"
     [[services.storage]]
       host = "pingvinshare_data"
       container = "/opt/app/backend/data"

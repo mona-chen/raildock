@@ -1,7 +1,8 @@
-name = "FreeScout is the super lightweight and powerful free open source help desk and shared inbox written in PHP (Laravel framework)."
+name = "Freescout"
 description = "FreeScout is the super lightweight and powerful free open source help desk and shared inbox written in PHP (Laravel framework)."
 category = "stack"
 logo = "svgs/freescout.png"
+
 [[services]]
 name = "freescout"
 category = "app"
@@ -11,16 +12,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_FREESCOUT_80 = ""
     DB_HOST = "mariadb"
-    DB_NAME = "${MARIADB_DATABASE:-freescout}"
-    DB_USER = "${SERVICE_USER_MARIADB:-freescout}"
-    DB_PASS = "${SERVICE_PASSWORD_MARIADB}"
-    SITE_URL = "${SERVICE_URL_FREESCOUT}"
-    ADMIN_EMAIL = "${ADMIN_EMAIL:-admin@example.com}"
-    ADMIN_PASS = "${SERVICE_PASSWORD_ADMIN}"
-    DISPLAY_ERRORS = "${DISPLAY_ERRORS:-FALSE}"
-    TIMEZONE = "${TIMEZONE:-UTC}"
+    DB_NAME = "freescout"
+    DB_USER = "user"
+    DB_PASS = "CHANGE_ME"
+    SITE_URL = "https://example.com"
+    ADMIN_EMAIL = "admin@example.com"
+    ADMIN_PASS = "CHANGE_ME"
+    DISPLAY_ERRORS = "FALSE"
+    TIMEZONE = "UTC"
     [[services.storage]]
       host = "freescout-data"
       container = "/data"
@@ -39,10 +39,10 @@ subtype = "mariadb"
 docker_image = "mariadb"
 source = { type = "docker"  }
   [services.env]
-    MARIADB_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
-    MARIADB_DATABASE = "${MARIADB_DATABASE}"
-    MARIADB_USER = "${SERVICE_USER_MARIADB}"
-    MARIADB_PASSWORD = "${SERVICE_PASSWORD_MARIADB}"
+    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
+    MARIADB_DATABASE = "MARIADB_DATABASE_VALUE"
+    MARIADB_USER = "user"
+    MARIADB_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "mariadb-data"
       container = "/var/lib/mysql"

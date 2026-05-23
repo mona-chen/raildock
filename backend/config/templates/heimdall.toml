@@ -1,7 +1,8 @@
-name = "Heimdall is a dashboard for managing and organizing your server applications."
+name = "Heimdall"
 description = "Heimdall is a dashboard for managing and organizing your server applications."
 category = "stack"
 logo = "svgs/heimdall.svg"
+
 [[services]]
 name = "heimdall"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_HEIMDALL = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"

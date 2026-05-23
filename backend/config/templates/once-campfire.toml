@@ -1,7 +1,8 @@
-name = "Super simple group chat, without a subscription."
+name = "Once Campfire"
 description = "Super simple group chat, without a subscription."
 category = "stack"
 logo = "svgs/once-campfire.png"
+
 [[services]]
 name = "campfire"
 category = "app"
@@ -11,14 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CAMPFIRE_80 = ""
-    SECRET_KEY_BASE = "${SERVICE_BASE64_64_CAMPFIRE}"
-    VAPID_PUBLIC_KEY = "${VAPID_PUBLIC_KEY}"
-    VAPID_PRIVATE_KEY = "${VAPID_PRIVATE_KEY}"
-    DISABLE_SSL = "${DISABLE_SSL:-true}"
-    SSL_DOMAIN = "${SSL_DOMAIN:-false}"
-    SKIP_TELEMETRY = "${SKIP_TELEMETRY:-true}"
-    SENTRY_DSN = "${SENTRY_DSN}"
+    SECRET_KEY_BASE = "BASE64_GENERATED"
+    VAPID_PUBLIC_KEY = "CHANGE_ME"
+    VAPID_PRIVATE_KEY = "CHANGE_ME"
+    DISABLE_SSL = "true"
+    SSL_DOMAIN = "false"
+    SKIP_TELEMETRY = "true"
+    SENTRY_DSN = "SENTRY_DSN_VALUE"
     [[services.storage]]
       host = "campfire-storage"
       container = "/rails/storage"

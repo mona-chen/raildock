@@ -1,7 +1,8 @@
-name = "Grafana is the open source analytics & monitoring solution for every database."
+name = "Grafana"
 description = "Grafana is the open source analytics & monitoring solution for every database."
 category = "stack"
 logo = "svgs/grafana.svg"
+
 [[services]]
 name = "grafana"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GRAFANA_3000 = ""
-    GF_SERVER_ROOT_URL = "${SERVICE_URL_GRAFANA}"
-    GF_SERVER_DOMAIN = "${SERVICE_FQDN_GRAFANA}"
-    GF_SECURITY_ADMIN_PASSWORD = "${SERVICE_PASSWORD_GRAFANA}"
+    GF_SERVER_ROOT_URL = "https://example.com"
+    GF_SERVER_DOMAIN = "app.example.com"
+    GF_SECURITY_ADMIN_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "grafana-data"
       container = "/var/lib/grafana"

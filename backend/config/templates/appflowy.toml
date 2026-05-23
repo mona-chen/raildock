@@ -1,7 +1,8 @@
-name = "AppFlowy is the AI collaborative workspace where you achieve more without losing control of your data."
+name = "Appflowy"
 description = "AppFlowy is the AI collaborative workspace where you achieve more without losing control of your data."
 category = "stack"
 logo = "svgs/appflowy.svg"
+
 [[services]]
 name = "nginx"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "nginx:1.29.2"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_ADMIN = ""
   [services.checks]
     enabled = true
     wait = 30
@@ -26,10 +25,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_APPFLOWYWEB = ""
-    APPFLOWY_BASE_URL = "${SERVICE_URL_ADMIN}"
-    APPFLOWY_GOTRUE_BASE_URL = "${SERVICE_URL_ADMIN}/gotrue"
-    APPFLOWY_WS_BASE_URL = "${SERVICE_URL_ADMIN}/ws/v2"
+    APPFLOWY_BASE_URL = "https://example.com"
+    APPFLOWY_GOTRUE_BASE_URL = "https://example.com/gotrue"
+    APPFLOWY_WS_BASE_URL = "https://example.com/ws/v2"
 
 [[services]]
 name = "appflowy_cloud"
@@ -40,32 +38,31 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    RUST_LOG = "${RUST_LOG:-info}"
-    APPFLOWY_BASE_URL = "${SERVICE_URL_ADMIN}"
+    RUST_LOG = "info"
+    APPFLOWY_BASE_URL = "https://example.com"
     APPFLOWY_ENVIRONMENT = "production"
-    APPFLOWY_DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-appflowy}"
+    APPFLOWY_DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/appflowy"
     APPFLOWY_REDIS_URI = "redis://redis:6379"
-    APPFLOWY_GOTRUE_JWT_SECRET = "${SERVICE_PASSWORD_JWT}"
+    APPFLOWY_GOTRUE_JWT_SECRET = "CHANGE_ME"
     APPFLOWY_GOTRUE_BASE_URL = "http://gotrue:9999"
-    APPFLOWY_S3_CREATE_BUCKET = "${APPFLOWY_S3_CREATE_BUCKET:-true}"
+    APPFLOWY_S3_CREATE_BUCKET = "true"
     APPFLOWY_S3_USE_MINIO = "true"
     APPFLOWY_S3_MINIO_URL = "http://minio:9000"
-    APPFLOWY_S3_ACCESS_KEY = "${SERVICE_USER_MINIO}"
-    APPFLOWY_S3_SECRET_KEY = "${SERVICE_PASSWORD_MINIO}"
-    APPFLOWY_S3_BUCKET = "${APPFLOWY_S3_BUCKET:-appflowy}"
-    APPFLOWY_S3_REGION = "${APPFLOWY_S3_REGION:-us-east-1}"
-    APPFLOWY_MAILER_SMTP_HOST = "${APPFLOWY_MAILER_SMTP_HOST:-smtp.gmail.com}"
-    APPFLOWY_MAILER_SMTP_PORT = "${APPFLOWY_MAILER_SMTP_PORT:-587}"
-    APPFLOWY_MAILER_SMTP_USERNAME = "${APPFLOWY_MAILER_SMTP_USERNAME:-notify@appflowy.io}"
-    APPFLOWY_MAILER_SMTP_EMAIL = "${APPFLOWY_MAILER_SMTP_EMAIL:-notify@appflowy.io}"
-    APPFLOWY_MAILER_SMTP_PASSWORD = "${APPFLOWY_MAILER_SMTP_PASSWORD:-email_sender_password}"
-    APPFLOWY_MAILER_SMTP_TLS_KIND = "${APPFLOWY_MAILER_SMTP_TLS_KIND:-none}"
+    APPFLOWY_S3_ACCESS_KEY = "user"
+    APPFLOWY_S3_SECRET_KEY = "CHANGE_ME"
+    APPFLOWY_S3_BUCKET = "appflowy"
+    APPFLOWY_S3_REGION = "us-east-1"
+    APPFLOWY_MAILER_SMTP_HOST = "smtp.gmail.com"
+    APPFLOWY_MAILER_SMTP_PORT = "587"
+    APPFLOWY_MAILER_SMTP_USERNAME = "notify@appflowy.io"
+    APPFLOWY_MAILER_SMTP_EMAIL = "notify@appflowy.io"
+    APPFLOWY_MAILER_SMTP_PASSWORD = "email_sender_password"
+    APPFLOWY_MAILER_SMTP_TLS_KIND = "none"
     APPFLOWY_ACCESS_CONTROL = "true"
     APPFLOWY_DATABASE_MAX_CONNECTIONS = "40"
     AI_SERVER_HOST = "ai"
     AI_SERVER_PORT = "5001"
-    AI_OPENAI_API_KEY = "${AI_OPENAI_API_KEY:-}"
-    APPFLOWY_WEB_URL = "${SERVICE_URL_APPFLOWYWEB}"
+    APPFLOWY_WEB_URL = "https://example.com"
   [services.checks]
     enabled = true
     wait = 5
@@ -83,25 +80,25 @@ source = { type = "docker"  }
     GOTRUE_API_HOST = "0.0.0.0"
     GOTRUE_API_PORT = "9999"
     PORT = "9999"
-    GOTRUE_ADMIN_EMAIL = "${GOTRUE_ADMIN_EMAIL:-admin@example.com}"
-    GOTRUE_ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    GOTRUE_ADMIN_EMAIL = "admin@example.com"
+    GOTRUE_ADMIN_PASSWORD = "CHANGE_ME"
     GOTRUE_DISABLE_SIGNUP = "false"
     GOTRUE_SITE_URL = "appflowy-flutter://"
     GOTRUE_URI_ALLOW_LIST = "**"
-    GOTRUE_JWT_SECRET = "${SERVICE_PASSWORD_JWT}"
-    GOTRUE_JWT_EXP = "${GOTRUE_JWT_EXP:-7200}"
+    GOTRUE_JWT_SECRET = "CHANGE_ME"
+    GOTRUE_JWT_EXP = "7200"
     GOTRUE_DB_DRIVER = "postgres"
-    API_EXTERNAL_URL = "${SERVICE_URL_ADMIN}/gotrue"
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-appflowy}?search_path=auth"
-    GOTRUE_SMTP_HOST = "${GOTRUE_SMTP_HOST}"
-    GOTRUE_SMTP_PORT = "${GOTRUE_SMTP_PORT:-587}"
-    GOTRUE_SMTP_USER = "${GOTRUE_SMTP_USER}"
-    GOTRUE_SMTP_PASS = "${GOTRUE_SMTP_PASS}"
+    API_EXTERNAL_URL = "https://example.com/gotrue"
+    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/appflowy?search_path=auth"
+    GOTRUE_SMTP_HOST = "https://example.com"
+    GOTRUE_SMTP_PORT = "587"
+    GOTRUE_SMTP_USER = "GOTRUE_SMTP_USER_VALUE"
+    GOTRUE_SMTP_PASS = "GOTRUE_SMTP_PASS_VALUE"
     GOTRUE_MAILER_URLPATHS_CONFIRMATION = "/verify"
     GOTRUE_MAILER_URLPATHS_INVITE = "/verify"
     GOTRUE_MAILER_URLPATHS_RECOVERY = "/verify"
     GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE = "/verify"
-    GOTRUE_SMTP_ADMIN_EMAIL = "${GOTRUE_SMTP_ADMIN_EMAIL}"
+    GOTRUE_SMTP_ADMIN_EMAIL = "admin@example.com"
     GOTRUE_SMTP_MAX_FREQUENCY = "1ns"
     GOTRUE_RATE_LIMIT_EMAIL_SENT = "100"
     GOTRUE_MAILER_AUTOCONFIRM = "true"
@@ -119,8 +116,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APPFLOWY_GOTRUE_BASE_URL = "${SERVICE_URL_ADMIN}/gotrue"
-    APPFLOWY_BASE_URL = "${SERVICE_URL_ADMIN}"
+    APPFLOWY_GOTRUE_BASE_URL = "https://example.com/gotrue"
+    APPFLOWY_BASE_URL = "https://example.com"
 
 [[services]]
 name = "ai"
@@ -131,20 +128,19 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    OPENAI_API_KEY = "${AI_OPENAI_API_KEY:-}"
     AI_SERVER_PORT = "5001"
     DEFAULT_AI_MODEL = "gpt-4.1-mini"
     DEFAULT_AI_COMPLETION_MODEL = "gpt-4.1-mini"
-    AI_APPFLOWY_HOST = "${SERVICE_URL_APPFLOWYWEB}"
-    APPFLOWY_GOTRUE_JWT_SECRET = "${SERVICE_PASSWORD_JWT}"
-    AZURE_OPENAI_API_KEY = "${AZURE_OPENAI_API_KEY}"
-    AZURE_OPENAI_ENDPOINT = "${AZURE_OPENAI_ENDPOINT}"
-    AZURE_OPENAI_API_VERSION = "${AZURE_OPENAI_API_VERSION}"
-    APPFLOWY_S3_ACCESS_KEY = "${SERVICE_USER_MINIO}"
-    APPFLOWY_S3_SECRET_KEY = "${SERVICE_PASSWORD_MINIO}"
-    APPFLOWY_S3_BUCKET = "${APPFLOWY_S3_BUCKET:-appflowy}"
-    APPFLOWY_S3_REGION = "${APPFLOWY_S3_REGION:-us-east-1}"
-    AI_DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-appflowy}"
+    AI_APPFLOWY_HOST = "https://example.com"
+    APPFLOWY_GOTRUE_JWT_SECRET = "CHANGE_ME"
+    AZURE_OPENAI_API_KEY = "CHANGE_ME"
+    AZURE_OPENAI_ENDPOINT = "AZURE_OPENAI_ENDPOINT_VALUE"
+    AZURE_OPENAI_API_VERSION = "AZURE_OPENAI_API_VERSION_VALUE"
+    APPFLOWY_S3_ACCESS_KEY = "user"
+    APPFLOWY_S3_SECRET_KEY = "CHANGE_ME"
+    APPFLOWY_S3_BUCKET = "appflowy"
+    APPFLOWY_S3_REGION = "us-east-1"
+    AI_DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/appflowy"
     AI_REDIS_URL = "redis://redis:6379"
     AI_USE_MINIO = "true"
     AI_MINIO_URL = "http://minio:9000"
@@ -162,21 +158,21 @@ source = { type = "docker"  }
     APPFLOWY_ENVIRONMENT = "production"
     APPFLOWY_WORKER_ENVIRONMENT = "production"
     APPFLOWY_WORKER_REDIS_URL = "redis://redis:6379"
-    APPFLOWY_WORKER_DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-appflowy}"
-    APPFLOWY_WORKER_DATABASE_NAME = "${POSTGRES_DB:-appflowy}"
+    APPFLOWY_WORKER_DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/appflowy"
+    APPFLOWY_WORKER_DATABASE_NAME = "appflowy"
     APPFLOWY_WORKER_IMPORT_TICK_INTERVAL = "30"
     APPFLOWY_S3_USE_MINIO = "true"
     APPFLOWY_S3_MINIO_URL = "http://minio:9000"
-    APPFLOWY_S3_ACCESS_KEY = "${SERVICE_USER_MINIO}"
-    APPFLOWY_S3_SECRET_KEY = "${SERVICE_PASSWORD_MINIO}"
-    APPFLOWY_S3_BUCKET = "${APPFLOWY_S3_BUCKET:-appflowy}"
-    APPFLOWY_S3_REGION = "${APPFLOWY_S3_REGION:-us-east-1}"
-    APPFLOWY_MAILER_SMTP_HOST = "${APPFLOWY_MAILER_SMTP_HOST:-smtp.gmail.com}"
-    APPFLOWY_MAILER_SMTP_PORT = "${APPFLOWY_MAILER_SMTP_PORT:-587}"
-    APPFLOWY_MAILER_SMTP_USERNAME = "${APPFLOWY_MAILER_SMTP_USERNAME:-notify@appflowy.io}"
-    APPFLOWY_MAILER_SMTP_EMAIL = "${APPFLOWY_MAILER_SMTP_EMAIL:-notify@appflowy.io}"
-    APPFLOWY_MAILER_SMTP_PASSWORD = "${APPFLOWY_MAILER_SMTP_PASSWORD:-email_sender_password}"
-    APPFLOWY_MAILER_SMTP_TLS_KIND = "${APPFLOWY_MAILER_SMTP_TLS_KIND:-none}"
+    APPFLOWY_S3_ACCESS_KEY = "user"
+    APPFLOWY_S3_SECRET_KEY = "CHANGE_ME"
+    APPFLOWY_S3_BUCKET = "appflowy"
+    APPFLOWY_S3_REGION = "us-east-1"
+    APPFLOWY_MAILER_SMTP_HOST = "smtp.gmail.com"
+    APPFLOWY_MAILER_SMTP_PORT = "587"
+    APPFLOWY_MAILER_SMTP_USERNAME = "notify@appflowy.io"
+    APPFLOWY_MAILER_SMTP_EMAIL = "notify@appflowy.io"
+    APPFLOWY_MAILER_SMTP_PASSWORD = "email_sender_password"
+    APPFLOWY_MAILER_SMTP_TLS_KIND = "none"
 
 [[services]]
 name = "minio"
@@ -186,8 +182,8 @@ docker_image = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
 start_command = "server /data --console-address \":9001\""
 source = { type = "docker"  }
   [services.env]
-    MINIO_ROOT_USER = "${SERVICE_USER_MINIO}"
-    MINIO_ROOT_PASSWORD = "${SERVICE_PASSWORD_MINIO}"
+    MINIO_ROOT_USER = "user"
+    MINIO_ROOT_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "minio_data"
       container = "/data"
@@ -205,9 +201,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-appflowy}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "user"
+    POSTGRES_DB = "appflowy"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     POSTGRES_HOST = "postgres"
     [[services.storage]]
       host = "postgres_data"

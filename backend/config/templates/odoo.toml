@@ -1,7 +1,8 @@
-name = "Odoo is a suite of open-source business apps that cover all your company needs."
+name = "Odoo"
 description = "Odoo is a suite of open-source business apps that cover all your company needs."
 category = "stack"
 logo = "svgs/odoo.svg"
+
 [[services]]
 name = "odoo"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ODOO_8069 = ""
     HOST = "postgresql"
     USER = "$SERVICE_USER_POSTGRES"
     PASSWORD = "$SERVICE_PASSWORD_POSTGRES"

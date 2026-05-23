@@ -73,14 +73,14 @@ class ComposeToManifest
     metadata
   end
 
-  def convert
+  def convert(slug: nil)
     compose = parse_compose
     return nil unless compose
 
     services_hash = compose["services"] || {}
     return nil if services_hash.empty?
 
-    manifest = build_manifest(services_hash, compose)
+    manifest = build_manifest(services_hash, compose, slug)
 
     ConversionResult.new(
       toml: toml_string(manifest),
@@ -105,7 +105,7 @@ class ComposeToManifest
 
   # ── Manifest Building ───────────────────────────────────────
 
-  def build_manifest(services_hash, compose)
+  def build_manifest(services_hash, compose, slug)
     services = []
     links = []
 
@@ -125,9 +125,19 @@ class ComposeToManifest
       end
     end
 
+    # Use slug as name (humanized), slogan/description as description
+    human_name = slug.to_s.split("-").map(&:capitalize).join(" ")
+    slogan = @metadata["slogan"] || ""
+    description = @metadata["description"] || slogan
+
+    # If description is same as a reasonable name, use description only
+    if description.downcase == human_name.downcase
+      description = ""
+    end
+
     {
-      "name" => @metadata["slogan"] || @metadata["description"] || "Imported Stack",
-      "description" => @metadata["description"] || @metadata["slogan"] || "",
+      "name" => (human_name && !human_name.empty? ? human_name : (slogan && !slogan.empty? ? slogan : "Imported Stack")),
+      "description" => description,
       "category" => coolify_category_to_raildock(@metadata["category"]),
       "services" => services,
       "links" => links
@@ -234,29 +244,96 @@ class ComposeToManifest
 
   # ── Field Converters ────────────────────────────────────────
 
+  # Coolify magic variables that get auto-generated — replace with placeholders
+  COOLIFY_MAGIC_VARS = %w[
+    SERVICE_URL SERVICE_FQDN SERVICE_PASSWORD SERVICE_USER
+    SERVICE_BASE64 SERVICE_BASE64_64 SERVICE_BASE64_32
+    SERVICE_SUPABASE SERVICE_ANON_KEY SERVICE_SERVICE_KEY
+  ].freeze
+
   def convert_env(env)
     return {} unless env
 
-    case env
+    raw = case env
     when Hash
-      env.each_with_object({}) do |(k, v), h|
-        h[k.to_s] = v.to_s
-      end
+      env.transform_keys(&:to_s).transform_values(&:to_s)
     when Array
       result = {}
       env.each do |item|
-        if item.to_s.include?("=")
-          key, value = item.to_s.split("=", 2)
-          result[key] = value || ""
+        item_str = item.to_s.strip
+        next if item_str.empty?
+
+        if item_str.include?("=")
+          key, value = item_str.split("=", 2)
+          result[key.strip] = value || ""
         else
-          # Variable reference like "FOO" — set empty placeholder
-          result[item.to_s] = ""
+          # Bare variable name like "FOO" — Coolify auto-generates these
+          # Skip them unless they have a default value
+          @warnings << "Auto-generated env var '#{item_str}' skipped — set manually after deploy"
+          next
         end
       end
       result
     else
       {}
     end
+
+    # Replace Coolify magic variables with placeholders
+    processed = {}
+    raw.each do |key, value|
+      new_val = replace_coolify_magic_vars(value)
+      # Skip empty values — they fail Rails validations
+      next if new_val.empty?
+      processed[key] = new_val
+    end
+
+    processed
+  end
+
+  def replace_coolify_magic_vars(value)
+    return value unless value.is_a?(String)
+
+    # Replace ${SERVICE_PASSWORD_XXX} → "CHANGE_ME"
+    # Replace ${SERVICE_URL_XXX} → "https://example.com"
+    # Replace ${SERVICE_FQDN_XXX} → "app.example.com"
+    # Replace ${SERVICE_USER_XXX} → "user"
+    # Replace ${SERVICE_BASE64_XXX} → "BASE64_GENERATED"
+
+    result = value.dup
+
+    # Pattern: ${SERVICE_PASSWORD_FOO} or ${SERVICE_PASSWORD_FOO:-default}
+    result.gsub!(/\$\{SERVICE_PASSWORD_[^}]+(?::-[^}]*)?\}/, "CHANGE_ME")
+    result.gsub!(/\$\{SERVICE_URL_[^}]+(?::-[^}]*)?\}/, "https://example.com")
+    result.gsub!(/\$\{SERVICE_FQDN_[^}]+(?::-[^}]*)?\}/, "app.example.com")
+    result.gsub!(/\$\{SERVICE_USER_[^}]+(?::-[^}]*)?\}/, "user")
+    result.gsub!(/\$\{SERVICE_BASE64(?:_64|_32)?_[^}]+(?::-[^}]*)?\}/, "BASE64_GENERATED")
+
+    # Generic Coolify service vars
+    result.gsub!(/\$\{SERVICE_PASSWORD[^}]*\}/, "CHANGE_ME")
+    result.gsub!(/\$\{SERVICE_URL[^}]*\}/, "https://example.com")
+    result.gsub!(/\$\{SERVICE_FQDN[^}]*\}/, "app.example.com")
+    result.gsub!(/\$\{SERVICE_USER[^}]*\}/, "user")
+    result.gsub!(/\$\{SERVICE_BASE64[^}]*\}/, "BASE64_GENERATED")
+    result.gsub!(/\$\{SERVICE_ANON_KEY[^}]*\}/, "ANON_KEY")
+    result.gsub!(/\$\{SERVICE_SERVICE_KEY[^}]*\}/, "SERVICE_KEY")
+    result.gsub!(/\$\{SERVICE_SUPABASE[^}]*\}/, "SUPABASE_VALUE")
+
+    # Docker Compose defaults syntax: ${VAR:-default} → default
+    result.gsub!(/\$\{([^}:-]+):-([^}]*)\}/, '\2')
+    # Simple vars: ${VAR} → leave as-is for now (user will replace)
+    # But if it's just ${VAR} with no default, replace with placeholder
+    result.gsub!(/\$\{([A-Z_][A-Z0-9_]*)\}/) do |match|
+      var_name = $1
+      case var_name
+      when /PASSWORD|SECRET|TOKEN|KEY/ then "CHANGE_ME"
+      when /HOST|URL/ then "https://example.com"
+      when /PORT/ then "3000"
+      when /EMAIL/ then "admin@example.com"
+      else "#{var_name}_VALUE"
+      end
+    end
+
+    result
   end
 
   def convert_ports(ports)

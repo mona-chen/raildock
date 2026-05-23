@@ -1,7 +1,8 @@
-name = "Jenkins is an open source automation server, Jenkins provides hundreds of plugins to support building, deploying and automating any project."
+name = "Jenkins"
 description = "Jenkins is an open source automation server, Jenkins provides hundreds of plugins to support building, deploying and automating any project."
 category = "stack"
 logo = "svgs/jenkins.svg"
+
 [[services]]
 name = "jenkins"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "jenkins/jenkins:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_JENKINS_8080 = ""
     [[services.storage]]
       host = "jenkins-home"
       container = "/var/jenkins_home"

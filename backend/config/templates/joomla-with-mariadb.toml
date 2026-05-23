@@ -1,7 +1,8 @@
-name = "Joomla! is the mobile-ready and user-friendly way to build your website. Choose from thousands of features and designs. Joomla! is free and open source."
+name = "Joomla With Mariadb"
 description = "Joomla! is the mobile-ready and user-friendly way to build your website. Choose from thousands of features and designs. Joomla! is free and open source."
 category = "stack"
 logo = "svgs/joomla.svg"
+
 [[services]]
 name = "joomla"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_JOOMLA = ""
     JOOMLA_DB_HOST = "mariadb"
-    JOOMLA_DB_USER = "${SERVICE_USER_JOOMLA}"
-    JOOMLA_DB_PASSWORD = "${SERVICE_PASSWORD_JOOMLA}"
-    JOOMLA_DB_NAME = "${MYSQL_DATABASE:-joomla-db}"
+    JOOMLA_DB_USER = "user"
+    JOOMLA_DB_PASSWORD = "CHANGE_ME"
+    JOOMLA_DB_NAME = "joomla-db"
     [[services.storage]]
       host = "joomla_data"
       container = "/var/www/html"
@@ -31,10 +31,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-joomla-db}"
-    MYSQL_USER = "${SERVICE_USER_JOOMLA}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_JOOMLA}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "joomla-db"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "joomla_mariadb_data"
       container = "/var/lib/mysql"

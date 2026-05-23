@@ -1,7 +1,8 @@
-name = "Powerful and easy to use cms to build websites, blogs or ecommerce stores."
+name = "Vvveb"
 description = "Powerful and easy to use cms to build websites, blogs or ecommerce stores."
 category = "stack"
 logo = "svgs/vvveb.svg"
+
 [[services]]
 name = "vvveb"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "vvveb/vvvebcms:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_VVVEB_80 = ""
     [[services.storage]]
       host = "vvveb-data"
       container = "/var/www/html"

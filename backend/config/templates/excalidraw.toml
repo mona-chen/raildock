@@ -1,7 +1,8 @@
-name = "Virtual whiteboard for sketching hand-drawn like diagrams"
+name = "Excalidraw"
 description = "Virtual whiteboard for sketching hand-drawn like diagrams"
 category = "stack"
 logo = "svgs/excalidraw.svg"
+
 [[services]]
 name = "excalidraw"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "excalidraw/excalidraw:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_EXCALIDRAW_80 = ""
   [services.checks]
     enabled = true
     wait = 10

@@ -1,7 +1,8 @@
-name = "Label Studio is a multi-type data labeling and annotation tool with standardized output format"
+name = "Labelstudio"
 description = "Label Studio is a multi-type data labeling and annotation tool with standardized output format"
 category = "stack"
 logo = "svgs/labelstudio.png"
+
 [[services]]
 name = "labelstudio"
 category = "app"
@@ -11,21 +12,20 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LABELSTUDIO_8080 = ""
-    CSRF_TRUSTED_ORIGINS = "${SERVICE_URL_LABELSTUDIO}"
-    EXPERIMENTAL_FEATURES = "${EXPERIMENTAL_FEATURES:-false}"
-    DJANGO_DB = "${DJANGO_DB:-default}"
-    POSTGRE_NAME = "${POSTGRES_DB:-labelstudio}"
-    POSTGRE_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRE_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    CSRF_TRUSTED_ORIGINS = "https://example.com"
+    EXPERIMENTAL_FEATURES = "false"
+    DJANGO_DB = "default"
+    POSTGRE_NAME = "labelstudio"
+    POSTGRE_USER = "user"
+    POSTGRE_PASSWORD = "CHANGE_ME"
     POSTGRE_PORT = "5432"
     POSTGRE_HOST = "postgres"
-    LABEL_STUDIO_HOST = "${SERVICE_URL_LABELSTUDIO}"
-    SSRF_PROTECTION_ENABLED = "${SSRF_PROTECTION_ENABLED:-true}"
-    LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK = "${LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK:-true}"
-    DATA_UPLOAD_MAX_NUMBER_FILES = "${DATA_UPLOAD_MAX_NUMBER_FILES:-10000}"
-    LABEL_STUDIO_USERNAME = "${LABEL_STUDIO_USERNAME:-admin@example.com}"
-    LABEL_STUDIO_PASSWORD = "${SERVICE_PASSWORD_LABELSTUDIO}"
+    LABEL_STUDIO_HOST = "https://example.com"
+    SSRF_PROTECTION_ENABLED = "true"
+    LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK = "true"
+    DATA_UPLOAD_MAX_NUMBER_FILES = "10000"
+    LABEL_STUDIO_USERNAME = "admin@example.com"
+    LABEL_STUDIO_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "labelstudio-data"
       container = "/label-studio/data"
@@ -41,9 +41,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-labelstudio}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "labelstudio"
     [[services.storage]]
       host = "pg-data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "Email & SMTP testing tool with API for developers"
+name = "Mailpit"
 description = "Email & SMTP testing tool with API for developers"
 category = "stack"
 logo = "svgs/mailpit.svg"
+
 [[services]]
 name = "mailpit"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MAILPIT_8025 = ""
     MP_MAX_MESSAGES = "5000"
     MP_DATABASE = "/data/mailpit.db"
     MP_SMTP_AUTH_ACCEPT_ANY = "1"

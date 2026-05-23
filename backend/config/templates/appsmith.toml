@@ -1,7 +1,8 @@
-name = "A low-code application platform for building internal tools."
+name = "Appsmith"
 description = "A low-code application platform for building internal tools."
 category = "stack"
 logo = "svgs/appsmith.svg"
+
 [[services]]
 name = "appsmith"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_APPSMITH = ""
-    APPSMITH_MAIL_ENABLED = "${APPSMITH_MAIL_ENABLED:-false}"
-    APPSMITH_DISABLE_TELEMETRY = "${APPSMITH_DISABLE_TELEMETRY:-false}"
-    APPSMITH_DISABLE_INTERCOM = "${APPSMITH_DISABLE_INTERCOM:-true}"
-    APPSMITH_SENTRY_DSN = "${APPSMITH_SENTRY_DSN}"
-    APPSMITH_SMART_LOOK_ID = "${APPSMITH_SMART_LOOK_ID}"
+    APPSMITH_MAIL_ENABLED = "false"
+    APPSMITH_DISABLE_TELEMETRY = "false"
+    APPSMITH_DISABLE_INTERCOM = "true"
+    APPSMITH_SENTRY_DSN = "APPSMITH_SENTRY_DSN_VALUE"
+    APPSMITH_SMART_LOOK_ID = "APPSMITH_SMART_LOOK_ID_VALUE"
     [[services.storage]]
       host = "stacks-data"
       container = "/appsmith-stacks"

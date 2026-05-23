@@ -1,7 +1,8 @@
-name = "A next-generation discussion platform."
+name = "Nodebb"
 description = "A next-generation discussion platform."
 category = "stack"
 logo = "svgs/nodebb.svg"
+
 [[services]]
 name = "nodebb"
 category = "app"
@@ -11,8 +12,6 @@ start_command = "/bin/bash -c \" cat > /usr/src/app/setup.json <<EOL {\n    \\"d
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_NODEBB_4567 = ""
     [[services.storage]]
       host = "nodebb_build"
       container = "/usr/src/app/build"
@@ -34,8 +33,8 @@ subtype = "postgres"
 docker_image = "postgres:17.2-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     POSTGRES_DB = "nodebb"
     [[services.storage]]
       host = "nodebb_postgres_data"

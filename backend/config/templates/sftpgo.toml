@@ -1,7 +1,8 @@
-name = "SFTPGo is an event-driven SFTP, FTP/S, HTTP/S and WebDAV server."
+name = "Sftpgo"
 description = "SFTPGo is an event-driven SFTP, FTP/S, HTTP/S and WebDAV server."
 category = "stack"
 logo = "svgs/sftpgo.png"
+
 [[services]]
 name = "sftpgo"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_FQDN_SFTPGO_8080 = ""
     SFTPGO_DATA_PROVIDER__DRIVER = "postgresql"
-    SFTPGO_DATA_PROVIDER__CONNECTION_STRING = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_64_POSTGRES}@postgresql:5432/${POSTGRES_DATABASE:-sftpgo-db}"
-    SFTPGO_SFTPD__BINDINGS__0__PORT = "${PORT_SFTPGO:-2222}"
-    SFTPGO_LOG_LEVEL = "${LOG_LEVEL:-info}"
+    SFTPGO_DATA_PROVIDER__CONNECTION_STRING = "postgresql://user:CHANGE_ME@postgresql:5432/sftpgo-db"
+    SFTPGO_SFTPD__BINDINGS__0__PORT = "2222"
+    SFTPGO_LOG_LEVEL = "info"
   [services.proxy]
     enabled = true
     type = "traefik"
@@ -40,9 +40,9 @@ subtype = "postgres"
 docker_image = "postgres:17-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DATABASE:-sftpgo-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "sftpgo-db"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

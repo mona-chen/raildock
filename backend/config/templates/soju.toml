@@ -1,7 +1,8 @@
-name = "A user-friendly IRC bouncer with a modern web interface"
+name = "Soju"
 description = "A user-friendly IRC bouncer with a modern web interface"
 category = "stack"
 logo = "svgs/soju.svg"
+
 [[services]]
 name = "soju"
 category = "app"
@@ -28,8 +29,6 @@ docker_image = "codeberg.org/emersion/gamja:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_FQDN_GAMJA_80 = ""
 
 [[links]]
 from = "gamja"

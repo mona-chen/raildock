@@ -1,7 +1,8 @@
-name = "Build and scale stateful workloads with long-lived processes"
+name = "Rivet Engine"
 description = "Build and scale stateful workloads with long-lived processes"
 category = "stack"
 logo = "svgs/rivet.svg"
+
 [[services]]
 name = "rivet-engine"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_RIVET_6420 = ""
     RIVET__FILE_SYSTEM__PATH = "/data"
-    RIVET__AUTH__ADMIN_TOKEN = "${SERVICE_BASE64_TOKEN}"
+    RIVET__AUTH__ADMIN_TOKEN = "BASE64_GENERATED"
     [[services.storage]]
       host = "rivet-data"
       container = "/data"

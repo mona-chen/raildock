@@ -1,7 +1,8 @@
-name = "Mautic v5 Open Source Marketing Automation"
+name = "Mautic5"
 description = "Mautic v5 Open Source Marketing Automation"
 category = "stack"
 logo = "svgs/mautic.svg"
+
 [[services]]
 name = "mysql"
 category = "database"
@@ -9,10 +10,10 @@ subtype = "mysql"
 docker_image = "mysql:8.0"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_64_MYSQLROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-mautic}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "mautic"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "mysql-data"
       container = "/var/lib/mysql"
@@ -28,7 +29,7 @@ subtype = "rabbitmq"
 docker_image = "rabbitmq:3"
 source = { type = "docker"  }
   [services.env]
-    RABBITMQ_DEFAULT_VHOST = "${RABBITMQ_DEFAULT_VHOST:-mautic}"
+    RABBITMQ_DEFAULT_VHOST = "mautic"
     [[services.storage]]
       host = "rabbitmq-data"
       container = "/var/lib/rabbitmq"
@@ -46,16 +47,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MAUTIC_80 = ""
-    DOCKER_MAUTIC_LOAD_TEST_DATA = "${MAUTIC_LOAD_TEST_DATA:-false}"
-    DOCKER_MAUTIC_RUN_MIGRATIONS = "${MAUTIC_RUN_MIGRATIONS:-false}"
-    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
-    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
-    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
-    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
-    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
-    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
-    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    DOCKER_MAUTIC_LOAD_TEST_DATA = "false"
+    DOCKER_MAUTIC_RUN_MIGRATIONS = "false"
+    MAUTIC_DB_HOST = "mysql"
+    MAUTIC_DB_PORT = "3306"
+    MAUTIC_DB_DATABASE = "mautic"
+    MAUTIC_DB_USER = "user"
+    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
+    MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]
       host = "mautic_data/config"
       container = "/var/www/html/config"
@@ -95,13 +95,13 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DOCKER_MAUTIC_ROLE = "mautic_cron"
-    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
-    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
-    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
-    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
-    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
-    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
-    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    MAUTIC_DB_HOST = "mysql"
+    MAUTIC_DB_PORT = "3306"
+    MAUTIC_DB_DATABASE = "mautic"
+    MAUTIC_DB_USER = "user"
+    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
+    MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]
       host = "mautic_data/config"
       container = "/var/www/html/config"
@@ -141,13 +141,13 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DOCKER_MAUTIC_ROLE = "mautic_worker"
-    MAUTIC_DB_HOST = "${MYSQL_HOST:-mysql}"
-    MAUTIC_DB_PORT = "${MYSQL_PORT:-3306}"
-    MAUTIC_DB_DATABASE = "${MYSQL_DATABASE:-mautic}"
-    MAUTIC_DB_USER = "${SERVICE_USER_MYSQL}"
-    MAUTIC_DB_PASSWORD = "${SERVICE_PASSWORD_64_MYSQL}"
-    MAUTIC_MESSENGER_DSN_EMAIL = "${MAUTIC_MESSENGER_DSN_EMAIL:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
-    MAUTIC_MESSENGER_DSN_HIT = "${MAUTIC_MESSENGER_DSN_HIT:-amqp://guest:guest@rabbitmq:5672/mautic/messages}"
+    MAUTIC_DB_HOST = "mysql"
+    MAUTIC_DB_PORT = "3306"
+    MAUTIC_DB_DATABASE = "mautic"
+    MAUTIC_DB_USER = "user"
+    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
+    MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]
       host = "mautic_data/config"
       container = "/var/www/html/config"

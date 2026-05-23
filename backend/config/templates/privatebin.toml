@@ -1,7 +1,8 @@
-name = "PrivateBin is a minimalist, open source online pastebin where the server has zero knowledge of pasted data."
+name = "Privatebin"
 description = "PrivateBin is a minimalist, open source online pastebin where the server has zero knowledge of pasted data."
 category = "stack"
 logo = "svgs/privatebin.svg"
+
 [[services]]
 name = "privatebin"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "privatebin/nginx-fpm-alpine"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_PRIVATEBIN_8080 = ""
     [[services.storage]]
       host = "privatebin_data"
       container = "/srv/data"

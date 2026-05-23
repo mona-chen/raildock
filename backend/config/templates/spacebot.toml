@@ -1,7 +1,8 @@
-name = "An agentic AI system with specialized processes for thinking, working, and remembering."
+name = "Spacebot"
 description = "An agentic AI system with specialized processes for thinking, working, and remembering."
 category = "stack"
 logo = "svgs/spacebot.png"
+
 [[services]]
 name = "spacebot"
 category = "app"
@@ -11,16 +12,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_FQDN_SPACEBOT_19898 = ""
-    ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
-    OPENAI_API_KEY = "${OPENAI_API_KEY}"
-    OPENROUTER_API_KEY = "${OPENROUTER_API_KEY}"
-    DISCORD_BOT_TOKEN = "${DISCORD_BOT_TOKEN}"
-    SLACK_BOT_TOKEN = "${SLACK_BOT_TOKEN}"
-    SLACK_APP_TOKEN = "${SLACK_APP_TOKEN}"
-    BRAVE_SEARCH_API_KEY = "${BRAVE_SEARCH_API_KEY}"
-    SPACEBOT_CHANNEL_MODEL = "${SPACEBOT_CHANNEL_MODEL}"
-    SPACEBOT_WORKER_MODEL = "${SPACEBOT_WORKER_MODEL}"
+    ANTHROPIC_API_KEY = "CHANGE_ME"
+    OPENAI_API_KEY = "CHANGE_ME"
+    OPENROUTER_API_KEY = "CHANGE_ME"
+    DISCORD_BOT_TOKEN = "CHANGE_ME"
+    SLACK_BOT_TOKEN = "CHANGE_ME"
+    SLACK_APP_TOKEN = "CHANGE_ME"
+    BRAVE_SEARCH_API_KEY = "CHANGE_ME"
+    SPACEBOT_CHANNEL_MODEL = "SPACEBOT_CHANNEL_MODEL_VALUE"
+    SPACEBOT_WORKER_MODEL = "SPACEBOT_WORKER_MODEL_VALUE"
     [[services.storage]]
       host = "spacebot-data"
       container = "/data"

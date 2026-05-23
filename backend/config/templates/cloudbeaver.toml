@@ -1,7 +1,8 @@
-name = "CloudBeaver is a lightweight web application designed for comprehensive data management."
+name = "Cloudbeaver"
 description = "CloudBeaver is a lightweight web application designed for comprehensive data management."
 category = "stack"
 logo = "svgs/cloudbeaver.svg"
+
 [[services]]
 name = "cloudbeaver"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "dbeaver/cloudbeaver:24"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_CLOUDBEAVER_8978 = ""
     [[services.storage]]
       host = "cloudbeaver-data"
       container = "/opt/cloudbeaver/workspace"

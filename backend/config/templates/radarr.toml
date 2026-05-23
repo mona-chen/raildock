@@ -1,7 +1,8 @@
-name = "Radarr⁠ - A fork of Sonarr to work with movies à la Couchpotato."
+name = "Radarr"
 description = "Radarr⁠ - A fork of Sonarr to work with movies à la Couchpotato."
 category = "stack"
 logo = "svgs/radarr.svg"
+
 [[services]]
 name = "radarr"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_RADARR_7878 = ""
     _APP_URL = "$SERVICE_URL_RADARR"
     PUID = "1000"
     PGID = "1000"
-    TZ = "${TZ:-America/Toronto}"
+    TZ = "America/Toronto"
     [[services.storage]]
       host = "radarr-config"
       container = "/config"

@@ -1,7 +1,8 @@
-name = "OrangeHRM open source HR management software."
+name = "Orangehrm"
 description = "OrangeHRM open source HR management software."
 category = "stack"
 logo = "svgs/orangehrm.svg"
+
 [[services]]
 name = "orangehrm"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ORANGEHRM_80 = ""
     ORANGEHRM_DATABASE_HOST = "mariadb"
-    ORANGEHRM_DATABASE_USER = "${SERVICE_USER_MYSQL}"
-    ORANGEHRM_DATABASE_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
-    ORANGEHRM_DATABASE_NAME = "${MYSQL_DATABASE:-orangehrm-db}"
+    ORANGEHRM_DATABASE_USER = "user"
+    ORANGEHRM_DATABASE_PASSWORD = "CHANGE_ME"
+    ORANGEHRM_DATABASE_NAME = "orangehrm-db"
     [[services.storage]]
       host = "orangehrm-data"
       container = "/orangehrm"
@@ -31,10 +31,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-orangehrm-db}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "orangehrm-db"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "orangehrm_mariadb_data"
       container = "/var/lib/mysql"

@@ -1,7 +1,8 @@
-name = "MinIO is a high performance object storage server compatible with Amazon S3 APIs."
+name = "Minio"
 description = "MinIO is a high performance object storage server compatible with Amazon S3 APIs."
 category = "stack"
 logo = "svgs/minio.svg"
+
 [[services]]
 name = "minio"
 category = "service"

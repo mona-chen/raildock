@@ -1,7 +1,8 @@
-name = "A recipe manager and meal planner."
+name = "Mealie"
 description = "A recipe manager and meal planner."
 category = "stack"
 logo = "svgs/mealie.png"
+
 [[services]]
 name = "mealie"
 category = "app"
@@ -11,13 +12,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MEALIE_9000 = ""
-    ALLOW_SIGNUP = "${ALLOW_SIGNUP:-true}"
-    PUID = "${PUID:-1000}"
-    PGID = "${PGID:-1000}"
-    TZ = "${TZ:-Europe/Berlin}"
-    MAX_WORKERS = "${MAX_WORKERS:-1}"
-    WEB_CONCURRENCY = "${WEB_CONCURRENCY:-1}"
+    ALLOW_SIGNUP = "true"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Europe/Berlin"
+    MAX_WORKERS = "1"
+    WEB_CONCURRENCY = "1"
     [[services.storage]]
       host = "mealie_data"
       container = "/app/data"

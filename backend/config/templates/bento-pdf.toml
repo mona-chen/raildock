@@ -1,7 +1,8 @@
-name = "Process PDFs entirely in your browser. No uploads. No servers. Complete privacy."
+name = "Bento Pdf"
 description = "Process PDFs entirely in your browser. No uploads. No servers. Complete privacy."
 category = "stack"
 logo = "svgs/bento-pdf.png"
+
 [[services]]
 name = "bento-pdf"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "ghcr.io/alam00000/bentopdf:v1.16.1"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_BENTOPDF_8080 = ""
   [services.checks]
     enabled = true
     wait = 5

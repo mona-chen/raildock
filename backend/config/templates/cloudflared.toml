@@ -1,7 +1,8 @@
-name = "Client for Cloudflare Tunnel, a daemon that exposes private services through the Cloudflare edge."
+name = "Cloudflared"
 description = "Client for Cloudflare Tunnel, a daemon that exposes private services through the Cloudflare edge."
 category = "stack"
 logo = "svgs/cloudflared.svg"
+
 [[services]]
 name = "cloudflared"
 category = "app"
@@ -12,7 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    TUNNEL_TOKEN = "${CLOUDFLARE_TUNNEL_TOKEN}"
+    TUNNEL_TOKEN = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 5

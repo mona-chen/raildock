@@ -1,7 +1,8 @@
-name = "Martin is a tile server able to generate and serve vector tiles on the fly from large PostGIS databases, PMTiles (local or remote), and MBTiles files, allowing multiple tile sources to be dynamically combined into one."
+name = "Martin"
 description = "Martin is a tile server able to generate and serve vector tiles on the fly from large PostGIS databases, PMTiles (local or remote), and MBTiles files, allowing multiple tile sources to be dynamically combined into one."
 category = "stack"
 logo = "svgs/martin.png"
+
 [[services]]
 name = "martin"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MARTIN_3000 = ""
-    HOST = "${SERVICE_URL_MARTIN}"
-    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB:-martin-db}"
+    HOST = "https://example.com"
+    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/martin-db"
   [services.checks]
     enabled = true
     wait = 5
@@ -30,7 +30,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-martin-db}"
+    POSTGRES_DB = "martin-db"
     [[services.storage]]
       host = "martin-postgresql-data"
       container = "/var/lib/postgresql/data"

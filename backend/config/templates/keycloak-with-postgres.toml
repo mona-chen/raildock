@@ -1,7 +1,8 @@
-name = "Keycloak is an open-source Identity and Access Management tool."
+name = "Keycloak With Postgres"
 description = "Keycloak is an open-source Identity and Access Management tool."
 category = "stack"
 logo = "svgs/keycloak.svg"
+
 [[services]]
 name = "keycloak"
 category = "app"
@@ -12,19 +13,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_KEYCLOAK_8080 = ""
-    TZ = "${TIMEZONE:-UTC}"
-    KC_BOOTSTRAP_ADMIN_USERNAME = "${SERVICE_USER_ADMIN}"
-    KC_BOOTSTRAP_ADMIN_PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    TZ = "UTC"
+    KC_BOOTSTRAP_ADMIN_USERNAME = "user"
+    KC_BOOTSTRAP_ADMIN_PASSWORD = "CHANGE_ME"
     KC_DB = "postgres"
-    KC_DB_USERNAME = "${SERVICE_USER_DATABASE}"
-    KC_DB_PASSWORD = "${SERVICE_PASSWORD_64_DATABASE}"
+    KC_DB_USERNAME = "user"
+    KC_DB_PASSWORD = "CHANGE_ME"
     KC_DB_URL_PORT = "5432"
-    KC_DB_URL = "jdbc:postgresql://postgres/${POSTGRESQL_DATABASE:-keycloak}"
-    KC_HOSTNAME = "${SERVICE_URL_KEYCLOAK}"
-    KC_HTTP_ENABLED = "${KC_HTTP_ENABLED:-true}"
-    KC_HEALTH_ENABLED = "${KC_HEALTH_ENABLED:-true}"
-    KC_PROXY_HEADERS = "${KC_PROXY_HEADERS:-xforwarded}"
+    KC_DB_URL = "jdbc:postgresql://postgres/keycloak"
+    KC_HOSTNAME = "https://example.com"
+    KC_HTTP_ENABLED = "true"
+    KC_HEALTH_ENABLED = "true"
+    KC_PROXY_HEADERS = "xforwarded"
     [[services.storage]]
       host = "keycloak-data"
       container = "/opt/keycloak/data"
@@ -40,9 +40,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_DATABASE}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_DATABASE}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-keycloak}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "keycloak"
     [[services.storage]]
       host = "keycloak-postgresql-data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "A self-hosted Bitcoin Core full node."
+name = "Bitcoin Core"
 description = "A self-hosted Bitcoin Core full node."
 category = "stack"
 logo = "svgs/bitcoin.svg"
+
 [[services]]
 name = "bitcoin-core"
 category = "app"
@@ -12,11 +13,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    BITCOIN_RPCUSER = "${BITCOIN_RPCUSER:-bitcoinuser}"
-    BITCOIN_RPCPASSWORD = "${SERVICE_PASSWORD_PASSWORD64}"
-    BITCOIN_PRINTTOCONSOLE = "${BITCOIN_PRINTTOCONSOLE:-1}"
-    BITCOIN_TXINDEX = "${BITCOIN_TXINDEX:-1}"
-    BITCOIN_SERVER = "${BITCOIN_SERVER:-1}"
+    BITCOIN_RPCUSER = "bitcoinuser"
+    BITCOIN_RPCPASSWORD = "CHANGE_ME"
+    BITCOIN_PRINTTOCONSOLE = "1"
+    BITCOIN_TXINDEX = "1"
+    BITCOIN_SERVER = "1"
     [[services.storage]]
       host = "blockchain-data"
       container = "/home/bitcoin/.bitcoin"

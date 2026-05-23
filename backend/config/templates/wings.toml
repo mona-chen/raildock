@@ -1,7 +1,8 @@
-name = "The server control plane for Pterodactyl Panel. Written from the ground-up with security, speed, and stability in mind."
+name = "Wings"
 description = "The server control plane for Pterodactyl Panel. Written from the ground-up with security, speed, and stability in mind."
 category = "stack"
 logo = "svgs/pterodactyl.png"
+
 [[services]]
 name = "wings"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_WINGS_8443 = ""
-    TZ = "${TIMEZONE:-UTC}"
+    TZ = "UTC"
     WINGS_USERNAME = "$SERVICE_USER_WINGS"
   [services.proxy]
     enabled = true

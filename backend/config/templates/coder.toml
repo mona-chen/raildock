@@ -1,7 +1,8 @@
-name = "Coder is an open-source platform for creating and managing cloud development environments on your infrastructure, with the tools and IDEs your developers already love."
+name = "Coder"
 description = "Coder is an open-source platform for creating and managing cloud development environments on your infrastructure, with the tools and IDEs your developers already love."
 category = "stack"
 logo = "svgs/coder.svg"
+
 [[services]]
 name = "coder"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CODER_7080 = ""
-    CODER_PG_CONNECTION_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@coder-database/${POSTGRES_DB:-coder-db}?sslmode=disable"
+    CODER_PG_CONNECTION_URL = "postgresql://user:CHANGE_ME@coder-database/coder-db?sslmode=disable"
     CODER_HTTP_ADDRESS = "0.0.0.0:7080"
-    CODER_ACCESS_URL = "${SERVICE_URL_CODER}"
+    CODER_ACCESS_URL = "https://example.com"
   [services.checks]
     enabled = true
     wait = 5
@@ -27,9 +27,9 @@ subtype = "postgres"
 docker_image = "postgres:16.4-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-coder-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "coder-db"
     [[services.storage]]
       host = "coder-postgres-data"
       container = "/var/lib/postgresql/data"

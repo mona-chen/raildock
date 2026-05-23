@@ -1,7 +1,8 @@
-name = "Syncthing synchronizes files between two or more computers in real time."
+name = "Syncthing"
 description = "Syncthing synchronizes files between two or more computers in real time."
 category = "stack"
 logo = "svgs/syncthing.svg"
+
 [[services]]
 name = "syncthing"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SYNCTHING_8384 = ""
     PUID = "1000"
     PGID = "1000"
-    TZ = "${TZ:-Etc/UTC}"
+    TZ = "Etc/UTC"
   [services.proxy]
     enabled = true
     type = "traefik"

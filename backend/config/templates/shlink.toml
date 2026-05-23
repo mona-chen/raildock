@@ -1,4 +1,4 @@
-name = "The definitive self-hosted URL shortener"
+name = "Shlink"
 description = "The definitive self-hosted URL shortener"
 category = "stack"
 
@@ -11,10 +11,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SHLINK_8080 = ""
-    DEFAULT_DOMAIN = "${SERVICE_FQDN_SHLINK}"
+    DEFAULT_DOMAIN = "app.example.com"
     IS_HTTPS_ENABLED = "false"
-    INITIAL_API_KEY = "${SERVICE_BASE64_SHLINKAPIKEY}"
+    INITIAL_API_KEY = "BASE64_GENERATED"
     [[services.storage]]
       host = "shlink-data"
       container = "/etc/shlink/data"
@@ -32,9 +31,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SHLINKWEB_8080 = ""
-    SHLINK_SERVER_API_KEY = "${SERVICE_BASE64_SHLINKAPIKEY}"
-    SHLINK_SERVER_URL = "${SERVICE_URL_SHLINK}"
+    SHLINK_SERVER_API_KEY = "BASE64_GENERATED"
+    SHLINK_SERVER_URL = "https://example.com"
   [services.checks]
     enabled = true
     wait = 2

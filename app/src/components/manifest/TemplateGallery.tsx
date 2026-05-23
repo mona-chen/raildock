@@ -72,9 +72,22 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                     key={template.id}
                     className="flex items-center gap-3 p-3 border border-white/[0.06] bg-[#1a1a1e] rounded-lg hover:border-white/[0.12] transition-all"
                   >
+                    {template.logo ? (
+                      <img
+                        src={template.logo}
+                        alt={template.name}
+                        className="w-8 h-8 rounded object-contain bg-white/[0.05] flex-shrink-0"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                        <Icon size={14} style={{ color }} />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-white/70 font-medium">{template.name}</div>
-                      <div className="text-[11px] text-white/40">{template.description}</div>
+                      <div className="text-[11px] text-white/40 truncate">{template.description}</div>
                       <div className="flex items-center gap-2 mt-1.5">
                         {template.services?.map((s: { name: string; category: string }, i: number) => (
                           <span

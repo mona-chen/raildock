@@ -1,7 +1,8 @@
-name = "A blazingly fast Rust/SQLite/Wasmtime app server with type-safe APIs"
+name = "Trailbase"
 description = "A blazingly fast Rust/SQLite/Wasmtime app server with type-safe APIs"
 category = "stack"
 logo = "svgs/trailbase.svg"
+
 [[services]]
 name = "trailbase"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "trailbase/trailbase:0.22.6"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_TRAILBASE_4000 = ""
     [[services.storage]]
       host = "trailbase-data"
       container = "/app/traildepot"

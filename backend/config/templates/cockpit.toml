@@ -1,7 +1,8 @@
-name = "Cockpit is a headless content platform that is lightweight, fast and ready for takeoff."
+name = "Cockpit"
 description = "Cockpit is a headless content platform that is lightweight, fast and ready for takeoff."
 category = "stack"
 logo = "svgs/cockpit.svg"
+
 [[services]]
 name = "cockpit"
 category = "app"

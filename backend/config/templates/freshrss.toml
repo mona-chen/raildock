@@ -1,7 +1,8 @@
-name = "A free, self-hostable feed aggregator."
+name = "Freshrss"
 description = "A free, self-hostable feed aggregator."
 category = "stack"
 logo = "svgs/freshrss.png"
+
 [[services]]
 name = "freshrss"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_FRESHRSS_80 = ""
-    CRON_MIN = "${CRON_MIN:-1,31}"
+    CRON_MIN = "1,31"
     [[services.storage]]
       host = "freshrss-data"
       container = "/var/www/FreshRSS/data"

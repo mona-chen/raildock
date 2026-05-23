@@ -1,7 +1,8 @@
-name = "Drop-in replacement for Vercel's Nextjs image optimization service."
+name = "Next Image Transformation"
 description = "Drop-in replacement for Vercel's Nextjs image optimization service."
 category = "stack"
 logo = "coolify-logo.svg"
+
 [[services]]
 name = "next-image-transformation"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_TRANSFORMATION_3000 = ""
     NODE_ENV = "production"
-    ALLOWED_REMOTE_DOMAINS = "${ALLOWED_REMOTE_DOMAINS:-*}"
-    IMGPROXY_URL = "${IMGPROXY_URL:-http://imgproxy:8080}"
+    ALLOWED_REMOTE_DOMAINS = "*"
+    IMGPROXY_URL = "http://imgproxy:8080"
   [services.checks]
     enabled = true
     wait = 2

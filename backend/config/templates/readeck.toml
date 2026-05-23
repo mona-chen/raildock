@@ -1,7 +1,8 @@
-name = "Simple web application that lets you save the precious readable content of web pages you like and want to keep forever."
+name = "Readeck"
 description = "Simple web application that lets you save the precious readable content of web pages you like and want to keep forever."
 category = "stack"
 logo = "svgs/readeck.svg"
+
 [[services]]
 name = "readeck"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_READECK = ""
-    READECK_USE_X_FORWARDED = "${READECK_USE_X_FORWARDED:-true}"
+    READECK_USE_X_FORWARDED = "true"
     [[services.storage]]
       host = "readeck_data"
       container = "/readeck"

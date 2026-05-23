@@ -1,7 +1,8 @@
-name = "An open-source, lightweight note-taking solution. The pain-less way to create your meaningful notes. Your Notes, Your Way."
+name = "Memos"
 description = "An open-source, lightweight note-taking solution. The pain-less way to create your meaningful notes. Your Notes, Your Way."
 category = "stack"
 logo = "svgs/memos.png"
+
 [[services]]
 name = "memos"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "neosmemo/memos:stable"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_MEMOS_5230 = ""
     [[services.storage]]
       host = "memos/"
       container = "/var/opt/memos"

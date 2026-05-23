@@ -1,7 +1,8 @@
-name = "Vaultwarden is a password manager that allows you to securely store and manage your passwords."
+name = "Vaultwarden"
 description = "Vaultwarden is a password manager that allows you to securely store and manage your passwords."
 category = "stack"
 logo = "svgs/bitwarden.svg"
+
 [[services]]
 name = "vaultwarden"
 category = "app"
@@ -11,15 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_VAULTWARDEN = ""
-    DOMAIN = "${SERVICE_URL_VAULTWARDEN}"
-    DATABASE_URL = "${VAULTWARDEN_DB_URL:-data/db.sqlite3}"
-    SIGNUPS_ALLOWED = "${SIGNUP_ALLOWED:-true}"
-    ADMIN_TOKEN = "${SERVICE_PASSWORD_64_ADMIN}"
+    DOMAIN = "https://example.com"
+    DATABASE_URL = "data/db.sqlite3"
+    SIGNUPS_ALLOWED = "true"
+    ADMIN_TOKEN = "CHANGE_ME"
     IP_HEADER = "X-Forwarded-For"
-    PUSH_ENABLED = "${PUSH_ENABLED:-false}"
-    PUSH_INSTALLATION_ID = "${PUSH_SERVICE_ID}"
-    PUSH_INSTALLATION_KEY = "${PUSH_SERVICE_KEY}"
+    PUSH_ENABLED = "false"
+    PUSH_INSTALLATION_ID = "PUSH_SERVICE_ID_VALUE"
+    PUSH_INSTALLATION_KEY = "CHANGE_ME"
     [[services.storage]]
       host = "vaultwarden-data"
       container = "/data"

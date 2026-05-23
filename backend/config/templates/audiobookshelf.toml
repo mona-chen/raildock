@@ -1,7 +1,8 @@
-name = "Self-hosted audiobook, ebook, and podcast server"
+name = "Audiobookshelf"
 description = "Self-hosted audiobook, ebook, and podcast server"
 category = "stack"
 logo = "svgs/audiobookshelf.svg"
+
 [[services]]
 name = "audiobookshelf"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_AUDIOBOOKSHELF_80 = ""
-    TZ = "${TIMEZONE:-America/Toronto}"
+    TZ = "America/Toronto"
     [[services.storage]]
       host = "audiobookshelf-audiobooks"
       container = "/audiobooks"

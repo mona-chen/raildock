@@ -1,7 +1,8 @@
-name = "Mattermost is an open source, self-hosted Slack-alternative."
+name = "Mattermost"
 description = "Mattermost is an open source, self-hosted Slack-alternative."
 category = "stack"
 logo = "svgs/mattermost.svg"
+
 [[services]]
 name = "mattermost"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MATTERMOST_8065 = ""
-    MM_SERVICESETTINGS_SITEURL = "${SERVICE_URL_MATTERMOST}"
-    TZ = "${TZ:-UTC}"
+    MM_SERVICESETTINGS_SITEURL = "https://example.com"
+    TZ = "UTC"
     MM_SQLSETTINGS_DRIVERNAME = "postgres"
     MM_SQLSETTINGS_DATASOURCE = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB?sslmode=disable&connect_timeout=10"
     MM_BLEVESETTINGS_INDEXDIR = "/mattermost/bleve-indexes"
@@ -45,7 +45,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-mattermost}"
+    POSTGRES_DB = "mattermost"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

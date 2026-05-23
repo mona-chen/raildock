@@ -1,7 +1,8 @@
-name = "Open source home automation that puts local control and privacy first."
+name = "Home Assistant"
 description = "Open source home automation that puts local control and privacy first."
 category = "stack"
 logo = "svgs/home-assistant.svg"
+
 [[services]]
 name = "homeassistant"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_HOMEASSISTANT_8123 = ""
-    TZ = "${TZ:-UTC}"
-    DISABLE_JEMALLOC = "${DISABLE_JEMALLOC:-false}"
+    TZ = "UTC"
+    DISABLE_JEMALLOC = "false"
     [[services.storage]]
       host = "homeassistant-config"
       container = "/config"

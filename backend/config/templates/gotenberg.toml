@@ -1,7 +1,8 @@
-name = "Gotenberg is a Docker-powered stateless API for PDF files."
+name = "Gotenberg"
 description = "Gotenberg is a Docker-powered stateless API for PDF files."
 category = "stack"
 logo = "svgs/gotenberg.png"
+
 [[services]]
 name = "gotenberg"
 category = "app"
@@ -12,9 +13,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GOTENBERG_3000 = ""
-    GOTENBERG_API_BASIC_AUTH_USERNAME = "${SERVICE_USER_GOTENBERG}"
-    GOTENBERG_API_BASIC_AUTH_PASSWORD = "${SERVICE_PASSWORD_GOTENBERG}"
+    GOTENBERG_API_BASIC_AUTH_USERNAME = "user"
+    GOTENBERG_API_BASIC_AUTH_PASSWORD = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 5

@@ -1,7 +1,8 @@
-name = "Fast analytics with the friendly UX and integrated tooling to let your company explore data on their own."
+name = "Metabase"
 description = "Fast analytics with the friendly UX and integrated tooling to let your company explore data on their own."
 category = "stack"
 logo = "svgs/metabase.svg"
+
 [[services]]
 name = "metabase"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_METABASE_3000 = ""
     MB_DB_TYPE = "postgres"
     MB_DB_HOST = "postgresql"
     MB_DB_PORT = "5432"
-    MB_DB_DBNAME = "${POSTGRESQL_DATABASE:-metabase}"
+    MB_DB_DBNAME = "metabase"
     MB_DB_USER = "$SERVICE_USER_POSTGRESQL"
     MB_DB_PASS = "$SERVICE_PASSWORD_POSTGRESQL"
   [services.checks]
@@ -30,9 +30,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-metabase}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "metabase"
     [[services.storage]]
       host = "metabase-postgresql-data"
       container = "/var/lib/postgresql/data"

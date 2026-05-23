@@ -1,7 +1,8 @@
-name = "An Eye on your system"
+name = "Glances"
 description = "An Eye on your system"
 category = "stack"
 logo = "svgs/glances.png"
+
 [[services]]
 name = "glances"
 category = "app"
@@ -12,7 +13,6 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     GLANCES_OPT = "-w"
-    SERVICE_URL_GLANCES_61208 = ""
   [services.checks]
     enabled = true
     wait = 2

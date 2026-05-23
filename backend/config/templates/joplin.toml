@@ -1,7 +1,8 @@
-name = "Self-hosted sync server for Joplin"
+name = "Joplin"
 description = "Self-hosted sync server for Joplin"
 category = "stack"
 logo = "svgs/joplin.png"
+
 [[services]]
 name = "postgres"
 category = "database"
@@ -9,8 +10,8 @@ subtype = "postgres"
 docker_image = "postgres:16"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_USER = "user"
     POSTGRES_DB = "joplin"
     [[services.storage]]
       host = "joplin-postgresql-data"
@@ -29,12 +30,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_JOPLIN_22300 = ""
-    APP_BASE_URL = "${SERVICE_URL_JOPLIN}"
+    APP_BASE_URL = "https://example.com"
     DB_CLIENT = "pg"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_64_POSTGRES}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     POSTGRES_DATABASE = "joplin"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
+    POSTGRES_USER = "user"
     POSTGRES_PORT = "5432"
     POSTGRES_HOST = "postgres"
   [services.checks]

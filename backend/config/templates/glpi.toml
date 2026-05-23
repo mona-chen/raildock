@@ -1,7 +1,8 @@
-name = "GLPI (Gestionnaire Libre de Parc Informatique) is a free, open-source IT Service Management (ITSM) platform used for IT asset management, helpdesk, and service desk operations."
+name = "Glpi"
 description = "GLPI (Gestionnaire Libre de Parc Informatique) is a free, open-source IT Service Management (ITSM) platform used for IT asset management, helpdesk, and service desk operations."
 category = "stack"
 logo = "svgs/glpi.svg"
+
 [[services]]
 name = "glpi"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GLPI_80 = ""
     GLPI_DB_HOST = "glpi-db"
     GLPI_DB_PORT = "3306"
-    GLPI_DB_NAME = "${MYSQL_DATABASE:-glpi-db}"
-    GLPI_DB_USER = "${SERVICE_USER_MYSQL}"
-    GLPI_DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    GLPI_DB_NAME = "glpi-db"
+    GLPI_DB_USER = "user"
+    GLPI_DB_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "glpi-data"
       container = "/var/glpi"
@@ -32,10 +32,10 @@ subtype = "mysql"
 docker_image = "mysql:8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-glpi-db}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "glpi-db"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "mysql-data"
       container = "/var/lib/mysql"

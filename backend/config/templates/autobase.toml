@@ -1,7 +1,8 @@
-name = "Autobase for PostgreSQL® is an open-source alternative to cloud-managed databases (self-hosted DBaaS)."
+name = "Autobase"
 description = "Autobase for PostgreSQL® is an open-source alternative to cloud-managed databases (self-hosted DBaaS)."
 category = "stack"
 logo = "svgs/autobase.svg"
+
 [[services]]
 name = "autobase"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_FQDN_AUTOBASE_80 = ""
-    PG_CONSOLE_AUTHORIZATION_TOKEN = "${SERVICE_PASSWORD_UI}"
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "CHANGE_ME"
     PG_CONSOLE_API_HOST = "autobase-api"
   [services.checks]
     enabled = true
@@ -28,7 +28,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "autobase-db-data"
       container = "/var/lib/postgresql"
@@ -47,10 +47,10 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PG_CONSOLE_DB_HOST = "autobase-db"
-    PG_CONSOLE_DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    PG_CONSOLE_AUTHORIZATION_TOKEN = "${SERVICE_PASSWORD_UI}"
-    PG_CONSOLE_ENCRYPTIONKEY = "${SERVICE_BASE64_ENCRYPTIONKEY}"
-    PG_CONSOLE_LOGGER_LEVEL = "${PG_CONSOLE_LOGGER_LEVEL:-info}"
+    PG_CONSOLE_DB_PASSWORD = "CHANGE_ME"
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "CHANGE_ME"
+    PG_CONSOLE_ENCRYPTIONKEY = "BASE64_GENERATED"
+    PG_CONSOLE_LOGGER_LEVEL = "info"
   [services.checks]
     enabled = true
     wait = 10

@@ -1,7 +1,8 @@
-name = "LibreOffice is a free and powerful office suite."
+name = "Libreoffice"
 description = "LibreOffice is a free and powerful office suite."
 category = "stack"
 logo = "svgs/libreoffice.svg"
+
 [[services]]
 name = "libreoffice"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LIBREOFFICE_3000 = ""
-    PUID = "${PUID:-1000}"
-    PGID = "${PGID:-1000}"
-    TZ = "${TZ:-Etc/UTC}"
+    PUID = "1000"
+    PGID = "1000"
+    TZ = "Etc/UTC"
     [[services.storage]]
       host = "libreoffice-config"
       container = "/config"

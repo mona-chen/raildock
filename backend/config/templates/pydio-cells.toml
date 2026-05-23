@@ -1,7 +1,8 @@
-name = "High-performance large file sharing, native no-code automation, and a collaboration-centric architecture that simplifies access control without compromising security or compliance."
+name = "Pydio Cells"
 description = "High-performance large file sharing, native no-code automation, and a collaboration-centric architecture that simplifies access control without compromising security or compliance."
 category = "stack"
 logo = "svgs/cells.svg"
+
 [[services]]
 name = "cells"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CELLS_8080 = ""
-    CELLS_SITE_EXTERNAL = "${SERVICE_URL_CELLS}"
+    CELLS_SITE_EXTERNAL = "https://example.com"
     CELLS_SITE_NO_TLS = "1"
     [[services.storage]]
       host = "cells_data"
@@ -25,10 +25,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-cells}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "cells"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "mysql_data"
       container = "/var/lib/mysql"

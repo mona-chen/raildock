@@ -1,7 +1,8 @@
-name = "A comprehensive identity solution covering both the front and backend, complete with pre-built infrastructure and enterprise-grade solutions."
+name = "Logto"
 description = "A comprehensive identity solution covering both the front and backend, complete with pre-built infrastructure and enterprise-grade solutions."
 category = "stack"
 logo = "svgs/logto_dark.svg"
+
 [[services]]
 name = "logto"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LOGTO = ""
     TRUST_PROXY_HEADER = "1"
-    DB_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-logto}"
+    DB_URL = "postgres://user:CHANGE_ME@postgres:5432/logto"
     ENDPOINT = "$LOGTO_ENDPOINT"
     ADMIN_ENDPOINT = "$LOGTO_ADMIN_ENDPOINT"
   [services.checks]
@@ -28,9 +28,9 @@ subtype = "postgres"
 docker_image = "postgres:14-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-logto}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "logto"
     [[services.storage]]
       host = "logto-postgres-data"
       container = "/var/lib/postgresql/data"

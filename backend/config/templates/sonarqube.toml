@@ -1,4 +1,4 @@
-name = "SonarQube is a self-managed, automatic code review tool that systematically helps you deliver Clean Code"
+name = "Sonarqube"
 description = "SonarQube is a self-managed, automatic code review tool that systematically helps you deliver Clean Code"
 category = "stack"
 
@@ -11,8 +11,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SONARQUBE_9000 = ""
-    SONAR_JDBC_URL = "jdbc:postgresql://postgresql:5432/${POSTGRES_DB:-sonar}"
+    SONAR_JDBC_URL = "jdbc:postgresql://postgresql:5432/sonar"
     SONAR_JDBC_USERNAME = "$SERVICE_USER_POSTGRES"
     SONAR_JDBC_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     SONAR_ES_BOOTSTRAP_CHECKS_DISABLE = "true"
@@ -45,7 +44,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-sonar}"
+    POSTGRES_DB = "sonar"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "Effortless PostgreSQL backups with a user-friendly web interface!"
+name = "Pgbackweb"
 description = "Effortless PostgreSQL backups with a user-friendly web interface!"
 category = "stack"
 logo = "svgs/pgbackweb.svg"
+
 [[services]]
 name = "pgbackweb"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PGBACKWEB_8085 = ""
-    PBW_ENCRYPTION_KEY = "${SERVICE_PASSWORD_64_PGBACKWEB}"
-    PBW_POSTGRES_CONN_STRING = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-pgbackweb-db}?sslmode=disable"
-    TZ = "${TIME_ZONE:-UTC}"
+    PBW_ENCRYPTION_KEY = "CHANGE_ME"
+    PBW_POSTGRES_CONN_STRING = "postgresql://user:CHANGE_ME@postgres:5432/pgbackweb-db?sslmode=disable"
+    TZ = "UTC"
     [[services.storage]]
       host = "pgbackweb_backups"
       container = "/backups"
@@ -26,9 +26,9 @@ subtype = "postgres"
 docker_image = "postgres:17"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-pgbackweb-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "pgbackweb-db"
     [[services.storage]]
       host = "pgbackweb_postgres_data"
       container = "/var/lib/postgresql/data"

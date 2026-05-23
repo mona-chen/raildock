@@ -1,7 +1,8 @@
-name = "The database you love, on a serverless platform designed to help you build reliable and scalable applications faster."
+name = "Neon Ws Proxy"
 description = "The database you love, on a serverless platform designed to help you build reliable and scalable applications faster."
 category = "stack"
 logo = "svgs/neon.svg"
+
 [[services]]
 name = "neon-proxy"
 category = "app"
@@ -11,8 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_NEONPROXY = ""
-    SERVICE_URL_NEONPROMETHEUS_2112 = ""
     APPEND_PORT = "postgres:5432"
     ALLOW_ADDR_REGEX = ".*"
     LOG_TRAFFIC = "false"
@@ -29,9 +28,9 @@ subtype = "postgres"
 docker_image = "postgres:17-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-postgres}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "postgres"
     POSTGRES_HOST_AUTH_METHOD = "password"
     [[services.storage]]
       host = "postgresql-data"

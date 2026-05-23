@@ -1,7 +1,8 @@
-name = "Lightweight web analytics platform."
+name = "Goatcounter"
 description = "Lightweight web analytics platform."
 category = "stack"
 logo = "svgs/goatcounter.svg"
+
 [[services]]
 name = "goatcounter"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "arp242/goatcounter:2.7"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_GOATCOUNTER_8080 = ""
     [[services.storage]]
       host = "goatcounter-data"
       container = "/home/goatcounter/goatcounter-data"

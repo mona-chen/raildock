@@ -1,7 +1,8 @@
-name = "Traccar is a free and open source modern GPS tracking system."
+name = "Traccar"
 description = "Traccar is a free and open source modern GPS tracking system."
 category = "stack"
 logo = "svgs/traccar.png"
+
 [[services]]
 name = "traccar"
 category = "app"
@@ -11,11 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_TRACCAR_8082 = ""
-    SERVICE_URL_TRACCARAPI_5159 = ""
-    CONFIG_USE_ENVIRONMENT_VARIABLES = "${CONFIG_USE_ENVIRONMENT_VARIABLES:-true}"
-    DATABASE_USER = "${SERVICE_USER_POSTGRES}"
-    DATABASE_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    CONFIG_USE_ENVIRONMENT_VARIABLES = "true"
+    DATABASE_USER = "user"
+    DATABASE_PASSWORD = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 30
@@ -29,8 +28,8 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-traccar}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "traccar"
     [[services.storage]]
       host = "traccar-postgresql-data"
       container = "/var/lib/postgresql/data/"

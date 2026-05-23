@@ -1,7 +1,8 @@
-name = "FileBrowser is a web-based file manager and file explorer with a user-friendly interface."
+name = "Filebrowser"
 description = "FileBrowser is a web-based file manager and file explorer with a user-friendly interface."
 category = "stack"
 logo = "svgs/filebrowser.svg"
+
 [[services]]
 name = "filebrowser"
 category = "app"
@@ -10,5 +11,3 @@ docker_image = "filebrowser/filebrowser:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_FILEBROWSER_80 = ""

@@ -1,7 +1,8 @@
-name = "Golang WhatsApp - Built with Go for efficient memory use"
+name = "Gowa"
 description = "Golang WhatsApp - Built with Go for efficient memory use"
 category = "stack"
 logo = "svgs/gowa.svg"
+
 [[services]]
 name = "gowa"
 category = "app"
@@ -11,15 +12,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GOWA_3000 = ""
-    SERVICE_USER_GOWA = ""
-    SERVICE_PASSWORD_GOWA = ""
-    APP_BASIC_AUTH = "${SERVICE_USER_GOWA}:${SERVICE_PASSWORD_GOWA}"
+    APP_BASIC_AUTH = "user:CHANGE_ME"
     APP_PORT = "3000"
-    APP_DEBUG = "${APP_DEBUG:-false}"
-    APP_ACCOUNT_VALIDATION = "${APP_ACCOUNT_VALIDATION:-false}"
-    WHATSAPP_WEBHOOK = "${WHATSAPP_WEBHOOK}"
-    WHATSAPP_WEBHOOK_SECRET = "${WHATSAPP_WEBHOOK_SECRET}"
+    APP_DEBUG = "false"
+    APP_ACCOUNT_VALIDATION = "false"
+    WHATSAPP_WEBHOOK = "WHATSAPP_WEBHOOK_VALUE"
+    WHATSAPP_WEBHOOK_SECRET = "CHANGE_ME"
     [[services.storage]]
       host = "gowa_data"
       container = "/app/storages"

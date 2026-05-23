@@ -1,7 +1,8 @@
-name = "Low code platform for building business apps and workflows in minutes. Supports PostgreSQL, MySQL, MSSQL, MongoDB, Rest API, Docker, K8s, and more."
+name = "Budibase"
 description = "Low code platform for building business apps and workflows in minutes. Supports PostgreSQL, MySQL, MSSQL, MongoDB, Rest API, Docker, K8s, and more."
 category = "stack"
 logo = "svgs/budibase.svg"
+
 [[services]]
 name = "app-service"
 category = "app"
@@ -18,17 +19,15 @@ source = { type = "docker"  }
     MINIO_ACCESS_KEY = "$SERVICE_USER_MINIO"
     MINIO_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
     INTERNAL_API_KEY = "$SERVICE_BASE64_128_BUDIBASE"
-    BUDIBASE_ENVIRONMENT = "${BUDIBASE_ENVIRONMENT:-PRODUCTION}"
+    BUDIBASE_ENVIRONMENT = "PRODUCTION"
     PORT = "4002"
     API_ENCRYPTION_KEY = "$SERVICE_BASE64_64_BUDIBASEAPI"
     ENCRYPTION_KEY = "$SERVICE_BASE64_64_BUDIBASE"
     JWT_SECRET = "$SERVICE_BASE64_64_BUDIBASEJWT"
     LOG_LEVEL = "info"
-    ENABLE_ANALYTICS = "${ENABLE_ANALYTICS:-true}"
+    ENABLE_ANALYTICS = "true"
     REDIS_URL = "redis-service:6379"
     REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
-    BB_ADMIN_USER_EMAIL = ""
-    BB_ADMIN_USER_PASSWORD = ""
   [services.checks]
     enabled = true
     wait = 15
@@ -91,7 +90,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_BUDIBASE_10000 = ""
     PROXY_RATE_LIMIT_WEBHOOKS_PER_SECOND = "10"
     PROXY_RATE_LIMIT_API_PER_SECOND = "20"
     APPS_UPSTREAM_URL = "http://app-service:4002"

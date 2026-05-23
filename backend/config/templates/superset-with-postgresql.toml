@@ -1,7 +1,8 @@
-name = "Modern data exploration and visualization platform (unofficial community docker image)"
+name = "Superset With Postgresql"
 description = "Modern data exploration and visualization platform (unofficial community docker image)"
 category = "stack"
 logo = "svgs/superset.svg"
+
 [[services]]
 name = "superset"
 category = "app"
@@ -11,13 +12,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SUPERSET_8088 = ""
-    SECRET_KEY = "${SERVICE_BASE64_64_SUPERSETSECRETKEY}"
-    MAPBOX_API_KEY = "${MAPBOX_API_KEY}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-superset-db}"
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    SECRET_KEY = "BASE64_GENERATED"
+    MAPBOX_API_KEY = "CHANGE_ME"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "superset-db"
+    REDIS_PASSWORD = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 5
@@ -30,9 +30,9 @@ subtype = "postgres"
 docker_image = "postgres:18"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-superset-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "superset-db"
     [[services.storage]]
       host = "superset_postgres_data"
       container = "/var/lib/postgresql"

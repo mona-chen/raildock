@@ -119,6 +119,7 @@ class TemplateLoader
       description = hash["description"] || ""
       category = hash["category"] || "stack"
       logo = hash["logo"] || nil
+      logo_url = resolve_logo_url(id, logo)
 
       # Validate against manifest schema (raildock format)
       validation = ManifestSchema.validate(hash)
@@ -135,7 +136,7 @@ class TemplateLoader
         links: desired.links,
         source: source,
         raw: raw,
-        logo: logo,
+        logo: logo_url,
         warnings: desired.warnings,
         errors: validation.errors
       )
@@ -149,6 +150,18 @@ class TemplateLoader
         raw: raw,
         errors: ["Failed to parse: #{e.message}"]
       )
+    end
+
+    def resolve_logo_url(id, logo_path)
+      return nil unless logo_path
+
+      # Look for logo file in public/templates/logos/{id}.*
+      logo_dir = Rails.public_path.join("templates", "logos")
+      matches = Dir.glob(logo_dir.join("#{id}.*"))
+      return nil if matches.empty?
+
+      ext = File.extname(matches.first)
+      "/templates/logos/#{id}#{ext}"
     end
 
     def sync_remote_repo(repo_url)

@@ -1,7 +1,8 @@
-name = "An open-source, modern-design AI chat framework."
+name = "Lobe Chat"
 description = "An open-source, modern-design AI chat framework."
 category = "stack"
 logo = "svgs/lobe-chat.png"
+
 [[services]]
 name = "lobe-chat"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LOBECHAT_3210 = ""
-    OPENAI_API_KEY = "${OPENAI_API_KEY}"
-    OPENAI_PROXY_URL = "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
-    ACCESS_CODE = "${SERVICE_PASSWORD_ACCESSCODE}"
+    OPENAI_API_KEY = "CHANGE_ME"
+    OPENAI_PROXY_URL = "https://api.openai.com/v1"
+    ACCESS_CODE = "CHANGE_ME"
   [services.checks]
     enabled = true
     wait = 5

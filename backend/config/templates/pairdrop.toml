@@ -1,7 +1,8 @@
-name = "Pairdrop is a self-hosted file sharing and collaboration platform, offering secure file sharing and collaboration capabilities for efficient teamwork."
+name = "Pairdrop"
 description = "Pairdrop is a self-hosted file sharing and collaboration platform, offering secure file sharing and collaboration capabilities for efficient teamwork."
 category = "stack"
 logo = "svgs/pairdrop.png"
+
 [[services]]
 name = "pairdrop"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PAIRDROP_3000 = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"

@@ -1,4 +1,4 @@
-name = "A web GUI for youtube-dl with playlist support. It enables you to effortlessly download videos from YouTube and dozens of other sites."
+name = "Metube"
 description = "A web GUI for youtube-dl with playlist support. It enables you to effortlessly download videos from YouTube and dozens of other sites."
 category = "stack"
 
@@ -11,7 +11,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_METUBE_8081 = ""
     UID = "1000"
     GID = "1000"
     [[services.storage]]

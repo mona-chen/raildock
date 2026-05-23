@@ -1,7 +1,8 @@
-name = "Monitoring agent for Beszel"
+name = "Beszel Agent"
 description = "Monitoring agent for Beszel"
 category = "stack"
 logo = "svgs/beszel.svg"
+
 [[services]]
 name = "beszel-agent"
 category = "app"
@@ -13,12 +14,12 @@ source = { type = "docker"  }
   [services.env]
     LISTEN = "/beszel_socket/beszel.sock"
     HUB_URL = "$SERVICE_URL_BESZEL"
-    TOKEN = "${TOKEN}"
-    KEY = "${KEY}"
-    DISABLE_SSH = "${DISABLE_SSH:-false}"
-    LOG_LEVEL = "${LOG_LEVEL:-warn}"
-    SKIP_GPU = "${SKIP_GPU:-false}"
-    SYSTEM_NAME = "${SYSTEM_NAME}"
+    TOKEN = "CHANGE_ME"
+    KEY = "CHANGE_ME"
+    DISABLE_SSH = "false"
+    LOG_LEVEL = "warn"
+    SKIP_GPU = "false"
+    SYSTEM_NAME = "SYSTEM_NAME_VALUE"
     [[services.storage]]
       host = "beszel_agent_data"
       container = "/var/lib/beszel-agent"

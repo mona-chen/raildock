@@ -1,7 +1,8 @@
-name = "MediaWiki is a collaboration and documentation platform brought to you by a vibrant community."
+name = "Mediawiki"
 description = "MediaWiki is a collaboration and documentation platform brought to you by a vibrant community."
 category = "stack"
 logo = "svgs/mediawiki.ico"
+
 [[services]]
 name = "mediawiki"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "mediawiki:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_MEDIAWIKI_80 = ""
     [[services.storage]]
       host = "mediawiki-images"
       container = "/var/www/html/images"

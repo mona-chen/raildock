@@ -1,7 +1,8 @@
-name = "Windmill is a developer platform to build production-grade multi-steps automations and internal apps."
+name = "Windmill"
 description = "Windmill is a developer platform to build production-grade multi-steps automations and internal apps."
 category = "stack"
 logo = "svgs/windmill.svg"
+
 [[services]]
 name = "db"
 category = "database"
@@ -9,9 +10,9 @@ subtype = "postgres"
 docker_image = "postgres:16"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-windmill-db}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_USER = "user"
+    POSTGRES_DB = "windmill-db"
     [[services.storage]]
       host = "db-data"
       container = "/var/lib/postgresql/data"
@@ -29,10 +30,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_WINDMILL_8000 = ""
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
     MODE = "server"
-    BASE_URL = "${SERVICE_URL_WINDMILL}"
+    BASE_URL = "https://example.com"
     [[services.storage]]
       host = "worker-logs"
       container = "/tmp/windmill/logs"
@@ -50,7 +50,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -73,7 +73,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -96,7 +96,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -119,7 +119,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db/${POSTGRES_DB:-windmill-db}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "native"
     NUM_WORKERS = "8"

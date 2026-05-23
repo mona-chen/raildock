@@ -1,7 +1,8 @@
-name = "Secure note / file sharing service inspired by PrivNote."
+name = "Cryptgeon"
 description = "Secure note / file sharing service inspired by PrivNote."
 category = "stack"
 logo = "svgs/cryptgeon.png"
+
 [[services]]
 name = "app"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CRYPTGEON_8000 = ""
-    SIZE_LIMIT = "${SIZE_LIMIT:-4 MiB}"
-    MAX_VIEWS = "${MAX_VIEWS:-100}"
-    MAX_EXPIRATION = "${MAX_EXPIRATION:-360}"
-    ALLOW_ADVANCED = "${ALLOW_ADVANCED:-true}"
-    ALLOW_FILES = "${ALLOW_FILES:-true}"
+    SIZE_LIMIT = "4 MiB"
+    MAX_VIEWS = "100"
+    MAX_EXPIRATION = "360"
+    ALLOW_ADVANCED = "true"
+    ALLOW_FILES = "true"
   [services.checks]
     enabled = true
     wait = 1

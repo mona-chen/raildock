@@ -1,7 +1,8 @@
-name = "A ShareX/file upload server that is easy to use, packed with features, and with an easy setup!"
+name = "Zipline"
 description = "A ShareX/file upload server that is easy to use, packed with features, and with an easy setup!"
 category = "stack"
 logo = "svgs/zipline.png"
+
 [[services]]
 name = "zipline"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ZIPLINE_3000 = ""
-    CORE_RETURN_HTTPS = "${CORE_RETURN_HTTPS:-false}"
-    CORE_SECRET = "${SERVICE_PASSWORD_64_ZIPLINE}"
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres/${POSTGRES_DB:-zipline-db}"
-    CORE_LOGGER = "${CORE_LOGGER:-true}"
+    CORE_RETURN_HTTPS = "false"
+    CORE_SECRET = "CHANGE_ME"
+    DATABASE_URL = "postgres://user:CHANGE_ME@postgres/zipline-db"
+    CORE_LOGGER = "true"
     [[services.storage]]
       host = "zipline-uploads"
       container = "/zipline/uploads"
@@ -34,9 +34,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-zipline-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "zipline-db"
     [[services.storage]]
       host = "zipline-postgres-data"
       container = "/var/lib/postgresql/data"

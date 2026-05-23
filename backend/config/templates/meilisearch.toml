@@ -1,7 +1,8 @@
-name = "MeiliSearch is a powerful, fast, easy to use and deploy search engine."
+name = "Meilisearch"
 description = "MeiliSearch is a powerful, fast, easy to use and deploy search engine."
 category = "stack"
 logo = "svgs/meilisearch.svg"
+
 [[services]]
 name = "meilisearch"
 category = "search"
@@ -9,10 +10,9 @@ subtype = "meilisearch"
 docker_image = "getmeili/meilisearch:latest"
 source = { type = "docker"  }
   [services.env]
-    SERVICE_URL_MEILISEARCH_7700 = ""
-    MEILI_NO_ANALYTICS = "${MEILI_NO_ANALYTICS:-true}"
-    MEILI_ENV = "${MEILI_ENV:-production}"
-    MEILI_MASTER_KEY = "${SERVICE_PASSWORD_MEILISEARCH}"
+    MEILI_NO_ANALYTICS = "true"
+    MEILI_ENV = "production"
+    MEILI_MASTER_KEY = "CHANGE_ME"
     [[services.storage]]
       host = "meilisearch-data"
       container = "/meili_data"

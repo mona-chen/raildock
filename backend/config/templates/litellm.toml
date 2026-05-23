@@ -1,7 +1,8 @@
-name = "Call all LLM APIs using the OpenAI format. Use Bedrock, Azure, OpenAI, Cohere, Anthropic, Ollama, Sagemaker, HuggingFace, Replicate, Groq (100+ LLMs)"
+name = "Litellm"
 description = "Call all LLM APIs using the OpenAI format. Use Bedrock, Azure, OpenAI, Cohere, Anthropic, Ollama, Sagemaker, HuggingFace, Replicate, Groq (100+ LLMs)"
 category = "stack"
 logo = "svgs/litellm.svg"
+
 [[services]]
 name = "litellm"
 category = "app"
@@ -12,25 +13,24 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LITELLM_4000 = ""
-    LITELLM_LOG = "${LITELLM_LOG:-ERROR}"
-    LITELLM_MODE = "${LITELLM_MODE:-PRODUCTION}"
-    LITELLM_MASTER_KEY = "${SERVICE_PASSWORD_MASTERKEY}"
-    UI_USERNAME = "${SERVICE_USER_UI}"
-    UI_PASSWORD = "${SERVICE_PASSWORD_UI}"
-    DATABASE_URL = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-litellm}"
-    REDIS_HOST = "${REDIS_HOST:-redis}"
-    REDIS_PORT = "${REDIS_PORT:-6379}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-litellm}"
-    OPENAI_API_KEY = "${OPENAI_API_KEY}"
-    OPENAI_API_BASE = "${OPENAI_API_BASE}"
-    ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
-    ANTHROPIC_API_BASE = "${ANTHROPIC_API_BASE}"
-    VOYAGE_API_KEY = "${VOYAGE_API_KEY}"
-    VOYAGE_API_BASE = "${VOYAGE_API_BASE}"
-    STORE_MODEL_IN_DB = "${STORE_MODEL_IN_DB}"
+    LITELLM_LOG = "ERROR"
+    LITELLM_MODE = "PRODUCTION"
+    LITELLM_MASTER_KEY = "CHANGE_ME"
+    UI_USERNAME = "user"
+    UI_PASSWORD = "CHANGE_ME"
+    DATABASE_URL = "postgresql://user:CHANGE_ME@postgres:5432/litellm"
+    REDIS_HOST = "redis"
+    REDIS_PORT = "6379"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "litellm"
+    OPENAI_API_KEY = "CHANGE_ME"
+    OPENAI_API_BASE = "OPENAI_API_BASE_VALUE"
+    ANTHROPIC_API_KEY = "CHANGE_ME"
+    ANTHROPIC_API_BASE = "ANTHROPIC_API_BASE_VALUE"
+    VOYAGE_API_KEY = "CHANGE_ME"
+    VOYAGE_API_BASE = "VOYAGE_API_BASE_VALUE"
+    STORE_MODEL_IN_DB = "STORE_MODEL_IN_DB_VALUE"
   [services.checks]
     enabled = true
     wait = 5
@@ -43,7 +43,7 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_DB = "${POSTGRES_DB:-litellm}"
+    POSTGRES_DB = "litellm"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     [[services.storage]]

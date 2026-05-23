@@ -1,7 +1,8 @@
-name = "Garage is an S3-compatible distributed object storage service designed for self-hosting."
+name = "Garage"
 description = "Garage is an S3-compatible distributed object storage service designed for self-hosting."
 category = "stack"
 logo = "svgs/garage.svg"
+
 [[services]]
 name = "garage"
 category = "app"
@@ -14,11 +15,11 @@ source = { type = "docker"  }
     GARAGE_S3_API_URL = "$GARAGE_S3_API_URL"
     GARAGE_WEB_URL = "$GARAGE_WEB_URL"
     GARAGE_ADMIN_URL = "$GARAGE_ADMIN_URL"
-    GARAGE_RPC_SECRET = "${SERVICE_HEX_32_RPCSECRET}"
+    GARAGE_RPC_SECRET = "CHANGE_ME"
     GARAGE_ADMIN_TOKEN = "$SERVICE_PASSWORD_GARAGE"
     GARAGE_METRICS_TOKEN = "$SERVICE_PASSWORD_GARAGEMETRICS"
     GARAGE_ALLOW_WORLD_READABLE_SECRETS = "true"
-    RUST_LOG = "${RUST_LOG:-garage=info}"
+    RUST_LOG = "garage=info"
     [[services.storage]]
       host = "garage-meta"
       container = "/var/lib/garage/meta"

@@ -1,7 +1,8 @@
-name = "Open Source Online Genealogy System."
+name = "Gramps Web"
 description = "Open Source Online Genealogy System."
 category = "stack"
 logo = "svgs/gramps-web.svg"
+
 [[services]]
 name = "grampsweb"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GRAMPSWEB_5000 = ""
-    GRAMPSWEB_TREE = "${GRAMPSWEB_TREE:-Gramps Web}"
+    GRAMPSWEB_TREE = "Gramps Web"
     GRAMPSWEB_CELERY_CONFIG__broker_url = "redis://grampsweb_redis:6379/0"
     GRAMPSWEB_CELERY_CONFIG__result_backend = "redis://grampsweb_redis:6379/0"
     GRAMPSWEB_RATELIMIT_STORAGE_URI = "redis://grampsweb_redis:6379/1"
-    GUNICORN_NUM_WORKERS = "${GUNICORN_NUM_WORKERS:-2}"
+    GUNICORN_NUM_WORKERS = "2"
     [[services.storage]]
       host = "gramps_users"
       container = "/app/users"
@@ -56,7 +56,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    GRAMPSWEB_TREE = "${GRAMPSWEB_TREE:-Gramps Web}"
+    GRAMPSWEB_TREE = "Gramps Web"
     GRAMPSWEB_CELERY_CONFIG__broker_url = "redis://grampsweb_redis:6379/0"
     GRAMPSWEB_CELERY_CONFIG__result_backend = "redis://grampsweb_redis:6379/0"
     GRAMPSWEB_RATELIMIT_STORAGE_URI = "redis://grampsweb_redis:6379/1"

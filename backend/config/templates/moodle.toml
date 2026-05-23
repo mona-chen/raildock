@@ -1,7 +1,8 @@
-name = "Moodle is the world’s most customisable and trusted eLearning solution that empowers educators to improve our world."
+name = "Moodle"
 description = "Moodle is the world’s most customisable and trusted eLearning solution that empowers educators to improve our world."
 category = "stack"
 logo = "svgs/moodle.png"
+
 [[services]]
 name = "mariadb"
 category = "database"
@@ -33,17 +34,16 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MOODLE_8080 = ""
     MOODLE_DATABASE_HOST = "mariadb"
     MOODLE_DATABASE_PORT_NUMBER = "3306"
     MOODLE_DATABASE_USER = "$SERVICE_USER_MARIADB"
     MOODLE_DATABASE_NAME = "bitnami_moodle"
     MOODLE_DATABASE_PASSWORD = "$SERVICE_PASSWORD_MARIADB"
     ALLOW_EMPTY_PASSWORD = "no"
-    MOODLE_USERNAME = "${MOODLE_USERNAME:-user}"
+    MOODLE_USERNAME = "user"
     MOODLE_PASSWORD = "$SERVICE_PASSWORD_MOODLE"
     MOODLE_EMAIL = "user@example.com"
-    MOODLE_SITE_NAME = "${MOODLE_SITE_NAME:-New Site}"
+    MOODLE_SITE_NAME = "New Site"
     [[services.storage]]
       host = "moodle-data"
       container = "/bitnami/moodle"

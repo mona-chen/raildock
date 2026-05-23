@@ -1,7 +1,8 @@
-name = "SilverBullet is a tool to develop, organize, and structure your personal knowledge and to make it universally accessible across all your devices."
+name = "Silverbullet"
 description = "SilverBullet is a tool to develop, organize, and structure your personal knowledge and to make it universally accessible across all your devices."
 category = "stack"
 logo = "svgs/silverbullet.png"
+
 [[services]]
 name = "silverbullet"
 category = "app"
@@ -11,8 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SILVERBULLET_3000 = ""
-    SB_USER = "${SERVICE_USER_SILVERBULLET}:${SERVICE_PASSWORD_SILVERBULLET}"
+    SB_USER = "user:CHANGE_ME"
     [[services.storage]]
       host = "silverbullet-space"
       container = "/space"

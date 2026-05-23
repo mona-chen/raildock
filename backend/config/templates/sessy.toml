@@ -1,7 +1,8 @@
-name = "Email observability platform for monitoring and analyzing email systems."
+name = "Sessy"
 description = "Email observability platform for monitoring and analyzing email systems."
 category = "stack"
 logo = "svgs/sessy.svg"
+
 [[services]]
 name = "sessy"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SESSY_80 = ""
     SECRET_KEY_BASE = "$SERVICE_HEX_64_SESSYSECRET"
     HTTP_AUTH_USERNAME = "$SERVICE_USER_SESSY"
     HTTP_AUTH_PASSWORD = "$SERVICE_PASSWORD_SESSY"

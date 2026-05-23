@@ -1,7 +1,8 @@
-name = "Umami is web analytics platform which provides insights into visitor behavior without compromising user privacy."
+name = "Umami"
 description = "Umami is web analytics platform which provides insights into visitor behavior without compromising user privacy."
 category = "stack"
 logo = "svgs/umami.svg"
+
 [[services]]
 name = "umami"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_UMAMI_3000 = ""
     DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/$POSTGRES_DB"
     DATABASE_TYPE = "postgres"
     APP_SECRET = "$SERVICE_PASSWORD_64_UMAMI"
@@ -29,7 +29,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-umami}"
+    POSTGRES_DB = "umami"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

@@ -1,7 +1,8 @@
-name = "Code-Server is a web-based code editor that enables remote coding and collaboration from any device, anywhere."
+name = "Code Server"
 description = "Code-Server is a web-based code editor that enables remote coding and collaboration from any device, anywhere."
 category = "stack"
 logo = "svgs/code-server.svg"
+
 [[services]]
 name = "code-server"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CODESERVER_8443 = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"

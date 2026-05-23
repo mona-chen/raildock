@@ -1,7 +1,8 @@
-name = "Tailscale securely connects your devices over the internet using WireGuard."
+name = "Tailscale Client"
 description = "Tailscale securely connects your devices over the internet using WireGuard."
 category = "stack"
 logo = "svgs/tailscale.svg"
+
 [[services]]
 name = "tailscale-client"
 category = "app"
@@ -11,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    TS_HOSTNAME = "${TS_HOSTNAME:-coolify-ts}"
+    TS_HOSTNAME = "coolify-ts"
     TS_AUTHKEY = "${TS_AUTHKEY:?}"
-    TS_STATE_DIR = "${TS_STATE_DIR:-/var/lib/tailscale}"
-    TS_USERSPACE = "${TS_USERSPACE:-false}"
+    TS_STATE_DIR = "/var/lib/tailscale"
+    TS_USERSPACE = "false"
     [[services.storage]]
       host = "tailscale-client"
       container = "/var/lib/tailscale"

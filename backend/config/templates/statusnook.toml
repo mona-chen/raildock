@@ -1,7 +1,8 @@
-name = "Effortlessly deploy a status page and start monitoring endpoints in minutes"
+name = "Statusnook"
 description = "Effortlessly deploy a status page and start monitoring endpoints in minutes"
 category = "stack"
 logo = "svgs/statusnook.svg"
+
 [[services]]
 name = "statusnook"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "goksan/statusnook"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_STATUSNOOK_8000 = ""
     [[services.storage]]
       host = "statusnook-data"
       container = "/app/statusnook-data"

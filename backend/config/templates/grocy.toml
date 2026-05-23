@@ -1,7 +1,8 @@
-name = "Grocy is a web-based household management and grocery list application."
+name = "Grocy"
 description = "Grocy is a web-based household management and grocery list application."
 category = "stack"
 logo = "svgs/grocy.svg"
+
 [[services]]
 name = "grocy"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_GROCY = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"

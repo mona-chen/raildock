@@ -1,7 +1,8 @@
-name = "Dozzle is a simple and lightweight web UI for Docker logs."
+name = "Dozzle"
 description = "Dozzle is a simple and lightweight web UI for Docker logs."
 category = "stack"
 logo = "svgs/dozzle.svg"
+
 [[services]]
 name = "dozzle"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "amir20/dozzle:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_DOZZLE_8080 = ""
   [services.checks]
     enabled = true
     wait = 3

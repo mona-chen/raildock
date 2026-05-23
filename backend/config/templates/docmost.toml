@@ -1,7 +1,8 @@
-name = "Open-source collaborative wiki and documentation software"
+name = "Docmost"
 description = "Open-source collaborative wiki and documentation software"
 category = "stack"
 logo = "svgs/docmost.png"
+
 [[services]]
 name = "docmost"
 category = "app"
@@ -11,20 +12,19 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_DOCMOST_3000 = ""
     APP_SECRET = "$SERVICE_BASE64_APPKEY"
     APP_URL = "$SERVICE_URL_DOCMOST_3000"
     DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql/docmost?schema=public"
     REDIS_URL = "redis://redis:6379"
     MAIL_DRIVER = "${MAIL_DRIVER:?}"
-    SMTP_HOST = "${SMTP_HOST}"
-    SMTP_PORT = "${SMTP_PORT}"
-    SMTP_USERNAME = "${SMTP_USERNAME}"
-    SMTP_PASSWORD = "${SMTP_PASSWORD}"
-    SMTP_SECURE = "${SMTP_SECURE}"
-    MAIL_FROM_ADDRESS = "${MAIL_FROM_ADDRESS}"
-    MAIL_FROM_NAME = "${MAIL_FROM_NAME}"
-    POSTMARK_TOKEN = "${POSTMARK_TOKEN}"
+    SMTP_HOST = "https://example.com"
+    SMTP_PORT = "3000"
+    SMTP_USERNAME = "SMTP_USERNAME_VALUE"
+    SMTP_PASSWORD = "CHANGE_ME"
+    SMTP_SECURE = "SMTP_SECURE_VALUE"
+    MAIL_FROM_ADDRESS = "MAIL_FROM_ADDRESS_VALUE"
+    MAIL_FROM_NAME = "MAIL_FROM_NAME_VALUE"
+    POSTMARK_TOKEN = "CHANGE_ME"
     [[services.storage]]
       host = "docmost"
       container = "/app/data/storage"

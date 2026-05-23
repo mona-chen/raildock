@@ -1,7 +1,8 @@
-name = "MindsDB is the platform for building AI from enterprise data, enabling smarter organizations."
+name = "Mindsdb"
 description = "MindsDB is the platform for building AI from enterprise data, enabling smarter organizations."
 category = "stack"
 logo = "svgs/mindsdb.svg"
+
 [[services]]
 name = "mindsdb"
 category = "app"
@@ -11,20 +12,19 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MINDSDB_47334 = ""
     SERVICE_URL_API_47335 = "/api"
     MINDSDB_DOCKER_ENV = "true"
     MINDSDB_STORAGE_DIR = "/mindsdb/var"
-    FLASK_DEBUG = "${FLASK_DEBUG:-1}"
-    OPENAI_API_KEY = "${OPENAI_API_KEY}"
-    LANGFUSE_HOST = "${LANGFUSE_HOST}"
-    LANGFUSE_PUBLIC_KEY = "${LANGFUSE_PUBLIC_KEY}"
-    LANGFUSE_SECRET_KEY = "${LANGFUSE_SECRET_KEY}"
-    LANGFUSE_RELEASE = "${LANGFUSE_RELEASE:-local}"
-    LANGFUSE_DEBUG = "${LANGFUSE_DEBUG:-False}"
-    LANGFUSE_TIMEOUT = "${LANGFUSE_TIMEOUT:-10}"
-    LANGFUSE_SAMPLE_RATE = "${LANGFUSE_SAMPLE_RATE:-1.0}"
-    MINDSDB_DB_CON = "postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgresql/${POSTGRES_DB:-mindsdb-db}"
+    FLASK_DEBUG = "1"
+    OPENAI_API_KEY = "CHANGE_ME"
+    LANGFUSE_HOST = "https://example.com"
+    LANGFUSE_PUBLIC_KEY = "CHANGE_ME"
+    LANGFUSE_SECRET_KEY = "CHANGE_ME"
+    LANGFUSE_RELEASE = "local"
+    LANGFUSE_DEBUG = "False"
+    LANGFUSE_TIMEOUT = "10"
+    LANGFUSE_SAMPLE_RATE = "1.0"
+    MINDSDB_DB_CON = "postgresql://user:CHANGE_ME@postgresql/mindsdb-db"
     [[services.storage]]
       host = "mindsdb-data"
       container = "/mindsdb/var"
@@ -40,9 +40,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-mindsdb-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "mindsdb-db"
     [[services.storage]]
       host = "mindsdb-postgresql-data"
       container = "/var/lib/postgresql/data"

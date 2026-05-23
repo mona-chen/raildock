@@ -1,4 +1,4 @@
-name = "EmbyStat is a web analytics tool, designed to provide insight into website traffic and user behavior."
+name = "Embystat"
 description = "EmbyStat is a web analytics tool, designed to provide insight into website traffic and user behavior."
 category = "stack"
 
@@ -11,7 +11,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_EMBYSTAT_6555 = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"

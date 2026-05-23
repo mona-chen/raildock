@@ -1,7 +1,8 @@
-name = "A self-hosted file management and sharing system."
+name = "Cloudreve"
 description = "A self-hosted file management and sharing system."
 category = "stack"
 logo = "svgs/cloudreve.svg"
+
 [[services]]
 name = "cloudreve"
 category = "app"
@@ -11,15 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CLOUDREVE_5212 = ""
     CR_CONF_Database.Type = "postgres"
     CR_CONF_Database.Host = "postgres"
-    CR_CONF_Database.User = "${SERVICE_USER_POSTGRES}"
-    CR_CONF_Database.Password = "${SERVICE_PASSWORD_POSTGRES}"
-    CR_CONF_Database.Name = "${POSTGRES_DB:-cloudreve-db}"
+    CR_CONF_Database.User = "user"
+    CR_CONF_Database.Password = "CHANGE_ME"
+    CR_CONF_Database.Name = "cloudreve-db"
     CR_CONF_Database.Port = "5432"
     CR_CONF_Redis.Server = "redis:6379"
-    CR_CONF_Redis.Password = "${SERVICE_PASSWORD_REDIS}"
+    CR_CONF_Redis.Password = "CHANGE_ME"
     [[services.storage]]
       host = "cloudreve-data"
       container = "/cloudreve/data"
@@ -35,9 +35,9 @@ subtype = "postgres"
 docker_image = "postgres:18-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-cloudreve-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "cloudreve-db"
     [[services.storage]]
       host = "postgres-data"
       container = "/var/lib/postgresql"

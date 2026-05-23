@@ -1,7 +1,8 @@
-name = "Duplicati is a backup solution, allowing you to make scheduled backups with encryption."
+name = "Duplicati"
 description = "Duplicati is a backup solution, allowing you to make scheduled backups with encryption."
 category = "stack"
 logo = "svgs/duplicati.webp"
+
 [[services]]
 name = "duplicati"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_DUPLICATI_8200 = ""
     PUID = "1000"
     PGID = "1000"
-    TZ = "${TZ:-Europe/London}"
-    SETTINGS_ENCRYPTION_KEY = "${SERVICE_PASSWORD_ENCRYPT}"
-    DUPLICATI__WEBSERVICE_PASSWORD = "${SERVICE_PASSWORD_WEB}"
+    TZ = "Europe/London"
+    SETTINGS_ENCRYPTION_KEY = "CHANGE_ME"
+    DUPLICATI__WEBSERVICE_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "duplicati-config"
       container = "/config"

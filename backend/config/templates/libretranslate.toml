@@ -1,7 +1,8 @@
-name = "Free and open-source machine translation API, entirely self-hosted."
+name = "Libretranslate"
 description = "Free and open-source machine translation API, entirely self-hosted."
 category = "stack"
 logo = "svgs/libretranslate.svg"
+
 [[services]]
 name = "libretranslate"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LIBRETRANSLATE_5000 = ""
-    LT_SSL = "${LT_SSL:-true}"
-    LT_UPDATE_MODELS = "${LT_UPDATE_MODELS:-true}"
-    LT_LOAD_ONLY = "${LT_LOAD_ONLY:-en,es,fr,de,ja}"
+    LT_SSL = "true"
+    LT_UPDATE_MODELS = "true"
+    LT_LOAD_ONLY = "en,es,fr,de,ja"
     [[services.storage]]
       host = "libretranslate-api-keys"
       container = "/app/db"

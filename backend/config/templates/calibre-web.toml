@@ -1,7 +1,8 @@
-name = "Calibre-web is a web app providing a clean interface for browsing, reading and downloading eBooks."
+name = "Calibre Web"
 description = "Calibre-web is a web app providing a clean interface for browsing, reading and downloading eBooks."
 category = "stack"
 logo = "svgs/calibre-web.svg"
+
 [[services]]
 name = "calibre-web"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_CALIBRE_8083 = ""
     PUID = "1000"
     PGID = "1000"
-    TZ = "${TZ:-Etc/UTC}"
-    DOCKER_MODS = "${DOCKER_MODS:-linuxserver/mods:universal-calibre}"
+    TZ = "Etc/UTC"
+    DOCKER_MODS = "linuxserver/mods:universal-calibre"
     [[services.storage]]
       host = "calibre_web_data"
       container = "/config"

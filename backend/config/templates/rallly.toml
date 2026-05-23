@@ -1,7 +1,8 @@
-name = "Rallly is an open-source scheduling and collaboration tool designed to make organizing events and meetings easier."
+name = "Rallly"
 description = "Rallly is an open-source scheduling and collaboration tool designed to make organizing events and meetings easier."
 category = "stack"
 logo = "svgs/rallly.svg"
+
 [[services]]
 name = "rallly_db"
 category = "database"
@@ -9,9 +10,9 @@ subtype = "postgres"
 docker_image = "postgres:14.2"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-rallly}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_USER = "user"
+    POSTGRES_DB = "rallly"
     [[services.storage]]
       host = "rallly_db_data"
       container = "/var/lib/postgresql/data"
@@ -29,17 +30,16 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_RALLLY_3000 = ""
-    DATABASE_URL = "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@rallly_db:5432/${POSTGRES_DB:-rallly}"
-    SECRET_PASSWORD = "${SERVICE_PASSWORD_64_RALLLY}"
-    NEXT_PUBLIC_BASE_URL = "${SERVICE_URL_RALLLY}"
-    ALLOWED_EMAILS = "${ALLOWED_EMAILS}"
-    SUPPORT_EMAIL = "${SUPPORT_EMAIL:-support@example.com}"
-    SMTP_HOST = "${SMTP_HOST}"
-    SMTP_PORT = "${SMTP_PORT}"
-    SMTP_SECURE = "${SMTP_SECURE:-false}"
-    SMTP_USER = "${SMTP_USER}"
-    SMTP_PWD = "${SMTP_PWD}"
+    DATABASE_URL = "postgres://user:CHANGE_ME@rallly_db:5432/rallly"
+    SECRET_PASSWORD = "CHANGE_ME"
+    NEXT_PUBLIC_BASE_URL = "https://example.com"
+    ALLOWED_EMAILS = "admin@example.com"
+    SUPPORT_EMAIL = "support@example.com"
+    SMTP_HOST = "https://example.com"
+    SMTP_PORT = "3000"
+    SMTP_SECURE = "false"
+    SMTP_USER = "SMTP_USER_VALUE"
+    SMTP_PWD = "SMTP_PWD_VALUE"
   [services.checks]
     enabled = true
     wait = 5

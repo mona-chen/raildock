@@ -1,7 +1,8 @@
-name = "Convex is the open-source reactive database for app developers."
+name = "Convex"
 description = "Convex is the open-source reactive database for app developers."
 category = "stack"
 logo = "svgs/convex.svg"
+
 [[services]]
 name = "backend"
 category = "app"
@@ -11,34 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_BACKEND_3210 = ""
-    INSTANCE_NAME = "${INSTANCE_NAME:-self-hosted-convex}"
-    INSTANCE_SECRET = "${SERVICE_HEX_64_SECRET}"
-    CONVEX_RELEASE_VERSION_DEV = "${CONVEX_RELEASE_VERSION_DEV:-}"
-    ACTIONS_USER_TIMEOUT_SECS = "${ACTIONS_USER_TIMEOUT_SECS:-}"
-    CONVEX_CLOUD_ORIGIN = "${SERVICE_URL_DASHBOARD}"
-    CONVEX_SITE_ORIGIN = "${SERVICE_URL_BACKEND}"
-    DATABASE_URL = "${DATABASE_URL:-}"
+    INSTANCE_NAME = "self-hosted-convex"
+    INSTANCE_SECRET = "CHANGE_ME"
+    CONVEX_CLOUD_ORIGIN = "https://example.com"
+    CONVEX_SITE_ORIGIN = "https://example.com"
     DISABLE_BEACON = "${DISABLE_BEACON:?false}"
     REDACT_LOGS_TO_CLIENT = "${REDACT_LOGS_TO_CLIENT:?false}"
     DO_NOT_REQUIRE_SSL = "${DO_NOT_REQUIRE_SSL:?true}"
-    POSTGRES_URL = "${POSTGRES_URL:-}"
-    MYSQL_URL = "${MYSQL_URL:-}"
-    RUST_LOG = "${RUST_LOG:-info}"
-    RUST_BACKTRACE = "${RUST_BACKTRACE:-}"
-    AWS_REGION = "${AWS_REGION:-}"
-    AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID:-}"
-    AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY:-}"
-    AWS_SESSION_TOKEN = "${AWS_SESSION_TOKEN:-}"
-    AWS_S3_FORCE_PATH_STYLE = "${AWS_S3_FORCE_PATH_STYLE:-}"
-    AWS_S3_DISABLE_SSE = "${AWS_S3_DISABLE_SSE:-}"
-    AWS_S3_DISABLE_CHECKSUMS = "${AWS_S3_DISABLE_CHECKSUMS:-}"
-    S3_STORAGE_EXPORTS_BUCKET = "${S3_STORAGE_EXPORTS_BUCKET:-}"
-    S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET = "${S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET:-}"
-    S3_STORAGE_MODULES_BUCKET = "${S3_STORAGE_MODULES_BUCKET:-}"
-    S3_STORAGE_FILES_BUCKET = "${S3_STORAGE_FILES_BUCKET:-}"
-    S3_STORAGE_SEARCH_BUCKET = "${S3_STORAGE_SEARCH_BUCKET:-}"
-    S3_ENDPOINT_URL = "${S3_ENDPOINT_URL:-}"
+    RUST_LOG = "info"
     [[services.storage]]
       host = "data"
       container = "/convex/data"
@@ -56,8 +37,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_DASHBOARD_6791 = ""
-    NEXT_PUBLIC_DEPLOYMENT_URL = "${SERVICE_URL_BACKEND}"
+    NEXT_PUBLIC_DEPLOYMENT_URL = "https://example.com"
   [services.checks]
     enabled = true
     wait = 5

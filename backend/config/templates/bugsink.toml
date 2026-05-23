@@ -1,7 +1,8 @@
-name = "Self-hosted Error Tracking."
+name = "Bugsink"
 description = "Self-hosted Error Tracking."
 category = "stack"
 logo = "svgs/bugsink.svg"
+
 [[services]]
 name = "mysql"
 category = "database"
@@ -9,10 +10,10 @@ subtype = "mysql"
 docker_image = "mysql:latest"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_ROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-bugsink}"
-    MYSQL_USER = "${SERVICE_USER_BUGSINK}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_BUGSINK}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "bugsink"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "my-datavolume"
       container = "/var/lib/mysql"
@@ -32,9 +33,8 @@ source = { type = "docker"  }
   [services.env]
     SECRET_KEY = "$SERVICE_PASSWORD_64_BUGSINK"
     CREATE_SUPERUSER = "admin:$SERVICE_PASSWORD_BUGSINK"
-    SERVICE_URL_BUGSINK_8000 = ""
     BASE_URL = "$SERVICE_URL_BUGSINK"
-    DATABASE_URL = "mysql://${SERVICE_USER_BUGSINK}:$SERVICE_PASSWORD_BUGSINK@mysql:3306/${MYSQL_DATABASE:-bugsink}"
+    DATABASE_URL = "mysql://user:$SERVICE_PASSWORD_BUGSINK@mysql:3306/bugsink"
     BEHIND_HTTPS_PROXY = "True"
   [services.checks]
     enabled = true

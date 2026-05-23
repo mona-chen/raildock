@@ -1,7 +1,8 @@
-name = "Network-wide Ad Blocking"
+name = "Pi Hole"
 description = "Network-wide Ad Blocking"
 category = "stack"
 logo = "svgs/pihole.svg"
+
 [[services]]
 name = "pihole"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PIHOLE_80 = ""
-    TZ = "${TZ:-Europe/London}"
-    FTLCONF_webserver_api_password = "${SERVICE_PASSWORD_PIHOLE}"
-    FTLCONF_dns_listeningMode = "${FTLCONF_dns_listeningMode:-all}"
+    TZ = "Europe/London"
+    FTLCONF_webserver_api_password = "CHANGE_ME"
+    FTLCONF_dns_listeningMode = "all"
   [services.proxy]
     enabled = true
     type = "traefik"

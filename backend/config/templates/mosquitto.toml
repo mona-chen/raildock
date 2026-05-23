@@ -1,7 +1,8 @@
-name = "Mosquitto is lightweight and suitable for use on all devices, from low-power single-board computers to full servers."
+name = "Mosquitto"
 description = "Mosquitto is lightweight and suitable for use on all devices, from low-power single-board computers to full servers."
 category = "stack"
 logo = "svgs/mosquitto.svg"
+
 [[services]]
 name = "mosquitto"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MOSQUITTO_1883 = ""
-    MQTT_USERNAME = "${SERVICE_USER_MOSQUITTO}"
-    MQTT_PASSWORD = "${SERVICE_PASSWORD_MOSQUITTO}"
-    REQUIRE_CERTIFICATE = "${REQUIRE_CERTIFICATE:-false}"
-    ALLOW_ANONYMOUS = "${ALLOW_ANONYMOUS:-true}"
+    MQTT_USERNAME = "user"
+    MQTT_PASSWORD = "CHANGE_ME"
+    REQUIRE_CERTIFICATE = "false"
+    ALLOW_ANONYMOUS = "true"
   [services.proxy]
     enabled = true
     type = "traefik"

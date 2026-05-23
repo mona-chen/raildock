@@ -1,7 +1,8 @@
-name = "Lite Queen is an open-source SQLite database management software that runs on your server."
+name = "Litequeen"
 description = "Lite Queen is an open-source SQLite database management software that runs on your server."
 category = "stack"
 logo = "svgs/litequeen.svg"
+
 [[services]]
 name = "litequeen"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "kivsegrob/lite-queen:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_LITEQUEEN_8000 = ""
     [[services.storage]]
       host = "litequeen-data"
       container = "/home/litequeen/data"

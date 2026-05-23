@@ -1,7 +1,8 @@
-name = "With tens of thousands of users, RabbitMQ is one of the most popular open source message brokers."
+name = "Rabbitmq"
 description = "With tens of thousands of users, RabbitMQ is one of the most popular open source message brokers."
 category = "stack"
 logo = "svgs/rabbitmq.svg"
+
 [[services]]
 name = "rabbitmq"
 category = "queue"
@@ -9,10 +10,9 @@ subtype = "rabbitmq"
 docker_image = "rabbitmq:3-management"
 source = { type = "docker"  }
   [services.env]
-    SERVICE_URL_RABBITMQ_15672 = ""
     RABBITMQ_DEFAULT_USER = "$SERVICE_USER_RABBITMQ"
     RABBITMQ_DEFAULT_PASS = "$SERVICE_PASSWORD_RABBITMQ"
-    PORT = "${PORT:-5672}"
+    PORT = "5672"
   [services.proxy]
     enabled = true
     type = "traefik"

@@ -1,7 +1,8 @@
-name = "Push Notifications API"
+name = "Apprise Api"
 description = "Push Notifications API"
 category = "stack"
 logo = "svgs/apprise.png"
+
 [[services]]
 name = "apprise-api"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_APPRISE_8000 = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "UTC"

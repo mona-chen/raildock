@@ -1,7 +1,8 @@
-name = "NocoDB is an open source Airtable alternative. Turns any MySQL, PostgreSQL, SQL Server, SQLite & MariaDB into a smart-spreadsheet."
+name = "Nocodb"
 description = "NocoDB is an open source Airtable alternative. Turns any MySQL, PostgreSQL, SQL Server, SQLite & MariaDB into a smart-spreadsheet."
 category = "stack"
 logo = "svgs/nocodb.svg"
+
 [[services]]
 name = "nocodb"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "nocodb/nocodb"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_NOCODB_8080 = ""
     [[services.storage]]
       host = "nocodb-data"
       container = "/usr/app/data/"

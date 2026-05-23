@@ -1,7 +1,8 @@
-name = "The Denoland key-value database"
+name = "Denokv"
 description = "The Denoland key-value database"
 category = "stack"
 logo = "svgs/denokv.svg"
+
 [[services]]
 name = "denokv"
 category = "app"
@@ -12,8 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ACCESS_TOKEN = "${SERVICE_PASSWORD_DENOKV}"
-    SERVICE_URL_DENOKV_4512 = ""
+    ACCESS_TOKEN = "CHANGE_ME"
     [[services.storage]]
       host = "${COOLIFY_VOLUME_APP}"
       container = "/data"

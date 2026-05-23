@@ -1,7 +1,8 @@
-name = "The next-generation LLM gateway and AI asset management system supports multiple languages."
+name = "Newapi"
 description = "The next-generation LLM gateway and AI asset management system supports multiple languages."
 category = "stack"
 logo = "svgs/newapi.png"
+
 [[services]]
 name = "new-api"
 category = "app"
@@ -11,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_NEW_API_3000 = ""
-    SQL_DSN = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/${POSTGRES_DATABASE:-newapi}?sslmode=disable&TimeZone=${TZ:-Asia/Shanghai}"
+    SQL_DSN = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/newapi?sslmode=disable&TimeZone=Asia/Shanghai"
     REDIS_CONN_STRING = "redis://redis:6379"
-    TZ = "${TZ:-Asia/Shanghai}"
+    TZ = "Asia/Shanghai"
     SESSION_SECRET = "$SERVICE_BASE64_64_SESSION_SECRET"
-    ERROR_LOG_ENABLED = "${ERROR_LOG_ENABLED:-true}"
+    ERROR_LOG_ENABLED = "true"
   [services.checks]
     enabled = true
     wait = 30
@@ -31,7 +31,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DATABASE:-newapi}"
+    POSTGRES_DB = "newapi"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

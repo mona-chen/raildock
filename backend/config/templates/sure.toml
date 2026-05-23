@@ -1,7 +1,8 @@
-name = "An all-in-one personal finance platform."
+name = "Sure"
 description = "An all-in-one personal finance platform."
 category = "stack"
 logo = "svgs/sure.png"
+
 [[services]]
 name = "web"
 category = "app"
@@ -11,19 +12,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SURE_3000 = ""
     APP_DOMAIN = "$SERVICE_FQDN_SURE"
     SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "sure"
     REDIS_URL = "redis://valkey:6379"
     DB_HOST = "postgresql"
     DB_PORT = "5432"
     SELF_HOSTED = "true"
     RAILS_FORCE_SSL = "false"
     RAILS_ASSUME_SSL = "false"
-    ONBOARDING_STATE = "${ONBOARDING_STATE:-open}"
+    ONBOARDING_STATE = "open"
     [[services.storage]]
       host = "sure-app-storage"
       container = "/rails/storage"
@@ -44,16 +44,16 @@ source = { type = "docker"  }
   [services.env]
     APP_DOMAIN = "$SERVICE_FQDN_SURE"
     SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "sure"
     REDIS_URL = "redis://valkey:6379"
     DB_HOST = "postgresql"
     DB_PORT = "5432"
     SELF_HOSTED = "true"
     RAILS_FORCE_SSL = "false"
     RAILS_ASSUME_SSL = "false"
-    ONBOARDING_STATE = "${ONBOARDING_STATE:-open}"
+    ONBOARDING_STATE = "open"
     [[services.storage]]
       host = "sure-app-storage"
       container = "/rails/storage"
@@ -69,9 +69,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRESQL}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRESQL}"
-    POSTGRES_DB = "${POSTGRESQL_DATABASE:-sure}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "sure"
     [[services.storage]]
       host = "sure-postgresql-data"
       container = "/var/lib/postgresql/data"

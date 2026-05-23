@@ -1,7 +1,8 @@
-name = "IT Tools is a self-hosted solution for managing various IT tasks."
+name = "It Tools"
 description = "IT Tools is a self-hosted solution for managing various IT tasks."
 category = "stack"
 logo = "svgs/it-tools.svg"
+
 [[services]]
 name = "it-tools"
 category = "app"
@@ -10,8 +11,6 @@ docker_image = "corentinth/it-tools:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
-  [services.env]
-    SERVICE_URL_ITTOOLS_80 = ""
     [[services.storage]]
       host = "it-tools-data"
       container = "/app/data"

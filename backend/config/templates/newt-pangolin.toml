@@ -1,7 +1,8 @@
-name = "Pangolin tunnels your services to the internet so you can access anything from anywhere."
+name = "Newt Pangolin"
 description = "Pangolin tunnels your services to the internet so you can access anything from anywhere."
 category = "stack"
 logo = "svgs/pangolin-logo.png"
+
 [[services]]
 name = "newt"
 category = "app"
@@ -11,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PANGOLIN_ENDPOINT = "${PANGOLIN_ENDPOINT:-https://pangolin.domain.tld}"
+    PANGOLIN_ENDPOINT = "https://pangolin.domain.tld"
     NEWT_ID = "${NEWT_ID:?}"
     NEWT_SECRET = "${NEWT_SECRET:?}"
   [services.checks]

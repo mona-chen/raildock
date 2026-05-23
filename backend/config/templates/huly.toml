@@ -1,4 +1,4 @@
-name = "Open Source All-in-One Project Management Platform"
+name = "Huly"
 description = "Open Source All-in-One Project Management Platform"
 category = "stack"
 
@@ -61,7 +61,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_HULY_3000 = ""
     SERVER_PORT = "3000"
     SERVER_SECRET = "$SERVICE_PASSWORD_SECRET"
     MONGO_URL = "mongodb://mongodb:27017"
@@ -84,7 +83,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_HULY_8080 = ""
     MONGO_URL = "mongodb://mongodb:27017"
     SERVER_PORT = "8080"
     SERVER_SECRET = "$SERVICE_PASSWORD_SECRET"

@@ -1,7 +1,8 @@
-name = "Weblate is a libre software web-based continuous localization system."
+name = "Weblate"
 description = "Weblate is a libre software web-based continuous localization system."
 category = "stack"
 logo = "svgs/weblate.webp"
+
 [[services]]
 name = "weblate"
 category = "app"
@@ -11,15 +12,14 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_WEBLATE_8080 = ""
     WEBLATE_SITE_DOMAIN = "$SERVICE_FQDN_WEBLATE"
-    WEBLATE_ADMIN_NAME = "${WEBLATE_ADMIN_NAME:-Admin}"
-    WEBLATE_ADMIN_EMAIL = "${WEBLATE_ADMIN_EMAIL:-admin@example.com}"
+    WEBLATE_ADMIN_NAME = "Admin"
+    WEBLATE_ADMIN_EMAIL = "admin@example.com"
     WEBLATE_ADMIN_PASSWORD = "$SERVICE_PASSWORD_WEBLATE"
-    DEFAULT_FROM_EMAIL = "${WEBLATE_ADMIN_EMAIL:-admin@example.com}"
+    DEFAULT_FROM_EMAIL = "admin@example.com"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_DATABASE = "${POSTGRES_DB:-weblate}"
+    POSTGRES_DATABASE = "weblate"
     POSTGRES_HOST = "postgresql"
     POSTGRES_PORT = "5432"
     REDIS_HOST = "redis"
@@ -45,7 +45,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-weblate}"
+    POSTGRES_DB = "weblate"
     [[services.storage]]
       host = "postgresql-data"
       container = "/var/lib/postgresql/data"

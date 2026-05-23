@@ -1,7 +1,8 @@
-name = "Drupal is a free and open-source web content management system written in PHP and distributed under the GNU General Public License."
+name = "Drupal With Postgresql"
 description = "Drupal is a free and open-source web content management system written in PHP and distributed under the GNU General Public License."
 category = "stack"
 logo = "svgs/drupal.svg"
+
 [[services]]
 name = "drupal"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_DRUPAL = ""
     DB_HOST = "postgres"
     DB_NAME = "postgres"
     DB_USER = "postgres"

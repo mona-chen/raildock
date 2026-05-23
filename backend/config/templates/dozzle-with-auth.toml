@@ -1,7 +1,8 @@
-name = "Dozzle is a simple and lightweight web UI for Docker logs."
+name = "Dozzle With Auth"
 description = "Dozzle is a simple and lightweight web UI for Docker logs."
 category = "stack"
 logo = "svgs/dozzle.svg"
+
 [[services]]
 name = "dozzle"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_DOZZLE_8080 = ""
     DOZZLE_AUTH_PROVIDER = "simple"
   [services.checks]
     enabled = true

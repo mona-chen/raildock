@@ -1,7 +1,8 @@
-name = "Self-hosted newsletter and mailing list manager"
+name = "Listmonk"
 description = "Self-hosted newsletter and mailing list manager"
 category = "stack"
 logo = "svgs/listmonk.svg"
+
 [[services]]
 name = "listmonk"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_LISTMONK_9000 = ""
     LISTMONK_app__address = "0.0.0.0:9000"
     LISTMONK_db__host = "postgres"
     LISTMONK_db__database = "listmonk"

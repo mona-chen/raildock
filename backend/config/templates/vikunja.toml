@@ -1,7 +1,8 @@
-name = "The open-source, self-hostable to-do app. Organize everything, on all platforms."
+name = "Vikunja"
 description = "The open-source, self-hostable to-do app. Organize everything, on all platforms."
 category = "stack"
 logo = "svgs/vikunja.svg"
+
 [[services]]
 name = "vikunja"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_VIKUNJA = ""
     VIKUNJA_SERVICE_PUBLICURL = "$SERVICE_URL_VIKUNJA"
     VIKUNJA_SERVICE_JWTSECRET = "$SERVICE_PASSWORD_JWTSECRET"
     VIKUNJA_SERVICE_ENABLEREGISTRATION = "true"

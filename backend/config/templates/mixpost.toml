@@ -1,7 +1,8 @@
-name = "Mixpost is a robust and versatile social media management software, designed to streamline social media operations and enhance content marketing strategies."
+name = "Mixpost"
 description = "Mixpost is a robust and versatile social media management software, designed to streamline social media operations and enhance content marketing strategies."
 category = "stack"
 logo = "svgs/mixpost.svg"
+
 [[services]]
 name = "mixpost"
 category = "app"
@@ -11,16 +12,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MIXPOST = ""
     APP_NAME = "Mixpost"
-    APP_KEY = "${SERVICE_BASE64_MIXPOST}"
+    APP_KEY = "BASE64_GENERATED"
     APP_DEBUG = "false"
-    APP_DOMAIN = "${SERVICE_URL_MIXPOST}"
-    APP_URL = "${SERVICE_URL_MIXPOST}"
-    DB_DATABASE = "${MYSQL_DATABASE:-mixpost_db}"
-    DB_USERNAME = "${SERVICE_USER_MYSQL}"
-    DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
-    SSL_EMAIL = "${SSL_EMAIL:-user@example.com}"
+    APP_DOMAIN = "https://example.com"
+    APP_URL = "https://example.com"
+    DB_DATABASE = "mixpost_db"
+    DB_USERNAME = "user"
+    DB_PASSWORD = "CHANGE_ME"
+    SSL_EMAIL = "user@example.com"
     [[services.storage]]
       host = "mixpost-storage"
       container = "/var/www/html/storage/app"
@@ -35,10 +35,10 @@ subtype = "mysql"
 docker_image = "mysql/mysql-server:8.0"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-mixpost_db}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
+    MYSQL_DATABASE = "mixpost_db"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "mixpost-mysql"
       container = "/var/lib/mysql"

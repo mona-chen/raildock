@@ -1,7 +1,8 @@
-name = "Fast, easy, and free BitTorrent client."
+name = "Transmission"
 description = "Fast, easy, and free BitTorrent client."
 category = "stack"
 logo = "svgs/transmission.svg"
+
 [[services]]
 name = "transmission"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_TRANSMISSION_9091 = ""
     PUID = "1000"
     PGID = "1000"
-    USER = "${SERVICE_USER_ADMIN}"
-    PASS = "${SERVICE_PASSWORD_ADMIN}"
+    USER = "user"
+    PASS = "CHANGE_ME"
     [[services.storage]]
       host = "transmission-config"
       container = "/config"

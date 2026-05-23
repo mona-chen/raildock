@@ -1,7 +1,8 @@
-name = "Flowise is an open source low-code tool for developers to build customized LLM orchestration flows & AI agents."
+name = "Flowise"
 description = "Flowise is an open source low-code tool for developers to build customized LLM orchestration flows & AI agents."
 category = "stack"
 logo = "svgs/flowise.png"
+
 [[services]]
 name = "flowise"
 category = "app"
@@ -11,17 +12,16 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_FLOWISE_3001 = ""
-    DEBUG = "${DEBUG:-false}"
-    DISABLE_FLOWISE_TELEMETRY = "${DISABLE_FLOWISE_TELEMETRY:-true}"
-    PORT = "${PORT:-3001}"
+    DEBUG = "false"
+    DISABLE_FLOWISE_TELEMETRY = "true"
+    PORT = "3001"
     DATABASE_PATH = "/root/.flowise"
     APIKEY_PATH = "/root/.flowise"
     SECRETKEY_PATH = "/root/.flowise"
     LOG_PATH = "/root/.flowise/logs"
     BLOB_STORAGE_PATH = "/root/.flowise/storage"
-    FLOWISE_USERNAME = "${SERVICE_USER_FLOWISE}"
-    FLOWISE_PASSWORD = "${SERVICE_PASSWORD_FLOWISE}"
+    FLOWISE_USERNAME = "user"
+    FLOWISE_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "flowise-data"
       container = "/root/.flowise"

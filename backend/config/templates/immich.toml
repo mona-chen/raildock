@@ -1,7 +1,8 @@
-name = "Self-hosted photo and video management solution."
+name = "Immich"
 description = "Self-hosted photo and video management solution."
 category = "stack"
 logo = "svgs/immich.svg"
+
 [[services]]
 name = "immich"
 category = "app"
@@ -11,13 +12,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_IMMICH_2283 = ""
     UPLOAD_LOCATION = "./library"
     DB_DATA_LOCATION = "./postgres"
     DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     DB_USERNAME = "$SERVICE_USER_POSTGRES"
-    DB_DATABASE_NAME = "${DB_DATABASE_NAME:-immich}"
-    TZ = "${TZ:-Etc/UTC}"
+    DB_DATABASE_NAME = "immich"
+    TZ = "Etc/UTC"
     [[services.storage]]
       host = "immich-uploads"
       container = "/usr/src/app/upload"
@@ -35,8 +35,8 @@ source = { type = "docker"  }
     DB_DATA_LOCATION = "./postgres"
     DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
     DB_USERNAME = "$SERVICE_USER_POSTGRES"
-    DB_DATABASE_NAME = "${DB_DATABASE_NAME:-immich}"
-    TZ = "${TZ:-Etc/UTC}"
+    DB_DATABASE_NAME = "immich"
+    TZ = "Etc/UTC"
     [[services.storage]]
       host = "immich-model-cache"
       container = "/cache"
@@ -59,11 +59,11 @@ subtype = "postgres"
 docker_image = "ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_DB = "${DB_DATABASE_NAME:-immich}"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_USER = "user"
+    POSTGRES_DB = "immich"
     POSTGRES_INITDB_ARGS = "--data-checksums"
-    DB_STORAGE_TYPE = "${DB_STORAGE_TYPE:-SSD}"
+    DB_STORAGE_TYPE = "SSD"
     [[services.storage]]
       host = "immich-postgres-data"
       container = "/var/lib/postgresql/data"

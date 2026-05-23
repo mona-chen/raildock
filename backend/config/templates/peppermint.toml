@@ -1,7 +1,8 @@
-name = "Open source helpdesk solution designed to enhance the user experience for teams currently utilizing costly software alternatives"
+name = "Peppermint"
 description = "Open source helpdesk solution designed to enhance the user experience for teams currently utilizing costly software alternatives"
 category = "stack"
 logo = "svgs/peppermint.png"
+
 [[services]]
 name = "postgres"
 category = "database"
@@ -9,9 +10,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-peppermint-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "peppermint-db"
     [[services.storage]]
       host = "peppermint-postgresql-data"
       container = "/var/lib/postgresql/data"
@@ -29,14 +30,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PEPPERMINT_3000 = ""
-    SERVICE_URL_PEPPERMINT_5003 = ""
-    DB_USERNAME = "${SERVICE_USER_POSTGRES}"
-    DB_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    DB_USERNAME = "user"
+    DB_PASSWORD = "CHANGE_ME"
     DB_HOST = "postgres"
-    DB_NAME = "${POSTGRES_DB:-peppermint-db}"
-    SECRET = "${SERVICE_PASSWORD_PEPPERMINT}"
-    API_URL = "${SERVICE_URL_PEPPERMINT_5003}"
+    DB_NAME = "peppermint-db"
+    SECRET = "CHANGE_ME"
+    API_URL = "https://example.com"
   [services.checks]
     enabled = true
     wait = 2

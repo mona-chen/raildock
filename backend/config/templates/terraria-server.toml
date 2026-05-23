@@ -1,7 +1,8 @@
-name = "Docker multi-arch Image for Terraria Server."
+name = "Terraria Server"
 description = "Docker multi-arch Image for Terraria Server."
 category = "stack"
 logo = "svgs/terraria.svg"
+
 [[services]]
 name = "terraria-server"
 category = "app"
@@ -11,15 +12,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    WORLD = "${WORLD:-/root/.local/share/Terraria/Worlds/world1.wld}"
-    AUTOCREATE = "${AUTOCREATE:-2}"
-    WORLDNAME = "${WORLDNAME:-world1}"
-    DIFFICULTY = "${DIFFICULTY:-1}"
-    MAXPLAYERS = "${MAXPLAYERS:-8}"
-    PASSWORD = "${PASSWORD:-mypassword}"
-    MOTD = "${MOTD:-Welcome to the server!}"
-    LANGUAGE = "${LANGUAGE:-en/US}"
-    SECURE = "${SECURE:-1}"
+    WORLD = "/root/.local/share/Terraria/Worlds/world1.wld"
+    AUTOCREATE = "2"
+    WORLDNAME = "world1"
+    DIFFICULTY = "1"
+    MAXPLAYERS = "8"
+    PASSWORD = "mypassword"
+    MOTD = "Welcome to the server!"
+    LANGUAGE = "en/US"
+    SECURE = "1"
   [services.proxy]
     enabled = true
     type = "traefik"

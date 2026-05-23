@@ -1,7 +1,8 @@
-name = "Elasticsearch is free and Open Source, Distributed, RESTful Search Engine."
+name = "Elasticsearch"
 description = "Elasticsearch is free and Open Source, Distributed, RESTful Search Engine."
 category = "stack"
 logo = "svgs/elasticsearch.svg"
+
 [[services]]
 name = "elasticsearch"
 category = "search"
@@ -9,8 +10,7 @@ subtype = "elasticsearch"
 docker_image = "docker.elastic.co/elasticsearch/elasticsearch-wolfi:8.19.0"
 source = { type = "docker"  }
   [services.env]
-    SERVICE_URL_ELASTICSEARCH_9200 = ""
-    ELASTIC_PASSWORD = "${SERVICE_PASSWORD_ELASTICSEARCH}"
+    ELASTIC_PASSWORD = "CHANGE_ME"
     ES_JAVA_OPTS = "-Xms512m -Xmx512m"
     discovery.type = "single-node"
     bootstrap.memory_lock = "true"

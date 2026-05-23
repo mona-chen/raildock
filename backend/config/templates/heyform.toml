@@ -1,7 +1,8 @@
-name = "Allows anyone to create engaging conversational forms for surveys, questionnaires, quizzes, and polls. No coding skills required."
+name = "Heyform"
 description = "Allows anyone to create engaging conversational forms for surveys, questionnaires, quizzes, and polls. No coding skills required."
 category = "stack"
 logo = "svgs/heyform.svg"
+
 [[services]]
 name = "heyform"
 category = "app"
@@ -11,14 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_HEYFORM_9157 = ""
-    APP_HOMEPAGE_URL = "${SERVICE_URL_HEYFORM}"
-    SESSION_KEY = "${SERVICE_BASE64_64_SESSION}"
-    FORM_ENCRYPTION_KEY = "${SERVICE_BASE64_64_FORM}"
+    APP_HOMEPAGE_URL = "https://example.com"
+    SESSION_KEY = "BASE64_GENERATED"
+    FORM_ENCRYPTION_KEY = "BASE64_GENERATED"
     MONGO_URI = "mongodb://mongo:27017/heyform"
     REDIS_HOST = "keydb"
     REDIS_PORT = "6379"
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_KEYDB}"
+    REDIS_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "heyform-assets"
       container = "/app/static/upload"
@@ -51,7 +51,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    KEYDB_PASSWORD = "${SERVICE_PASSWORD_KEYDB}"
+    KEYDB_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "heyform-keydb-data"
       container = "/data"

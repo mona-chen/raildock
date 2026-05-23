@@ -1,7 +1,8 @@
-name = "Open source Universal Repository Manager (ARM version, community edition), default credentials: admin/admin123"
+name = "Nexus Arm"
 description = "Open source Universal Repository Manager (ARM version, community edition), default credentials: admin/admin123"
 category = "stack"
 logo = "svgs/nexus.png"
+
 [[services]]
 name = "nexus"
 category = "app"
@@ -11,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_NEXUS_8081 = ""
     NEXUS_SECURITY_RANDOMPASSWORD = "false"
     INSTALL4J_ADD_VM_PARAMS = "-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m -Djava.util.prefs.userRoot=/nexus-data/javaprefs"
     [[services.storage]]

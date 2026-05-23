@@ -1,7 +1,8 @@
-name = "The easiest way to run WireGuard VPN + Web-based Admin UI."
+name = "Wireguard Easy"
 description = "The easiest way to run WireGuard VPN + Web-based Admin UI."
 category = "stack"
 logo = "svgs/wireguard.svg"
+
 [[services]]
 name = "wg-easy"
 category = "app"
@@ -11,11 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_WIREGUARDEASY_51821 = ""
-    WG_HOST = "${SERVICE_FQDN_WIREGUARDEASY}"
-    LANG = "${LANG:-en}"
+    WG_HOST = "app.example.com"
+    LANG = "en"
     WG_PORT = "51820"
-    _PASSWORD = "${SERVICE_PASSWORD_ADMIN}"
+    _PASSWORD = "CHANGE_ME"
   [services.proxy]
     enabled = true
     type = "traefik"

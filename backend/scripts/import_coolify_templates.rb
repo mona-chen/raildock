@@ -147,7 +147,7 @@ def process_template(file_info)
 
   # Convert
   converter = ComposeToManifest.new(yaml_content, metadata)
-  result = converter.convert
+  result = converter.convert(slug: slug)
 
   unless result
     puts "  ❌ #{slug}: conversion failed"

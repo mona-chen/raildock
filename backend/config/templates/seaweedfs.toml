@@ -1,7 +1,8 @@
-name = "SeaweedFS is a simple and highly scalable distributed file system. Compatible with S3, with an admin web interface."
+name = "Seaweedfs"
 description = "SeaweedFS is a simple and highly scalable distributed file system. Compatible with S3, with an admin web interface."
 category = "stack"
 logo = "svgs/seaweedfs.svg"
+
 [[services]]
 name = "seaweedfs-master"
 category = "app"
@@ -11,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_S3_8333 = ""
-    AWS_ACCESS_KEY_ID = "${SERVICE_USER_S3}"
-    AWS_SECRET_ACCESS_KEY = "${SERVICE_PASSWORD_S3}"
+    AWS_ACCESS_KEY_ID = "user"
+    AWS_SECRET_ACCESS_KEY = "CHANGE_ME"
     [[services.storage]]
       host = "seaweedfs-s3-data"
       container = "/data"
@@ -32,9 +32,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_ADMIN_23646 = ""
-    SEAWEED_USER_ADMIN = "${SERVICE_USER_ADMIN}"
-    SEAWEED_PASSWORD_ADMIN = "${SERVICE_PASSWORD_ADMIN}"
+    SEAWEED_USER_ADMIN = "user"
+    SEAWEED_PASSWORD_ADMIN = "CHANGE_ME"
     [[services.storage]]
       host = "seaweedfs-admin-data"
       container = "/data"

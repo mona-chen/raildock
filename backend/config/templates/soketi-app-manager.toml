@@ -1,7 +1,8 @@
-name = "Manage soketi websocket server and apps with ease."
+name = "Soketi App Manager"
 description = "Manage soketi websocket server and apps with ease."
 category = "stack"
 logo = "svgs/soketi-app-manager.svg"
+
 [[services]]
 name = "soketi-app-manager"
 category = "app"
@@ -11,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_FQDN_SOKETIAPPMANAGER_8080 = ""
     AUTORUN_ENABLED = "true"
-    AUTORUN_LARAVEL_MIGRATION = "${AUTORUN_LARAVEL_MIGRATION:-true}"
-    APP_DEBUG = "${APP_DEBUG:-false}"
+    AUTORUN_LARAVEL_MIGRATION = "true"
+    APP_DEBUG = "false"
     APP_URL = "$SERVICE_FQDN_SOKETIAPPMANAGER"
     APP_KEY = "$APP_KEY"
     DB_CONNECTION = "$DB_CONNECTION"

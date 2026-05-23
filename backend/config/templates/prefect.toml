@@ -1,7 +1,8 @@
-name = "Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly."
+name = "Prefect"
 description = "Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly."
 category = "stack"
 logo = "svgs/prefect.png"
+
 [[services]]
 name = "prefect"
 category = "app"
@@ -12,14 +13,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PREFECT_4200 = ""
-    PREFECT_API_URL = "${SERVICE_URL_PREFECT}/api"
-    PREFECT_API_DATABASE_CONNECTION_URL = "postgresql+asyncpg://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgresql:5432/${POSTGRES_DB:-prefect}"
-    PREFECT_API_KEY = "${SERVICE_PASSWORD_APIKEY}"
-    PREFECT_EXPERIMENTAL_WARN = "${PREFECT_EXPERIMENTAL_WARN:-false}"
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = "${PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:-false}"
-    PREFECT_RUNNER_SERVER_ENABLE = "${PREFECT_RUNNER_SERVER_ENABLE:-false}"
-    PREFECT_DEFAULT_WORK_POOL_NAME = "${DEFAULT_POOL_NAME:-default}"
+    PREFECT_API_URL = "https://example.com/api"
+    PREFECT_API_DATABASE_CONNECTION_URL = "postgresql+asyncpg://user:CHANGE_ME@postgresql:5432/prefect"
+    PREFECT_API_KEY = "CHANGE_ME"
+    PREFECT_EXPERIMENTAL_WARN = "false"
+    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = "false"
+    PREFECT_RUNNER_SERVER_ENABLE = "false"
+    PREFECT_DEFAULT_WORK_POOL_NAME = "default"
   [services.checks]
     enabled = true
     wait = 5
@@ -34,7 +34,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_DB = "${POSTGRES_DB:-prefect}"
+    POSTGRES_DB = "prefect"
     [[services.storage]]
       host = "pg-data"
       container = "/var/lib/postgresql/data"
@@ -53,10 +53,10 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PREFECT_API_URL = "http://prefect:4200/api"
-    PREFECT_API_KEY = "${SERVICE_PASSWORD_APIKEY}"
-    DEFAULT_POOL_NAME = "${DEFAULT_POOL_NAME:-default}"
-    DEFAULT_POOL_LIMIT = "${DEFAULT_POOL_LIMIT:-1}"
-    DEFAULT_WORKER_NAME = "${DEFAULT_WORKER_NAME:-worker1}"
+    PREFECT_API_KEY = "CHANGE_ME"
+    DEFAULT_POOL_NAME = "default"
+    DEFAULT_POOL_LIMIT = "1"
+    DEFAULT_WORKER_NAME = "worker1"
   [services.checks]
     enabled = true
     wait = 5

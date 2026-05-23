@@ -1,7 +1,8 @@
-name = "Open-Source Billing, Built for Hosting"
+name = "Paymenter"
 description = "Open-Source Billing, Built for Hosting"
 category = "stack"
 logo = "svgs/paymenter.svg"
+
 [[services]]
 name = "paymenter"
 category = "app"
@@ -11,21 +12,21 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PAYMENTER = "${SERVICE_URL_PAYMENTER_80}"
-    DB_DATABASE = "${MYSQL_DATABASE:-paymenter-db}"
-    DB_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
-    DB_USERNAME = "${SERVICE_USER_MYSQL}"
+    SERVICE_URL_PAYMENTER = "https://example.com"
+    DB_DATABASE = "paymenter-db"
+    DB_PASSWORD = "CHANGE_ME"
+    DB_USERNAME = "user"
     APP_ENV = "production"
     CACHE_STORE = "redis"
     SESSION_DRIVER = "redis"
     QUEUE_CONNECTION = "redis"
     REDIS_HOST = "redis"
     REDIS_USERNAME = "default"
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_64_REDIS}"
+    REDIS_PASSWORD = "CHANGE_ME"
     DB_CONNECTION = "mariadb"
     DB_HOST = "mariadb"
     DB_PORT = "3306"
-    APP_KEY = "${SERVICE_BASE64_KEY}"
+    APP_KEY = "BASE64_GENERATED"
     [[services.storage]]
       host = "app_logs"
       container = "/app/storage/logs"
@@ -53,10 +54,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11.8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "${SERVICE_PASSWORD_MYSQLROOT}"
-    MYSQL_DATABASE = "${MYSQL_DATABASE:-paymenter-db}"
-    MYSQL_USER = "${SERVICE_USER_MYSQL}"
-    MYSQL_PASSWORD = "${SERVICE_PASSWORD_MYSQL}"
+    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_DATABASE = "paymenter-db"
+    MYSQL_USER = "user"
+    MYSQL_PASSWORD = "CHANGE_ME"
     [[services.storage]]
       host = "paymenter_mariadb_data"
       container = "/var/lib/mysql"

@@ -1,7 +1,8 @@
-name = "Maybe, the OS for your personal finances."
+name = "Maybe"
 description = "Maybe, the OS for your personal finances."
 category = "stack"
 logo = "svgs/maybe.svg"
+
 [[services]]
 name = "maybe"
 category = "app"
@@ -11,19 +12,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MAYBE = ""
     SELF_HOSTED = "true"
-    RAILS_FORCE_SSL = "${RAILS_FORCE_SSL:-false}"
-    RAILS_ASSUME_SSL = "${RAILS_ASSUME_SSL:-false}"
-    GOOD_JOB_EXECUTION_MODE = "${GOOD_JOB_EXECUTION_MODE:-async}"
-    SECRET_KEY_BASE = "${SERVICE_BASE64_64_SECRETKEYBASE}"
+    RAILS_FORCE_SSL = "false"
+    RAILS_ASSUME_SSL = "false"
+    GOOD_JOB_EXECUTION_MODE = "async"
+    SECRET_KEY_BASE = "BASE64_GENERATED"
     DB_HOST = "postgres"
-    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
+    POSTGRES_DB = "maybe-db"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
     DB_PORT = "5432"
-    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379/1"
-    OPENAI_ACCESS_TOKEN = "${OPENAI_ACCESS_TOKEN}"
+    REDIS_URL = "redis://default:CHANGE_ME@redis:6379/1"
+    OPENAI_ACCESS_TOKEN = "CHANGE_ME"
     [[services.storage]]
       host = "app_storage"
       container = "/rails/storage"
@@ -42,18 +42,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
-    SECRET_KEY_BASE = "${SERVICE_BASE64_64_SECRETKEYBASE}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "maybe-db"
+    SECRET_KEY_BASE = "BASE64_GENERATED"
     SELF_HOSTED = "true"
-    RAILS_FORCE_SSL = "${RAILS_FORCE_SSL:-false}"
-    RAILS_ASSUME_SSL = "${RAILS_ASSUME_SSL:-false}"
-    GOOD_JOB_EXECUTION_MODE = "${GOOD_JOB_EXECUTION_MODE:-async}"
+    RAILS_FORCE_SSL = "false"
+    RAILS_ASSUME_SSL = "false"
+    GOOD_JOB_EXECUTION_MODE = "async"
     DB_HOST = "postgres"
     DB_PORT = "5432"
-    REDIS_URL = "redis://default:${SERVICE_PASSWORD_REDIS}@redis:6379/1"
-    OPENAI_ACCESS_TOKEN = "${OPENAI_ACCESS_TOKEN}"
+    REDIS_URL = "redis://default:CHANGE_ME@redis:6379/1"
+    OPENAI_ACCESS_TOKEN = "CHANGE_ME"
 
 [[services]]
 name = "postgres"
@@ -62,9 +62,9 @@ subtype = "postgres"
 docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "${SERVICE_USER_POSTGRES}"
-    POSTGRES_PASSWORD = "${SERVICE_PASSWORD_POSTGRES}"
-    POSTGRES_DB = "${POSTGRES_DB:-maybe-db}"
+    POSTGRES_USER = "user"
+    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_DB = "maybe-db"
     [[services.storage]]
       host = "maybe_postgres_data"
       container = "/var/lib/postgresql/data"
@@ -81,7 +81,7 @@ docker_image = "redis:8-alpine"
 start_command = "redis-server --appendonly yes --requirepass ${SERVICE_PASSWORD_REDIS}"
 source = { type = "docker"  }
   [services.env]
-    REDIS_PASSWORD = "${SERVICE_PASSWORD_REDIS}"
+    REDIS_PASSWORD = "CHANGE_ME"
     REDIS_PORT = "6379"
     REDIS_DB = "1"
     [[services.storage]]

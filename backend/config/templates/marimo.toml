@@ -1,7 +1,8 @@
-name = "An open-source reactive notebook for Python — reproducible, git-friendly, SQL built-in, executable as a script, and shareable as an app."
+name = "Marimo"
 description = "An open-source reactive notebook for Python — reproducible, git-friendly, SQL built-in, executable as a script, and shareable as an app."
 category = "stack"
 logo = "svgs/marimo.svg"
+
 [[services]]
 name = "marimo"
 category = "app"
@@ -12,7 +13,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_MARIMO_8080 = ""
     TOKEN_PASSWORD = "$SERVICE_PASSWORD_MARIMO"
     [[services.storage]]
       host = "marimo"

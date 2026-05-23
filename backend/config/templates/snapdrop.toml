@@ -1,4 +1,4 @@
-name = "A self-hosted file-sharing service for secure and convenient file transfers, whether on a local network or the internet."
+name = "Snapdrop"
 description = "A self-hosted file-sharing service for secure and convenient file transfers, whether on a local network or the internet."
 category = "stack"
 
@@ -11,7 +11,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_SNAPDROP = ""
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"
