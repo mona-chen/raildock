@@ -304,18 +304,21 @@ interface ServiceIconProps {
   fallback?: React.ElementType
 }
 
-export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', fallback = Box }: ServiceIconProps) {
-  let key = subtype.toLowerCase()
-  let SimpleIcon = SIMPLE_ICON_MAP[key]
+const GENERIC_SUBTYPES = new Set(['docker', 'app', 'service', 'web', 'worker', 'container', 'image'])
 
-  // If no brand icon for the subtype, try to detect from docker image
-  if (!SimpleIcon && dockerImage) {
+function resolveSubtype(subtype: string, dockerImage?: string | null): string {
+  const key = subtype.toLowerCase()
+  // If subtype is generic AND we have a docker image, try to detect the actual service
+  if (GENERIC_SUBTYPES.has(key) && dockerImage) {
     const detected = detectSubtypeFromDockerImage(dockerImage)
-    if (detected) {
-      key = detected
-      SimpleIcon = SIMPLE_ICON_MAP[key]
-    }
+    if (detected) return detected
   }
+  return key
+}
+
+export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', fallback = Box }: ServiceIconProps) {
+  const key = resolveSubtype(subtype, dockerImage)
+  const SimpleIcon = SIMPLE_ICON_MAP[key]
 
   if (SimpleIcon) {
     const color = SERVICE_COLORS[key] || '#A0A0B0'
@@ -328,16 +331,11 @@ export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', f
 }
 
 export function getServiceColor(subtype: string, dockerImage?: string | null): string {
-  const key = subtype.toLowerCase()
-  if (SERVICE_COLORS[key]) return SERVICE_COLORS[key]
-  const detected = dockerImage ? detectSubtypeFromDockerImage(dockerImage) : null
-  return SERVICE_COLORS[detected || ''] || '#A0A0B0'
+  const key = resolveSubtype(subtype, dockerImage)
+  return SERVICE_COLORS[key] || '#A0A0B0'
 }
 
 export function getServiceIconComponent(subtype: string, dockerImage?: string | null): React.ElementType {
-  const key = subtype.toLowerCase()
-  const SimpleIcon = SIMPLE_ICON_MAP[key]
-  if (SimpleIcon) return SimpleIcon
-  const detected = dockerImage ? detectSubtypeFromDockerImage(dockerImage) : null
-  return SIMPLE_ICON_MAP[detected || ''] || LUCIDE_ICON_MAP[key] || Box
+  const key = resolveSubtype(subtype, dockerImage)
+  return SIMPLE_ICON_MAP[key] || LUCIDE_ICON_MAP[key] || Box
 }
