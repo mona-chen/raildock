@@ -14,7 +14,7 @@ interface ServiceCardProps {
 }
 
 function ServiceCard({ service, position, isSelected, onMouseDown, otherServices, onLink, onUnlink }: ServiceCardProps) {
-  const color = getServiceColor(service.subtype)
+  const color = getServiceColor(service.subtype, service.dockerImage)
   const isDb = service.type === 'database'
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -83,7 +83,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
               className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${color}15` }}
             >
-              <ServiceIcon subtype={service.subtype} size={18} />
+              <ServiceIcon subtype={service.subtype} dockerImage={service.dockerImage} size={18} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold text-white truncate">{service.name}</div>

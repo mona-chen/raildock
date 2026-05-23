@@ -222,16 +222,100 @@ const LUCIDE_ICON_MAP: Record<string, React.ElementType> = {
   cpu: Cpu,
 }
 
+/**
+ * Detect the actual service type from a Docker image string.
+ * Examples:
+ *   "wordpress:php8.4-apache" → "wordpress"
+ *   "mysql:8.0" → "mysql"
+ *   "postgres:16-alpine" → "postgres"
+ *   "minio/minio:latest" → "minio"
+ *   "nginx:alpine" → "nginx"
+ *   "traefik:v3.0" → "traefik"
+ */
+export function detectSubtypeFromDockerImage(image: string | null | undefined): string | null {
+  if (!image) return null
+  const name = image.split('/').pop()?.split(':')[0]?.toLowerCase() || ''
+
+  const detectors: [string, string][] = [
+    ['wordpress', 'wordpress'],
+    ['mysql', 'mysql'],
+    ['mariadb', 'mariadb'],
+    ['postgres', 'postgres'],
+    ['mongodb', 'mongo'],
+    ['mongo', 'mongo'],
+    ['redis', 'redis'],
+    ['rabbitmq', 'rabbitmq'],
+    ['elasticsearch', 'elasticsearch'],
+    ['minio', 'minio'],
+    ['nginx', 'nginx'],
+    ['traefik', 'traefik'],
+    ['docker', 'docker'],
+    ['supabase', 'supabase'],
+    ['cockroachdb', 'cockroachdb'],
+    ['neo4j', 'neo4j'],
+    ['cassandra', 'cassandra'],
+    ['couchbase', 'couchbase'],
+    ['influxdb', 'influxdb'],
+    ['clickhouse', 'clickhouse'],
+    ['timescaledb', 'timescaledb'],
+    ['sqlite', 'sqlite'],
+    ['memcached', 'memcached'],
+    ['kafka', 'kafka'],
+    ['strapi', 'strapi'],
+    ['nextjs', 'nextjs'],
+    ['nodejs', 'nodejs'],
+    ['node', 'nodejs'],
+    ['python', 'python'],
+    ['golang', 'go'],
+    ['ruby', 'ruby'],
+    ['php', 'php'],
+    ['rust', 'rust'],
+    ['django', 'django'],
+    ['flask', 'flask'],
+    ['laravel', 'laravel'],
+    ['rails', 'rails'],
+    ['spring', 'spring'],
+    ['express', 'express'],
+    ['nestjs', 'nestjs'],
+    ['react', 'react'],
+    ['vue', 'vue'],
+    ['angular', 'angular'],
+    ['svelte', 'svelte'],
+    ['remix', 'remix'],
+    ['astro', 'astro'],
+    ['gatsby', 'gatsby'],
+    ['vite', 'vite'],
+    ['webpack', 'webpack'],
+    ['bun', 'bun'],
+    ['deno', 'deno'],
+  ]
+
+  for (const [pattern, subtype] of detectors) {
+    if (name.includes(pattern)) return subtype
+  }
+  return null
+}
+
 interface ServiceIconProps {
   subtype: string
+  dockerImage?: string | null
   size?: number
   className?: string
   fallback?: React.ElementType
 }
 
-export function ServiceIcon({ subtype, size = 18, className = '', fallback = Box }: ServiceIconProps) {
-  const key = subtype.toLowerCase()
-  const SimpleIcon = SIMPLE_ICON_MAP[key]
+export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', fallback = Box }: ServiceIconProps) {
+  let key = subtype.toLowerCase()
+  let SimpleIcon = SIMPLE_ICON_MAP[key]
+
+  // If no brand icon for the subtype, try to detect from docker image
+  if (!SimpleIcon && dockerImage) {
+    const detected = detectSubtypeFromDockerImage(dockerImage)
+    if (detected) {
+      key = detected
+      SimpleIcon = SIMPLE_ICON_MAP[key]
+    }
+  }
 
   if (SimpleIcon) {
     const color = SERVICE_COLORS[key] || '#A0A0B0'
@@ -243,11 +327,17 @@ export function ServiceIcon({ subtype, size = 18, className = '', fallback = Box
   return <LucideIcon size={size} style={{ color }} className={className} />
 }
 
-export function getServiceColor(subtype: string): string {
-  return SERVICE_COLORS[subtype.toLowerCase()] || '#A0A0B0'
+export function getServiceColor(subtype: string, dockerImage?: string | null): string {
+  const key = subtype.toLowerCase()
+  if (SERVICE_COLORS[key]) return SERVICE_COLORS[key]
+  const detected = dockerImage ? detectSubtypeFromDockerImage(dockerImage) : null
+  return SERVICE_COLORS[detected || ''] || '#A0A0B0'
 }
 
-export function getServiceIconComponent(subtype: string): React.ElementType {
+export function getServiceIconComponent(subtype: string, dockerImage?: string | null): React.ElementType {
   const key = subtype.toLowerCase()
-  return SIMPLE_ICON_MAP[key] || LUCIDE_ICON_MAP[key] || Box
+  const SimpleIcon = SIMPLE_ICON_MAP[key]
+  if (SimpleIcon) return SimpleIcon
+  const detected = dockerImage ? detectSubtypeFromDockerImage(dockerImage) : null
+  return SIMPLE_ICON_MAP[detected || ''] || LUCIDE_ICON_MAP[key] || Box
 }

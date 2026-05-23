@@ -101,7 +101,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     ? ['overview', 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
-  const color = getServiceColor(svc.subtype)
+  const color = getServiceColor(svc.subtype, svc.dockerImage)
 
   return (
     <div data-service-panel className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40" onWheel={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
@@ -120,7 +120,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}15` }}
           >
-            <ServiceIcon subtype={svc.subtype} size={17} />
+            <ServiceIcon subtype={svc.subtype} dockerImage={svc.dockerImage} size={17} />
           </div>
           <div>
             <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
@@ -370,7 +370,7 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
               {linkedByServices.map((app) => (
                 <div key={app.id} className="flex items-center justify-between bg-black/30 border border-white/[0.04] rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <ServiceIcon subtype={app.subtype} size={13} />
+                    <ServiceIcon subtype={app.subtype} dockerImage={app.dockerImage} size={13} />
                     <span className="text-[12px] text-white/60">{app.name}</span>
                     <span className="text-[10px] text-white/30">{app.subtype}</span>
                   </div>
@@ -413,7 +413,7 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515' }}
             >
-              <ServiceIcon subtype={svc.subtype} size={20} />
+              <ServiceIcon subtype={svc.subtype} dockerImage={svc.dockerImage} size={20} />
             </div>
             <div>
               <div className="text-[14px] font-medium text-white/80">{svc.name}</div>
