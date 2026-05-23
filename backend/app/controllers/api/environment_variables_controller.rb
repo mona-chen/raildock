@@ -4,12 +4,15 @@ module Api
     before_action :set_and_authorize_service!
 
     def create
-      ev = @service.environment_variables.create!(env_var_params)
+      # Upsert: update existing env var or create new one
+      ev = @service.environment_variables.find_or_initialize_by(key: env_var_params[:key])
+      ev.assign_attributes(env_var_params)
+      ev.save!
 
       # Sync to Dokku
       sync_to_dokku(:set, ev.key, ev.value)
 
-      render json: ev, status: :created
+      render json: ev, status: ev.previously_new_record? ? :created : :ok
     end
 
     def destroy

@@ -1203,7 +1203,7 @@ function VariablesTab({ svc }: { svc: Service }) {
     }
     setRawText('')
     setMode('list')
-    toast.success(`Added ${parsed.length} variable(s)`)
+    toast.success(`Saved ${parsed.length} variable(s)`)
   }
 
   const handleInsertShared = (key: string) => {

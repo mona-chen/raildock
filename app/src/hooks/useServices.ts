@@ -90,7 +90,7 @@ export function useSetEnvVar() {
       api.services.setEnvVar(id, key, value, source),
     onSuccess: (_, { id, key }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
-      toast.success(`Set ${key}`)
+      toast.success(`Saved ${key}`)
     },
     onError: (err) => toast.error(`Failed to set variable: ${err.message}`),
   })
