@@ -182,6 +182,7 @@ export interface Template {
   description: string
   services: TemplateService[]
   raw?: string
+  logo?: string
 }
 
 export interface TemplateService {
