@@ -32,7 +32,8 @@ Rails.application.config.after_initialize do
           docker_version: result[:docker_version],
           os: result[:os],
           uptime: result[:uptime],
-          default_proxy: detected
+          default_proxy: detected,
+          public_ip: result[:public_ip]
         )
 
         Rails.logger.info "[AutoSetup] Local Dokku server auto-configured successfully (version #{result[:dokku_version]})"

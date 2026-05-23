@@ -50,13 +50,13 @@ class LogsChannel < ApplicationCable::Channel
   def stop_log_stream
     # Find which service this subscription is for and signal stop
     active_log_streams.each do |service_id, stop_token|
-      stop_token.swap(true)
+      stop_token.reset(true)
     end
   end
 
   def stop_log_stream_for(service)
     if stop_token = active_log_streams.delete(service.id)
-      stop_token.swap(true)
+      stop_token.reset(true)
     end
   end
 

@@ -116,6 +116,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
               <div className="relative">
                 <button
                   ref={buttonRef}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); showLinkMenu ? setShowLinkMenu(false) : openMenu() }}
                   className="p-1 rounded hover:bg-white/[0.08] text-white/30 hover:text-white/60 transition-colors"
                   title="Link services"
@@ -135,6 +136,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                         {linked.map((s) => (
                           <button
                             key={s.id}
+                            onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); onUnlink?.(s.id); setShowLinkMenu(false) }}
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/[0.04] text-left"
                           >
@@ -151,6 +153,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                         {linkable.map((s) => (
                           <button
                             key={s.id}
+                            onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); onLink?.(s.id); setShowLinkMenu(false) }}
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/[0.04] text-left"
                           >

@@ -13,7 +13,7 @@ module Api
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
       :metrics, :backup, :restore, :database_info, :backups, :backup_schedules,
-      :create_backup_schedule, :destroy_backup_schedule, :run, :enter
+      :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by
     ]
 
     def index
@@ -46,6 +46,11 @@ module Api
       attrs[:subtype] ||= params[:subtype]
       attrs[:status] ||= "stopped"
 
+      # Auto-assign default Docker image for known one-click service subtypes
+      if attrs[:docker_image].blank? && attrs[:git_repo].blank?
+        attrs[:docker_image] ||= Service::DEFAULT_DOCKER_IMAGES[attrs[:subtype]]
+      end
+
       service = Service.create!(attrs)
 
       # Create Dokku resource if server is connected and has SSH key
@@ -61,6 +66,30 @@ module Api
         else
           engine.app_create(service.dokku_app_name)
           engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType])
+        end
+      end
+
+      # Auto-assign temporary domain if server has a base_domain configured
+      server = project.server
+      if server&.base_domain.present? && server.auto_domains?
+        temp_hostname = server.temporary_hostname(service.dokku_app_name)
+        if temp_hostname && !service.domains.exists?(hostname: temp_hostname)
+          # Magic domains (sslip.io, nip.io, traefik.me) don't support Let's Encrypt
+          # except sslip.io which explicitly does — but we keep it simple and use HTTP
+          # for all magic domains to avoid LE rate-limit issues.
+          use_ssl = !server.magic_domain?
+          domain = service.domains.create!(
+            hostname: temp_hostname,
+            port: use_ssl ? 443 : 80,
+            ssl: use_ssl,
+            letsencrypt: use_ssl,
+            temporary: true
+          )
+          # Sync to Dokku
+          if server.ssh_key.present?
+            engine = DokkuEngine.new(server)
+            engine.domain_add(service.dokku_app_name, temp_hostname)
+          end
         end
       end
 
@@ -318,48 +347,70 @@ module Api
       target = Service.find(params[:target_id])
       authorize_service!(target, action: :read)
 
-      # Create the link record
-      ServiceLink.create!(from_service: @service, to_service: target)
+      # Create the link record — idempotent, silently succeed if already linked
+      link = ServiceLink.find_or_initialize_by(from_service: @service, to_service: target)
+      is_new_link = link.new_record?
+      link.save!
 
-      # Sync to Dokku if server connected
-      with_dokku_engine(@service) do |engine|
-        if target.service_type_database?
-          case target.subtype
-          when "postgres" then engine.postgres_link(target.name, @service.dokku_app_name)
-          when "redis" then engine.redis_link(target.name, @service.dokku_app_name)
-          when "mysql" then engine.mysql_link(target.name, @service.dokku_app_name)
-          when "mongo" then engine.mongo_link(target.name, @service.dokku_app_name)
+      # Only sync to Dokku if this is a newly-created link
+      if is_new_link
+        with_dokku_engine(@service) do |engine|
+          if target.service_type_database?
+            case target.subtype
+            when "postgres" then engine.postgres_link(target.dokku_app_name, @service.dokku_app_name)
+            when "redis" then engine.redis_link(target.dokku_app_name, @service.dokku_app_name)
+            when "mysql" then engine.mysql_link(target.dokku_app_name, @service.dokku_app_name)
+            when "mongo" then engine.mongo_link(target.dokku_app_name, @service.dokku_app_name)
+            end
+
+            # Fetch and sync Dokku-injected env vars (DATABASE_URL, REDIS_URL, etc.)
+            sync_dokku_env_vars(engine, @service)
           end
         end
+
+        ActivityEvent.create!(
+          project: @service.project,
+          service_name: @service.name,
+          action: :linked,
+          message: "Linked #{@service.name} to #{target.name}"
+        )
       end
 
-      ActivityEvent.create!(
-        project: @service.project,
-        service_name: @service.name,
-        action: :linked,
-        message: "Linked #{@service.name} to #{target.name}"
-      )
-
-      render json: { success: true, linkedServiceIds: @service.linked_service_ids }
+      render json: { success: true, linkedServiceIds: @service.reload.linked_service_ids }
     end
 
     def unlink
       target = Service.find(params[:target_id])
       authorize_service!(target, action: :read)
 
-      # Remove the link record
-      link = ServiceLink.find_by!(from_service: @service, to_service: target)
+      # Remove the link record — look in both directions since the canvas may
+      # have created the link from either side.
+      link = ServiceLink.find_by(from_service: @service, to_service: target) ||
+             ServiceLink.find_by(from_service: target, to_service: @service)
+
+      unless link
+        render json: { error: "Link not found" }, status: :not_found
+        return
+      end
+
       link.destroy!
 
+      # Determine which side is the app and which is the database for Dokku
+      app_service  = @service.service_type_app?  ? @service : target
+      db_service   = target.service_type_database? ? target : @service
+
       # Sync to Dokku if server connected
-      with_dokku_engine(@service) do |engine|
-        if target.service_type_database?
-          case target.subtype
-          when "postgres" then engine.postgres_unlink(target.name, @service.dokku_app_name)
-          when "redis" then engine.redis_unlink(target.name, @service.dokku_app_name)
-          when "mysql" then engine.mysql_unlink(target.name, @service.dokku_app_name)
-          when "mongo" then engine.mongo_unlink(target.name, @service.dokku_app_name)
+      with_dokku_engine(app_service) do |engine|
+        if db_service.service_type_database?
+          case db_service.subtype
+          when "postgres" then engine.postgres_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
+          when "redis" then engine.redis_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
+          when "mysql" then engine.mysql_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
+          when "mongo" then engine.mongo_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
           end
+
+          # Remove env vars that were injected by this link
+          remove_linked_env_vars(app_service, db_service)
         end
       end
 
@@ -370,7 +421,7 @@ module Api
         message: "Unlinked #{@service.name} from #{target.name}"
       )
 
-      render json: { success: true, linkedServiceIds: @service.linked_service_ids }
+      render json: { success: true, linkedServiceIds: @service.reload.linked_service_ids }
     end
 
     def metrics
@@ -580,6 +631,10 @@ module Api
       render json: { error: "No server configured" }, status: :unprocessable_entity
     end
 
+    def linked_by
+      render json: @service.incoming_links.includes(:from_service).map(&:from_service)
+    end
+
     private
 
     def set_and_authorize_service!
@@ -592,6 +647,42 @@ module Api
       return unless service.project&.server&.ssh_key.present?
       engine = DokkuEngine.new(service.project.server)
       yield(engine)
+    end
+
+    # After Dokku links a database, it injects env vars like DATABASE_URL.
+    # Fetch them from Dokku and sync into our DB so they appear in the UI.
+    def sync_dokku_env_vars(engine, service)
+      result = engine.config_show(service.dokku_app_name)
+      return unless result[:success]
+
+      # Parse Dokku config:show output — lines like "KEY: value"
+      result[:output].each_line do |line|
+        next unless line.include?(":")
+        key, value = line.split(":", 2)
+        next unless key && value
+        key = key.strip
+        value = value.strip
+
+        # Only sync connection-string vars injected by Dokku plugins
+        next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL)/i)
+
+        service.environment_variables.find_or_initialize_by(key: key).tap do |ev|
+          ev.value = value
+          ev.is_dokku_internal = true
+          ev.source = "dokku-link"
+          ev.save!
+        end
+      end
+    rescue => e
+      Rails.logger.error "Failed to sync Dokku env vars for #{service.dokku_app_name}: #{e.message}"
+    end
+
+    # Remove env vars that were injected by a specific linked database.
+    # We identify them by the dokku-link source and the connection URL pattern.
+    def remove_linked_env_vars(service, target_db)
+      service.environment_variables.where(is_dokku_internal: true, source: "dokku-link").destroy_all
+    rescue => e
+      Rails.logger.error "Failed to remove linked env vars for #{service.dokku_app_name}: #{e.message}"
     end
 
     def service_params

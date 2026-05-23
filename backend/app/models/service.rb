@@ -11,6 +11,7 @@ class Service < ApplicationRecord
   has_many :outgoing_links, class_name: "ServiceLink", foreign_key: "from_service_id", dependent: :destroy
   has_many :incoming_links, class_name: "ServiceLink", foreign_key: "to_service_id", dependent: :destroy
   has_many :linked_services, through: :outgoing_links, source: :to_service
+  has_many :linked_by_services, through: :incoming_links, source: :from_service
 
   validates :name, presence: true
   validates :service_type, inclusion: { in: %w[app database cache queue search service] }
@@ -49,7 +50,20 @@ class Service < ApplicationRecord
     unless_stopped: "unless-stopped"
   }
 
+  # Default Docker images for one-click service subtypes that don't have a git repo
+  DEFAULT_DOCKER_IMAGES = {
+    "minio" => "minio/minio:latest",
+    "rabbitmq" => "rabbitmq:alpine",
+    "elasticsearch" => "elasticsearch:8",
+    "meilisearch" => "getmeili/meilisearch:latest",
+    "typesense" => "typesense/typesense:latest"
+  }.freeze
+
   before_create :generate_dokku_app_name
+
+  def default_docker_image
+    DEFAULT_DOCKER_IMAGES[subtype]
+  end
 
   scope :apps, -> { where(service_type: :app) }
   scope :databases, -> { where(service_type: :database) }
@@ -63,6 +77,10 @@ class Service < ApplicationRecord
     linked_services.pluck(:id)
   end
 
+  def linked_by_service_ids
+    linked_by_services.pluck(:id)
+  end
+
   def logs
     # Return recent deployments' logs as log entries
     deployments.order(created_at: :desc).limit(10).flat_map do |d|
@@ -74,7 +92,7 @@ class Service < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :logs],
+      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs],
       include: {
         environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
         domains: { only: [:id, :hostname, :port, :ssl, :letsencrypt] },

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import type { Service } from '@/types'
 
 export function useServices(projectId: string) {
   return useQuery({
@@ -162,7 +163,7 @@ export function useServiceLogs(id: string) {
     queryKey: ['services', id, 'logs'],
     queryFn: () => api.services.logs(id),
     enabled: !!id,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   })
 }
 
@@ -180,7 +181,7 @@ export function useServiceMetrics(id: string) {
     queryKey: ['services', id, 'metrics'],
     queryFn: () => api.services.metrics(id),
     enabled: !!id,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   })
 }
 
@@ -238,8 +239,11 @@ export function useLinkService() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, targetId }: { id: string; targetId: string }) => api.services.link(id, targetId),
-    onSuccess: (_, { id }) => {
+    onSuccess: (_, { id, targetId }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
+      queryClient.invalidateQueries({ queryKey: ['services', targetId] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'linked-by'] })
+      queryClient.invalidateQueries({ queryKey: ['services', targetId, 'linked-by'] })
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast.success('Service linked')
     },
@@ -251,12 +255,48 @@ export function useUnlinkService() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, targetId }: { id: string; targetId: string }) => api.services.unlink(id, targetId),
-    onSuccess: (_, { id }) => {
+    onMutate: async ({ id, targetId }) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['services', targetId, 'linked-by'] })
+      await queryClient.cancelQueries({ queryKey: ['services', id, 'linked-by'] })
+      // Snapshot previous values
+      const prevTargetLinkedBy = queryClient.getQueryData<Service[]>(['services', targetId, 'linked-by'])
+      const prevAppLinkedBy = queryClient.getQueryData<Service[]>(['services', id, 'linked-by'])
+      // Optimistically remove from target's linked-by list
+      queryClient.setQueryData(['services', targetId, 'linked-by'], (old: Service[] | undefined) =>
+        old?.filter((s) => String(s.id) !== String(id)) ?? []
+      )
+      // Optimistically remove from app's linked-by list (reverse direction)
+      queryClient.setQueryData(['services', id, 'linked-by'], (old: Service[] | undefined) =>
+        old?.filter((s) => String(s.id) !== String(targetId)) ?? []
+      )
+      return { prevTargetLinkedBy, prevAppLinkedBy, id, targetId }
+    },
+    onError: (err, { id, targetId }, context) => {
+      if (context?.prevTargetLinkedBy) {
+        queryClient.setQueryData(['services', targetId, 'linked-by'], context.prevTargetLinkedBy)
+      }
+      if (context?.prevAppLinkedBy) {
+        queryClient.setQueryData(['services', id, 'linked-by'], context.prevAppLinkedBy)
+      }
+      toast.error(`Unlink failed: ${err.message}`)
+    },
+    onSettled: (_data, _err, { id, targetId }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
+      queryClient.invalidateQueries({ queryKey: ['services', targetId] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'linked-by'] })
+      queryClient.invalidateQueries({ queryKey: ['services', targetId, 'linked-by'] })
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast.success('Service unlinked')
     },
-    onError: (err) => toast.error(`Unlink failed: ${err.message}`),
+  })
+}
+
+export function useLinkedByServices(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'linked-by'],
+    queryFn: () => api.services.linkedBy(id),
+    enabled: !!id,
   })
 }
 

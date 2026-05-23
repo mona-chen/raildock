@@ -88,6 +88,7 @@ export interface Domain {
   port: number
   ssl: boolean
   letsencrypt: boolean
+  temporary?: boolean
 }
 
 export interface StorageMount {
@@ -229,6 +230,9 @@ export interface Server {
   memoryUsage: { used: number; total: number }
   projectIds: string[]
   defaultProxy: string
+  baseDomain?: string
+  autoDomains?: boolean
+  publicIp?: string
 }
 
 // ───────────────────────────────────────────────

@@ -12,14 +12,24 @@ export default function ServerPage() {
   const [newName, setNewName] = useState('')
   const [newHost, setNewHost] = useState('')
   const [newSshKey, setNewSshKey] = useState('')
+  const [newBaseDomain, setNewBaseDomain] = useState('')
+  const [newAutoDomains, setNewAutoDomains] = useState(true)
 
   const handleAdd = () => {
     if (!newName.trim() || !newHost.trim()) return
-    createServer.mutate({ name: newName, host: newHost, sshKey: newSshKey }, {
+    createServer.mutate({
+      name: newName,
+      host: newHost,
+      sshKey: newSshKey,
+      baseDomain: newBaseDomain || undefined,
+      autoDomains: newAutoDomains,
+    }, {
       onSuccess: () => {
         setNewName('')
         setNewHost('')
         setNewSshKey('')
+        setNewBaseDomain('')
+        setNewAutoDomains(true)
         setShowAdd(false)
       },
     })
@@ -58,6 +68,12 @@ export default function ServerPage() {
                       <div>
                         <div className="text-sm font-semibold text-white">{srv.name}</div>
                         <div className="text-[10px] text-[#4A4A55]">{srv.host} · {srv.os}</div>
+                        {srv.baseDomain && (
+                          <div className="text-[10px] text-rail-purple mt-0.5">*.{srv.baseDomain}</div>
+                        )}
+                        {srv.publicIp && (
+                          <div className="text-[10px] text-[#4A4A55] mt-0.5">IP {srv.publicIp}</div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -160,6 +176,34 @@ export default function ServerPage() {
               <div>
                 <label className="text-[11px] text-[#6B6B7B] block mb-1.5">SSH Private Key</label>
                 <textarea value={newSshKey} onChange={(e) => setNewSshKey(e.target.value)} rows={4} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple font-mono text-[11px]" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..." />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
+                  <button
+                    type="button"
+                    onClick={() => setNewBaseDomain('sslip.io')}
+                    className="text-[10px] px-2 py-0.5 bg-rail-purple/10 text-rail-purple rounded-full hover:bg-rail-purple/20 transition-all"
+                  >
+                    Use sslip.io
+                  </button>
+                </div>
+                <input value={newBaseDomain} onChange={(e) => setNewBaseDomain(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="example.com" />
+                <p className="text-[10px] text-[#4A4A55] mt-1">
+                  {newBaseDomain === 'sslip.io'
+                    ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)'
+                    : 'Auto-assigns subdomains like app-name.example.com'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="auto-domains"
+                  type="checkbox"
+                  checked={newAutoDomains}
+                  onChange={(e) => setNewAutoDomains(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-[rgba(255,255,255,0.15)] bg-[#0B0B0D] text-rail-purple focus:ring-rail-purple"
+                />
+                <label htmlFor="auto-domains" className="text-[11px] text-[#6B6B7B]">Auto-assign temporary domains for new services</label>
               </div>
             </div>
             <div className="flex gap-2 mt-5">

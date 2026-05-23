@@ -22,7 +22,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           logout()
         }
       })
-      .catch(() => logout())
+      .catch((err) => {
+        // Only log out on 401 Unauthorized.
+        // 429 (rate limit), 500, or network errors should keep the session.
+        if (err instanceof Error && err.message.includes('401')) {
+          logout()
+        }
+      })
       .finally(() => setLoading(false))
   }, [token])
 

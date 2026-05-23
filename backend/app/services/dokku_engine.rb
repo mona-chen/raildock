@@ -140,12 +140,30 @@ class DokkuEngine
       dokku_version = result[:output].match(DokkuEngineConstants::DOKKU_VERSION_REGEX)&.[](1) || "unknown"
       docker_result = run("docker --version")
       docker_version = docker_result[:output].match(DokkuEngineConstants::DOCKER_VERSION_REGEX)&.[](1) || "unknown"
+
+      # Detect public IP for magic domain support (sslip.io, nip.io, etc.)
+      #
+      # When the server host is already an IP address, use it directly.
+      # Otherwise try to detect via an external service. Note: the dokku SSH
+      # user only accepts dokku commands, so we detect from the backend host.
+      public_ip = server.host if server.host.to_s.match?(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)
+
+      if public_ip.blank?
+        begin
+          require "open-uri"
+          public_ip = URI.open("https://ifconfig.me/ip", read_timeout: 5).read.strip
+        rescue
+          public_ip = nil
+        end
+      end
+
       {
         success: true,
         dokku_version: dokku_version,
         docker_version: docker_version,
         os: "Ubuntu (detected)",
-        uptime: "unknown"
+        uptime: "unknown",
+        public_ip: public_ip
       }
     else
       { success: false, output: result[:output] }

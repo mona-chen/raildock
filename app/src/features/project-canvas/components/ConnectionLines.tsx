@@ -45,7 +45,7 @@ function ConnectionLines({ connections }: ConnectionLinesProps) {
             <path
               d={pathD}
               fill="none"
-              stroke={isHovered ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.07)'}
+              stroke={isHovered ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.22)'}
               strokeWidth={isHovered ? 2 : 1.5}
               strokeDasharray="6 4"
               style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
@@ -53,8 +53,8 @@ function ConnectionLines({ connections }: ConnectionLinesProps) {
             <circle
               cx={conn.to.x + 110}
               cy={conn.to.y + 30}
-              r={isHovered ? 4 : 3}
-              fill={isHovered ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.1)'}
+              r={isHovered ? 5 : 3.5}
+              fill={isHovered ? 'rgba(139,92,246,0.7)' : 'rgba(255,255,255,0.25)'}
               style={{ transition: 'all 0.2s' }}
             />
           </g>

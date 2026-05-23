@@ -89,8 +89,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
     t.integer "port"
     t.bigint "service_id", null: false
     t.boolean "ssl"
+    t.boolean "temporary", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["service_id"], name: "index_domains_on_service_id"
+    t.index ["temporary"], name: "index_domains_on_temporary"
   end
 
   create_table "environment_variables", force: :cascade do |t|
@@ -171,6 +173,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
   end
 
   create_table "servers", force: :cascade do |t|
+    t.boolean "auto_domains", default: true, null: false
+    t.string "base_domain"
     t.datetime "created_at", null: false
     t.string "default_proxy"
     t.integer "disk_total"
@@ -221,6 +225,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_000001) do
     t.datetime "updated_at", null: false
     t.string "version"
     t.index ["project_id"], name: "index_services_on_project_id"
+  end
+
+  create_table "solid_cable_messages", force: :cascade do |t|
+    t.binary "channel", null: false
+    t.bigint "channel_hash", null: false
+    t.datetime "created_at", null: false
+    t.binary "payload", null: false
+    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
+    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
   create_table "storage_mounts", force: :cascade do |t|

@@ -41,7 +41,8 @@ module Api
           docker_version: result[:docker_version],
           os: result[:os],
           uptime: result[:uptime],
-          default_proxy: detected_proxy
+          default_proxy: detected_proxy,
+          public_ip: result[:public_ip]
         )
       else
         @server.update!(status: :error)
@@ -88,9 +89,9 @@ module Api
     end
 
     def server_params
-      params.require(:server).permit(:name, :host, :ssh_key, :ssh_user, :default_proxy)
+      params.require(:server).permit(:name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains)
     rescue ActionController::ParameterMissing
-      params.permit(:name, :host, :ssh_key, :ssh_user, :default_proxy)
+      params.permit(:name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains)
     end
 
     def authorize_server_action!

@@ -3,4 +3,10 @@ class Domain < ApplicationRecord
 
   validates :hostname, presence: true, uniqueness: { scope: :service_id }
   validates :port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }
+
+  def as_json(options = {})
+    super(options.merge(
+      methods: [:temporary]
+    ))
+  end
 end

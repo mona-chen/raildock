@@ -37,6 +37,18 @@ export function normalizeService(data: unknown): Service {
   if (camel.id != null && typeof camel.id !== 'string') {
     camel.id = String(camel.id)
   }
+  // Map camelized environmentVariables → envVars (our type uses envVars)
+  if (camel.environmentVariables !== undefined) {
+    camel.envVars = camel.environmentVariables
+    delete camel.environmentVariables
+  }
+  // Ensure linked IDs are strings (Rails returns integers)
+  if (Array.isArray(camel.linkedServiceIds)) {
+    camel.linkedServiceIds = camel.linkedServiceIds.map((id) => String(id))
+  }
+  if (Array.isArray(camel.linkedByServiceIds)) {
+    camel.linkedByServiceIds = camel.linkedByServiceIds.map((id) => String(id))
+  }
   const config = (camel.config || {}) as Record<string, unknown>
   delete camel.config
   const defaults = {

@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight } from 'lucide-react'
+import { Box, X, ArrowDownToLine, Trash2, Globe, HardDrive, Play, Square, RotateCw, Rocket, ChevronDown, ChevronRight, Terminal, GitBranch, Settings2, Wrench, Clock, CheckCircle2, XCircle, Loader2, Upload, AlertCircle, ArrowRight, Link2, Unlink, Copy, Check, Database, Eye, EyeOff, FileCode, Plus, RotateCcw } from 'lucide-react'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
-import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups } from '@/hooks/useServices'
+import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups, useLinkedByServices, useUnlinkService } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { useUpdateService } from '@/hooks/useServices'
 import { useCanvasStore } from '@/stores/useCanvasStore'
+import { useProject } from '@/hooks/useProjects'
 import type { Service } from '@/types'
 import { api } from '@/lib/api'
+import { toast } from 'sonner'
 import LogsTab from '@/features/service-panel/tabs/LogsTab'
 import InteractiveTerminal from '@/features/service-panel/tabs/InteractiveTerminal'
 
@@ -235,6 +237,180 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   )
 }
 
+// ── Connection String Helpers ────────────────
+const DB_ICON: Record<string, React.ElementType> = {
+  postgres: Database, mysql: Database, mongo: Database, redis: Database,
+}
+const DB_CLR: Record<string, string> = {
+  postgres: '#8b5cf6', mysql: '#3b82f6', mongo: '#22c55e', redis: '#f59e0b',
+}
+
+function maskConnectionUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.password) u.password = '••••••••'
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
+function quickConnectCommand(subtype: string, url: string): string {
+  try {
+    const u = new URL(url)
+    const host = u.hostname
+    const port = u.port
+    const user = u.username
+    const db = u.pathname.replace(/^\//, '')
+    switch (subtype) {
+      case 'postgres': return `psql "${url}"`
+      case 'mysql': return `mysql -h ${host} -P ${port} -u ${user} -p ${db}`
+      case 'mongo': return `mongosh "${url}"`
+      case 'redis': return `redis-cli -h ${host} -p ${port} --tls`
+      default: return ''
+    }
+  } catch {
+    return ''
+  }
+}
+
+// ── Connections Card ───────────────────────────
+function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }) {
+  const unlinkService = useUnlinkService()
+  const { data: linkedByServices } = useLinkedByServices(serviceId)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(null), 1500)
+  }
+
+  // Find connection URL env vars injected by Dokku linking
+  const connectionVars = (svc.envVars || []).filter(
+    (ev) => ev.isDokkuInternal && ev.key.match(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL)/i)
+  )
+
+  const isDb = svc.type === 'database'
+
+  return (
+    <div className="space-y-4">
+      {/* Linked Databases (for app services) */}
+      {!isDb && (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Link2 size={14} className="text-[#8b5cf6]" />
+              <div className="text-[13px] font-medium text-white/70">Connections</div>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
+              {connectionVars.length}
+            </span>
+          </div>
+
+          {connectionVars.length === 0 ? (
+            <div className="text-[12px] text-white/30 py-2">No databases linked. Use the canvas to link a service.</div>
+          ) : (
+            <div className="space-y-3">
+              {connectionVars.map((ev) => {
+                const cmd = quickConnectCommand(svc.subtype, ev.value)
+                const isExpanded = expanded === ev.key
+                return (
+                  <div key={ev.key} className="bg-black/30 border border-white/[0.04] rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Database size={13} className="text-white/40" />
+                        <span className="text-[12px] font-medium text-white/60">{ev.key}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleCopy(ev.value, ev.key)}
+                          className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+                          title="Copy connection string"
+                        >
+                          {copied === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Connection URL */}
+                    <div className="font-mono text-[11px] text-white/40 break-all bg-black/20 rounded px-2.5 py-2 mb-2">
+                      {maskConnectionUrl(ev.value)}
+                    </div>
+
+                    {/* Quick connect */}
+                    {cmd && (
+                      <button
+                        onClick={() => setExpanded(isExpanded ? null : ev.key)}
+                        className="text-[11px] text-[#8b5cf6]/70 hover:text-[#8b5cf6] transition-colors"
+                      >
+                        {isExpanded ? 'Hide' : 'Show'} quick-connect CLI
+                      </button>
+                    )}
+                    {isExpanded && cmd && (
+                      <div className="mt-2 relative">
+                        <div className="font-mono text-[11px] text-white/50 bg-black/30 rounded px-2.5 py-2 pr-8">
+                          {cmd}
+                        </div>
+                        <button
+                          onClick={() => handleCopy(cmd, `${ev.key}-cmd`)}
+                          className="absolute right-1.5 top-1.5 p-1 rounded hover:bg-white/[0.06] text-white/20 hover:text-white/50 transition-colors"
+                        >
+                          {copied === `${ev.key}-cmd` ? <Check size={10} className="text-[#22c55e]" /> : <Copy size={10} />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Connected Apps (for database services) */}
+      {isDb && (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Link2 size={14} className="text-[#8b5cf6]" />
+              <div className="text-[13px] font-medium text-white/70">Connected Apps</div>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
+              {linkedByServices?.length || 0}
+            </span>
+          </div>
+
+          {!linkedByServices || linkedByServices.length === 0 ? (
+            <div className="text-[12px] text-white/30 py-2">No apps are using this database yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {linkedByServices.map((app) => (
+                <div key={app.id} className="flex items-center justify-between bg-black/30 border border-white/[0.04] rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Box size={13} className="text-white/40" />
+                    <span className="text-[12px] text-white/60">{app.name}</span>
+                    <span className="text-[10px] text-white/30">{app.subtype}</span>
+                  </div>
+                  <button
+                    onClick={() => unlinkService.mutate({ id: app.id, targetId: serviceId })}
+                    disabled={unlinkService.isPending}
+                    className="p-1.5 rounded hover:bg-white/[0.06] text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                    title="Unlink"
+                  >
+                    <Unlink size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Overview Tab ─────────────────────────────
 function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: string; onDeploy: () => void }) {
   const scaleProcess = useScaleProcess()
@@ -434,6 +610,7 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
           }`}>{lastUpdate.status}</span>
         </div>
       )}
+      <ConnectionsCard svc={svc} serviceId={serviceId} />
     </div>
   )
 }
@@ -985,111 +1162,348 @@ function resolveEnvRef(value: string, allServices: Service[]): string {
 }
 
 function VariablesTab({ svc }: { svc: Service }) {
+  const { data: project } = useProject(svc.projectId)
+  const [mode, setMode] = useState<'list' | 'raw'>('list')
+  const [rawText, setRawText] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
   const [newKey, setNewKey] = useState('')
   const [newVal, setNewVal] = useState('')
+  const [revealed, setRevealed] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState<string | null>(null)
   const setEnvVar = useSetEnvVar()
   const unsetEnvVar = useUnsetEnvVar()
 
-  return (
-    <div className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <div className="text-[14px] font-medium text-white/70">Environment Variables</div>
-          <div className="text-[12px] text-white/40 mt-0.5">{svc.envVars.length} variable(s)</div>
+  const userVars = svc.envVars.filter((ev) => !ev.isDokkuInternal)
+  const dokkuVars = svc.envVars.filter((ev) => ev.isDokkuInternal)
+  const sharedVars = project?.sharedVars || []
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(null), 1500)
+  }
+
+  const toggleReveal = (key: string) => {
+    setRevealed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const parseRawEnv = (text: string): { key: string; value: string }[] => {
+    const out: { key: string; value: string }[] = []
+    const lines = text.split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq === -1) continue
+      const key = trimmed.slice(0, eq).trim()
+      const value = trimmed.slice(eq + 1).trim()
+      if (key) out.push({ key, value })
+    }
+    return out
+  }
+
+  const handleRawSave = () => {
+    const parsed = parseRawEnv(rawText)
+    if (parsed.length === 0) {
+      toast.error('No valid KEY=VALUE pairs found')
+      return
+    }
+    for (const { key, value } of parsed) {
+      setEnvVar.mutate({ id: svc.id, key, value })
+    }
+    setRawText('')
+    setMode('list')
+    toast.success(`Added ${parsed.length} variable(s)`)
+  }
+
+  const handleInsertShared = (key: string) => {
+    const ref = '\${{shared.' + key + '}}'
+    setNewVal((v) => (v ? v + ref : ref))
+  }
+
+  const maskValue = (val: string) => {
+    if (val.length <= 8) return '••••••••'
+    return val.slice(0, 2) + '•'.repeat(Math.min(val.length - 4, 16)) + val.slice(-2)
+  }
+
+  const renderVarRow = (ev: typeof svc.envVars[0], readonly?: boolean) => {
+    const isRevealed = revealed.has(ev.key)
+    const isEditing = editing === ev.key
+    const displayValue = isRevealed || isEditing ? ev.value : maskValue(ev.value)
+    const isReference = ev.value.includes('${{')
+
+    return (
+      <div
+        key={ev.key}
+        className={`flex items-start gap-3 border border-white/[0.06] rounded-xl p-3 group transition-colors ${
+          ev.isDokkuInternal ? 'bg-[#131318]' : 'bg-[#1a1a1e] hover:border-white/[0.1]'
+        }`}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[13px] font-mono text-[#8b5cf6]/80">{ev.key}</span>
+            {ev.source && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/40 rounded-full">
+                {ev.source}
+              </span>
+            )}
+            {ev.isDokkuInternal && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-[#22c55e]/10 text-[#22c55e]/60 rounded-full">
+                dokku
+              </span>
+            )}
+            {isReference && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6]/60 rounded-full">
+                reference
+              </span>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setEnvVar.mutate({ id: svc.id, key: ev.key, value: editValue })
+                    setEditing(null)
+                  }
+                  if (e.key === 'Escape') setEditing(null)
+                }}
+                className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+              />
+              <button
+                onClick={() => {
+                  setEnvVar.mutate({ id: svc.id, key: ev.key, value: editValue })
+                  setEditing(null)
+                }}
+                className="px-2 py-1 bg-[#22c55e]/10 text-[#22c55e] rounded text-[11px] hover:bg-[#22c55e]/20"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditing(null)}
+                className="px-2 py-1 bg-white/5 text-white/40 rounded text-[11px] hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="text-[12px] text-white/50 font-mono break-all">
+              {displayValue}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => handleCopy(ev.value, ev.key)}
+            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+            title="Copy value"
+          >
+            {copied === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+          </button>
+          {!readonly && (
+            <>
+              <button
+                onClick={() => toggleReveal(ev.key)}
+                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+                title={isRevealed ? 'Hide value' : 'Show value'}
+              >
+                {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+              </button>
+              <button
+                onClick={() => { setEditing(ev.key); setEditValue(ev.value) }}
+                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+                title="Edit"
+              >
+                <Wrench size={12} />
+              </button>
+              <button
+                onClick={() => unsetEnvVar.mutate({ id: svc.id, key: ev.key })}
+                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400"
+                title="Delete"
+              >
+                <Trash2 size={12} />
+              </button>
+            </>
+          )}
         </div>
       </div>
-      <div className="space-y-2">
-        {svc.envVars.map((ev) => (
-          <div
-            key={ev.key}
-            className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 group"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-mono text-[#8b5cf6]/80">{ev.key}</span>
-                {ev.source && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/40 rounded-full">
-                    {ev.source}
-                  </span>
-                )}
-              </div>
-              {editing === ev.key ? (
-                <input
-                  type="text"
-                  defaultValue={ev.value}
-                  autoFocus
-                  onBlur={(e) => {
-                    setEnvVar.mutate({ id: svc.id, key: ev.key, value: e.target.value })
-                    setEditing(null)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setEnvVar.mutate({ id: svc.id, key: ev.key, value: (e.target as HTMLInputElement).value })
-                      setEditing(null)
-                    }
-                  }}
-                  className="flex-1 mt-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40 w-full"
-                />
-              ) : (
-                <div className="text-[12px] text-white/50 font-mono mt-0.5 truncate">
-                  {ev.value}
-                  {ev.value.includes('${{') && (
-                    <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6]/60 rounded">reference</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => setEditing(editing === ev.key ? null : ev.key)}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-white/60"
-              >
-                Edit
-              </button>
-              {!ev.isDokkuInternal && (
-                <button
-                  onClick={() => unsetEnvVar.mutate({ id: svc.id, key: ev.key })}
-                  className="p-1.5 hover:bg-white/[0.06] rounded text-white/30 hover:text-red-400"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
+    )
+  }
+
+  return (
+    <div className="p-5 space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[14px] font-medium text-white/70">Environment Variables</div>
+          <div className="text-[12px] text-white/40 mt-0.5">
+            {userVars.length} user-defined · {dokkuVars.length} dokku-internal
           </div>
-        ))}
-      </div>
-      <div className="mt-4 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
-        <div className="text-[12px] text-white/50 mb-2">Add Variable</div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="KEY"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-          />
-          <input
-            type="text"
-            placeholder="value or ${{Service.VAR}}"
-            value={newVal}
-            onChange={(e) => setNewVal(e.target.value)}
-            className="flex-[2] bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-          />
+        </div>
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              if (newKey && newVal) {
-                setEnvVar.mutate({ id: svc.id, key: newKey, value: newVal })
-                setNewKey('')
-                setNewVal('')
-              }
-            }}
-            className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all"
+            onClick={() => setMode(mode === 'list' ? 'raw' : 'list')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-white/50 rounded-lg text-[12px] hover:bg-white/10 hover:text-white/70 transition-all"
           >
-            Add
+            <FileCode size={13} />
+            {mode === 'list' ? 'Raw Editor' : 'List View'}
           </button>
         </div>
       </div>
+
+      {/* Deploy reminder */}
+      {(setEnvVar.isPending || unsetEnvVar.isPending) && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex items-center gap-2">
+          <AlertCircle size={14} className="text-amber-400/60" />
+          <span className="text-[12px] text-amber-400/70">
+            Variable changes require a service restart to take effect.
+          </span>
+        </div>
+      )}
+
+      {/* Raw Editor */}
+      {mode === 'raw' && (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4 space-y-3">
+          <div className="text-[13px] font-medium text-white/70">Bulk Import</div>
+          <p className="text-[11px] text-white/30">
+            Paste <code className="text-white/50">KEY=VALUE</code> pairs, one per line. Lines starting with # are ignored.
+          </p>
+          <textarea
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            placeholder={`DATABASE_URL=postgres://...\nREDIS_URL=redis://...\nAPI_KEY=sk-...`}
+            className="w-full h-40 bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/60 focus:outline-none focus:border-[#8b5cf6]/40 resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-white/30">
+              {parseRawEnv(rawText).length} variable(s) ready to import
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setRawText(''); setMode('list') }}
+                className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-[12px] hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRawSave}
+                disabled={parseRawEnv(rawText).length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-40"
+              >
+                <Plus size={12} />
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* List mode */}
+      {mode === 'list' && (
+        <>
+          {/* User-defined variables */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[12px] font-medium text-white/50 uppercase tracking-wider">User Defined</div>
+            </div>
+            <div className="space-y-2">
+              {userVars.length === 0 ? (
+                <div className="text-[12px] text-white/20 py-4 text-center border border-dashed border-white/[0.06] rounded-xl">
+                  No user-defined variables. Add one below or use the Raw Editor.
+                </div>
+              ) : (
+                userVars.map((ev) => renderVarRow(ev))
+              )}
+            </div>
+          </div>
+
+          {/* Add new variable */}
+          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+            <div className="text-[13px] font-medium text-white/70 mb-3">Add Variable</div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="KEY"
+                value={newKey}
+                onChange={(e) => setNewKey(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                className="flex-1 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+              />
+              <input
+                type="text"
+                placeholder="value or ${{Service.VAR}}"
+                value={newVal}
+                onChange={(e) => setNewVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newKey && newVal) {
+                    setEnvVar.mutate({ id: svc.id, key: newKey, value: newVal })
+                    setNewKey('')
+                    setNewVal('')
+                  }
+                }}
+                className="flex-[2] bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+              />
+              <button
+                onClick={() => {
+                  if (newKey && newVal) {
+                    setEnvVar.mutate({ id: svc.id, key: newKey, value: newVal })
+                    setNewKey('')
+                    setNewVal('')
+                  }
+                }}
+                disabled={!newKey || !newVal}
+                className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Shared var quick-insert */}
+            {sharedVars.length > 0 && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-white/30">Insert shared:</span>
+                {sharedVars.map((sv) => (
+                  <button
+                    key={sv.key}
+                    onClick={() => handleInsertShared(sv.key)}
+                    className="text-[11px] px-2 py-1 bg-white/5 text-white/40 rounded hover:bg-white/10 hover:text-white/60 transition-colors"
+                  >
+                    {sv.key}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dokku-internal variables */}
+          {dokkuVars.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[12px] font-medium text-white/50 uppercase tracking-wider">Dokku-Injected</div>
+                <span className="text-[10px] text-white/20">Read-only · managed by Dokku</span>
+              </div>
+              <div className="space-y-2">
+                {dokkuVars.map((ev) => renderVarRow(ev, true))}
+              </div>
+              <p className="text-[11px] text-white/20 mt-2">
+                These variables are automatically injected by Dokku when linking datastores. They are removed automatically when you unlink.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -1153,8 +1567,8 @@ function MetricsTab({ svc }: { svc: Service }) {
   const { current: m, history } = useMetricHistory(svc.id)
 
   const items = [
-    { label: 'CPU', value: `${m.cpu.toFixed(1)}%`, color: '#8b5cf6', data: history.cpu, max: 100 },
-    { label: 'Memory', value: `${m.memory.toFixed(1)}%`, color: '#22c55e', data: history.memory, max: 100 },
+    { label: 'CPU', value: `${(m.cpu ?? 0).toFixed(1)}%`, color: '#8b5cf6', data: history.cpu, max: 100 },
+    { label: 'Memory', value: `${(m.memory ?? 0).toFixed(1)}%`, color: '#22c55e', data: history.memory, max: 100 },
     { label: 'Network In', value: `${(m.networkIn ?? 0).toFixed(1)} MB/s`, color: '#3b82f6', data: history.networkIn, max: 50 },
     { label: 'Network Out', value: `${(m.networkOut ?? 0).toFixed(1)} MB/s`, color: '#f59e0b', data: history.networkOut, max: 50 },
   ]
@@ -1587,12 +2001,17 @@ function DomainsTab({ svc }: { svc: Service }) {
               {d.ssl && (
                 <span className="text-[10px] px-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">SSL</span>
               )}
-              <button
-                onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
-                className="ml-auto p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={12} />
-              </button>
+              {d.temporary && (
+                <span className="text-[10px] px-1.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">Auto</span>
+              )}
+              {!d.temporary && (
+                <button
+                  onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
+                  className="ml-auto p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -1837,21 +2256,6 @@ function NetworkSettings({ svc }: { svc: Service }) {
         </div>
       )}
 
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-[12px] text-white/60">Linked Services</div>
-          <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
-            {svc.linkedServiceIds.length}
-          </span>
-        </div>
-        {svc.linkedServiceIds.length > 0 ? (
-          <div className="text-[11px] text-white/40">
-            {svc.linkedServiceIds.join(', ')}
-          </div>
-        ) : (
-          <div className="text-[11px] text-white/30">No linked services</div>
-        )}
-      </div>
     </div>
   )
 }

@@ -403,8 +403,27 @@ export default function ProjectCanvas() {
                   isSelected={activeServiceId === s.id}
                   onMouseDown={(e) => handleNodeMouseDown(e, s.id)}
                   otherServices={services}
-                  onLink={(targetId) => linkService.mutate({ id: s.id, targetId })}
-                  onUnlink={(targetId) => unlinkService.mutate({ id: s.id, targetId })}
+                  onLink={(targetId) => {
+                    // Always store links as app -> database so unlink and linked-by work consistently
+                    const target = services.find((sv) => sv.id === targetId)
+                    const isAppToDb = s.type === 'app' && (target?.type === 'database' || target?.type === 'cache')
+                    const isDbToApp = (s.type === 'database' || s.type === 'cache') && target?.type === 'app'
+                    if (isDbToApp) {
+                      linkService.mutate({ id: targetId, targetId: s.id })
+                    } else {
+                      linkService.mutate({ id: s.id, targetId })
+                    }
+                  }}
+                  onUnlink={(targetId) => {
+                    const target = services.find((sv) => sv.id === targetId)
+                    const isAppToDb = s.type === 'app' && (target?.type === 'database' || target?.type === 'cache')
+                    const isDbToApp = (s.type === 'database' || s.type === 'cache') && target?.type === 'app'
+                    if (isDbToApp) {
+                      unlinkService.mutate({ id: targetId, targetId: s.id })
+                    } else {
+                      unlinkService.mutate({ id: s.id, targetId })
+                    }
+                  }}
                 />
               ))}
             </div>

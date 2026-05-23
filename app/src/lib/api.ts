@@ -180,11 +180,11 @@ export const servicesApi = {
   },
 
   setEnvVar: async (id: string, key: string, value: string, source?: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/env_vars`, { method: 'POST', body: JSON.stringify({ key, value, source }) })
+    await fetchJson(`/api/services/${id}/env-vars`, { method: 'POST', body: JSON.stringify({ key, value, source }) })
   },
 
   unsetEnvVar: async (id: string, key: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/env_vars/${key}`, { method: 'DELETE' })
+    await fetchJson(`/api/services/${id}/env-vars/${encodeURIComponent(key)}`, { method: 'DELETE' })
   },
 
   addDomain: async (id: string, hostname: string, port: number): Promise<void> => {
@@ -259,6 +259,11 @@ export const servicesApi = {
 
   unlink: async (id: string, targetId: string): Promise<{ success: boolean; linked_service_ids: string[] }> => {
     return fetchJson(`/api/services/${id}/unlink`, { method: 'POST', body: JSON.stringify({ target_id: targetId }) })
+  },
+
+  linkedBy: async (id: string): Promise<Service[]> => {
+    const data = await fetchJson<unknown[]>(`/api/services/${id}/linked_by`)
+    return data.map(normalizeService)
   },
 
   backup: async (id: string): Promise<{ success: boolean }> => {
@@ -347,7 +352,7 @@ export const serversApi = {
     return data.map(normalizeServer)
   },
 
-  create: async (data: { name: string; host: string; sshKey?: string; sshUser?: string }): Promise<Server> => {
+  create: async (data: { name: string; host: string; sshKey?: string; sshUser?: string; baseDomain?: string; autoDomains?: boolean }): Promise<Server> => {
     const res = await fetchJson<unknown>('/api/servers', { method: 'POST', body: wrapBody('server', data) })
     return normalizeServer(res)
   },

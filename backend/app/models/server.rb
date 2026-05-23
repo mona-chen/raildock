@@ -53,9 +53,34 @@ class Server < ApplicationRecord
     projects.pluck(:id)
   end
 
+  def auto_domains?
+    base_domain.present? && (respond_to?(:auto_domains) ? auto_domains : true)
+  end
+
+  # Magic DNS services that resolve wildcards to embedded IPs
+  MAGIC_DOMAINS = %w[sslip.io nip.io traefik.me].freeze
+
+  def magic_domain?
+    MAGIC_DOMAINS.include?(base_domain&.downcase)
+  end
+
+  # Build a temporary hostname for a given app name.
+  # For magic domains, embeds the server's public IP so it resolves correctly.
+  def temporary_hostname(app_name)
+    return nil unless base_domain.present?
+
+    if magic_domain?
+      ip = public_ip || host
+      # sslip.io supports both dot and dash notation; dots are more natural
+      "#{app_name}.#{ip}.#{base_domain}"
+    else
+      "#{app_name}.#{base_domain}"
+    end
+  end
+
   def as_json(options = {})
     super(options.merge(
-      methods: [:disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user],
+      methods: [:disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains],
       except: [:ssh_key_ciphertext]
     ))
   end

@@ -24,6 +24,7 @@ Rails.application.routes.draw do
           post :create_backup_schedule
           post :link
           post :unlink
+          get :linked_by
           post :backup
           post :restore
           post :start
