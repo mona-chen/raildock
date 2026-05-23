@@ -73,7 +73,18 @@ export function normalizeService(data: unknown): Service {
     restartPolicy: 'on-failure',
     restartMaxRetries: 10,
   }
-  return { ...defaults, ...config, ...camel } as unknown as Service
+  // Deep-merge nested objects so partial config (e.g. proxy: {}) doesn't wipe defaults
+  const mergeNested = <T extends Record<string, unknown>>(def: T, val: unknown): T => {
+    if (val === null || typeof val !== 'object' || Array.isArray(val)) return def
+    return { ...def, ...(val as T) }
+  }
+  const merged = { ...defaults, ...config, ...camel } as Record<string, unknown>
+  merged.proxy = mergeNested(defaults.proxy, merged.proxy)
+  merged.checks = mergeNested(defaults.checks, merged.checks)
+  merged.letsencrypt = mergeNested(defaults.letsencrypt, merged.letsencrypt)
+  merged.git = mergeNested(defaults.git, merged.git)
+  merged.traefik = mergeNested(defaults.traefik, merged.traefik)
+  return merged as unknown as Service
 }
 
 export function normalizeProject(data: unknown): Project {
