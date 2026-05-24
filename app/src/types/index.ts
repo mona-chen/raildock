@@ -271,6 +271,12 @@ export interface GitRepo {
 export interface GitHubAppConfig {
   enabled: boolean
   appSlug?: string
+  clientId?: string
+}
+
+export interface SystemSetting {
+  key: string
+  value?: string
 }
 
 // ───────────────────────────────────────────────

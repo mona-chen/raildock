@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   FolderGit2,
@@ -14,6 +14,9 @@ import {
   Building2,
   User,
   RefreshCw,
+  Settings2,
+  Wrench,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -22,6 +25,9 @@ import {
   useDisconnectGitSource,
   useGitSourceRepos,
   useGitHubAppConfig,
+  useSystemSettings,
+  useUpdateSystemSetting,
+  useTestGitHubApp,
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
@@ -224,6 +230,11 @@ export default function GitSourcesTab() {
         </div>
       </div>
 
+      {/* Admin Configuration */}
+      {user?.admin && (
+        <AdminConfigPanel />
+      )}
+
       {/* PAT Token Modal */}
       <Dialog open={patModalOpen} onOpenChange={setPatModalOpen}>
         <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
@@ -260,6 +271,147 @@ export default function GitSourcesTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// ── Admin Config Panel ─────────────────────────
+
+function AdminConfigPanel() {
+  const [expanded, setExpanded] = useState(false)
+  const { data: settings = [] } = useSystemSettings()
+  const updateSettings = useUpdateSystemSetting()
+  const testConnection = useTestGitHubApp()
+
+  const settingMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    settings.forEach((s) => { if (s.value) map[s.key] = s.value })
+    return map
+  }, [settings])
+
+  const [form, setForm] = useState({
+    github_app_slug: '',
+    github_app_id: '',
+    github_client_id: '',
+    github_webhook_secret: '',
+  })
+
+  // Sync form when settings load
+  useEffect(() => {
+    setForm({
+      github_app_slug: settingMap['github_app_slug'] || '',
+      github_app_id: settingMap['github_app_id'] || '',
+      github_client_id: settingMap['github_client_id'] || '',
+      github_webhook_secret: settingMap['github_webhook_secret'] || '',
+    })
+  }, [settingMap])
+
+  const handleSave = () => {
+    updateSettings.mutate({
+      github_app_slug: form.github_app_slug || undefined,
+      github_app_id: form.github_app_id || undefined,
+      github_client_id: form.github_client_id || undefined,
+      github_webhook_secret: form.github_webhook_secret || undefined,
+    })
+  }
+
+  const handleTest = () => {
+    testConnection.mutate()
+  }
+
+  return (
+    <div className="pt-4 border-t border-[rgba(255,255,255,0.05)]">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors w-full"
+      >
+        <Wrench size={14} className="text-[#4A4A55]" />
+        <span className="font-medium">Admin Configuration</span>
+        <span className="text-[10px] px-1.5 py-0.5 bg-[rgba(255,255,255,0.06)] text-[#4A4A55] rounded ml-1">Admin only</span>
+        {expanded ? <ChevronDown size={14} className="ml-auto" /> : <ChevronRight size={14} className="ml-auto" />}
+      </button>
+
+      {expanded && (
+        <div className="mt-3 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 space-y-4">
+          <p className="text-[11px] text-[#4A4A55]">
+            Configure your GitHub App credentials. The private key stays in Rails credentials for security.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] text-[#A0A0B0] mb-1 block">GitHub App Slug</label>
+              <input
+                type="text"
+                value={form.github_app_slug}
+                onChange={(e) => setForm({ ...form, github_app_slug: e.target.value })}
+                placeholder="my-raildock-app"
+                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
+              />
+              <p className="text-[10px] text-[#4A4A55] mt-1">The app name in the GitHub URL</p>
+            </div>
+            <div>
+              <label className="text-[11px] text-[#A0A0B0] mb-1 block">GitHub App ID</label>
+              <input
+                type="text"
+                value={form.github_app_id}
+                onChange={(e) => setForm({ ...form, github_app_id: e.target.value })}
+                placeholder="123456"
+                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-[#A0A0B0] mb-1 block">Client ID</label>
+              <input
+                type="text"
+                value={form.github_client_id}
+                onChange={(e) => setForm({ ...form, github_client_id: e.target.value })}
+                placeholder="Iv1.xxxxxxxxxxxxxxxx"
+                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-[#A0A0B0] mb-1 block">Webhook Secret</label>
+              <input
+                type="password"
+                value={form.github_webhook_secret}
+                onChange={(e) => setForm({ ...form, github_webhook_secret: e.target.value })}
+                placeholder="••••••••••••••••"
+                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <Button
+              onClick={handleSave}
+              disabled={updateSettings.isPending}
+              className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-8"
+            >
+              {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleTest}
+              disabled={testConnection.isPending || !form.github_app_slug}
+              className="text-[11px] text-[#A0A0B0] hover:text-white h-8"
+            >
+              {testConnection.isPending ? (
+                <RefreshCw size={12} className="mr-1 animate-spin" />
+              ) : testConnection.isSuccess && testConnection.data?.valid ? (
+                <CheckCircle2 size={12} className="mr-1 text-[#22c55e]" />
+              ) : (
+                <ExternalLink size={12} className="mr-1" />
+              )}
+              Test Connection
+            </Button>
+            {testConnection.isSuccess && testConnection.data?.valid && (
+              <span className="text-[11px] text-[#22c55e]">
+                {testConnection.data.name}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

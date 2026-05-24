@@ -19,4 +19,8 @@ class User < ApplicationRecord
   def generate_jwt
     JWT.encode({ user_id: id, exp: 30.days.from_now.to_i }, jwt_secret_key)
   end
+
+  def admin?
+    !!admin
+  end
 end

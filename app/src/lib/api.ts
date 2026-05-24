@@ -12,6 +12,7 @@ import type {
   GitSource,
   GitRepo,
   GitHubAppConfig,
+  SystemSetting,
   Module,
   ActivityEvent,
   Template,
@@ -424,6 +425,22 @@ export const gitSourcesApi = {
   },
 }
 
+// ── Admin Settings API ───────────────────────
+
+export const adminSettingsApi = {
+  list: async (): Promise<SystemSetting[]> => {
+    return fetchJson('/api/admin/settings')
+  },
+
+  update: async (settings: Record<string, string | undefined>): Promise<{ success: boolean }> => {
+    return fetchJson('/api/admin/settings', { method: 'PATCH', body: JSON.stringify(settings) })
+  },
+
+  testGitHubApp: async (): Promise<{ valid: boolean; name?: string; description?: string; htmlUrl?: string; error?: string }> => {
+    return fetchJson('/api/admin/settings/test-github-app', { method: 'POST' })
+  },
+}
+
 // ── Organizations API ──────────────────────────
 
 export const organizationsApi = {
@@ -613,6 +630,7 @@ export const api = {
   services: servicesApi,
   servers: serversApi,
   gitSources: gitSourcesApi,
+  adminSettings: adminSettingsApi,
   activity: activityApi,
   modules: modulesApi,
   templates: templatesApi,

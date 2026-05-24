@@ -106,6 +106,12 @@ Rails.application.routes.draw do
 
     get "config", to: "config#index"
 
+    namespace :admin do
+      get "settings", to: "settings#index"
+      patch "settings", to: "settings#update"
+      post "settings/test-github-app", to: "settings#test_github_app"
+    end
+
     get "github-apps/callback", to: "github_apps#callback"
     post "github-apps/webhook", to: "github_apps#webhook"
   end

@@ -52,3 +52,39 @@ export function useGitHubAppConfig() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
+
+export function useSystemSettings() {
+  return useQuery({
+    queryKey: ['system-settings'],
+    queryFn: () => api.adminSettings.list(),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useUpdateSystemSetting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (settings: Record<string, string | undefined>) =>
+      api.adminSettings.update(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['github-app-config'] })
+      toast.success('Settings saved')
+    },
+    onError: (err: Error) => toast.error(`Save failed: ${err.message}`),
+  })
+}
+
+export function useTestGitHubApp() {
+  return useMutation({
+    mutationFn: () => api.adminSettings.testGitHubApp(),
+    onSuccess: (data) => {
+      if (data.valid) {
+        toast.success(`GitHub App verified: ${data.name}`)
+      } else {
+        toast.error(data.error || 'GitHub App validation failed')
+      }
+    },
+    onError: (err: Error) => toast.error(`Test failed: ${err.message}`),
+  })
+}

@@ -10,7 +10,7 @@ module Api
       user = User.find_by(email: params[:email])
 
       if user&.authenticate(params[:password])
-        render json: { token: user.generate_jwt, user: user.as_json(only: [ :id, :email, :name ]) }
+        render json: { token: user.generate_jwt, user: user.as_json(only: [ :id, :email, :name, :admin ]) }
       else
         render json: { error: "Invalid credentials" }, status: :unauthorized
       end
@@ -20,7 +20,7 @@ module Api
       user = current_user
 
       if user
-        render json: user.as_json(only: [ :id, :email, :name ])
+        render json: user.as_json(only: [ :id, :email, :name, :admin ])
       else
         render json: { error: "Unauthorized" }, status: :unauthorized
       end

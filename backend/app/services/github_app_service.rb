@@ -19,7 +19,24 @@ class GithubAppService
     end
 
     def app_slug
-      Rails.application.credentials.dig(:github_app, :app_slug) || ENV.fetch('GITHUB_APP_SLUG', nil)
+      SystemSetting.github_app_slug ||
+        Rails.application.credentials.dig(:github_app, :app_slug) ||
+        ENV.fetch('GITHUB_APP_SLUG', nil)
+    end
+
+    def app_id
+      SystemSetting.github_app_id ||
+        Rails.application.credentials.dig(:github_app, :app_id)
+    end
+
+    def client_id
+      SystemSetting.github_client_id ||
+        Rails.application.credentials.dig(:github_app, :client_id)
+    end
+
+    def webhook_secret
+      SystemSetting.github_webhook_secret ||
+        Rails.application.credentials.dig(:github_app, :webhook_secret)
     end
 
     def enabled?
