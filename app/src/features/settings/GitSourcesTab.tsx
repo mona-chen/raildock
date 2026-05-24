@@ -362,7 +362,10 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
       toast.error('GitHub App is not configured')
       return
     }
-    window.open(`https://github.com/apps/${slug}/installations/new`, '_blank')
+    // Use the app's public page instead of /installations/new.
+    // GitHub redirects /installations/new to settings when already installed,
+    // but the public page always shows Configure / Add to org options.
+    window.open(`https://github.com/apps/${slug}`, '_blank')
   }
 
   return (
@@ -462,8 +465,8 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
 
               {appInstallations.length > 0 && (
                 <p className="text-[10px] text-[#4A4A55]">
-                  To add an organization, click "Add Another Account" and select your org on GitHub.
-                  If GitHub shows your existing installation settings, look for "Add to organization" on that page.
+                  To add an organization, click "Add Another Account" to open the app's GitHub page,
+                  then click <b>Configure</b> → <b>Add to organization</b> and select your org.
                 </p>
               )}
             </div>
