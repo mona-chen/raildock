@@ -395,6 +395,7 @@ function ConnectionsCard({ svc, serviceId }: { svc: Service; serviceId: string }
 
 // ── Overview Tab ─────────────────────────────
 function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: string; onDeploy: () => void }) {
+
   const scaleProcess = useScaleProcess()
   const { data: containerStatus } = useContainerStatus(serviceId)
   const { lastUpdate, isConnected, logMap } = useWebSocketDeployments(serviceId)
@@ -480,6 +481,26 @@ function OverviewTab({ svc, serviceId, onDeploy }: { svc: Service; serviceId: st
             <Wrench size={13} />
             {rebuildService.isPending ? 'Rebuilding...' : 'Rebuild'}
           </button>
+        </div>
+      </div>
+
+      {/* Service Details */}
+      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+        <div className="text-[13px] font-medium text-white/70 mb-3">Service Details</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { l: 'Type', v: svc.subtype },
+            { l: 'Version', v: svc.version || 'latest' },
+            { l: 'Name', v: svc.name },
+            { l: 'Status', v: svc.status },
+            { l: 'Internal Hostname', v: svc.internalHostname },
+            { l: 'Dokku Name', v: svc.name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() },
+          ].filter((f) => f.v).map((f) => (
+            <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
+              <div className="text-[11px] text-white/40">{f.l}</div>
+              <div className="text-[12px] text-white/70 font-mono mt-0.5 break-all">{f.v}</div>
+            </div>
+          ))}
         </div>
       </div>
 
