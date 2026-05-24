@@ -118,6 +118,7 @@ Rails.application.routes.draw do
 
     get "github-apps/callback", to: "github_apps#callback"
     post "github-apps/finish-setup", to: "github_apps#finish_setup"
+    delete "github-apps/installations/:id", to: "github_apps#destroy_installation"
     post "github-apps/webhook", to: "github_apps#webhook"
   end
 end

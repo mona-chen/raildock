@@ -60,6 +60,42 @@ module Api
       redirect_to frontend_redirect_url(github_app: 'error', message: 'Internal error')
     end
 
+    # DELETE /api/github-apps/installations/:id
+    # Uninstalls a GitHub App from the account and removes the GitSource
+    def destroy_installation
+      installation_id = params[:id]
+
+      unless installation_id.present?
+        render json: { error: 'Missing installation_id' }, status: :bad_request
+        return
+      end
+
+      git_source = GitSource.find_by(installation_id: installation_id.to_s, provider: 'github')
+
+      unless git_source
+        render json: { error: 'Installation not found' }, status: :not_found
+        return
+      end
+
+      # Verify ownership
+      if git_source.organization
+        authorize_organization_access!(git_source.organization)
+      elsif git_source.user && git_source.user != current_user
+        return render json: { error: 'Forbidden' }, status: :forbidden
+      end
+
+      # Delete from GitHub
+      GithubAppService.delete_installation(installation_id)
+
+      # Clean up our database
+      git_source.destroy!
+
+      render json: { success: true, message: 'GitHub App uninstalled successfully' }
+    rescue => e
+      Rails.logger.error "GitHub App destroy_installation failed: #{e.message}"
+      render json: { error: 'Failed to uninstall GitHub App' }, status: :internal_server_error
+    end
+
     # POST /api/github-apps/webhook
     # Receives GitHub App events (push, pull_request, installation, etc.)
     def webhook

@@ -107,3 +107,16 @@ export function useFinishGitHubAppSetup() {
     onError: (err: Error) => toast.error(`Setup failed: ${err.message}`),
   })
 }
+
+export function useDeleteGitHubAppInstallation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (installationId: string) => api.adminSettings.deleteGitHubAppInstallation(installationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['git-sources'] })
+      queryClient.invalidateQueries({ queryKey: ['github-app-config'] })
+      toast.success('GitHub App uninstalled')
+    },
+    onError: (err: Error) => toast.error(`Uninstall failed: ${err.message}`),
+  })
+}

@@ -450,6 +450,10 @@ export const adminSettingsApi = {
       body: JSON.stringify({ installation_id: installationId }),
     })
   },
+
+  deleteGitHubAppInstallation: async (installationId: string): Promise<{ success: boolean; message: string }> => {
+    return fetchJson(`/api/github-apps/installations/${installationId}`, { method: 'DELETE' })
+  },
 }
 
 // ── Organizations API ──────────────────────────

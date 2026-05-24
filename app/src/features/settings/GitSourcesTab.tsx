@@ -32,6 +32,7 @@ import {
   useTestGitHubApp,
   useCreateGitHubAppManifest,
   useFinishGitHubAppSetup,
+  useDeleteGitHubAppInstallation,
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
@@ -437,7 +438,10 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">Disconnected</span>
                         )}
                       </div>
-                      <span className="text-[10px] text-[#4A4A55]">{inst.repos?.length || 0} repos</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#4A4A55]">{inst.repos?.length || 0} repos</span>
+                        <InstallationDeleteButton installationId={inst.installationId || ''} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -497,6 +501,27 @@ function TestConnectionButton() {
       )}
       Test Connection
     </Button>
+  )
+}
+
+function InstallationDeleteButton({ installationId }: { installationId: string }) {
+  const deleteInstallation = useDeleteGitHubAppInstallation()
+
+  const handleDelete = () => {
+    if (!installationId) return
+    if (!confirm('Uninstall this GitHub App from the account? This will remove access to all repositories.')) return
+    deleteInstallation.mutate(installationId)
+  }
+
+  return (
+    <button
+      onClick={handleDelete}
+      disabled={deleteInstallation.isPending}
+      className="text-[#4A4A55] hover:text-red-400 transition-colors disabled:opacity-50"
+      title="Uninstall"
+    >
+      <Trash2 size={13} />
+    </button>
   )
 }
 

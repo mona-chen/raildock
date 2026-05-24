@@ -157,5 +157,32 @@ class GithubAppService
       Rails.logger.error "GitHub App repo list failed: #{e.message}"
       raise
     end
+
+    # Delete an installation from GitHub
+    def delete_installation(installation_id)
+      raise "GitHub App credentials not configured" unless enabled?
+      raise "Installation ID required" if installation_id.blank?
+
+      jwt = generate_jwt
+      response = Faraday.delete(
+        "https://api.github.com/app/installations/#{installation_id}",
+        {},
+        {
+          'Authorization' => "Bearer #{jwt}",
+          'Accept' => 'application/vnd.github+json',
+          'X-GitHub-Api-Version' => '2022-11-28'
+        }
+      )
+
+      unless response.success?
+        Rails.logger.error "GitHub App installation deletion failed: #{response.status} #{response.body}"
+        raise "Failed to delete installation: #{response.status}"
+      end
+
+      true
+    rescue Faraday::Error => e
+      Rails.logger.error "GitHub App installation deletion failed: #{e.message}"
+      raise
+    end
   end
 end
