@@ -295,7 +295,7 @@ function AdminConfigPanel() {
     return map
   }, [settings])
 
-  const hasGitHubApp = !!ghConfig?.githubApp?.appSlug
+  const hasGitHubApp = !!ghConfig?.githubApp?.enabled
 
   // Handle manifest callback on mount
   useEffect(() => {
