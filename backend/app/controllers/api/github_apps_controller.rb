@@ -84,8 +84,16 @@ module Api
         return render json: { error: 'Forbidden' }, status: :forbidden
       end
 
-      # Delete from GitHub
-      GithubAppService.delete_installation(installation_id)
+      # Delete from GitHub (404 = already uninstalled, which is fine)
+      begin
+        GithubAppService.delete_installation(installation_id)
+      rescue => e
+        if e.message.include?('404')
+          Rails.logger.info "GitHub App installation #{installation_id} already removed from GitHub"
+        else
+          raise
+        end
+      end
 
       # Clean up our database
       git_source.destroy!
