@@ -245,7 +245,7 @@ describe('CanvasToolbar', () => {
   it('renders project name and environment', () => {
     render(
       <MemoryRouter>
-        <CanvasToolbar projectName="My Project" projectEnvironment="production" />
+        <CanvasToolbar projectId="test-project" projectName="My Project" projectEnvironment="production" />
       </MemoryRouter>
     )
 

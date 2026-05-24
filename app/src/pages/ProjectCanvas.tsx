@@ -356,7 +356,7 @@ export default function ProjectCanvas() {
 
   return (
     <div className="h-full flex flex-col bg-[#0f0f13]">
-      <CanvasToolbar projectId={projectId} projectName={project?.name || 'Project'} projectEnvironment={project?.environment || 'production'} />
+      <CanvasToolbar projectId={projectId || ''} projectName={project?.name || 'Project'} projectEnvironment={project?.environment || 'production'} />
 
       {/* Top tab bar for project views */}
       <div className="h-9 border-b border-white/[0.06] flex items-center px-2 gap-1 flex-shrink-0 bg-[#0f0f13] overflow-x-auto">
