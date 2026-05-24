@@ -46,34 +46,34 @@ module Api
         state = params[:state]
 
         unless code.present?
-          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Missing code from GitHub")
+          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Missing code from GitHub"), allow_other_host: true
         end
 
         unless valid_state?(state)
-          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Invalid state parameter")
+          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Invalid state parameter"), allow_other_host: true
         end
 
         # Exchange the temporary code for app credentials
         credentials = exchange_code(code)
 
         unless credentials
-          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Failed to exchange code with GitHub")
+          return redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Failed to exchange code with GitHub"), allow_other_host: true
         end
 
         # Store all credentials in SystemSetting
         store_credentials(credentials)
 
-        redirect_to frontend_redirect_url(github_app_manifest: "success")
+        redirect_to frontend_redirect_url(github_app_manifest: "success"), allow_other_host: true
       rescue => e
         Rails.logger.error "GitHub App Manifest callback failed: #{e.message}"
-        redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Internal error")
+        redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Internal error"), allow_other_host: true
       end
 
       # GET /api/admin/github-app-manifest/setup
       # GitHub redirects here after app installation (setup_url)
       def setup
         # Just redirect back to the frontend settings page
-        redirect_to frontend_redirect_url(github_app_manifest: "setup_complete")
+        redirect_to frontend_redirect_url(github_app_manifest: "setup_complete"), allow_other_host: true
       end
 
       private
