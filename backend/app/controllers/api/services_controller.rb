@@ -360,7 +360,12 @@ module Api
           network_manager = ProjectNetworkManager.new(@service.project, engine)
           network_manager.connect_service(@service)
           network_manager.connect_service(target)
+          network_manager.ensure_linked_aliases(@service)
           network_manager.inject_internal_hostnames(@service)
+
+          # Update app env vars to use the linked service's alias hostname
+          # and sync credentials from the linked service's env vars
+          sync_linked_service_env_vars(engine, @service, target)
         end
 
         ActivityEvent.create!(
@@ -718,6 +723,104 @@ module Api
       service.environment_variables.where(is_dokku_internal: true, source: "dokku-link").destroy_all
     rescue => e
       Rails.logger.error "Failed to remove linked env vars for #{service.dokku_app_name}: #{e.message}"
+    end
+
+    # When an app is linked to a database/cache service, update the app's env vars
+    # to use the linked service's alias hostname (e.g. redis, postgres) and sync
+    # credentials from the linked service's env vars.
+    def sync_linked_service_env_vars(engine, app_service, linked_service)
+      alias_name = linked_service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+
+      # Update any app env var that matches known host patterns for this service name
+      app_service.environment_variables.where(is_dokku_internal: false).find_each do |ev|
+        next unless ev.value.present?
+
+        # Patterns like: AP_REDIS_HOST, REDIS_HOST, POSTGRES_HOST, etc.
+        # If the env var name contains the linked service name + HOST, update it
+        if ev.key.match?(/#{linked_service.name.upcase.gsub(/[^A-Z0-9]/, '_')}_HOST/i)
+          engine.config_set(app_service.dokku_app_name, ev.key, alias_name)
+          ev.update!(value: alias_name)
+        end
+      end
+
+      # Sync credentials from linked service's env vars to the app
+      # e.g. if linked service has POSTGRES_PASSWORD, set AP_POSTGRES_PASSWORD
+      linked_service.environment_variables.find_each do |src_ev|
+        # Look for password/user/database env vars on the linked service
+        next unless src_ev.key.match?(/^(POSTGRES|REDIS|MYSQL|MONGO)_(PASSWORD|USER|DATABASE|DB)/i)
+
+        # Build the corresponding app env var key
+        # e.g. POSTGRES_PASSWORD → AP_POSTGRES_PASSWORD
+        prefix = Regexp.last_match(1) # POSTGRES, REDIS, etc.
+        suffix = Regexp.last_match(2) # PASSWORD, USER, etc.
+
+        # Find app env vars that reference this credential
+        app_service.environment_variables.where(is_dokku_internal: false).find_each do |app_ev|
+          if app_ev.key.match?(/#{prefix}_#{suffix}/i) && app_ev.value != src_ev.value
+            engine.config_set(app_service.dokku_app_name, app_ev.key, src_ev.value)
+            app_ev.update!(value: src_ev.value)
+          end
+        end
+      end
+
+      # For Dokku plugin-managed databases, also fetch the DSN and extract credentials
+      if linked_service.service_type_database?
+        fetch_and_sync_dsn_credentials(engine, app_service, linked_service)
+      end
+    rescue => e
+      Rails.logger.error "Failed to sync linked env vars for #{app_service.dokku_app_name}: #{e.message}"
+    end
+
+    # Fetch DSN from Dokku plugin info and sync extracted credentials to the app
+    def fetch_and_sync_dsn_credentials(engine, app_service, linked_service)
+      case linked_service.subtype
+      when "postgres"
+        result = engine.run("postgres:info #{linked_service.dokku_app_name}")
+        return unless result[:success]
+
+        dsn_line = result[:output].lines.find { |l| l.match?(/Dsn:\s+\S+:\/\//) }
+        return unless dsn_line
+
+        # Parse: postgres://user:pass@host:port/db
+        match = dsn_line.match(/postgres:\/\/(?<user>[^:]+):(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)\/(?<db>\S+)/)
+        return unless match
+
+        sync_credential_vars(engine, app_service, "POSTGRES", match)
+      when "redis"
+        result = engine.run("redis:info #{linked_service.dokku_app_name}")
+        return unless result[:success]
+
+        # Redis info may not have a DSN; try to get from REDIS_URL env var
+        redis_url = linked_service.environment_variables.find_by(key: "REDIS_URL")&.value
+        if redis_url.present?
+          match = redis_url.match(/redis:\/\/(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)/)
+          sync_credential_vars(engine, app_service, "REDIS", match) if match
+        end
+      end
+    end
+
+    # Update app env vars that match a given prefix (POSTGRES, REDIS, etc.)
+    def sync_credential_vars(engine, app_service, prefix, match)
+      mapping = {
+        "user" => "#{prefix}_USERNAME",
+        "pass" => "#{prefix}_PASSWORD",
+        "host" => "#{prefix}_HOST",
+        "port" => "#{prefix}_PORT",
+        "db"   => "#{prefix}_DATABASE"
+      }
+
+      mapping.each do |key_suffix, env_suffix|
+        value = match[key_suffix]
+        next if value.blank?
+
+        # Update any app env var that ends with this suffix
+        app_service.environment_variables.where(is_dokku_internal: false).find_each do |ev|
+          if ev.key.match?(/#{env_suffix}$/i) && ev.value != value
+            engine.config_set(app_service.dokku_app_name, ev.key, value)
+            ev.update!(value: value)
+          end
+        end
+      end
     end
 
     def merge_config_overrides!

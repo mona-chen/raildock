@@ -394,7 +394,51 @@ class ManifestParser
 
   def normalize_env(env)
     return {} unless env.is_a?(Hash)
-    env.transform_keys(&:to_s).transform_values(&:to_s)
+    env.transform_keys(&:to_s).transform_values { |v| resolve_placeholders(v.to_s) }
+  end
+
+  # Resolve Coolify-style placeholders in env var values.
+  # $SERVICE_PASSWORD_XXX → random hex password
+  # $SERVICE_USER_XXX     → "user"
+  # $SERVICE_URL_XXX      → "https://example.com"
+  # $SERVICE_BASE64_XXX   → base64 random string
+  def resolve_placeholders(value)
+    return value unless value.is_a?(String)
+
+    result = value.dup
+
+    # $SERVICE_PASSWORD_64_APIKEY or $SERVICE_PASSWORD_ENCRYPTIONKEY
+    result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) do |match|
+      SecureRandom.hex(16)
+    end
+
+    # $SERVICE_USER_XXX
+    result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) do |match|
+      "user"
+    end
+
+    # $SERVICE_URL_XXX
+    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) do |match|
+      "https://example.com"
+    end
+
+    # $SERVICE_FQDN_XXX
+    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) do |match|
+      "app.example.com"
+    end
+
+    # $SERVICE_BASE64_XXX
+    result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) do |match|
+      SecureRandom.base64(32)
+    end
+
+    # Generic $SERVICE_PASSWORD, $SERVICE_USER, etc.
+    result.gsub!(/\$\{?SERVICE_PASSWORD\}?/) { SecureRandom.hex(16) }
+    result.gsub!(/\$\{?SERVICE_USER\}?/) { "user" }
+    result.gsub!(/\$\{?SERVICE_URL\}?/) { "https://example.com" }
+    result.gsub!(/\$\{?SERVICE_FQDN\}?/) { "app.example.com" }
+
+    result
   end
 
   def normalize_raildock_link(link_hash, idx, warnings)
