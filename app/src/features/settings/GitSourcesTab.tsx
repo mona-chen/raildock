@@ -273,7 +273,7 @@ export default function GitSourcesTab() {
 
       {/* Admin Configuration */}
       {user?.admin && (
-        <AdminConfigPanel />
+        <AdminConfigPanel gitSources={gitSources} />
       )}
 
       {/* PAT Token Modal */}
@@ -318,14 +318,11 @@ export default function GitSourcesTab() {
 
 // ── Admin Config Panel ─────────────────────────
 
-function AdminConfigPanel() {
+function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
   const [expanded, setExpanded] = useState(false)
   const { data: settings = [] } = useSystemSettings()
   const { data: ghConfig } = useGitHubAppConfig()
-  const updateSettings = useUpdateSystemSetting()
-  const testConnection = useTestGitHubApp()
   const createManifest = useCreateGitHubAppManifest()
-  const [searchParams, setSearchParams] = useSearchParams()
 
   const settingMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -335,10 +332,15 @@ function AdminConfigPanel() {
 
   const hasGitHubApp = !!ghConfig?.githubApp?.enabled
 
+  // GitHub App installations from gitSources
+  const appInstallations = useMemo(() =>
+    gitSources.filter((s) => s.provider === 'github' && s.authMethod === 'oauth_app'),
+    [gitSources]
+  )
+
   const handleCreateApp = () => {
     createManifest.mutate(undefined, {
       onSuccess: (data) => {
-        // Dynamically create a form and submit to GitHub
         const form = document.createElement('form')
         form.method = 'POST'
         form.action = data.formUrl
@@ -360,7 +362,7 @@ function AdminConfigPanel() {
       toast.error('GitHub App is not configured')
       return
     }
-    window.location.href = `https://github.com/apps/${slug}/installations/new`
+    window.open(`https://github.com/apps/${slug}/installations/new`, '_blank')
   }
 
   return (
@@ -410,6 +412,33 @@ function AdminConfigPanel() {
                 </div>
               </div>
 
+              {/* Installations List */}
+              {appInstallations.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-[#4A4A55] font-medium">Installed Accounts</p>
+                  {appInstallations.map((inst) => (
+                    <div
+                      key={inst.id}
+                      className="flex items-center justify-between bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Github size={14} className="text-[#4A4A55]" />
+                        <span className="text-[12px] text-[#A0A0B0]">{inst.username || 'Unknown'}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#4A4A55]">
+                          {inst.accountType === 'organization' ? 'Organization' : 'Personal'}
+                        </span>
+                        {inst.connected ? (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e]">Active</span>
+                        ) : (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">Disconnected</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[#4A4A55]">{inst.repos?.length || 0} repos</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <Button
@@ -417,7 +446,7 @@ function AdminConfigPanel() {
                   className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-8"
                 >
                   <ExternalLink size={12} className="mr-1.5" />
-                  Install GitHub App
+                  {appInstallations.length > 0 ? 'Add Another Account' : 'Install GitHub App'}
                 </Button>
                 <Button
                   variant="ghost"
@@ -430,6 +459,13 @@ function AdminConfigPanel() {
                 </Button>
                 <TestConnectionButton />
               </div>
+
+              {appInstallations.length > 0 && (
+                <p className="text-[10px] text-[#4A4A55]">
+                  To add an organization, click "Add Another Account" and select your org on GitHub.
+                  If GitHub shows your existing installation settings, look for "Add to organization" on that page.
+                </p>
+              )}
             </div>
           )}
         </div>
