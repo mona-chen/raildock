@@ -54,21 +54,25 @@ class ProjectNetworkManager
   end
 
   # Build the internal hostname for a service within the project network.
-  # Format: <service-name>.<project-network>.internal
+  # On Docker custom bridge networks, containers resolve each other by their
+  # network alias (the short service name). No `.internal` TLD needed — that
+  # only works with custom DNS resolvers (Railway, Kubernetes, etc.).
+  #
+  # What actually works: redis, postgres, activepieces
+  # What doesn't work: redis.raildock-1.internal
   def build_internal_hostname(service)
-    safe_name = service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-    "#{safe_name}.#{network_name}.internal"
+    service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
   end
 
-  # Inject internal hostnames as env vars for all linked services.
-  # Apps can then use e.g. POSTGRES_HOST=postgres.raildock-42.internal
+  # Inject alias hostnames as env vars for all linked services.
+  # Apps can then use e.g. POSTGRES_HOST=postgres (the Docker alias).
   def inject_internal_hostnames(service)
     return if service.linked_services.blank?
 
     service.linked_services.each do |linked|
-      hostname = build_internal_hostname(linked)
-      env_key = "#{linked.name.upcase.gsub(/[^A-Z0-9]/, '_')}_INTERNAL_HOST"
-      engine.config_set(service.dokku_app_name, env_key, hostname)
+      alias_name = build_internal_hostname(linked)
+      env_key = "#{linked.name.upcase.gsub(/[^A-Z0-9]/, '_')}_HOST"
+      engine.config_set(service.dokku_app_name, env_key, alias_name)
     end
   end
 
