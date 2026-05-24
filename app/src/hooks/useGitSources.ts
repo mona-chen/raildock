@@ -44,3 +44,11 @@ export function useGitSourceRepos(sourceId: string | undefined) {
     enabled: !!sourceId,
   })
 }
+
+export function useGitHubAppConfig() {
+  return useQuery({
+    queryKey: ['github-app-config'],
+    queryFn: () => api.gitSources.config(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}

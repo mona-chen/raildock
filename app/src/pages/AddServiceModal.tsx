@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Box, Database, Zap, Cog, X, Plus, Rocket, ChevronLeft,
   GitBranch, Settings2, HelpCircle, FolderOpen, Check, Loader2,
@@ -236,7 +237,11 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                 </select>
                 {gitSources.length === 0 && (
                   <p className="text-[11px] text-white/30 mt-1">
-                    No Git accounts connected. Go to Settings → Git Sources to connect GitHub, GitLab, or Bitbucket.
+                    No Git accounts connected.{" "}
+                    <Link to="/dashboard/settings?tab=git-sources" className="text-[#8b5cf6] hover:underline">
+                      Go to Platform Settings → Git Sources
+                    </Link>{" "}
+                    to connect one.
                   </p>
                 )}
               </div>

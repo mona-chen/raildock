@@ -11,6 +11,7 @@ import type {
   Server,
   GitSource,
   GitRepo,
+  GitHubAppConfig,
   Module,
   ActivityEvent,
   Template,
@@ -411,6 +412,15 @@ export const gitSourcesApi = {
 
   repos: async (id: string): Promise<{ repos: GitRepo[]; syncing: boolean }> => {
     return fetchJson(`/api/git-sources/${id}/repos`)
+  },
+
+  config: async (): Promise<{ githubApp: GitHubAppConfig }> => {
+    return fetchJson('/api/config')
+  },
+
+  installUrl: (appSlug: string, state: Record<string, unknown>): string => {
+    const encodedState = btoa(JSON.stringify(state)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    return `https://github.com/apps/${appSlug}/installations/new?state=${encodedState}`
   },
 }
 

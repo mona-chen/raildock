@@ -4,17 +4,19 @@ RSpec.describe "Api::GithubAppsController", type: :request do
   let(:user) { create(:user) }
 
   describe "GET /api/github-apps/callback" do
-    it "returns 400 without installation_id" do
+    it "redirects with error without installation_id" do
       get "/api/github-apps/callback"
-      expect(response).to have_http_status(:bad_request)
+      expect(response).to have_http_status(:found)
+      expect(response).to redirect_to(%r{github_app=error})
     end
 
-    it "creates a GitSource for the installation" do
+    it "creates a GitSource for the installation and redirects" do
       expect {
         get "/api/github-apps/callback", params: { installation_id: "12345", state: Base64.urlsafe_encode64({ user_id: user.id }.to_json) }
       }.to change(GitSource, :count).by(1)
 
-      expect(response).to have_http_status(:ok)
+      expect(response).to have_http_status(:found)
+      expect(response).to redirect_to(%r{github_app=success})
       source = GitSource.last
       expect(source.provider).to eq("github")
       expect(source.installation_id).to eq("12345")

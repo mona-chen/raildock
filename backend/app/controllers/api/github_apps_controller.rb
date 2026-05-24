@@ -10,7 +10,7 @@ module Api
       state = params[:state]
 
       unless installation_id.present?
-        render json: { error: "Missing installation_id" }, status: :bad_request
+        redirect_to frontend_redirect_url(github_app: 'error', message: 'Missing installation_id')
         return
       end
 
@@ -40,9 +40,9 @@ module Api
       if git_source.save
         # Fetch repos asynchronously
         GithubSyncReposJob.perform_later(git_source.id)
-        render json: { success: true, git_source_id: git_source.id }
+        redirect_to frontend_redirect_url(github_app: 'success', git_source_id: git_source.id)
       else
-        render json: { errors: git_source.errors.full_messages }, status: :unprocessable_entity
+        redirect_to frontend_redirect_url(github_app: 'error', message: git_source.errors.full_messages.join(', '))
       end
     end
 
@@ -81,6 +81,12 @@ module Api
       JSON.parse(Base64.urlsafe_decode64(state))
     rescue
       {}
+    end
+
+    def frontend_redirect_url(params = {})
+      base = ENV.fetch('FRONTEND_URL') { request.base_url }
+      query = URI.encode_www_form(params)
+      "#{base}/#/dashboard/settings?tab=git-sources&#{query}"
     end
 
     def verify_webhook(payload, signature)

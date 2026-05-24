@@ -250,10 +250,14 @@ export interface Server {
 
 export interface GitSource {
   id: string
-  provider: 'github' | 'gitlab' | 'bitbucket'
+  provider: 'github' | 'gitlab' | 'bitbucket' | 'gitea'
   connected: boolean
   username?: string
   repos: GitRepo[]
+  authMethod?: 'oauth_app' | 'oauth2' | 'ssh_deploy_key' | 'token'
+  accountType?: 'personal' | 'organization'
+  installationId?: string
+  organizationId?: string
 }
 
 export interface GitRepo {
@@ -262,6 +266,11 @@ export interface GitRepo {
   defaultBranch: string
   private: boolean
   serviceName?: string  // which service this deploys to
+}
+
+export interface GitHubAppConfig {
+  enabled: boolean
+  appSlug?: string
 }
 
 // ───────────────────────────────────────────────

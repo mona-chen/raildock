@@ -18,6 +18,10 @@ class GithubAppService
       Rails.application.credentials.dig(:github_app, :webhook_secret)
     end
 
+    def app_slug
+      Rails.application.credentials.dig(:github_app, :app_slug) || ENV.fetch('GITHUB_APP_SLUG', nil)
+    end
+
     def enabled?
       app_id.present? && private_key_pem.present?
     end

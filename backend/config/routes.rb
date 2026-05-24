@@ -104,6 +104,8 @@ Rails.application.routes.draw do
     resources :builders, only: [ :index ]
     resources :networks, only: [ :index ]
 
+    get "config", to: "config#index"
+
     get "github-apps/callback", to: "github_apps#callback"
     post "github-apps/webhook", to: "github_apps#webhook"
   end

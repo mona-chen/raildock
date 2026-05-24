@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
-  FolderGit2, Trash2, Server, KeyRound, ExternalLink,
+  FolderGit2, Trash2, Server, KeyRound, ExternalLink, Github, Check, X,
 } from 'lucide-react'
-import { useServices } from '@/hooks/useServices'
-import { useGitSources, useConnectGitSource, useDisconnectGitSource } from '@/hooks/useGitSources'
+import { useServices, useUpdateService } from '@/hooks/useServices'
+import { useGitSources, useConnectGitSource, useDisconnectGitSource, useGitHubAppConfig } from '@/hooks/useGitSources'
 import { useProject, useUpdateProjectSharedVars } from '@/hooks/useProjects'
 import { useServers } from '@/hooks/useServers'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { api } from '@/lib/api'
 import { CopyButton } from '@/components/ui/CopyButton'
-
-const WEBHOOK_URL = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.host}/api/webhooks/deploy`
-  : ''
 
 // ── Project Settings View ────────────────────
 // Combines Shared Variables, Git Sources, and Server info
@@ -133,12 +132,24 @@ function GitSourcesSection() {
   const { data: gitSources = [] } = useGitSources()
   const { projectId } = useParams<{ projectId: string }>()
   const { data: svcs = [] } = useServices(projectId || '')
+  const { data: ghConfig } = useGitHubAppConfig()
   const connect = useConnectGitSource()
   const disconnect = useDisconnectGitSource()
+  const updateService = useUpdateService()
+  const user = useAuthStore((s) => s.user)
+  const orgId = useAuthStore((s) => s.currentOrganizationId)
+
   const [modalOpen, setModalOpen] = useState(false)
   const [modalProvider, setModalProvider] = useState('')
   const [token, setToken] = useState('')
+
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [linkRepo, setLinkRepo] = useState<string | null>(null)
+  const [linkServiceId, setLinkServiceId] = useState('')
+
   const connected = gitSources.filter((g) => g.connected)
+  const hasGitHubConnected = connected.some((g) => g.provider === 'github')
+  const ghAppEnabled = ghConfig?.githubApp?.enabled && ghConfig?.githubApp?.appSlug
 
   const openConnect = (provider: string) => {
     setModalProvider(provider)
@@ -152,6 +163,44 @@ function GitSourcesSection() {
       onSuccess: () => setModalOpen(false),
     })
   }
+
+  const handleGitHubAppInstall = () => {
+    const appSlug = ghConfig?.githubApp?.appSlug
+    if (!appSlug) {
+      toast.error('GitHub App is not configured')
+      return
+    }
+    const state = {
+      user_id: user?.id,
+      organization_id: orgId,
+      account_type: orgId ? 'organization' : 'personal',
+    }
+    const url = api.gitSources.installUrl(appSlug, state)
+    window.location.href = url
+  }
+
+  const openLinkModal = (repoFullName: string) => {
+    setLinkRepo(repoFullName)
+    setLinkServiceId('')
+    setLinkModalOpen(true)
+  }
+
+  const handleLink = () => {
+    if (!linkRepo || !linkServiceId) return
+    updateService.mutate(
+      { id: linkServiceId, data: { gitRepo: linkRepo } as Partial<import('@/types').Service> },
+      {
+        onSuccess: () => {
+          toast.success('Repository linked to service')
+          setLinkModalOpen(false)
+        },
+        onError: (err: Error) => toast.error(`Link failed: ${err.message}`),
+      }
+    )
+  }
+
+  // Find services linked to each repo
+  const getLinkedService = (repoFullName: string) => svcs.find((s) => s.gitRepo === repoFullName)
 
   return (
     <div>
@@ -170,6 +219,9 @@ function GitSourcesSection() {
               <div className="flex items-center gap-2 mb-3">
                 <FolderGit2 size={16} className="text-[#8b5cf6]" />
                 <span className="text-[14px] font-medium text-white/70">{gs.provider}</span>
+                {gs.authMethod === 'oauth_app' && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">App</span>
+                )}
                 <span className="text-[11px] px-2 py-0.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">connected</span>
                 <span className="text-[12px] text-white/40">{gs.username}</span>
                 <button
@@ -182,24 +234,38 @@ function GitSourcesSection() {
               </div>
               <div className="space-y-2">
                 {gs.repos.map((r) => {
-                  const linkedSvc = svcs.find((s) => s.gitRepo === r.fullName)
+                  const linkedSvc = getLinkedService(r.fullName)
                   return (
                     <div
                       key={r.id}
                       className="bg-black/20 rounded-lg p-3 flex items-center gap-3"
                     >
-                      <div className="flex-1">
-                        <div className="text-[13px] text-white/70">{r.fullName}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] text-white/70 truncate">{r.fullName}</div>
                         <div className="text-[11px] text-white/40">
                           {r.defaultBranch} {r.private && '· private'}
                         </div>
                       </div>
                       {linkedSvc ? (
-                        <span className="text-[11px] px-2 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">
-                          deploys to {linkedSvc.name}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-[11px] px-2 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">
+                            deploys to {linkedSvc.name}
+                          </span>
+                          {linkedSvc.webhookUrl && (
+                            <div className="flex items-center gap-1">
+                              <code className="text-[9px] font-mono text-white/30 bg-black/30 rounded px-1.5 py-0.5 max-w-[180px] truncate">
+                                {linkedSvc.webhookUrl}
+                              </code>
+                              <CopyButton text={linkedSvc.webhookUrl} size={9} className="text-white/20 hover:text-white/50" title="Copy webhook URL" />
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <button type="button" className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1]">
+                        <button
+                          type="button"
+                          onClick={() => openLinkModal(r.fullName)}
+                          className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1] transition-colors"
+                        >
                           Link
                         </button>
                       )}
@@ -207,42 +273,48 @@ function GitSourcesSection() {
                   )
                 })}
               </div>
-              <div className="mt-3 bg-black/20 rounded-lg p-3">
-                <div className="text-[11px] text-white/40 mb-1">Webhook URL — paste into {gs.provider} repository settings</div>
-                <div className="flex gap-2">
-                  <code className="flex-1 text-[11px] font-mono text-white/50 bg-black/40 rounded px-2 py-1 truncate">{WEBHOOK_URL}</code>
-                  <CopyButton text={WEBHOOK_URL} size={11} className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1]" title="Copy webhook URL" />
-                </div>
-              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-[13px] text-white/30">No git sources connected</div>
+        <div className="text-[13px] text-white/30 mb-3">No git sources connected</div>
       )}
 
-      {gitSources
-        .filter((g) => !g.connected)
-        .map((gs) => (
-          <div
-            key={gs.id}
-            className="bg-[#16161a] border border-white/[0.06] rounded-xl p-4 flex items-center justify-between mt-3"
+      {/* Connect options */}
+      <div className="space-y-2 mt-3">
+        {ghAppEnabled && !hasGitHubConnected && (
+          <button
+            type="button"
+            onClick={handleGitHubAppInstall}
+            className="w-full flex items-center justify-center gap-2 text-[12px] px-4 py-2.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg hover:bg-[#8b5cf6]/25 transition-all"
           >
-            <div className="flex items-center gap-2">
-              <FolderGit2 size={16} className="text-white/30" />
-              <span className="text-[13px] text-white/50 capitalize">{gs.provider}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => openConnect(gs.provider)}
-              className="text-[12px] px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg hover:bg-[#8b5cf6]/25 transition-all"
+            <Github size={14} />
+            Install GitHub App
+          </button>
+        )}
+        {gitSources
+          .filter((g) => !g.connected)
+          .map((gs) => (
+            <div
+              key={gs.id}
+              className="bg-[#16161a] border border-white/[0.06] rounded-xl p-3 flex items-center justify-between"
             >
-              Connect
-            </button>
-          </div>
-        ))}
+              <div className="flex items-center gap-2">
+                <FolderGit2 size={16} className="text-white/30" />
+                <span className="text-[13px] text-white/50 capitalize">{gs.provider}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openConnect(gs.provider)}
+                className="text-[12px] px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg hover:bg-[#8b5cf6]/25 transition-all"
+              >
+                Connect
+              </button>
+            </div>
+          ))}
+      </div>
 
-      {/* Connect Modal */}
+      {/* PAT Connect Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setModalOpen(false)}>
           <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
@@ -265,6 +337,39 @@ function GitSourcesSection() {
               <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]">Cancel</button>
               <button type="button" onClick={handleConnect} disabled={connect.isPending || !token.trim()} className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50">
                 {connect.isPending ? 'Connecting...' : 'Connect'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Repo Modal */}
+      {linkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setLinkModalOpen(false)}>
+          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white mb-1">Link Repository</h3>
+            <p className="text-xs text-[#4A4A55] mb-4">
+              Link <span className="text-white/60 font-mono">{linkRepo}</span> to a service in this project
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Service</label>
+                <select
+                  value={linkServiceId}
+                  onChange={(e) => setLinkServiceId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple appearance-none cursor-pointer"
+                >
+                  <option value="">— Select a service —</option>
+                  {svcs.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button type="button" onClick={() => setLinkModalOpen(false)} className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]">Cancel</button>
+              <button type="button" onClick={handleLink} disabled={updateService.isPending || !linkServiceId} className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50">
+                {updateService.isPending ? 'Linking...' : 'Link'}
               </button>
             </div>
           </div>

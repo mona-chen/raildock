@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2 } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
@@ -17,9 +17,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import GitSourcesTab from '@/features/settings/GitSourcesTab'
 
 const TABS = [
   { key: 'integrations', label: 'Integrations', icon: Puzzle },
+  { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
   { key: 'organizations', label: 'Organizations', icon: Building2 },
   { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
 ]
@@ -81,6 +83,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === 'git-sources' && <GitSourcesTab />}
         {activeTab === 'organizations' && <OrganizationsTab />}
         {activeTab === 'deploy-keys' && <DeployKeysTab />}
       </div>
