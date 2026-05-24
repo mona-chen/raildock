@@ -13,7 +13,8 @@ module Api
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
       :metrics, :backup, :restore, :database_info, :backups, :backup_schedules,
-      :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by
+      :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
+      :generate_domain
     ]
 
     def index
