@@ -125,6 +125,34 @@ class ComposeToManifest
       end
     end
 
+    # Auto-infer links: connect app services to database/cache/queue services
+    # when no explicit depends_on exists (Docker Compose default network behavior)
+    db_services = services.select { |s| %w[database cache queue search].include?(s["category"]) }
+    app_services = services.select { |s| s["category"] == "app" }
+
+    app_services.each do |app|
+      db_services.each do |db|
+        next if links.any? { |l| l["from"] == app["name"] && l["to"] == db["name"] }
+        links << { "from" => app["name"], "to" => db["name"] }
+      end
+    end
+
+    # Also infer links from env var references to other service hostnames
+    services_hash.each do |name, config|
+      env = config["environment"] || {}
+      env = env.transform_keys(&:to_s).transform_values(&:to_s) if env.is_a?(Hash)
+      env.each do |key, value|
+        services.each do |target|
+          target_name = target["name"]
+          next if target_name == name
+          # Check if env value references another service hostname
+          if value.include?(target_name) && !links.any? { |l| l["from"] == name && l["to"] == target_name }
+            links << { "from" => name, "to" => target_name }
+          end
+        end
+      end if env.is_a?(Hash)
+    end
+
     # Use slug as name (humanized), slogan/description as description
     human_name = slug.to_s.split("-").map(&:capitalize).join(" ")
     slogan = @metadata["slogan"] || ""

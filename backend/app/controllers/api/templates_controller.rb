@@ -49,9 +49,25 @@ module Api
           service.process_types.create!(name: pt_name, quantity: qty, running: 0, command: "")
         end
 
-        # Create env vars
+        # Create env vars (skip empty values — belt and suspenders)
         (svc_def[:env] || {}).each do |key, value|
+          next if value.to_s.blank?
           service.environment_variables.create!(key: key, value: value)
+        end
+
+        # Create storage mounts
+        (svc_def[:storage] || []).each do |st|
+          next if st[:host].blank? || st[:container].blank?
+          mount = service.storage_mounts.create!(
+            host_path: st[:host],
+            container_path: st[:container]
+          )
+
+          # Sync to Dokku if server connected
+          if project.server&.ssh_key.present?
+            engine = DokkuEngine.new(project.server)
+            engine.storage_mount(service.dokku_app_name, st[:host], st[:container])
+          end
         end
 
         # Create Dokku resources if server connected
