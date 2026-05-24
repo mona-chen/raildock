@@ -67,3 +67,49 @@ export function useUpdateProjectSharedVars() {
     onError: (err) => toast.error(`Update failed: ${err.message}`),
   })
 }
+
+export function useDeployAllServices() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: string) => api.projects.deployAll(projectId),
+    onSuccess: (data, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      toast.success(`Deploying ${data.queued} services`)
+    },
+    onError: (err) => toast.error(`Deploy all failed: ${err.message}`),
+  })
+}
+
+export function useRestartAllServices() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: string) => api.projects.restartAll(projectId),
+    onSuccess: (data, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      const failed = data.failed?.length || 0
+      if (failed > 0) {
+        toast.warning(`Restarted ${data.success.length} services, ${failed} failed`)
+      } else {
+        toast.success(`Restarted ${data.success.length} services`)
+      }
+    },
+    onError: (err) => toast.error(`Restart all failed: ${err.message}`),
+  })
+}
+
+export function useStopAllServices() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: string) => api.projects.stopAll(projectId),
+    onSuccess: (data, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      const failed = data.failed?.length || 0
+      if (failed > 0) {
+        toast.warning(`Stopped ${data.success.length} services, ${failed} failed`)
+      } else {
+        toast.success(`Stopped ${data.success.length} services`)
+      }
+    },
+    onError: (err) => toast.error(`Stop all failed: ${err.message}`),
+  })
+}

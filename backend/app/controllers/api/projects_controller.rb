@@ -55,12 +55,96 @@ module Api
       render json: events
     end
 
+    def deploy_all
+      project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
+
+      services = project.services.where.not(service_type: "database")
+      results = []
+
+      services.each do |service|
+        deployment = service.deployments.create!(
+          status: :pending,
+          started_at: Time.current,
+          branch: service.branch || "main"
+        )
+        DeploymentJob.perform_later(service.id, deployment.id)
+        service.update!(status: :deploying)
+        results << service.name
+      end
+
+      ActivityEvent.create!(
+        project: project, service_name: "-", action: :deployed,
+        message: "Deployed all apps in #{project.name} (#{results.length} services)"
+      )
+
+      render json: { queued: results.length, services: results }
+    end
+
+    def restart_all
+      project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
+
+      results = { success: [], failed: [] }
+
+      project.services.each do |service|
+        with_dokku_engine(service) do |engine|
+          result = engine.ps_restart(service.dokku_app_name)
+          if result[:success]
+            service.update!(status: "running")
+            results[:success] << service.name
+          else
+            results[:failed] << { name: service.name, error: result[:output] }
+          end
+        end
+      end
+
+      ActivityEvent.create!(
+        project: project, service_name: "-", action: :restarted,
+        message: "Restarted all services in #{project.name}"
+      )
+
+      render json: results
+    end
+
+    def stop_all
+      project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
+
+      results = { success: [], failed: [] }
+
+      project.services.each do |service|
+        with_dokku_engine(service) do |engine|
+          result = engine.ps_stop(service.dokku_app_name)
+          if result[:success]
+            service.update!(status: "stopped")
+            results[:success] << service.name
+          else
+            results[:failed] << { name: service.name, error: result[:output] }
+          end
+        end
+      end
+
+      ActivityEvent.create!(
+        project: project, service_name: "-", action: :stopped,
+        message: "Stopped all services in #{project.name}"
+      )
+
+      render json: results
+    end
+
     private
 
     def project_params
       params.require(:project).permit(:name, :description, :environment, :server_id)
     rescue ActionController::ParameterMissing
       params.permit(:name, :description, :environment, :server_id)
+    end
+
+    def with_dokku_engine(service)
+      return unless service.project&.server&.ssh_key.present?
+      engine = DokkuEngine.new(service.project.server)
+      yield(engine)
     end
   end
 end

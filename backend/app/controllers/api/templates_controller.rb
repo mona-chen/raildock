@@ -113,8 +113,26 @@ module Api
         end
       end
 
+      # Auto-deploy app services so the template is actually running
+      app_services = created.select(&:service_type_app?)
+      app_services.each do |service|
+        deployment = service.deployments.create!(
+          status: :pending,
+          started_at: Time.current,
+          branch: service.branch || "main"
+        )
+        DeploymentJob.perform_later(service.id, deployment.id)
+        service.update!(status: :deploying)
+        ActivityEvent.create!(
+          project: project,
+          service_name: service.name,
+          action: :deployed,
+          message: "Template deploy triggered for #{service.name}"
+        )
+      end
+
       render json: {
-        created: created.map { |s| { id: s.id, name: s.name, type: s.service_type, subtype: s.subtype } }
+        created: created.map { |s| { id: s.id, name: s.name, type: s.service_type, subtype: s.subtype, status: s.status } }
       }
     end
 

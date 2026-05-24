@@ -125,6 +125,18 @@ export const projectsApi = {
   updateSharedVars: async (id: string, vars: { key: string; value: string }[]): Promise<void> => {
     await fetchJson(`/api/projects/${id}/shared_vars`, { method: 'PATCH', body: wrapBody('project', { vars }) })
   },
+
+  deployAll: async (id: string): Promise<{ queued: number; services: string[] }> => {
+    return fetchJson(`/api/projects/${id}/deploy_all`, { method: 'POST' })
+  },
+
+  restartAll: async (id: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
+    return fetchJson(`/api/projects/${id}/restart_all`, { method: 'POST' })
+  },
+
+  stopAll: async (id: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
+    return fetchJson(`/api/projects/${id}/stop_all`, { method: 'POST' })
+  },
 }
 
 // ── Services API ─────────────────────────────

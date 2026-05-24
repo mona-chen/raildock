@@ -55,6 +55,9 @@ Rails.application.routes.draw do
       resources :activity_events, path: "activity-events", only: [ :index ]
       get :activity, on: :member
       patch :shared_vars, on: :member
+      post :deploy_all, on: :member
+      post :restart_all, on: :member
+      post :stop_all, on: :member
     end
 
     # Service sub-resource destroy actions (not shallow — stay under /services/:id/...)
