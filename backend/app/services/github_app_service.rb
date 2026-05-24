@@ -109,21 +109,21 @@ class GithubAppService
     end
 
     # List all repositories accessible to an installation (paginated)
-    # Uses the App JWT to call /installations/{id}/repositories
+    # Uses the installation token to call /installation/repositories
     def list_repos(installation_id)
       raise "GitHub App credentials not configured" unless enabled?
       raise "Installation ID required" if installation_id.blank?
 
-      jwt = generate_jwt
+      token = installation_token(installation_id)
       all_repos = []
       page = 1
 
       loop do
         response = Faraday.get(
-          "https://api.github.com/app/installations/#{installation_id}/repositories",
+          "https://api.github.com/installation/repositories",
           { per_page: 100, page: page },
           {
-            'Authorization' => "Bearer #{jwt}",
+            'Authorization' => "Bearer #{token}",
             'Accept' => 'application/vnd.github+json',
             'X-GitHub-Api-Version' => '2022-11-28'
           }
