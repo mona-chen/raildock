@@ -28,10 +28,17 @@ echo "Docker ready"
 # Go to project
 cd /mnt/raildock
 
+# Detect public IP for remote access
+public_ip=$(curl -4s --connect-timeout 5 https://ifconfig.io 2>/dev/null)
+[ -z "$public_ip" ] && public_ip=$(curl -4s --connect-timeout 5 https://icanhazip.com 2>/dev/null)
+[ -z "$public_ip" ] && public_ip=$(curl -4s --connect-timeout 5 https://ipecho.net/plain 2>/dev/null)
+[ -z "$public_ip" ] && public_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$public_ip" ] && public_ip="127.0.0.1"
+
 # Generate secrets
 echo "Generating secrets..."
-export RAILDOCK_DOMAIN=
-export RAILDOCK_EMAIL=admin@localhost
+export RAILDOCK_DOMAIN=${public_ip}
+export RAILDOCK_EMAIL=admin@${RAILDOCK_DOMAIN:-localhost}
 export POSTGRES_PASSWORD=$(openssl rand -hex 32)
 export RAILS_MASTER_KEY=$(openssl rand -hex 16)
 export ADMIN_PASSWORD=changeme123
