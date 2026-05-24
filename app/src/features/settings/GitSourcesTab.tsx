@@ -34,6 +34,7 @@ import {
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
+import { snakeifyKeys } from '@/lib/apiTransforms'
 import type { GitSource, GitRepo } from '@/types'
 import {
   Dialog,
@@ -326,7 +327,7 @@ function AdminConfigPanel() {
         const input = document.createElement('input')
         input.type = 'hidden'
         input.name = 'manifest'
-        input.value = JSON.stringify(data.manifest)
+        input.value = JSON.stringify(snakeifyKeys(data.manifest))
         form.appendChild(input)
         document.body.appendChild(form)
         form.submit()
