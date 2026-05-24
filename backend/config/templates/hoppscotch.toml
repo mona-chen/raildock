@@ -71,3 +71,7 @@ to = "db-migration"
 [[links]]
 from = "db-migration"
 to = "hoppscotch-db"
+
+[[links]]
+from = "backend"
+to = "hoppscotch-db"

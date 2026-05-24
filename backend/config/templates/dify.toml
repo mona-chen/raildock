@@ -400,3 +400,79 @@ to = "api"
 [[links]]
 from = "nginx"
 to = "web"
+
+[[links]]
+from = "web"
+to = "db"
+
+[[links]]
+from = "web"
+to = "redis"
+
+[[links]]
+from = "sandbox"
+to = "db"
+
+[[links]]
+from = "sandbox"
+to = "redis"
+
+[[links]]
+from = "ssrf_proxy"
+to = "db"
+
+[[links]]
+from = "ssrf_proxy"
+to = "redis"
+
+[[links]]
+from = "nginx"
+to = "db"
+
+[[links]]
+from = "nginx"
+to = "redis"
+
+[[links]]
+from = "weaviate"
+to = "db"
+
+[[links]]
+from = "weaviate"
+to = "redis"
+
+[[links]]
+from = "api"
+to = "weaviate"
+
+[[links]]
+from = "api"
+to = "sandbox"
+
+[[links]]
+from = "api"
+to = "ssrf_proxy"
+
+[[links]]
+from = "worker"
+to = "api"
+
+[[links]]
+from = "worker"
+to = "weaviate"
+
+[[links]]
+from = "worker"
+to = "sandbox"
+
+[[links]]
+from = "worker"
+to = "ssrf_proxy"
+
+[[links]]
+from = "sandbox"
+to = "ssrf_proxy"
+
+[[links]]
+from = "ssrf_proxy"
+to = "sandbox"

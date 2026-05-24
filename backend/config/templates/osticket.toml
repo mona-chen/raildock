@@ -54,3 +54,7 @@ source = { type = "docker"  }
 [[links]]
 from = "osticket"
 to = "mariadb"
+
+[[links]]
+from = "mariadb"
+to = "osticket"

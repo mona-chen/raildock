@@ -98,3 +98,11 @@ to = "rybbit_clickhouse"
 [[links]]
 from = "rybbit_backend"
 to = "rybbit_postgres"
+
+[[links]]
+from = "rybbit"
+to = "rybbit_postgres"
+
+[[links]]
+from = "rybbit_clickhouse"
+to = "rybbit_postgres"

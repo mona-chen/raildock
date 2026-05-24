@@ -90,3 +90,11 @@ to = "redis"
 [[links]]
 from = "swetrix-api"
 to = "clickhouse"
+
+[[links]]
+from = "swetrix"
+to = "redis"
+
+[[links]]
+from = "clickhouse"
+to = "redis"

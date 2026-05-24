@@ -42,3 +42,7 @@ source = { type = "docker"  }
 [[links]]
 from = "logto"
 to = "postgres"
+
+[[links]]
+from = "postgres"
+to = "logto"

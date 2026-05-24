@@ -87,3 +87,11 @@ to = "espocrm"
 [[links]]
 from = "espocrm-websocket"
 to = "espocrm"
+
+[[links]]
+from = "espocrm-daemon"
+to = "espocrm-db"
+
+[[links]]
+from = "espocrm-websocket"
+to = "espocrm-db"

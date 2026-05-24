@@ -183,3 +183,15 @@ to = "app-service"
 [[links]]
 from = "proxy-service"
 to = "couchdb-service"
+
+[[links]]
+from = "proxy-service"
+to = "redis-service"
+
+[[links]]
+from = "couchdb-service"
+to = "redis-service"
+
+[[links]]
+from = "watchtower-service"
+to = "redis-service"

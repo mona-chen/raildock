@@ -284,3 +284,19 @@ to = "opnform-api"
 [[links]]
 from = "nginx"
 to = "opnform-ui"
+
+[[links]]
+from = "opnform-ui"
+to = "postgresql"
+
+[[links]]
+from = "opnform-ui"
+to = "redis"
+
+[[links]]
+from = "nginx"
+to = "postgresql"
+
+[[links]]
+from = "nginx"
+to = "redis"

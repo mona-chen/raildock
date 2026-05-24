@@ -162,3 +162,7 @@ to = "rabbitmq"
 [[links]]
 from = "setup-config"
 to = "postgres"
+
+[[links]]
+from = "migration"
+to = "rabbitmq"

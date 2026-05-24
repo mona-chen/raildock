@@ -115,3 +115,15 @@ to = "redis"
 [[links]]
 from = "langfuse-worker"
 to = "clickhouse"
+
+[[links]]
+from = "clickhouse"
+to = "postgres"
+
+[[links]]
+from = "clickhouse"
+to = "redis"
+
+[[links]]
+from = "langfuse-worker"
+to = "langfuse"

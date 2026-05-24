@@ -103,3 +103,7 @@ source = { type = "docker"  }
 [[links]]
 from = "invoice-ninja"
 to = "mariadb"
+
+[[links]]
+from = "invoice-ninja"
+to = "redis"

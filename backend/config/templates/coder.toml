@@ -41,3 +41,7 @@ source = { type = "docker"  }
 [[links]]
 from = "coder"
 to = "coder-database"
+
+[[links]]
+from = "coder-database"
+to = "coder"

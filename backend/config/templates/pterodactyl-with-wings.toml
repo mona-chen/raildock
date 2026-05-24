@@ -107,3 +107,19 @@ source = { type = "docker"  }
     [[services.storage]]
       host = "wings-logs"
       container = "/var/log/pterodactyl/"
+
+[[links]]
+from = "pterodactyl"
+to = "mariadb"
+
+[[links]]
+from = "pterodactyl"
+to = "redis"
+
+[[links]]
+from = "wings"
+to = "mariadb"
+
+[[links]]
+from = "wings"
+to = "redis"

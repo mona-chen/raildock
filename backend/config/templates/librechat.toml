@@ -153,3 +153,19 @@ to = "rag-api"
 [[links]]
 from = "rag-api"
 to = "vectordb"
+
+[[links]]
+from = "vectordb"
+to = "mongodb"
+
+[[links]]
+from = "vectordb"
+to = "meilisearch"
+
+[[links]]
+from = "rag-api"
+to = "mongodb"
+
+[[links]]
+from = "rag-api"
+to = "meilisearch"

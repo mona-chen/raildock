@@ -177,3 +177,11 @@ to = "redis"
 [[links]]
 from = "openpanel-worker"
 to = "clickhouse"
+
+[[links]]
+from = "clickhouse"
+to = "postgres"
+
+[[links]]
+from = "clickhouse"
+to = "redis"

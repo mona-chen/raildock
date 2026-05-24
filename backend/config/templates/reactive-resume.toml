@@ -116,3 +116,15 @@ to = "minio"
 [[links]]
 from = "reactive-resume"
 to = "chrome"
+
+[[links]]
+from = "reactive-resume"
+to = "redis"
+
+[[links]]
+from = "chrome"
+to = "postgres"
+
+[[links]]
+from = "chrome"
+to = "redis"

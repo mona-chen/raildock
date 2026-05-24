@@ -420,3 +420,75 @@ to = "plane-db"
 [[links]]
 from = "migrator"
 to = "plane-redis"
+
+[[links]]
+from = "proxy"
+to = "plane-db"
+
+[[links]]
+from = "proxy"
+to = "plane-mq"
+
+[[links]]
+from = "web"
+to = "plane-db"
+
+[[links]]
+from = "web"
+to = "plane-mq"
+
+[[links]]
+from = "space"
+to = "plane-db"
+
+[[links]]
+from = "space"
+to = "plane-mq"
+
+[[links]]
+from = "admin"
+to = "plane-db"
+
+[[links]]
+from = "admin"
+to = "plane-mq"
+
+[[links]]
+from = "live"
+to = "plane-db"
+
+[[links]]
+from = "live"
+to = "plane-mq"
+
+[[links]]
+from = "plane-redis"
+to = "plane-db"
+
+[[links]]
+from = "plane-redis"
+to = "plane-mq"
+
+[[links]]
+from = "live"
+to = "plane-redis"
+
+[[links]]
+from = "api"
+to = "plane-minio"
+
+[[links]]
+from = "worker"
+to = "plane-minio"
+
+[[links]]
+from = "beat-worker"
+to = "plane-minio"
+
+[[links]]
+from = "migrator"
+to = "plane-minio"
+
+[[links]]
+from = "migrator"
+to = "plane-mq"

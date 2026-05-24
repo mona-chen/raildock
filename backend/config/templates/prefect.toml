@@ -69,3 +69,7 @@ to = "postgresql"
 [[links]]
 from = "agent"
 to = "prefect"
+
+[[links]]
+from = "agent"
+to = "postgresql"

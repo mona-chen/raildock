@@ -67,3 +67,7 @@ to = "mongo"
 [[links]]
 from = "heyform"
 to = "keydb"
+
+[[links]]
+from = "keydb"
+to = "mongo"

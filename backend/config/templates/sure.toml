@@ -112,3 +112,7 @@ to = "postgresql"
 [[links]]
 from = "worker"
 to = "valkey"
+
+[[links]]
+from = "valkey"
+to = "postgresql"

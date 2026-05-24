@@ -95,3 +95,11 @@ to = "teable-cache"
 [[links]]
 from = "teable-db-migrate"
 to = "teable-db"
+
+[[links]]
+from = "teable"
+to = "teable-db"
+
+[[links]]
+from = "teable-db-migrate"
+to = "teable-cache"

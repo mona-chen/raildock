@@ -157,3 +157,43 @@ docker_image = "hardcoreeng/rekoni-service:latest"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
+
+[[links]]
+from = "account"
+to = "mongodb"
+
+[[links]]
+from = "account"
+to = "elastic"
+
+[[links]]
+from = "front"
+to = "mongodb"
+
+[[links]]
+from = "front"
+to = "elastic"
+
+[[links]]
+from = "collaborator"
+to = "mongodb"
+
+[[links]]
+from = "collaborator"
+to = "elastic"
+
+[[links]]
+from = "transactor"
+to = "mongodb"
+
+[[links]]
+from = "transactor"
+to = "elastic"
+
+[[links]]
+from = "rekoni"
+to = "mongodb"
+
+[[links]]
+from = "rekoni"
+to = "elastic"

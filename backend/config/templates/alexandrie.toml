@@ -101,3 +101,11 @@ to = "mysql"
 [[links]]
 from = "backend"
 to = "rustfs"
+
+[[links]]
+from = "frontend"
+to = "mysql"
+
+[[links]]
+from = "rustfs"
+to = "mysql"

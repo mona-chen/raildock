@@ -86,3 +86,11 @@ source = { type = "docker"  }
     enabled = true
     wait = 10
     timeout = 1
+
+[[links]]
+from = "pterodactyl"
+to = "mariadb"
+
+[[links]]
+from = "pterodactyl"
+to = "redis"

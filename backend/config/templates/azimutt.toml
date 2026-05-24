@@ -111,3 +111,7 @@ to = "postgres"
 [[links]]
 from = "backend"
 to = "minio"
+
+[[links]]
+from = "smtp"
+to = "postgres"

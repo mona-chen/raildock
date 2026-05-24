@@ -139,3 +139,7 @@ to = "postgres"
 [[links]]
 from = "sidekiq"
 to = "redis"
+
+[[links]]
+from = "postgres"
+to = "redis"

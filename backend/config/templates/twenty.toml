@@ -143,3 +143,15 @@ to = "postgres"
 [[links]]
 from = "worker"
 to = "twenty"
+
+[[links]]
+from = "twenty"
+to = "redis"
+
+[[links]]
+from = "worker"
+to = "postgres"
+
+[[links]]
+from = "worker"
+to = "redis"

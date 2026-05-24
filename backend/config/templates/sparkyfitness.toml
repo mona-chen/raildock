@@ -71,3 +71,7 @@ to = "sparkyfitness-server"
 [[links]]
 from = "sparkyfitness-server"
 to = "sparkyfitness-db"
+
+[[links]]
+from = "sparkyfitness-frontend"
+to = "sparkyfitness-db"

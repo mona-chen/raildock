@@ -278,3 +278,27 @@ to = "postgres"
 [[links]]
 from = "appflowy_worker"
 to = "redis"
+
+[[links]]
+from = "nginx"
+to = "redis"
+
+[[links]]
+from = "appflowy_web"
+to = "redis"
+
+[[links]]
+from = "gotrue"
+to = "redis"
+
+[[links]]
+from = "admin_frontend"
+to = "redis"
+
+[[links]]
+from = "ai"
+to = "redis"
+
+[[links]]
+from = "postgres"
+to = "redis"

@@ -184,3 +184,27 @@ to = "mautic_web"
 [[links]]
 from = "mautic_worker"
 to = "mautic_web"
+
+[[links]]
+from = "mautic_web"
+to = "mysql"
+
+[[links]]
+from = "mautic_web"
+to = "rabbitmq"
+
+[[links]]
+from = "mautic_cron"
+to = "mysql"
+
+[[links]]
+from = "mautic_cron"
+to = "rabbitmq"
+
+[[links]]
+from = "mautic_worker"
+to = "mysql"
+
+[[links]]
+from = "mautic_worker"
+to = "rabbitmq"

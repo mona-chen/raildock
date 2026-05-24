@@ -108,3 +108,11 @@ to = "valkey"
 [[links]]
 from = "open-archiver"
 to = "meilisearch"
+
+[[links]]
+from = "valkey"
+to = "postgres"
+
+[[links]]
+from = "valkey"
+to = "meilisearch"

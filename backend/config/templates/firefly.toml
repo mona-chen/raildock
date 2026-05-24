@@ -66,3 +66,7 @@ source = { type = "docker"  }
 [[links]]
 from = "firefly"
 to = "mysql"
+
+[[links]]
+from = "cron"
+to = "mysql"

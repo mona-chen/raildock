@@ -79,3 +79,15 @@ to = "redis"
 [[links]]
 from = "immich"
 to = "database"
+
+[[links]]
+from = "immich-machine-learning"
+to = "redis"
+
+[[links]]
+from = "immich-machine-learning"
+to = "database"
+
+[[links]]
+from = "database"
+to = "immich"

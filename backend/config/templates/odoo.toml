@@ -43,3 +43,7 @@ source = { type = "docker"  }
     enabled = true
     wait = 5
     timeout = 20
+
+[[links]]
+from = "odoo"
+to = "postgresql"

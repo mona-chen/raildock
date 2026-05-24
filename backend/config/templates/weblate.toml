@@ -70,3 +70,11 @@ source = { type = "docker"  }
     enabled = true
     wait = 5
     timeout = 20
+
+[[links]]
+from = "weblate"
+to = "postgresql"
+
+[[links]]
+from = "weblate"
+to = "redis"

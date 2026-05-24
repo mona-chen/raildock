@@ -36,3 +36,7 @@ source = { type = "docker"  }
     enabled = true
     wait = 10
     timeout = 20
+
+[[links]]
+from = "cells"
+to = "mariadb"

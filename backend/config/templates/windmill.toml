@@ -167,3 +167,7 @@ to = "db"
 [[links]]
 from = "windmill-worker-native"
 to = "db"
+
+[[links]]
+from = "lsp"
+to = "db"

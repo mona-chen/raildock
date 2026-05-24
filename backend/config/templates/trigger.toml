@@ -223,3 +223,31 @@ to = "docker-proxy"
 [[links]]
 from = "electric"
 to = "postgresql"
+
+[[links]]
+from = "supervisor"
+to = "postgresql"
+
+[[links]]
+from = "supervisor"
+to = "redis"
+
+[[links]]
+from = "docker-proxy"
+to = "postgresql"
+
+[[links]]
+from = "docker-proxy"
+to = "redis"
+
+[[links]]
+from = "electric"
+to = "redis"
+
+[[links]]
+from = "clickhouse"
+to = "postgresql"
+
+[[links]]
+from = "clickhouse"
+to = "redis"

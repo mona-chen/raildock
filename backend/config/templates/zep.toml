@@ -69,3 +69,7 @@ to = "postgres"
 [[links]]
 from = "zep"
 to = "nlp"
+
+[[links]]
+from = "nlp"
+to = "postgres"
