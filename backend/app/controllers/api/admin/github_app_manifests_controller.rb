@@ -28,7 +28,7 @@ module Api
           redirect_url: "#{base_url}/api/admin/github-app-manifest/callback",
           setup_url: "#{base_url}/api/admin/github-app-manifest/setup",
           setup_on_update: true,
-          public: false,
+          public: true,
           default_permissions: MANIFEST_PERMISSIONS,
           default_events: MANIFEST_EVENTS,
         }
