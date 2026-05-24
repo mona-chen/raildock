@@ -72,8 +72,12 @@ module Api
       # GET /api/admin/github-app-manifest/setup
       # GitHub redirects here after app installation (setup_url)
       def setup
-        # Just redirect back to the frontend settings page
-        redirect_to frontend_redirect_url(github_app_manifest: "setup_complete"), allow_other_host: true
+        installation_id = params[:installation_id]
+        if installation_id.present?
+          redirect_to frontend_redirect_url(github_app_manifest: "setup_complete", installation_id: installation_id), allow_other_host: true
+        else
+          redirect_to frontend_redirect_url(github_app_manifest: "setup_complete"), allow_other_host: true
+        end
       end
 
       private

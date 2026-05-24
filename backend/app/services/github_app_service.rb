@@ -84,6 +84,30 @@ class GithubAppService
       Octokit::Client.new(access_token: token)
     end
 
+    # Fetch details for a specific installation
+    def installation_details(installation_id)
+      raise "GitHub App credentials not configured" unless enabled?
+      raise "Installation ID required" if installation_id.blank?
+
+      jwt = generate_jwt
+      response = Faraday.get(
+        "https://api.github.com/app/installations/#{installation_id}",
+        {},
+        {
+          'Authorization' => "Bearer #{jwt}",
+          'Accept' => 'application/vnd.github+json',
+          'X-GitHub-Api-Version' => '2022-11-28'
+        }
+      )
+
+      unless response.success?
+        Rails.logger.error "GitHub App installation details failed: #{response.status} #{response.body}"
+        raise "Failed to fetch installation details: #{response.status}"
+      end
+
+      JSON.parse(response.body)
+    end
+
     # List repositories accessible to an installation
     def list_repos(installation_id)
       client = installation_client(installation_id)

@@ -95,3 +95,15 @@ export function useCreateGitHubAppManifest() {
     onError: (err: Error) => toast.error(`Failed to create manifest: ${err.message}`),
   })
 }
+
+export function useFinishGitHubAppSetup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (installationId: string) => api.adminSettings.finishGitHubAppSetup(installationId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['git-sources'] })
+      toast.success(data.message || 'GitHub App connected')
+    },
+    onError: (err: Error) => toast.error(`Setup failed: ${err.message}`),
+  })
+}

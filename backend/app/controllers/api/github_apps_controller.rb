@@ -74,6 +74,60 @@ module Api
       render json: { error: "Invalid JSON" }, status: :bad_request
     end
 
+    # POST /api/github-apps/finish-setup
+    # Called by the frontend after GitHub redirects back from app installation
+    def finish_setup
+      installation_id = params[:installation_id]
+
+      unless installation_id.present?
+        render json: { error: 'Missing installation_id' }, status: :bad_request
+        return
+      end
+
+      # Fetch installation details from GitHub
+      details = GithubAppService.installation_details(installation_id)
+      account = details['account']
+
+      unless account
+        render json: { error: 'Could not fetch installation details from GitHub' }, status: :bad_gateway
+        return
+      end
+
+      # Determine account type from GitHub's response
+      account_type = account['type'] == 'Organization' ? 'organization' : 'personal'
+
+      # Create or update the GitSource
+      git_source = GitSource.find_or_initialize_by(
+        provider: 'github',
+        installation_id: installation_id.to_s
+      )
+
+      git_source.assign_attributes(
+        auth_method: :oauth_app,
+        connected: true,
+        account_type: account_type,
+        username: account['login']
+      )
+
+      # Associate with current user
+      git_source.user = current_user
+      git_source.organization = nil
+
+      if git_source.save
+        GithubSyncReposJob.perform_later(git_source.id)
+        render json: {
+          success: true,
+          git_source: git_source.as_json,
+          message: "GitHub App installed successfully for #{account['login']}"
+        }
+      else
+        render json: { error: git_source.errors.full_messages.join(', ') }, status: :unprocessable_entity
+      end
+    rescue => e
+      Rails.logger.error "GitHub App finish_setup failed: #{e.message}"
+      render json: { error: 'Failed to complete GitHub App setup' }, status: :internal_server_error
+    end
+
     private
 
     def decode_state(state)
@@ -97,12 +151,32 @@ module Api
       ActiveSupport::SecurityUtils.secure_compare(expected, signature.to_s)
     end
 
+    private
+
     def handle_installation_event(data)
       action = data['action']
       installation = data['installation']
       return unless installation
 
       git_source = GitSource.find_by(installation_id: installation['id'].to_s, provider: 'github')
+
+      if git_source.nil? && %w[created new_permissions_accepted].include?(action)
+        # Create a GitSource from webhook if it doesn't exist (fallback)
+        account = installation['account']
+        git_source = GitSource.create!(
+          provider: 'github',
+          installation_id: installation['id'].to_s,
+          auth_method: :oauth_app,
+          connected: true,
+          account_type: account['type'] == 'Organization' ? 'organization' : 'personal',
+          username: account['login'],
+          user: nil,
+          organization: nil
+        )
+        GithubSyncReposJob.perform_later(git_source.id)
+        return
+      end
+
       return unless git_source
 
       case action

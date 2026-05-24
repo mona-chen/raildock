@@ -31,6 +31,7 @@ import {
   useUpdateSystemSetting,
   useTestGitHubApp,
   useCreateGitHubAppManifest,
+  useFinishGitHubAppSetup,
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
@@ -72,17 +73,41 @@ export default function GitSourcesTab() {
   // Expanded repo lists
   const [expandedSource, setExpandedSource] = useState<string | null>(null)
 
-  // Handle GitHub App callback on mount
+  const finishSetup = useFinishGitHubAppSetup()
+
+  // Handle GitHub App callback / setup on mount
   useEffect(() => {
     const ghApp = searchParams.get('github_app')
     const gsId = searchParams.get('git_source_id')
     const message = searchParams.get('message')
+    const installationId = searchParams.get('installation_id')
+    const manifest = searchParams.get('github_app_manifest')
+
+    // Handle finish-setup from GitHub App install redirect
+    if (installationId) {
+      finishSetup.mutate(installationId, {
+        onSuccess: () => {
+          const next = new URLSearchParams(searchParams)
+          next.delete('installation_id')
+          next.delete('github_app_manifest')
+          next.delete('message')
+          setSearchParams(next, { replace: true })
+        },
+        onError: () => {
+          const next = new URLSearchParams(searchParams)
+          next.delete('installation_id')
+          next.delete('github_app_manifest')
+          next.delete('message')
+          setSearchParams(next, { replace: true })
+        },
+      })
+      return
+    }
 
     if (ghApp === 'success') {
       toast.success('GitHub App installed successfully', {
         description: gsId ? 'Your repositories are being synced.' : undefined,
       })
-      // Clean URL
       const next = new URLSearchParams(searchParams)
       next.delete('github_app')
       next.delete('git_source_id')
@@ -95,6 +120,18 @@ export default function GitSourcesTab() {
       const next = new URLSearchParams(searchParams)
       next.delete('github_app')
       next.delete('git_source_id')
+      next.delete('message')
+      setSearchParams(next, { replace: true })
+    } else if (manifest === 'success') {
+      toast.success('GitHub App created successfully')
+      const next = new URLSearchParams(searchParams)
+      next.delete('github_app_manifest')
+      next.delete('message')
+      setSearchParams(next, { replace: true })
+    } else if (manifest === 'error') {
+      toast.error('GitHub App creation failed', { description: message || undefined })
+      const next = new URLSearchParams(searchParams)
+      next.delete('github_app_manifest')
       next.delete('message')
       setSearchParams(next, { replace: true })
     }
@@ -297,25 +334,6 @@ function AdminConfigPanel() {
   }, [settings])
 
   const hasGitHubApp = !!ghConfig?.githubApp?.enabled
-
-  // Handle manifest callback on mount
-  useEffect(() => {
-    const manifest = searchParams.get('github_app_manifest')
-    if (manifest === 'success') {
-      toast.success('GitHub App created successfully')
-      const next = new URLSearchParams(searchParams)
-      next.delete('github_app_manifest')
-      next.delete('message')
-      setSearchParams(next, { replace: true })
-    } else if (manifest === 'error') {
-      const message = searchParams.get('message')
-      toast.error('GitHub App creation failed', { description: message || undefined })
-      const next = new URLSearchParams(searchParams)
-      next.delete('github_app_manifest')
-      next.delete('message')
-      setSearchParams(next, { replace: true })
-    }
-  }, [searchParams, setSearchParams])
 
   const handleCreateApp = () => {
     createManifest.mutate(undefined, {

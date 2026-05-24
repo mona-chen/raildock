@@ -117,6 +117,7 @@ Rails.application.routes.draw do
     end
 
     get "github-apps/callback", to: "github_apps#callback"
+    post "github-apps/finish-setup", to: "github_apps#finish_setup"
     post "github-apps/webhook", to: "github_apps#webhook"
   end
 end

@@ -443,6 +443,13 @@ export const adminSettingsApi = {
   createGitHubAppManifest: async (): Promise<{ manifest: Record<string, unknown>; formUrl: string }> => {
     return fetchJson('/api/admin/github-app-manifest')
   },
+
+  finishGitHubAppSetup: async (installationId: string): Promise<{ success: boolean; git_source: GitSource; message: string }> => {
+    return fetchJson('/api/github-apps/finish-setup', {
+      method: 'POST',
+      body: JSON.stringify({ installation_id: installationId }),
+    })
+  },
 }
 
 // ── Organizations API ──────────────────────────
