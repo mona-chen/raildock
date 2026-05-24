@@ -14,36 +14,50 @@ module Api
         return
       end
 
-      # Decode state param to get the organization/user context
-      context = decode_state(state)
+      # Fetch actual installation details from GitHub (trust GitHub over frontend state)
+      details = GithubAppService.installation_details(installation_id)
+      account = details['account']
+
+      unless account
+        redirect_to frontend_redirect_url(github_app: 'error', message: 'Could not verify installation with GitHub')
+        return
+      end
+
+      # Determine actual account type from GitHub
+      account_type = account['type'] == 'Organization' ? 'organization' : 'personal'
 
       # Create or update a GitSource for this installation
       git_source = GitSource.find_or_initialize_by(
         provider: 'github',
-        installation_id: installation_id
+        installation_id: installation_id.to_s
       )
 
       git_source.assign_attributes(
         auth_method: :oauth_app,
         connected: true,
-        account_type: context['account_type'] || 'personal'
+        account_type: account_type,
+        username: account['login']
       )
 
-      if context['organization_id'].present?
-        git_source.organization_id = context['organization_id']
+      # Associate with organization or user based on actual GitHub account type
+      if account_type == 'organization'
+        org = find_or_create_organization(account['login'], current_user)
+        git_source.organization = org
         git_source.user = nil
       else
-        git_source.user_id = context['user_id']
+        git_source.user = current_user
         git_source.organization = nil
       end
 
       if git_source.save
-        # Fetch repos asynchronously
         GithubSyncReposJob.perform_later(git_source.id)
         redirect_to frontend_redirect_url(github_app: 'success', git_source_id: git_source.id)
       else
         redirect_to frontend_redirect_url(github_app: 'error', message: git_source.errors.full_messages.join(', '))
       end
+    rescue => e
+      Rails.logger.error "GitHub App callback failed: #{e.message}"
+      redirect_to frontend_redirect_url(github_app: 'error', message: 'Internal error')
     end
 
     # POST /api/github-apps/webhook
@@ -109,9 +123,15 @@ module Api
         username: account['login']
       )
 
-      # Associate with current user
-      git_source.user = current_user
-      git_source.organization = nil
+      # Associate with organization or user based on actual GitHub account type
+      if account_type == 'organization'
+        org = find_or_create_organization(account['login'], current_user)
+        git_source.organization = org
+        git_source.user = nil
+      else
+        git_source.user = current_user
+        git_source.organization = nil
+      end
 
       if git_source.save
         GithubSyncReposJob.perform_later(git_source.id)
@@ -129,6 +149,21 @@ module Api
     end
 
     private
+
+    def find_or_create_organization(name, owner)
+      slug = name.parameterize
+      org = Organization.find_by(slug: slug)
+      return org if org
+
+      Organization.create!(
+        name: name,
+        slug: slug,
+        owner: owner
+      )
+    rescue ActiveRecord::RecordInvalid
+      # Fallback: try to find by name if slug collision
+      Organization.find_by(name: name) || Organization.create!(name: name, slug: "#{slug}-#{SecureRandom.hex(4)}", owner: owner)
+    end
 
     def decode_state(state)
       return {} unless state.present?
@@ -151,8 +186,6 @@ module Api
       ActiveSupport::SecurityUtils.secure_compare(expected, signature.to_s)
     end
 
-    private
-
     def handle_installation_event(data)
       action = data['action']
       installation = data['installation']
@@ -163,16 +196,27 @@ module Api
       if git_source.nil? && %w[created new_permissions_accepted].include?(action)
         # Create a GitSource from webhook if it doesn't exist (fallback)
         account = installation['account']
-        git_source = GitSource.create!(
+        account_type = account['type'] == 'Organization' ? 'organization' : 'personal'
+
+        git_source = GitSource.new(
           provider: 'github',
           installation_id: installation['id'].to_s,
           auth_method: :oauth_app,
           connected: true,
-          account_type: account['type'] == 'Organization' ? 'organization' : 'personal',
-          username: account['login'],
-          user: nil,
-          organization: nil
+          account_type: account_type,
+          username: account['login']
         )
+
+        if account_type == 'organization'
+          # Webhook can't determine owner — create org without owner for now
+          org = Organization.find_by(slug: account['login'].parameterize)
+          org ||= Organization.create!(name: account['login'], slug: account['login'].parameterize, owner: User.first)
+          git_source.organization = org
+        else
+          git_source.user = User.first
+        end
+
+        git_source.save!
         GithubSyncReposJob.perform_later(git_source.id)
         return
       end

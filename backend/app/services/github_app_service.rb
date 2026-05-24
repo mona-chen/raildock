@@ -108,18 +108,31 @@ class GithubAppService
       JSON.parse(response.body)
     end
 
-    # List repositories accessible to an installation
+    # List all repositories accessible to an installation (paginated)
     def list_repos(installation_id)
       client = installation_client(installation_id)
-      client.list_repositories({ per_page: 100 }).map do |repo|
-        {
-          id: repo.id,
-          full_name: repo.full_name,
-          default_branch: repo.default_branch,
-          private: repo.private,
-          clone_url: repo.clone_url
-        }
+      all_repos = []
+      page = 1
+
+      loop do
+        repos = client.list_repositories({ per_page: 100, page: page })
+        break if repos.empty?
+
+        all_repos.concat(repos.map do |repo|
+          {
+            id: repo.id,
+            full_name: repo.full_name,
+            default_branch: repo.default_branch,
+            private: repo.private,
+            clone_url: repo.clone_url
+          }
+        end)
+
+        break if repos.length < 100
+        page += 1
       end
+
+      all_repos
     rescue Octokit::Error => e
       Rails.logger.error "GitHub App repo list failed: #{e.message}"
       raise

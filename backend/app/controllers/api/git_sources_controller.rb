@@ -57,12 +57,22 @@ module Api
         return render json: { error: "Forbidden" }, status: :forbidden
       end
 
-      # Trigger async refresh if repos are stale or empty
-      if source.repos.blank? || source.updated_at < 5.minutes.ago
+      metadata = source.metadata || {}
+      has_repos = source.repos.present?
+      sync_error = metadata['sync_error']
+      sync_failed_at = metadata['sync_failed_at']
+      recently_failed = sync_failed_at.present? && Time.parse(sync_failed_at) > 5.minutes.ago rescue false
+
+      # Trigger async refresh only if we don't have repos AND haven't recently failed
+      if !has_repos && !recently_failed
         GithubSyncReposJob.perform_later(source.id) rescue nil
       end
 
-      render json: { repos: source.repos, syncing: source.repos.blank? }
+      render json: {
+        repos: source.repos,
+        syncing: !has_repos && !recently_failed,
+        error: recently_failed ? sync_error : nil
+      }
     rescue ActiveRecord::RecordNotFound
       head :not_found
     end

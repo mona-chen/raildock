@@ -118,6 +118,9 @@ export function normalizeActivityEvent(data: unknown): ActivityEvent {
 
 export function normalizeGitSource(data: unknown): GitSource {
   const camel = camelizeKeys(data) as Record<string, unknown>
+  if (camel.id != null && typeof camel.id !== 'string') {
+    camel.id = String(camel.id)
+  }
   if (!camel.repos && (camel.metadata as Record<string, unknown>)?.repos) {
     camel.repos = (camel.metadata as Record<string, unknown>).repos
   }
