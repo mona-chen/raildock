@@ -110,6 +110,10 @@ Rails.application.routes.draw do
       get "settings", to: "settings#index"
       patch "settings", to: "settings#update"
       post "settings/test-github-app", to: "settings#test_github_app"
+
+      get "github-app-manifest", to: "github_app_manifests#manifest"
+      get "github-app-manifest/callback", to: "github_app_manifests#callback"
+      get "github-app-manifest/setup", to: "github_app_manifests#setup"
     end
 
     get "github-apps/callback", to: "github_apps#callback"

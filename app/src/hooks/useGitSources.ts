@@ -88,3 +88,10 @@ export function useTestGitHubApp() {
     onError: (err: Error) => toast.error(`Test failed: ${err.message}`),
   })
 }
+
+export function useCreateGitHubAppManifest() {
+  return useMutation({
+    mutationFn: () => api.adminSettings.createGitHubAppManifest(),
+    onError: (err: Error) => toast.error(`Failed to create manifest: ${err.message}`),
+  })
+}

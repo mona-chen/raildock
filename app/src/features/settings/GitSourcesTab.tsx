@@ -17,6 +17,8 @@ import {
   Settings2,
   Wrench,
   CheckCircle2,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -28,6 +30,7 @@ import {
   useSystemSettings,
   useUpdateSystemSetting,
   useTestGitHubApp,
+  useCreateGitHubAppManifest,
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
@@ -280,8 +283,11 @@ export default function GitSourcesTab() {
 function AdminConfigPanel() {
   const [expanded, setExpanded] = useState(false)
   const { data: settings = [] } = useSystemSettings()
+  const { data: ghConfig } = useGitHubAppConfig()
   const updateSettings = useUpdateSystemSetting()
   const testConnection = useTestGitHubApp()
+  const createManifest = useCreateGitHubAppManifest()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const settingMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -289,38 +295,53 @@ function AdminConfigPanel() {
     return map
   }, [settings])
 
-  const [form, setForm] = useState({
-    github_app_slug: '',
-    github_app_id: '',
-    github_client_id: '',
-    github_webhook_secret: '',
-  })
-  const initializedRef = useRef(false)
+  const hasGitHubApp = !!ghConfig?.githubApp?.appSlug
 
-  // Sync form when settings load (only once)
+  // Handle manifest callback on mount
   useEffect(() => {
-    if (!initializedRef.current && settings.length > 0) {
-      initializedRef.current = true
-      setForm({
-        github_app_slug: settingMap['github_app_slug'] || '',
-        github_app_id: settingMap['github_app_id'] || '',
-        github_client_id: settingMap['github_client_id'] || '',
-        github_webhook_secret: settingMap['github_webhook_secret'] || '',
-      })
+    const manifest = searchParams.get('github_app_manifest')
+    if (manifest === 'success') {
+      toast.success('GitHub App created successfully')
+      const next = new URLSearchParams(searchParams)
+      next.delete('github_app_manifest')
+      next.delete('message')
+      setSearchParams(next, { replace: true })
+    } else if (manifest === 'error') {
+      const message = searchParams.get('message')
+      toast.error('GitHub App creation failed', { description: message || undefined })
+      const next = new URLSearchParams(searchParams)
+      next.delete('github_app_manifest')
+      next.delete('message')
+      setSearchParams(next, { replace: true })
     }
-  }, [settingMap, settings.length])
+  }, [searchParams, setSearchParams])
 
-  const handleSave = () => {
-    updateSettings.mutate({
-      github_app_slug: form.github_app_slug || undefined,
-      github_app_id: form.github_app_id || undefined,
-      github_client_id: form.github_client_id || undefined,
-      github_webhook_secret: form.github_webhook_secret || undefined,
+  const handleCreateApp = () => {
+    createManifest.mutate(undefined, {
+      onSuccess: (data) => {
+        // Dynamically create a form and submit to GitHub
+        const form = document.createElement('form')
+        form.method = 'POST'
+        form.action = data.formUrl
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = 'manifest'
+        input.value = JSON.stringify(data.manifest)
+        form.appendChild(input)
+        document.body.appendChild(form)
+        form.submit()
+        document.body.removeChild(form)
+      },
     })
   }
 
-  const handleTest = () => {
-    testConnection.mutate()
+  const handleInstallApp = () => {
+    const slug = ghConfig?.githubApp?.appSlug
+    if (!slug) {
+      toast.error('GitHub App is not configured')
+      return
+    }
+    window.location.href = `https://github.com/apps/${slug}/installations/new`
   }
 
   return (
@@ -337,86 +358,86 @@ function AdminConfigPanel() {
 
       {expanded && (
         <div className="mt-3 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 space-y-4">
-          <p className="text-[11px] text-[#4A4A55]">
-            Configure your GitHub App credentials. The private key stays in Rails credentials for security.
-          </p>
+          {!hasGitHubApp ? (
+            <div className="text-center py-4">
+              <Github size={32} className="text-[#4A4A55] mx-auto mb-3" />
+              <p className="text-sm text-[#A0A0B0] mb-1">No GitHub App configured</p>
+              <p className="text-[11px] text-[#4A4A55] mb-4 max-w-md mx-auto">
+                Create a GitHub App directly from RailDock. You'll be redirected to GitHub to name and create the app, then redirected back here.
+              </p>
+              <Button
+                onClick={handleCreateApp}
+                disabled={createManifest.isPending}
+                className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-9"
+              >
+                <Sparkles size={14} className="mr-1.5" />
+                {createManifest.isPending ? 'Preparing...' : 'Create GitHub App'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* App Details Card */}
+              <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Github size={18} className="text-[#8b5cf6]" />
+                  <div>
+                    <div className="text-sm text-white font-medium">{ghConfig?.githubApp?.appSlug}</div>
+                    <div className="text-[11px] text-[#4A4A55]">GitHub App configured</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="text-[#4A4A55]">App ID: <span className="text-[#A0A0B0]">{settingMap['github_app_id'] || '—'}</span></div>
+                  <div className="text-[#4A4A55]">Client ID: <span className="text-[#A0A0B0]">{settingMap['github_client_id'] || '—'}</span></div>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[11px] text-[#A0A0B0] mb-1 block">GitHub App Slug</label>
-              <input
-                type="text"
-                value={form.github_app_slug}
-                onChange={(e) => setForm({ ...form, github_app_slug: e.target.value })}
-                placeholder="my-raildock-app"
-                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
-              />
-              <p className="text-[10px] text-[#4A4A55] mt-1">The app name in the GitHub URL</p>
+              {/* Actions */}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleInstallApp}
+                  className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-8"
+                >
+                  <ExternalLink size={12} className="mr-1.5" />
+                  Install GitHub App
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleCreateApp}
+                  disabled={createManifest.isPending}
+                  className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+                >
+                  <RotateCcw size={12} className="mr-1.5" />
+                  Recreate
+                </Button>
+                <TestConnectionButton />
+              </div>
             </div>
-            <div>
-              <label className="text-[11px] text-[#A0A0B0] mb-1 block">GitHub App ID</label>
-              <input
-                type="text"
-                value={form.github_app_id}
-                onChange={(e) => setForm({ ...form, github_app_id: e.target.value })}
-                placeholder="123456"
-                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-[#A0A0B0] mb-1 block">Client ID</label>
-              <input
-                type="text"
-                value={form.github_client_id}
-                onChange={(e) => setForm({ ...form, github_client_id: e.target.value })}
-                placeholder="Iv1.xxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-[#A0A0B0] mb-1 block">Webhook Secret</label>
-              <input
-                type="password"
-                value={form.github_webhook_secret}
-                onChange={(e) => setForm({ ...form, github_webhook_secret: e.target.value })}
-                placeholder="••••••••••••••••"
-                className="w-full px-3 py-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <Button
-              onClick={handleSave}
-              disabled={updateSettings.isPending}
-              className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-8"
-            >
-              {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={handleTest}
-              disabled={testConnection.isPending || !form.github_app_slug}
-              className="text-[11px] text-[#A0A0B0] hover:text-white h-8"
-            >
-              {testConnection.isPending ? (
-                <RefreshCw size={12} className="mr-1 animate-spin" />
-              ) : testConnection.isSuccess && testConnection.data?.valid ? (
-                <CheckCircle2 size={12} className="mr-1 text-[#22c55e]" />
-              ) : (
-                <ExternalLink size={12} className="mr-1" />
-              )}
-              Test Connection
-            </Button>
-            {testConnection.isSuccess && testConnection.data?.valid && (
-              <span className="text-[11px] text-[#22c55e]">
-                {testConnection.data.name}
-              </span>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+function TestConnectionButton() {
+  const testConnection = useTestGitHubApp()
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => testConnection.mutate()}
+      disabled={testConnection.isPending}
+      className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+    >
+      {testConnection.isPending ? (
+        <RefreshCw size={12} className="mr-1 animate-spin" />
+      ) : testConnection.isSuccess && testConnection.data?.valid ? (
+        <CheckCircle2 size={12} className="mr-1 text-[#22c55e]" />
+      ) : (
+        <ExternalLink size={12} className="mr-1" />
+      )}
+      Test Connection
+    </Button>
   )
 }
 

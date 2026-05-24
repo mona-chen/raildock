@@ -439,6 +439,10 @@ export const adminSettingsApi = {
   testGitHubApp: async (): Promise<{ valid: boolean; name?: string; description?: string; htmlUrl?: string; error?: string }> => {
     return fetchJson('/api/admin/settings/test-github-app', { method: 'POST' })
   },
+
+  createGitHubAppManifest: async (): Promise<{ manifest: Record<string, unknown>; formUrl: string }> => {
+    return fetchJson('/api/admin/github-app-manifest')
+  },
 }
 
 // ── Organizations API ──────────────────────────

@@ -8,6 +8,8 @@ module Api
         github_app_id
         github_client_id
         github_webhook_secret
+        github_app_pem
+        github_client_secret
       ].freeze
 
       # GET /api/admin/settings
