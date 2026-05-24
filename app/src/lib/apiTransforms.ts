@@ -84,6 +84,11 @@ export function normalizeService(data: unknown): Service {
   merged.letsencrypt = mergeNested(defaults.letsencrypt, merged.letsencrypt)
   merged.git = mergeNested(defaults.git, merged.git)
   merged.traefik = mergeNested(defaults.traefik, merged.traefik)
+  // Ensure array fields are always arrays (API may return null or object)
+  if (!Array.isArray(merged.resourceLimits)) merged.resourceLimits = []
+  if (!Array.isArray(merged.resourceReservations)) merged.resourceReservations = []
+  if (!Array.isArray(merged.processTypes)) merged.processTypes = []
+  if (!Array.isArray(merged.dockerOptions)) merged.dockerOptions = []
   return merged as unknown as Service
 }
 
