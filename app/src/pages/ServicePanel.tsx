@@ -945,6 +945,7 @@ function DatabaseTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
             { l: 'Name', v: svc.name },
             { l: 'Status', v: svc.status },
             { l: 'Internal IP', v: info?.internal_ip },
+            { l: 'Internal Hostname', v: svc.internalHostname },
             { l: 'Dokku Name', v: svc.name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() },
           ].filter((f) => f.v).map((f) => (
             <div key={f.l} className="bg-black/20 rounded-lg p-2.5">

@@ -102,7 +102,7 @@ class Service < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port],
+      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname],
       include: {
         environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
         domains: { only: [:id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard] },

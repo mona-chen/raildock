@@ -353,6 +353,13 @@ module Api
             # Fetch and sync Dokku-injected env vars (DATABASE_URL, REDIS_URL, etc.)
             sync_dokku_env_vars(engine, @service)
           end
+
+          # Connect both services to the project's private network
+          # so they can resolve each other by internal hostname
+          network_manager = ProjectNetworkManager.new(@service.project, engine)
+          network_manager.connect_service(@service)
+          network_manager.connect_service(target)
+          network_manager.inject_internal_hostnames(@service)
         end
 
         ActivityEvent.create!(

@@ -113,6 +113,19 @@ module Api
         end
       end
 
+      # Connect all services to project's private network for internal DNS
+      if project.server&.ssh_key.present?
+        engine = DokkuEngine.new(project.server)
+        network_manager = ProjectNetworkManager.new(project, engine)
+        created.each do |service|
+          begin
+            network_manager.connect_service(service)
+          rescue => e
+            Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
+          end
+        end
+      end
+
       # Auto-deploy app services so the template is actually running
       app_services = created.select(&:service_type_app?)
       app_services.each do |service|

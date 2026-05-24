@@ -184,7 +184,16 @@ class DeploymentJob < ApplicationJob
         engine.ps_scale(service.dokku_app_name, pt.name, pt.quantity)
       end
 
-      # 13. Mark success
+      # 13. Ensure service is connected to project's private network
+      begin
+        network_manager = ProjectNetworkManager.new(project, engine)
+        network_manager.connect_service(service)
+        network_manager.inject_internal_hostnames(service)
+      rescue => e
+        Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
+      end
+
+      # 14. Mark success
       deployment.update!(
         status: :succeeded,
         deploy_log: deploy_output,

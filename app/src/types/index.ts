@@ -52,6 +52,7 @@ export interface Service {
   envVars: EnvVar[]
   domains: Domain[]
   detectedPort?: number
+  internalHostname?: string
   storageMounts: StorageMount[]
   logs: LogEntry[]
   backups: Backup[]
