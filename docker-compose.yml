@@ -33,7 +33,7 @@ services:
       DB_PORT: 5432
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
-      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}
+      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:3000:3000
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       RAILS_SERVE_STATIC_FILES: "true"

@@ -47,7 +47,7 @@ services:
       DB_PORT: 5432
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}
+      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:8090
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       RAILS_SERVE_STATIC_FILES: "true"
     command: ["./bin/rails", "server", "-p", "3000", "-b", "0.0.0.0"]
