@@ -77,6 +77,11 @@ class DeploymentJob < ApplicationJob
 
       if service.docker_image.present?
         # Docker image deploy: git:from-image builds and deploys synchronously
+        # Pre-pull to warm the layer cache and avoid overlayfs extraction races
+        # on large images (e.g. ActivePieces with huge node_modules layers)
+        pre_pull = engine.run("docker pull #{service.docker_image}")
+        deploy_output += pre_pull[:output] if pre_pull[:output].present?
+
         deploy_command = "git:from-image #{service.dokku_app_name} #{service.docker_image}"
 
         result = engine.run_streaming(deploy_command) do |chunk|
@@ -88,6 +93,26 @@ class DeploymentJob < ApplicationJob
             log_chunk: chunk,
             started_at: deployment.started_at.iso8601
           })
+        end
+
+        # Retry once on pull/extraction failures (transient overlayfs races)
+        if !result[:success] && deploy_output.match?(/failed to pull image|failed to extract layer|UtimesNanoAt|overlayfs/i)
+          Rails.logger.warn "Docker image deploy failed for #{service.dokku_app_name}, retrying after forced pull..."
+          deploy_output += "\n\n--- Retrying deploy after forced pull ---\n"
+
+          # Force re-pull
+          engine.run("docker pull #{service.docker_image}")
+
+          result = engine.run_streaming(deploy_command) do |chunk|
+            deploy_output += chunk
+            deployment.update!(deploy_log: deploy_output)
+            DeploymentsChannel.broadcast_to(service, {
+              deployment_id: deployment.id,
+              status: "deploying",
+              log_chunk: chunk,
+              started_at: deployment.started_at.iso8601
+            })
+          end
         end
       elsif service.git_repo.present?
         # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
