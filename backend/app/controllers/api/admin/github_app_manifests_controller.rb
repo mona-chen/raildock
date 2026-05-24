@@ -80,6 +80,37 @@ module Api
         end
       end
 
+      # DELETE /api/admin/github-app
+      # Deletes the GitHub App from GitHub and clears all local credentials
+      def destroy_app
+        # Delete from GitHub (404 = already deleted, which is fine)
+        begin
+          GithubAppService.delete_app
+        rescue => e
+          if e.message.include?('404')
+            Rails.logger.info "GitHub App already deleted from GitHub"
+          else
+            raise
+          end
+        end
+
+        # Clear all GitHub App settings
+        %w[
+          github_app_id github_app_slug github_client_id
+          github_client_secret github_app_pem github_webhook_secret
+        ].each do |key|
+          SystemSetting.find_by(key: key)&.destroy
+        end
+
+        # Remove all GitHub git sources
+        GitSource.where(provider: 'github').destroy_all
+
+        render json: { success: true, message: 'GitHub App deleted successfully' }
+      rescue => e
+        Rails.logger.error "GitHub App destroy_app failed: #{e.message}"
+        render json: { error: 'Failed to delete GitHub App' }, status: :internal_server_error
+      end
+
       private
 
       def generate_state

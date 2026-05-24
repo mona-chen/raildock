@@ -184,5 +184,31 @@ class GithubAppService
       Rails.logger.error "GitHub App installation deletion failed: #{e.message}"
       raise
     end
+
+    # Delete the GitHub App itself from GitHub
+    def delete_app
+      raise "GitHub App credentials not configured" unless enabled?
+
+      jwt = generate_jwt
+      response = Faraday.delete(
+        "https://api.github.com/app",
+        {},
+        {
+          'Authorization' => "Bearer #{jwt}",
+          'Accept' => 'application/vnd.github+json',
+          'X-GitHub-Api-Version' => '2022-11-28'
+        }
+      )
+
+      unless response.success?
+        Rails.logger.error "GitHub App deletion failed: #{response.status} #{response.body}"
+        raise "Failed to delete GitHub App: #{response.status}"
+      end
+
+      true
+    rescue Faraday::Error => e
+      Rails.logger.error "GitHub App deletion failed: #{e.message}"
+      raise
+    end
   end
 end

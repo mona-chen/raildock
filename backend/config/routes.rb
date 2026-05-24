@@ -114,6 +114,7 @@ Rails.application.routes.draw do
       get "github-app-manifest", to: "github_app_manifests#manifest"
       get "github-app-manifest/callback", to: "github_app_manifests#callback"
       get "github-app-manifest/setup", to: "github_app_manifests#setup"
+      delete "github-app", to: "github_app_manifests#destroy_app"
     end
 
     get "github-apps/callback", to: "github_apps#callback"

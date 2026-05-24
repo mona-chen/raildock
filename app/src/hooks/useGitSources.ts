@@ -120,3 +120,17 @@ export function useDeleteGitHubAppInstallation() {
     onError: (err: Error) => toast.error(`Uninstall failed: ${err.message}`),
   })
 }
+
+export function useDeleteGitHubApp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.adminSettings.deleteGitHubApp(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['git-sources'] })
+      queryClient.invalidateQueries({ queryKey: ['github-app-config'] })
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] })
+      toast.success('GitHub App deleted from GitHub and RailDock')
+    },
+    onError: (err: Error) => toast.error(`Delete failed: ${err.message}`),
+  })
+}

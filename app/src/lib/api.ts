@@ -444,6 +444,10 @@ export const adminSettingsApi = {
     return fetchJson('/api/admin/github-app-manifest')
   },
 
+  deleteGitHubApp: async (): Promise<{ success: boolean; message: string }> => {
+    return fetchJson('/api/admin/github-app', { method: 'DELETE' })
+  },
+
   finishGitHubAppSetup: async (installationId: string): Promise<{ success: boolean; git_source: GitSource; message: string }> => {
     return fetchJson('/api/github-apps/finish-setup', {
       method: 'POST',

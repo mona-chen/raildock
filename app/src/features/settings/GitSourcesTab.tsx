@@ -33,6 +33,7 @@ import {
   useCreateGitHubAppManifest,
   useFinishGitHubAppSetup,
   useDeleteGitHubAppInstallation,
+  useDeleteGitHubApp,
 } from '@/hooks/useGitSources'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { api } from '@/lib/api'
@@ -324,6 +325,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
   const { data: settings = [] } = useSystemSettings()
   const { data: ghConfig } = useGitHubAppConfig()
   const createManifest = useCreateGitHubAppManifest()
+  const deleteApp = useDeleteGitHubApp()
 
   const settingMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -466,6 +468,19 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                   Recreate
                 </Button>
                 <TestConnectionButton />
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (confirm('Delete the GitHub App from GitHub entirely? This will remove all installations and cannot be undone.')) {
+                      deleteApp.mutate()
+                    }
+                  }}
+                  disabled={deleteApp.isPending}
+                  className="text-[11px] text-red-400 hover:text-red-300 h-8"
+                >
+                  <Trash2 size={12} className="mr-1.5" />
+                  {deleteApp.isPending ? 'Deleting...' : 'Delete App'}
+                </Button>
               </div>
 
               {appInstallations.length > 0 && (
