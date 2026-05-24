@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   FolderGit2,
@@ -295,16 +295,20 @@ function AdminConfigPanel() {
     github_client_id: '',
     github_webhook_secret: '',
   })
+  const initializedRef = useRef(false)
 
-  // Sync form when settings load
+  // Sync form when settings load (only once)
   useEffect(() => {
-    setForm({
-      github_app_slug: settingMap['github_app_slug'] || '',
-      github_app_id: settingMap['github_app_id'] || '',
-      github_client_id: settingMap['github_client_id'] || '',
-      github_webhook_secret: settingMap['github_webhook_secret'] || '',
-    })
-  }, [settingMap])
+    if (!initializedRef.current && settings.length > 0) {
+      initializedRef.current = true
+      setForm({
+        github_app_slug: settingMap['github_app_slug'] || '',
+        github_app_id: settingMap['github_app_id'] || '',
+        github_client_id: settingMap['github_client_id'] || '',
+        github_webhook_secret: settingMap['github_webhook_secret'] || '',
+      })
+    }
+  }, [settingMap, settings.length])
 
   const handleSave = () => {
     updateSettings.mutate({
