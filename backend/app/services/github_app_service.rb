@@ -109,22 +109,42 @@ class GithubAppService
     end
 
     # List all repositories accessible to an installation (paginated)
+    # Uses the App JWT to call /installations/{id}/repositories
     def list_repos(installation_id)
-      client = installation_client(installation_id)
+      raise "GitHub App credentials not configured" unless enabled?
+      raise "Installation ID required" if installation_id.blank?
+
+      jwt = generate_jwt
       all_repos = []
       page = 1
 
       loop do
-        repos = client.list_repositories({ per_page: 100, page: page })
+        response = Faraday.get(
+          "https://api.github.com/app/installations/#{installation_id}/repositories",
+          { per_page: 100, page: page },
+          {
+            'Authorization' => "Bearer #{jwt}",
+            'Accept' => 'application/vnd.github+json',
+            'X-GitHub-Api-Version' => '2022-11-28'
+          }
+        )
+
+        unless response.success?
+          Rails.logger.error "GitHub App repo list failed: #{response.status} #{response.body}"
+          raise "Failed to list repositories: #{response.status}"
+        end
+
+        data = JSON.parse(response.body)
+        repos = data['repositories'] || []
         break if repos.empty?
 
         all_repos.concat(repos.map do |repo|
           {
-            id: repo.id,
-            full_name: repo.full_name,
-            default_branch: repo.default_branch,
-            private: repo.private,
-            clone_url: repo.clone_url
+            id: repo['id'],
+            full_name: repo['full_name'],
+            default_branch: repo['default_branch'],
+            private: repo['private'],
+            clone_url: repo['clone_url']
           }
         end)
 
@@ -133,7 +153,7 @@ class GithubAppService
       end
 
       all_repos
-    rescue Octokit::Error => e
+    rescue JSON::ParserError, Faraday::Error => e
       Rails.logger.error "GitHub App repo list failed: #{e.message}"
       raise
     end
