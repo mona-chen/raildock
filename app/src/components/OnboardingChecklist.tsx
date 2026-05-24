@@ -65,7 +65,7 @@ export default function OnboardingChecklist() {
     server: servers.length > 0,
     project: projects.length > 0,
     service: projects.some((p) => (p.serviceIds?.length || 0) > 0),
-    deploy: false, // Would need deployment query — keep simple for now
+    deploy: projects.some((p) => p.has_deployments),
   }
 
   const completedCount = steps.filter((s) => checks[s.id]).length

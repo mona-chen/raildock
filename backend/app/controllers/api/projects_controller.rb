@@ -85,26 +85,18 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
-      results = { success: [], failed: [] }
-
+      queued = []
       project.services.each do |service|
-        with_dokku_engine(service) do |engine|
-          result = engine.ps_restart(service.dokku_app_name)
-          if result[:success]
-            service.update!(status: "running")
-            results[:success] << service.name
-          else
-            results[:failed] << { name: service.name, error: result[:output] }
-          end
-        end
+        RestartJob.perform_later(service.id)
+        queued << service.name
       end
 
       ActivityEvent.create!(
         project: project, service_name: "-", action: :restarted,
-        message: "Restarted all services in #{project.name}"
+        message: "Restart queued for #{queued.length} services in #{project.name}"
       )
 
-      render json: results
+      render json: { queued: queued.length, services: queued }
     end
 
     def stop_all

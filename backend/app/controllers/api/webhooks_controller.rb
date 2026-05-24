@@ -13,8 +13,8 @@ module Api
 
       return head :bad_request unless repo_name
 
-      # Find services linked to this repo
-      services = Service.where(git_repo: repo_name)
+      # Find services linked to this repo that have auto_deploy enabled
+      services = Service.where(git_repo: repo_name, auto_deploy: true)
       return head :not_found if services.empty?
 
       services.each do |service|
@@ -28,6 +28,24 @@ module Api
       end
 
       head :accepted
+    end
+
+    def service_deploy
+      service = Service.find_by(id: params[:id], webhook_token: params[:token])
+      return head :not_found unless service
+
+      branch = params[:branch] || service.branch || 'main'
+
+      deployment = service.deployments.create!(
+        status: :pending,
+        started_at: Time.current,
+        branch: branch,
+        triggered_by: 'webhook'
+      )
+      DeploymentJob.perform_later(service.id, deployment.id)
+      service.update!(status: :deploying)
+
+      render json: { deployment_id: deployment.id, status: :deploying }, status: :accepted
     end
 
     private

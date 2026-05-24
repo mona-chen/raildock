@@ -185,9 +185,11 @@ class DeploymentJob < ApplicationJob
       end
 
       # 13. Ensure service is connected to project's private network
+      #    and re-add aliases for all linked services (Dokku doesn't persist aliases)
       begin
         network_manager = ProjectNetworkManager.new(project, engine)
         network_manager.connect_service(service)
+        network_manager.ensure_linked_aliases(service)
         network_manager.inject_internal_hostnames(service)
       rescue => e
         Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"

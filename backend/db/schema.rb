@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_24_151044) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -78,6 +78,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
     t.bigint "service_id", null: false
     t.datetime "started_at"
     t.string "status"
+    t.string "triggered_by", default: "manual"
     t.datetime "updated_at", null: false
     t.index ["service_id"], name: "index_deployments_on_service_id"
   end
@@ -89,8 +90,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
     t.integer "port"
     t.bigint "service_id", null: false
     t.boolean "ssl"
+    t.integer "target_port", default: 80
     t.boolean "temporary", default: false, null: false
     t.datetime "updated_at", null: false
+    t.boolean "wildcard", default: false
     t.index ["service_id"], name: "index_domains_on_service_id"
     t.index ["temporary"], name: "index_domains_on_temporary"
   end
@@ -186,6 +189,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
     t.datetime "manifest_last_applied_at"
     t.datetime "manifest_last_synced_at"
     t.string "name"
+    t.string "network_name"
     t.bigint "organization_id"
     t.bigint "server_id"
     t.jsonb "shared_vars", default: []
@@ -233,10 +237,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
     t.jsonb "config", default: {}
     t.jsonb "config_overrides", default: {}, null: false
     t.datetime "created_at", null: false
+    t.integer "detected_port"
     t.string "docker_image"
     t.string "dokku_app_name"
     t.boolean "exposed"
     t.string "git_repo"
+    t.string "internal_hostname"
     t.string "last_deployed"
     t.boolean "locked"
     t.boolean "maintenance_mode", default: false, null: false
@@ -253,8 +259,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_184446) do
     t.string "subtype"
     t.datetime "updated_at", null: false
     t.string "version"
+    t.string "webhook_token"
     t.index ["managed_by"], name: "index_services_on_managed_by"
     t.index ["project_id"], name: "index_services_on_project_id"
+    t.index ["webhook_token"], name: "index_services_on_webhook_token", unique: true
+  end
+
+  create_table "solid_cable_messages", force: :cascade do |t|
+    t.binary "channel", null: false
+    t.bigint "channel_hash", null: false
+    t.datetime "created_at", null: false
+    t.binary "payload", null: false
+    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
+    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
   create_table "storage_mounts", force: :cascade do |t|

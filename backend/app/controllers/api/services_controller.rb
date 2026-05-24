@@ -344,15 +344,26 @@ module Api
       if is_new_link
         with_dokku_engine(@service) do |engine|
           if target.service_type_database?
-            case target.subtype
+            link_result = case target.subtype
             when "postgres" then engine.postgres_link(target.dokku_app_name, @service.dokku_app_name)
             when "redis" then engine.redis_link(target.dokku_app_name, @service.dokku_app_name)
             when "mysql" then engine.mysql_link(target.dokku_app_name, @service.dokku_app_name)
             when "mongo" then engine.mongo_link(target.dokku_app_name, @service.dokku_app_name)
             end
 
+            unless link_result&.dig(:success)
+              Rails.logger.error "Dokku link failed: #{link_result&.dig(:output)}"
+              return render json: { error: "Dokku link failed: #{link_result&.dig(:output)}" }, status: :unprocessable_entity
+            end
+
             # Fetch and sync Dokku-injected env vars (DATABASE_URL, REDIS_URL, etc.)
             sync_dokku_env_vars(engine, @service)
+
+            # Disable SSL cert validation for internal postgres connections
+            if target.subtype == "postgres"
+              engine.config_set(@service.dokku_app_name, "PGSSLMODE", "disable")
+              @service.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
+            end
           end
 
           # Connect both services to the project's private network

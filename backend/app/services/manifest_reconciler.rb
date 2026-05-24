@@ -434,7 +434,15 @@ class ManifestReconciler
       ServiceLink.create!(from_service: from_svc, to_service: to_svc)
       # Dokku link
       if to_svc.service_type_database?
-        engine.send("#{to_svc.subtype}_link", from_svc.dokku_app_name, to_svc.dokku_app_name)
+        link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
+        unless link_result[:success]
+          Rails.logger.error "Dokku link failed for #{from_svc.name} -> #{to_svc.name}: #{link_result[:output]}"
+          return { success: false, error: link_result[:output] }
+        end
+        # Disable SSL cert validation for internal postgres connections
+        if to_svc.subtype == "postgres"
+          engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
+        end
       end
       { success: true }
     elsif change.change_type == :removed
@@ -442,7 +450,7 @@ class ManifestReconciler
       ServiceLink.find_by(from_service: from_svc, to_service: to_svc)&.destroy!
       # Dokku unlink
       if to_svc.service_type_database?
-        engine.send("#{to_svc.subtype}_unlink", from_svc.dokku_app_name, to_svc.dokku_app_name) rescue nil
+        engine.send("#{to_svc.subtype}_unlink", to_svc.dokku_app_name, from_svc.dokku_app_name) rescue nil
       end
       { success: true }
     end

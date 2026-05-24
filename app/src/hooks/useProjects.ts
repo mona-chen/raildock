@@ -86,12 +86,8 @@ export function useRestartAllServices() {
     mutationFn: (projectId: string) => api.projects.restartAll(projectId),
     onSuccess: (data, projectId) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
-      const failed = data.failed?.length || 0
-      if (failed > 0) {
-        toast.warning(`Restarted ${data.success.length} services, ${failed} failed`)
-      } else {
-        toast.success(`Restarted ${data.success.length} services`)
-      }
+      const queued = data.queued || data.services?.length || 0
+      toast.success(`Restart queued for ${queued} services`)
     },
     onError: (err) => toast.error(`Restart all failed: ${err.message}`),
   })

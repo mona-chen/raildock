@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode } from 'lucide-react'
+import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
+import { useCopy } from '@/hooks/useCopy'
 import { api } from '@/lib/api'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 
@@ -151,13 +152,25 @@ function GeneralSettings({ svc }: { svc: Service }) {
           </SettingCard>
 
           <SettingCard title="Deploy Options">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <div className="text-[13px] text-white/70">Auto-deploy</div>
                 <div className="text-[11px] text-white/40">Automatically deploy on git push</div>
               </div>
               <AccessibleToggle checked={svc.autoDeploy} onChange={(v) => setField('autoDeploy', v)} label="Auto-deploy" />
             </div>
+            {svc.webhookUrl && (
+              <div className="border-t border-white/[0.06] pt-4">
+                <div className="text-[13px] text-white/70 mb-1">Deploy Webhook</div>
+                <div className="text-[11px] text-white/40 mb-2">Use this URL in your CI/CD pipeline to trigger deployments.</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-black/30 rounded-lg px-3 py-2 text-[11px] font-mono text-white/50 truncate">
+                    {svc.webhookUrl}
+                  </code>
+                  <CopyButton text={svc.webhookUrl} />
+                </div>
+              </div>
+            )}
           </SettingCard>
         </>
       )}
@@ -642,6 +655,20 @@ function TextField({ label, value, placeholder, type = 'text', onChange }: { lab
         className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
       />
     </div>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const { copiedKey, copy } = useCopy(2000)
+  const isCopied = copiedKey === 'settings-webhook'
+  return (
+    <button
+      onClick={() => copy(text, 'settings-webhook')}
+      className="px-3 py-2 bg-white/5 text-white/40 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
+    >
+      {isCopied ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+      {isCopied ? 'Copied' : 'Copy'}
+    </button>
   )
 }
 

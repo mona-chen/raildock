@@ -48,6 +48,25 @@ module Api
       head :not_found
     end
 
+    def repos
+      source = GitSource.find(params[:id])
+
+      if source.organization
+        authorize_organization_access!(source.organization)
+      elsif source.user && source.user != current_user
+        return render json: { error: "Forbidden" }, status: :forbidden
+      end
+
+      # Trigger async refresh if repos are stale or empty
+      if source.repos.blank? || source.updated_at < 5.minutes.ago
+        GithubSyncReposJob.perform_later(source.id) rescue nil
+      end
+
+      render json: { repos: source.repos, syncing: source.repos.blank? }
+    rescue ActiveRecord::RecordNotFound
+      head :not_found
+    end
+
     private
 
     def git_source_params

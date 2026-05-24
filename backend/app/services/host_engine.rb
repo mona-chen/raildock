@@ -86,7 +86,24 @@ class HostEngine
   # ── Dokku container helpers ─────────────────
 
   # Dokku web containers are named <app>.web.1
+  # Dokku plugin containers are named dokku.<plugin>.<app>
   def dokku_container_name(app_name)
-    "#{app_name}.web.1"
+    # Get all running containers and find exact match
+    result = run("docker ps --format '{{.Names}}'")
+    return nil unless result[:success]
+
+    containers = result[:output].strip.split("\n")
+
+    # Try exact match for regular app container first
+    exact = "#{app_name}.web.1"
+    return exact if containers.include?(exact)
+
+    # Try plugin service containers (postgres, redis, mongo, mysql)
+    %w[postgres redis mongo mysql].each do |plugin|
+      exact = "dokku.#{plugin}.#{app_name}"
+      return exact if containers.include?(exact)
+    end
+
+    nil
   end
 end

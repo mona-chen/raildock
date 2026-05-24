@@ -68,4 +68,46 @@ RSpec.describe "Api::WebhooksController", type: :request do
       end
     end
   end
+
+  describe "POST /api/services/:id/webhooks/:token/deploy" do
+    it "returns 404 for invalid token" do
+      post "/api/services/#{service.id}/webhooks/invalid-token/deploy"
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "triggers deployment with valid token" do
+      service.update!(webhook_token: "valid-token-123")
+
+      expect {
+        post "/api/services/#{service.id}/webhooks/valid-token-123/deploy"
+      }.to change(Deployment, :count).by(1)
+
+      expect(response).to have_http_status(:accepted)
+      json = JSON.parse(response.body)
+      expect(json["status"]).to eq("deploying")
+      expect(json["deployment_id"]).to be_present
+
+      deployment = Deployment.last
+      expect(deployment.triggered_by).to eq("webhook")
+    end
+
+    it "accepts optional branch parameter" do
+      service.update!(webhook_token: "valid-token-123")
+
+      post "/api/services/#{service.id}/webhooks/valid-token-123/deploy", params: { branch: "staging" }
+
+      expect(response).to have_http_status(:accepted)
+      deployment = Deployment.last
+      expect(deployment.branch).to eq("staging")
+    end
+
+    it "falls back to service branch when no branch param" do
+      service.update!(webhook_token: "valid-token-123", branch: "develop")
+
+      post "/api/services/#{service.id}/webhooks/valid-token-123/deploy"
+
+      deployment = Deployment.last
+      expect(deployment.branch).to eq("develop")
+    end
+  end
 end

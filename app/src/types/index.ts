@@ -14,6 +14,7 @@ export interface Project {
   serviceIds: string[]       // references to services in this project
   serviceCounts: { total: number; app: number; database: number; cache: number }
   sharedVars: SharedVar[]    // project-level env vars (Railway shared variables)
+  has_deployments?: boolean
   createdAt: string
 }
 
@@ -69,6 +70,8 @@ export interface Service {
   restartMaxRetries: number
   locked: boolean
   autoDeploy: boolean
+  webhookUrl?: string
+  webhookToken?: string
   rootDirectory?: string
   startCommand?: string
   maintenanceMode: boolean

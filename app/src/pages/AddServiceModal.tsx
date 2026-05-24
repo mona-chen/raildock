@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
-  Box, Database, Zap, Cog, X, Plus, Rocket, Code2, Container,
-  ChevronLeft, GitBranch, Settings2, HardDrive, Trash2, HelpCircle,
+  Box, Database, Zap, Cog, X, Plus, Rocket, ChevronLeft,
+  GitBranch, Settings2, HelpCircle, FolderOpen, Check, Loader2,
 } from 'lucide-react'
-import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
+import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
 import { useBuilders } from '@/hooks/useModules'
+import { useGitSources, useGitSourceRepos } from '@/hooks/useGitSources'
+import type { GitRepo } from '@/types'
 
 interface AddServiceModalProps {
   projectId: string
@@ -21,11 +23,48 @@ const DB_TYPES = [
   { subtype: 'redis', name: 'Redis', description: 'In-memory key-value store', defaultVersion: '7.2' },
 ]
 
-
+const BUILDER_INFO: Record<string, { name: string; description: string; bestFor: string }> = {
+  auto: {
+    name: 'Auto-detect',
+    description: 'Dokku checks for Dockerfile → Nixpacks → Herokuish in that order.',
+    bestFor: 'Most projects — set and forget',
+  },
+  dockerfile: {
+    name: 'Dockerfile',
+    description: 'Builds your container using the Dockerfile in your repo root.',
+    bestFor: 'When you need full control over the build process',
+  },
+  nixpacks: {
+    name: 'Nixpacks',
+    description: 'Auto-detects language and produces optimized images without a Dockerfile.',
+    bestFor: 'Node, Python, Go, Ruby, PHP, Rust, Java, .NET, and more',
+  },
+  railpack: {
+    name: 'Railpack',
+    description: 'Railway-inspired buildpack with modern language support.',
+    bestFor: 'Modern frameworks and monorepos',
+  },
+  herokuish: {
+    name: 'Herokuish',
+    description: 'Emulates Heroku buildpacks using the same detection logic.',
+    bestFor: 'Legacy Heroku-compatible apps',
+  },
+  pack: {
+    name: 'Cloud Native Buildpacks',
+    description: 'Uses the cloud-native buildpack standard (Paketo, etc).',
+    bestFor: 'Cloud-native and standardized builds',
+  },
+  lambda: {
+    name: 'Lambda',
+    description: 'AWS Lambda-style packaging for serverless deployments.',
+    bestFor: 'Serverless functions',
+  },
+}
 
 export default function AddServiceModal({ projectId, onClose }: AddServiceModalProps) {
   const createService = useCreateService()
   const { data: builders = [] } = useBuilders()
+  const { data: gitSources = [] } = useGitSources()
   const [step, setStep] = useState<Step>('type')
 
   // Common
@@ -33,15 +72,31 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
   // App
   const [sourceType, setSourceType] = useState<'git' | 'docker'>('git')
+  const [gitSourceId, setGitSourceId] = useState<string>('')
   const [gitRepo, setGitRepo] = useState('')
   const [gitBranch, setGitBranch] = useState('main')
   const [builder, setBuilder] = useState('auto')
   const [dockerImage, setDockerImage] = useState('')
+  const [rootDirectory, setRootDirectory] = useState('')
 
   // Database
   const [dbType, setDbType] = useState('postgres')
 
   const isCreating = createService.isPending
+
+  const selectedGitSource = gitSources.find((s) => s.id === gitSourceId)
+  const { data: reposData, isLoading: reposLoading } = useGitSourceRepos(selectedGitSource?.id)
+  const repos = reposData?.repos || []
+  const reposSyncing = reposData?.syncing || false
+
+  const selectedRepo = useMemo(() => {
+    return repos.find((r: GitRepo) => r.fullName === gitRepo)
+  }, [repos, gitRepo])
+
+  const handleSelectRepo = (repo: GitRepo) => {
+    setGitRepo(repo.fullName)
+    if (repo.defaultBranch) setGitBranch(repo.defaultBranch)
+  }
 
   const handleCreateApp = () => {
     const finalName = name.trim() || 'app'
@@ -56,6 +111,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           git_repo: sourceType === 'git' ? gitRepo : undefined,
           branch: sourceType === 'git' ? gitBranch : undefined,
           docker_image: sourceType === 'docker' ? dockerImage : undefined,
+          root_directory: sourceType === 'git' ? rootDirectory || undefined : undefined,
         },
       },
       { onSuccess: onClose }
@@ -160,20 +216,89 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
           {sourceType === 'git' && (
             <div className="space-y-3">
+              {/* Git Source Selector */}
               <div>
-                <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
-                  Repository URL
-                  <span title="Use the HTTPS or SSH clone URL of your repository. For private repos, make sure you've connected a Git source or added a deploy key." className="cursor-help">
-                    <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
-                  </span>
-                </label>
-                <input
-                  value={gitRepo}
-                  onChange={(e) => setGitRepo(e.target.value)}
-                  placeholder="https://github.com/username/repo.git"
-                  className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-                />
+                <label className="text-[11px] text-white/40 block mb-1.5">Git Account</label>
+                <select
+                  value={gitSourceId}
+                  onChange={(e) => {
+                    setGitSourceId(e.target.value)
+                    setGitRepo('')
+                  }}
+                  className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40 appearance-none cursor-pointer"
+                >
+                  <option value="">— Select connected account —</option>
+                  {gitSources.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.provider} {s.username ? `(${s.username})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {gitSources.length === 0 && (
+                  <p className="text-[11px] text-white/30 mt-1">
+                    No Git accounts connected. Go to Settings → Git Sources to connect GitHub, GitLab, or Bitbucket.
+                  </p>
+                )}
               </div>
+
+              {/* Repo Picker */}
+              {selectedGitSource && (
+                <div>
+                  <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                    Repository
+                    {reposSyncing && <Loader2 size={11} className="animate-spin text-white/30" />}
+                  </label>
+                  {reposLoading ? (
+                    <div className="h-10 bg-white/[0.03] rounded-lg animate-pulse" />
+                  ) : repos.length > 0 ? (
+                    <div className="max-h-40 overflow-y-auto border border-white/[0.06] rounded-lg divide-y divide-white/[0.04]">
+                      {repos.map((repo: GitRepo) => (
+                        <button
+                          key={repo.id}
+                          onClick={() => handleSelectRepo(repo)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors ${
+                            gitRepo === repo.fullName
+                              ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+                              : 'text-white/60 hover:bg-white/[0.03]'
+                          }`}
+                        >
+                          <GitBranch size={12} className={gitRepo === repo.fullName ? 'text-[#8b5cf6]' : 'text-white/30'} />
+                          <span className="flex-1 truncate">{repo.fullName}</span>
+                          {repo.private && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-white/30 rounded">Private</span>
+                          )}
+                          {gitRepo === repo.fullName && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                      {reposSyncing
+                        ? 'Syncing repositories...'
+                        : 'No repositories found. Check your Git source connection.'}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Manual repo fallback */}
+              {!selectedGitSource && (
+                <div>
+                  <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                    Repository URL
+                    <span title="Use the HTTPS or SSH clone URL of your repository. For private repos, make sure you've connected a Git source or added a deploy key." className="cursor-help">
+                      <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
+                    </span>
+                  </label>
+                  <input
+                    value={gitRepo}
+                    onChange={(e) => setGitRepo(e.target.value)}
+                    placeholder="https://github.com/username/repo.git"
+                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                  />
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-[11px] text-white/40 block mb-1.5">Branch</label>
@@ -186,28 +311,53 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                 </div>
                 <div className="flex-1">
                   <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
-                    Builder
-                    <span title="Builders determine how your code is turned into a container image. Auto-detect checks for a Dockerfile, then falls back to buildpacks like Nixpacks or Herokuish." className="cursor-help">
-                      <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
-                    </span>
+                    <FolderOpen size={11} />
+                    Base Directory
                   </label>
-                  <select
-                    value={builder}
-                    onChange={(e) => setBuilder(e.target.value)}
-                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40 appearance-none cursor-pointer"
-                  >
-                    <option value="auto">Auto-detect</option>
-                    {builders.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                  <input
+                    value={rootDirectory}
+                    onChange={(e) => setRootDirectory(e.target.value)}
+                    placeholder="/ (repo root)"
+                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                  />
                 </div>
               </div>
-              <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2">
-                {builder === 'auto' && (
-                  <span>Dokku will auto-detect the best build method: <strong>Dockerfile</strong> → <strong>Nixpacks</strong> → <strong>Herokuish</strong>.</span>
-                )}
-                {builder !== 'auto' && builders.find((b) => b.id === builder)?.description}
+
+              {/* Builder Selection */}
+              <div>
+                <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                  Builder
+                  <span title="Builders determine how your code is turned into a container image." className="cursor-help">
+                    <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['auto', ...builders.map((b) => b.id)] as string[]).map((b) => {
+                    const info = BUILDER_INFO[b] || { name: b, description: '', bestFor: '' }
+                    const isActive = builder === b
+                    return (
+                      <button
+                        key={b}
+                        onClick={() => setBuilder(b)}
+                        className={`text-left p-2.5 rounded-lg border transition-all ${
+                          isActive
+                            ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
+                            : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                        }`}
+                      >
+                        <div className={`text-[12px] font-medium ${isActive ? 'text-[#8b5cf6]' : 'text-white/70'}`}>
+                          {info.name}
+                        </div>
+                        <div className="text-[10px] text-white/30 mt-0.5 leading-tight">
+                          {info.bestFor}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2 mt-2">
+                  {BUILDER_INFO[builder]?.description || builders.find((b) => b.id === builder)?.description}
+                </div>
               </div>
             </div>
           )}

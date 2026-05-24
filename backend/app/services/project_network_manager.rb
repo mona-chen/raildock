@@ -11,7 +11,7 @@ class ProjectNetworkManager
   end
 
   def network_name
-    @network_name ||= "#{NETWORK_PREFIX}-#{project.id}"
+    @network_name ||= project.network_name.presence || "#{NETWORK_PREFIX}-#{project.id}"
   end
 
   # Ensure the project's private network exists on the server.
@@ -96,6 +96,7 @@ class ProjectNetworkManager
   # Connect a running container to the project network with aliases.
   # If already connected, disconnect first to update aliases.
   def connect_container_with_aliases(container, aliases)
+    return if container.blank?
     return if aliases.empty?
 
     # Disconnect first to ensure aliases are updated

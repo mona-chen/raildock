@@ -36,3 +36,11 @@ export function useDisconnectGitSource() {
     onError: (err: Error) => toast.error(`Disconnect failed: ${err.message}`),
   })
 }
+
+export function useGitSourceRepos(sourceId: string | undefined) {
+  return useQuery({
+    queryKey: ['git-source-repos', sourceId],
+    queryFn: () => api.gitSources.repos(sourceId!),
+    enabled: !!sourceId,
+  })
+}

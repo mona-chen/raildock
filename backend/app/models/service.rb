@@ -66,6 +66,7 @@ class Service < ApplicationRecord
   }.freeze
 
   before_create :generate_dokku_app_name
+  before_create :generate_webhook_token
 
   def default_docker_image
     DEFAULT_DOCKER_IMAGES[subtype]
@@ -102,7 +103,7 @@ class Service < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname],
+      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url],
       include: {
         environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
         domains: { only: [:id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard] },
@@ -120,5 +121,16 @@ class Service < ApplicationRecord
 
   def generate_dokku_app_name
     self.dokku_app_name ||= "#{project.name.parameterize}-#{name.parameterize}"
+  end
+
+  def generate_webhook_token
+    self.webhook_token ||= SecureRandom.hex(32)
+  end
+
+  def webhook_url
+    return nil if webhook_token.blank?
+    base = ENV.fetch("RAILDOCK_API_URL", "")
+    return nil if base.blank?
+    "#{base.chomp("/")}/api/services/#{id}/webhooks/#{webhook_token}/deploy"
   end
 end

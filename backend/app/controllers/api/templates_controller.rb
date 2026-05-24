@@ -104,9 +104,19 @@ module Api
         if to_svc.service_type_database? && project.server&.ssh_key.present?
           engine = DokkuEngine.new(project.server)
           begin
-            engine.send("#{to_svc.subtype}_link", from_svc.dokku_app_name, to_svc.dokku_app_name)
-            # Sync injected env vars
-            sync_dokku_env_vars(engine, from_svc)
+            link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
+            unless link_result[:success]
+              Rails.logger.error "Dokku link failed for #{link[:from]} -> #{link[:to]}: #{link_result[:output]}"
+            else
+              # Sync injected env vars
+              sync_dokku_env_vars(engine, from_svc)
+              # Disable SSL cert validation for internal postgres connections
+              # (Dokku postgres uses self-signed certs; apps on private networks don't need TLS)
+              if to_svc.subtype == "postgres"
+                engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
+                from_svc.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
+              end
+            end
           rescue => e
             Rails.logger.error "Dokku link failed for #{link[:from]} -> #{link[:to]}: #{e.message}"
           end
@@ -126,8 +136,26 @@ module Api
         end
       end
 
-      # Auto-deploy app services so the template is actually running
+      # Resolve placeholder domains to actual Dokku-assigned domains.
+      # Templates often hardcode "app.example.com" or use $SERVICE_FQDN which
+      # resolves to the same. We update env vars so CSP headers and asset URLs work.
       app_services = created.select(&:service_type_app?)
+      if project.server&.ssh_key.present?
+        engine = DokkuEngine.new(project.server)
+        app_services.each do |service|
+          actual_domain = fetch_app_domain(engine, service.dokku_app_name)
+          next if actual_domain.blank?
+
+          service.environment_variables.each do |ev|
+            next unless ev.value.include?("app.example.com")
+            new_value = ev.value.gsub("app.example.com", actual_domain)
+            engine.config_set(service.dokku_app_name, ev.key, new_value)
+            ev.update!(value: new_value)
+          end
+        end
+      end
+
+      # Auto-deploy app services so the template is actually running
       app_services.each do |service|
         deployment = service.deployments.create!(
           status: :pending,
@@ -185,6 +213,18 @@ module Api
       end
     rescue => e
       Rails.logger.error "Failed to sync Dokku env vars for #{service.dokku_app_name}: #{e.message}"
+    end
+
+    # Fetches the first non-localhost domain assigned by Dokku for an app.
+    def fetch_app_domain(engine, app_name)
+      result = engine.run("domains:report #{engine.escape(app_name)} --domains-app-vhosts")
+      return nil unless result[:success]
+
+      domains = result[:output].to_s.strip.split
+      domains.reject { |d| d.include?(".localhost") || d == "localhost" }.first
+    rescue => e
+      Rails.logger.error "Failed to fetch domain for #{app_name}: #{e.message}"
+      nil
     end
   end
 end

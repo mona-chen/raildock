@@ -1,13 +1,14 @@
 class ActivityEvent < ApplicationRecord
   belongs_to :project
 
-  validates :action, inclusion: { in: %w[deployed stopped started scaled linked unlinked created destroyed] }
+  validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed] }
   validates :message, presence: true
 
   enum :action, {
     deployed: "deployed",
     stopped: "stopped",
     started: "started",
+    restarted: "restarted",
     scaled: "scaled",
     linked: "linked",
     unlinked: "unlinked",

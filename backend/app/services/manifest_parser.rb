@@ -438,6 +438,10 @@ class ManifestParser
     result.gsub!(/\$\{?SERVICE_URL\}?/) { "https://example.com" }
     result.gsub!(/\$\{?SERVICE_FQDN\}?/) { "app.example.com" }
 
+    # Replace literal "CHANGE_ME" placeholders (common in community templates)
+    # with generated secrets so templates deploy without manual intervention.
+    result.gsub!(/CHANGE_ME/) { SecureRandom.hex(16) }
+
     result
   end
 

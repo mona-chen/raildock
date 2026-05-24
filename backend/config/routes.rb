@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   namespace :api do
     get "health", to: "auth#health"
     post "webhooks/deploy", to: "webhooks#deploy"
+    post "services/:id/webhooks/:token/deploy", to: "webhooks#service_deploy", as: :service_webhook_deploy
     post "login", to: "auth#login"
     get "me", to: "auth#me"
     get "setup", to: "users#setup_required"
@@ -78,12 +79,20 @@ Rails.application.routes.draw do
 
     resources :organizations do
       resources :projects, only: [ :index, :create ]
-      resources :git_sources, path: "git-sources", only: [ :index, :create, :destroy ]
+      resources :git_sources, path: "git-sources", only: [ :index, :create, :destroy ] do
+        member do
+          get :repos
+        end
+      end
       resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
       resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
     end
 
-    resources :git_sources, path: "git-sources"
+    resources :git_sources, path: "git-sources" do
+      member do
+        get :repos
+      end
+    end
     resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
     resources :templates, only: [ :index ] do
       member do

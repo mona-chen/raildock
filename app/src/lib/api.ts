@@ -10,6 +10,7 @@ import type {
   Service,
   Server,
   GitSource,
+  GitRepo,
   Module,
   ActivityEvent,
   Template,
@@ -131,7 +132,7 @@ export const projectsApi = {
     return fetchJson(`/api/projects/${id}/deploy_all`, { method: 'POST' })
   },
 
-  restartAll: async (id: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
+  restartAll: async (id: string): Promise<{ queued: number; services: string[] }> => {
     return fetchJson(`/api/projects/${id}/restart_all`, { method: 'POST' })
   },
 
@@ -153,7 +154,7 @@ export const servicesApi = {
     return normalizeService(data)
   },
 
-  create: async (projectId: string, data: { name: string; subtype: string; category: string; builder?: string; git_repo?: string; branch?: string; docker_image?: string; version?: string }): Promise<Service> => {
+  create: async (projectId: string, data: { name: string; subtype: string; category: string; builder?: string; git_repo?: string; branch?: string; docker_image?: string; version?: string; root_directory?: string }): Promise<Service> => {
     const body = { ...data, serviceType: data.category }
     const res = await fetchJson<unknown>(`/api/projects/${projectId}/services`, { method: 'POST', body: wrapBody('service', body) })
     return normalizeService(res)
@@ -406,6 +407,10 @@ export const gitSourcesApi = {
 
   disconnect: async (id: string): Promise<void> => {
     await fetchJson(`/api/git-sources/${id}`, { method: 'DELETE' })
+  },
+
+  repos: async (id: string): Promise<{ repos: GitRepo[]; syncing: boolean }> => {
+    return fetchJson(`/api/git-sources/${id}/repos`)
   },
 }
 

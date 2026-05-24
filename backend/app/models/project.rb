@@ -9,6 +9,13 @@ class Project < ApplicationRecord
 
   before_validation :set_default_environment, on: :create
   before_validation :set_default_server, on: :create
+  after_create :set_network_name
+
+  def set_network_name
+    return if network_name.present?
+    slug = name.to_s.downcase.gsub(/[^a-z0-9]+/, '-').gsub(/^-|-$/, '').presence || "project"
+    update_column(:network_name, "rd-#{slug}-#{id}")
+  end
 
   # For backward compat + new org scoping
   scope :for_user, ->(user) {
@@ -47,9 +54,13 @@ class Project < ApplicationRecord
     manifest_last_synced_at.present? && manifest_last_applied_at >= manifest_last_synced_at
   end
 
+  def has_deployments?
+    Deployment.joins(:service).where(services: { project_id: id }).exists?
+  end
+
   def as_json(options = {})
     super(options.merge(
-      methods: [:service_ids, :service_counts, :shared_vars, :manifest_synced?]
+      methods: [:service_ids, :service_counts, :shared_vars, :manifest_synced?, :has_deployments?]
     ))
   end
 end
