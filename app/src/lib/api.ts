@@ -14,6 +14,7 @@ import type {
   ActivityEvent,
   Template,
   Organization,
+  Domain,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -199,12 +200,16 @@ export const servicesApi = {
     await fetchJson(`/api/services/${id}/env-vars/${encodeURIComponent(key)}`, { method: 'DELETE' })
   },
 
-  addDomain: async (id: string, hostname: string, port: number): Promise<void> => {
-    await fetchJson(`/api/services/${id}/domains`, { method: 'POST', body: JSON.stringify({ hostname, port }) })
+  addDomain: async (id: string, hostname: string, port: number, targetPort?: number): Promise<void> => {
+    await fetchJson(`/api/services/${id}/domains`, { method: 'POST', body: JSON.stringify({ hostname, port, target_port: targetPort }) })
   },
 
   removeDomain: async (id: string, hostname: string): Promise<void> => {
     await fetchJson(`/api/services/${id}/domains/${hostname}`, { method: 'DELETE' })
+  },
+
+  generateDomain: async (id: string): Promise<Domain> => {
+    return fetchJson(`/api/services/${id}/generate_domain`, { method: 'POST' })
   },
 
   addStorageMount: async (id: string, hostPath: string, containerPath: string): Promise<void> => {

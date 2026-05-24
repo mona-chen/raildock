@@ -51,6 +51,7 @@ export interface Service {
   linkedServiceIds: string[] // which services this one is linked to (for canvas connections)
   envVars: EnvVar[]
   domains: Domain[]
+  detectedPort?: number
   storageMounts: StorageMount[]
   logs: LogEntry[]
   backups: Backup[]
@@ -90,11 +91,14 @@ export interface EnvVar {
 }
 
 export interface Domain {
+  id?: string
   hostname: string
   port: number
+  targetPort?: number
   ssl: boolean
   letsencrypt: boolean
   temporary?: boolean
+  wildcard?: boolean
 }
 
 export interface StorageMount {

@@ -4,10 +4,20 @@ module Api
     before_action :set_and_authorize_service!
 
     def create
-      domain = @service.domains.create!(domain_params)
+      is_wildcard = domain_params[:hostname].to_s.start_with?('*.')
+      target = domain_params[:target_port].presence || @service.detected_port || 80
+
+      domain = @service.domains.create!(
+        hostname: domain_params[:hostname],
+        port: domain_params[:port] || 443,
+        target_port: target,
+        ssl: domain_params[:ssl] != false,
+        letsencrypt: domain_params[:letsencrypt] != false,
+        wildcard: is_wildcard
+      )
 
       # Sync to Dokku
-      sync_to_dokku(:add, domain.hostname)
+      sync_to_dokku(:add, domain)
 
       render json: domain, status: :created
     end
@@ -16,7 +26,7 @@ module Api
       domain = @service.domains.find_by!(hostname: params[:hostname])
 
       # Sync to Dokku
-      sync_to_dokku(:remove, domain.hostname)
+      sync_to_dokku(:remove, domain)
 
       domain.destroy!
       head :no_content
@@ -30,18 +40,64 @@ module Api
     end
 
     def domain_params
-      params.permit(:hostname, :port, :ssl, :letsencrypt)
+      params.permit(:hostname, :port, :target_port, :ssl, :letsencrypt)
     end
 
-    def sync_to_dokku(action, hostname)
+    def sync_to_dokku(action, domain)
       return unless @service.project&.server&.ssh_key.present?
 
       engine = DokkuEngine.new(@service.project.server)
-      if action == :add
-        engine.domain_add(@service.dokku_app_name, hostname)
+
+      if domain.wildcard?
+        sync_wildcard_to_dokku(action, domain, engine)
       else
-        engine.domain_remove(@service.dokku_app_name, hostname)
+        sync_standard_to_dokku(action, domain, engine)
       end
+
+      # Always sync port mapping so the domain routes to the right container port
+      sync_port_mapping(domain, engine)
+    end
+
+    def sync_standard_to_dokku(action, domain, engine)
+      if action == :add
+        engine.domain_add(@service.dokku_app_name, domain.hostname)
+      else
+        engine.domain_remove(@service.dokku_app_name, domain.hostname)
+      end
+    end
+
+    def sync_wildcard_to_dokku(action, domain, engine)
+      if action == :add
+        labels = TraefikLabelBuilder.new(@service, domain).build_labels
+        labels.each do |key, value|
+          engine.run("traefik:labels:add #{escape(@service.dokku_app_name)} #{escape(key)} #{escape(value)}")
+        end
+      else
+        # Remove wildcard labels — find and remove all labels for this app's wildcard router
+        router_name = "#{@service.dokku_app_name}-wildcard"
+        result = engine.traefik_show_config(@service.dokku_app_name)
+        return unless result[:success]
+
+        # Remove all labels that reference the wildcard router
+        result[:output].each_line do |line|
+          if line.include?(router_name)
+            key = line.split("=").first&.strip
+            if key.present?
+              engine.run("traefik:labels:remove #{escape(@service.dokku_app_name)} #{escape(key)}")
+            end
+          end
+        end
+      end
+    end
+
+    def sync_port_mapping(domain, engine)
+      target = domain.target_port || @service.detected_port || 5000
+      engine.ports_set(@service.dokku_app_name, "http", 80, target)
+      engine.ports_set(@service.dokku_app_name, "https", 443, target)
+    end
+
+    def escape(value)
+      Shellwords.escape(value.to_s)
     end
   end
 end

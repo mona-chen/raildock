@@ -96,12 +96,16 @@ class Service < ApplicationRecord
     end
   end
 
+  def effective_port
+    detected_port || port || 5000
+  end
+
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs],
+      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port],
       include: {
         environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
-        domains: { only: [:id, :hostname, :port, :ssl, :letsencrypt] },
+        domains: { only: [:id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard] },
         storage_mounts: { only: [:id, :host_path, :container_path] },
         process_types: { only: [:id, :name, :quantity, :running, :command] },
         backups: { only: [:id, :status, :size, :created_at] }

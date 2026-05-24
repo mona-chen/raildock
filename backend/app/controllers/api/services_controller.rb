@@ -69,30 +69,6 @@ module Api
         end
       end
 
-      # Auto-assign temporary domain if server has a base_domain configured
-      server = project.server
-      if server&.base_domain.present? && server.auto_domains?
-        temp_hostname = server.temporary_hostname(service.dokku_app_name)
-        if temp_hostname && !service.domains.exists?(hostname: temp_hostname)
-          # Magic domains (sslip.io, nip.io, traefik.me) don't support Let's Encrypt
-          # except sslip.io which explicitly does — but we keep it simple and use HTTP
-          # for all magic domains to avoid LE rate-limit issues.
-          use_ssl = !server.magic_domain?
-          domain = service.domains.create!(
-            hostname: temp_hostname,
-            port: use_ssl ? 443 : 80,
-            ssl: use_ssl,
-            letsencrypt: use_ssl,
-            temporary: true
-          )
-          # Sync to Dokku
-          if server.ssh_key.present?
-            engine = DokkuEngine.new(server)
-            engine.domain_add(service.dokku_app_name, temp_hostname)
-          end
-        end
-      end
-
       ActivityEvent.create!(
         project: service.project,
         service_name: service.name,
@@ -644,6 +620,46 @@ module Api
 
     def linked_by
       render json: @service.incoming_links.includes(:from_service).map(&:from_service)
+    end
+
+    def generate_domain
+      authorize_service!(@service, action: :update)
+      server = @service.project&.server
+
+      return render json: { error: "No server configured" }, status: :unprocessable_entity unless server
+      return render json: { error: "No base domain configured" }, status: :unprocessable_entity unless server.base_domain.present?
+
+      hostname = server.temporary_hostname(@service.dokku_app_name)
+      return render json: { error: "Could not generate hostname" }, status: :unprocessable_entity unless hostname
+
+      # Check for collision
+      if @service.domains.exists?(hostname: hostname)
+        return render json: { error: "Domain already exists" }, status: :unprocessable_entity
+      end
+
+      use_ssl = !server.magic_domain?
+      target = @service.detected_port || 80
+
+      domain = @service.domains.create!(
+        hostname: hostname,
+        port: use_ssl ? 443 : 80,
+        target_port: target,
+        ssl: use_ssl,
+        letsencrypt: use_ssl,
+        temporary: true
+      )
+
+      # Sync to Dokku
+      if server.ssh_key.present?
+        engine = DokkuEngine.new(server)
+        engine.domain_add(@service.dokku_app_name, hostname)
+        engine.sync_port_mappings(@service.dokku_app_name, target)
+      end
+
+      render json: domain, status: :created
+    rescue => e
+      Rails.logger.error "generate_domain failed for #{@service.dokku_app_name}: #{e.message}"
+      render json: { error: "Failed to generate domain: #{e.message}" }, status: :unprocessable_entity
     end
 
     private

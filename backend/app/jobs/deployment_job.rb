@@ -149,12 +149,42 @@ class DeploymentJob < ApplicationJob
         return mark_failed(deployment, service, "Deploy failed", deploy_output)
       end
 
-      # 10. Scale processes (Dokku deploy already started the app)
+      # 10. Detect the app's listening port from the running container/image
+      begin
+        port_detector = PortDetector.new(engine)
+        detected = port_detector.detect(service)
+        if detected
+          service.update!(detected_port: detected)
+          Rails.logger.info "Detected port #{detected} for #{service.dokku_app_name}"
+        end
+      rescue => e
+        Rails.logger.warn "Port detection failed for #{service.dokku_app_name}: #{e.message}"
+      end
+
+      # 11. Sync port mappings for all domains (routes public 80/443 → container target_port)
+      begin
+        target = service.detected_port || 5000
+        if service.domains.any?
+          service.domains.each do |domain|
+            domain_target = domain.target_port || target
+            engine.ports_set(service.dokku_app_name, "http", 80, domain_target)
+            engine.ports_set(service.dokku_app_name, "https", 443, domain_target)
+          end
+        else
+          # No domains yet — still set a default port mapping so the app is accessible
+          engine.ports_set(service.dokku_app_name, "http", 80, target)
+          engine.ports_set(service.dokku_app_name, "https", 443, target)
+        end
+      rescue => e
+        Rails.logger.warn "Port mapping sync failed for #{service.dokku_app_name}: #{e.message}"
+      end
+
+      # 12. Scale processes (Dokku deploy already started the app)
       service.process_types.each do |pt|
         engine.ps_scale(service.dokku_app_name, pt.name, pt.quantity)
       end
 
-      # 11. Mark success
+      # 13. Mark success
       deployment.update!(
         status: :succeeded,
         deploy_log: deploy_output,

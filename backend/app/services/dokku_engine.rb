@@ -369,6 +369,13 @@ class DokkuEngine
     run("ports:list #{escape(app_name)}")
   end
 
+  # Bulk set standard web port mappings for an app.
+  # Maps public 80/443 to the app's internal container port.
+  def sync_port_mappings(app_name, target_port)
+    run("ports:clear #{escape(app_name)}")
+    run("ports:set #{escape(app_name)} http:80:#{target_port.to_i} https:443:#{target_port.to_i}")
+  end
+
   # ── App Locking ──────────────────────────────
 
   def app_lock(app_name)

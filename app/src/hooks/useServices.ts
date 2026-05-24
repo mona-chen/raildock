@@ -124,8 +124,8 @@ export function useUnsetEnvVar() {
 export function useAddDomain() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, hostname, port }: { id: string; hostname: string; port: number }) =>
-      api.services.addDomain(id, hostname, port),
+    mutationFn: ({ id, hostname, port, targetPort }: { id: string; hostname: string; port: number; targetPort?: number }) =>
+      api.services.addDomain(id, hostname, port, targetPort),
     onSuccess: (_, { id, hostname }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       toast.success(`Added domain ${hostname}`)
@@ -143,6 +143,18 @@ export function useRemoveDomain() {
       toast.success(`Removed domain ${hostname}`)
     },
     onError: (err) => toast.error(`Failed to remove domain: ${err.message}`),
+  })
+}
+
+export function useGenerateDomain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.services.generateDomain(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id] })
+      toast.success('Domain generated')
+    },
+    onError: (err) => toast.error(`Failed to generate domain: ${err.message}`),
   })
 }
 

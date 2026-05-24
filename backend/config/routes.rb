@@ -41,6 +41,7 @@ Rails.application.routes.draw do
           post :app_lock
           post :app_unlock
           get :app_locked
+          post :generate_domain
         end
         collection do
           get :config_show

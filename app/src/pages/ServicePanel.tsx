@@ -3,7 +3,7 @@ import { Box, X, ArrowDownToLine, Trash2, HardDrive, Play, Square, RotateCw, Roc
 import { useCopy } from '@/hooks/useCopy'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
-import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups, useLinkedByServices, useUnlinkService } from '@/hooks/useServices'
+import { useService, useScaleProcess, useSetEnvVar, useUnsetEnvVar, useServiceMetrics, useServiceDeployments, useAddDomain, useRemoveDomain, useGenerateDomain, useAddStorageMount, useRemoveStorageMount, useBackupService, useRestoreService, useRollbackService, useContainerStatus, useDeployService, useStartService, useStopService, useRestartService, useRebuildService, useDeployment, useDestroyService, useDatabaseInfo, useBackups, useLinkedByServices, useUnlinkService } from '@/hooks/useServices'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { useUpdateService } from '@/hooks/useServices'
 import { useCanvasStore } from '@/stores/useCanvasStore'
@@ -1589,11 +1589,24 @@ function MetricsTab({ svc }: { svc: Service }) {
 function DomainsTab({ svc }: { svc: Service }) {
   const addDomain = useAddDomain()
   const removeDomain = useRemoveDomain()
+  const generateDomain = useGenerateDomain()
   const [newDomain, setNewDomain] = useState('')
+  const [targetPort, setTargetPort] = useState(svc.detectedPort || 80)
 
   return (
     <div className="p-5 space-y-4">
-      <div className="text-[14px] font-medium text-white/70 mb-2">Domains</div>
+      <div className="flex items-center justify-between">
+        <div className="text-[14px] font-medium text-white/70">Domains</div>
+        <button
+          onClick={() => generateDomain.mutate(svc.id)}
+          disabled={generateDomain.isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+        >
+          <Globe size={13} />
+          {generateDomain.isPending ? 'Generating...' : 'Generate Domain'}
+        </button>
+      </div>
+
       {svc.domains.length > 0 ? (
         <div className="space-y-2">
           {svc.domains.map((d) => (
@@ -1602,46 +1615,65 @@ function DomainsTab({ svc }: { svc: Service }) {
               className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3 group"
             >
               <Globe size={15} className="text-white/30" />
-              <span className="text-[13px] text-white/70">{d.hostname}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] text-white/70 truncate">{d.hostname}</span>
+                  {d.wildcard && (
+                    <span className="text-[10px] px-1.5 bg-[#f59e0b]/10 text-[#f59e0b] rounded-full">Wildcard</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-white/30">
+                  → :{d.targetPort || svc.detectedPort || 80}
+                </div>
+              </div>
               {d.ssl && (
                 <span className="text-[10px] px-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full">SSL</span>
               )}
               {d.temporary && (
                 <span className="text-[10px] px-1.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">Auto</span>
               )}
-              {!d.temporary && (
-                <button
-                  onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
-                  className="ml-auto p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
+              <button
+                onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
+                className="ml-auto p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           ))}
         </div>
       ) : (
         <div className="text-[13px] text-white/30 py-4 text-center">No domains configured</div>
       )}
-      <div className="flex gap-2 mt-3">
-        <input
-          type="text"
-          placeholder="example.com"
-          value={newDomain}
-          onChange={(e) => setNewDomain(e.target.value)}
-          className="flex-1 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-        />
-        <button
-          onClick={() => {
-            if (newDomain) {
-              addDomain.mutate({ id: svc.id, hostname: newDomain, port: 443 })
-              setNewDomain('')
-            }
-          }}
-          className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] hover:bg-[#8b5cf6]/25 transition-all"
-        >
-          Add
-        </button>
+
+      <div className="border-t border-white/[0.06] pt-4">
+        <div className="text-[12px] text-white/40 mb-2">Add custom domain</div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="example.com or *.example.com"
+            value={newDomain}
+            onChange={(e) => setNewDomain(e.target.value)}
+            className="flex-1 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+          />
+          <input
+            type="number"
+            placeholder="Port"
+            value={targetPort}
+            onChange={(e) => setTargetPort(Number(e.target.value))}
+            className="w-20 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+          />
+          <button
+            onClick={() => {
+              if (newDomain) {
+                addDomain.mutate({ id: svc.id, hostname: newDomain, port: 443, targetPort })
+                setNewDomain('')
+              }
+            }}
+            className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] hover:bg-[#8b5cf6]/25 transition-all"
+          >
+            Add
+          </button>
+        </div>
       </div>
     </div>
   )
