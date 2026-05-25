@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Manages a per-project Docker network for private service-to-service communication.
 # Each project gets its own network (e.g. "raildock-42") so services can reach
 # each other by internal hostname without exposing them to the public internet.
@@ -14,58 +16,55 @@ class ProjectNetworkManager
     @network_name ||= project.network_name.presence || "#{NETWORK_PREFIX}-#{project.id}"
   end
 
-  # Ensure the project's private network exists on the server.
   def ensure_network!
     result = engine.network_list
     return if result[:output]&.include?(network_name)
 
-    # Create via Dokku first (for metadata tracking)
     engine.network_create(network_name)
-    # Also create via Docker directly in case Dokku's command is delayed
     host_engine.docker_network_create(network_name)
   rescue => e
     Rails.logger.error "Failed to create network #{network_name}: #{e.message}"
   end
 
-  # Connect a Dokku app to the project's private network.
-  # Uses attach-post-create so the network is attached BEFORE the container
-  # starts, avoiding DNS race conditions on app boot.
+  # Connect a service to the project network AND add network aliases for
+  # ALL of its linked targets. This ensures that when a container A declares
+  # a dependency on container B by name (e.g. PG_CONSOLE_DB_HOST=autobase-db),
+  # container B is reachable by that name via the shared Docker network DNS.
+  #
+  # Also sets Dokku's attach-post-create so the network is attached BEFORE the
+  # container starts, avoiding DNS race conditions on app boot.
   def connect_service(service)
     ensure_network!
 
-    # Tell Dokku to attach the network on container creation (persistent)
     engine.run("network:set #{service.dokku_app_name} attach-post-create #{network_name}")
 
-    # If the container is already running, connect it directly with aliases
     container = host_engine.dokku_container_name(service.dokku_app_name)
     connect_container_with_aliases(container, [service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')])
+
+    if service.linked_services.any?
+      service.linked_services.each do |linked|
+        linked_container = host_engine.dokku_container_name(linked.dokku_app_name)
+        linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+        connect_container_with_aliases(linked_container, [linked_alias])
+      end
+    end
 
     service.update!(internal_hostname: build_internal_hostname(service))
   rescue => e
     Rails.logger.error "Failed to connect #{service.dokku_app_name} to #{network_name}: #{e.message}"
   end
 
-  # Disconnect a Dokku app from the project's private network.
   def disconnect_service(service)
     engine.network_disconnect(service.dokku_app_name, network_name)
     engine.run("network:set #{service.dokku_app_name} attach-post-create")
   rescue => e
-    Rails.logger.warn "Failed to disconnect #{service.dokku_app_name} from #{network_name}: #{e.message}"
+    Rails.logger.warn "Failed to disconnect #{service.dokku_app_name}: #{e.message}"
   end
 
-  # Build the internal hostname for a service within the project network.
-  # On Docker custom bridge networks, containers resolve each other by their
-  # network alias (the short service name). No `.internal` TLD needed — that
-  # only works with custom DNS resolvers (Railway, Kubernetes, etc.).
-  #
-  # What actually works: redis, postgres, activepieces
-  # What doesn't work: redis.raildock-1.internal
   def build_internal_hostname(service)
     service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
   end
 
-  # Inject alias hostnames as env vars for all linked services.
-  # Apps can then use e.g. POSTGRES_HOST=postgres (the Docker alias).
   def inject_internal_hostnames(service)
     return if service.linked_services.blank?
 
@@ -77,8 +76,6 @@ class ProjectNetworkManager
   end
 
   # Ensure all linked services have network aliases on the project network.
-  # Call this after linking to make sure the target container is discoverable
-  # by its short name (e.g. "redis", "postgres").
   def ensure_linked_aliases(service)
     return if service.linked_services.blank?
 
@@ -93,15 +90,11 @@ class ProjectNetworkManager
 
   attr_reader :project, :engine, :host_engine
 
-  # Connect a running container to the project network with aliases.
-  # If already connected, disconnect first to update aliases.
   def connect_container_with_aliases(container, aliases)
     return if container.blank?
     return if aliases.empty?
 
-    # Disconnect first to ensure aliases are updated
     host_engine.docker_network_disconnect(container, network_name)
-    # Reconnect with aliases
     result = host_engine.docker_network_connect(container, network_name, aliases: aliases)
     unless result[:success]
       Rails.logger.warn "Failed to add aliases #{aliases} to #{container}: #{result[:output]}"

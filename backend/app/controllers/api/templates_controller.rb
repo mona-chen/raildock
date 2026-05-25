@@ -123,12 +123,15 @@ module Api
         end
       end
 
-      # Connect all services to project's private network for internal DNS
+      # Connect all services to project's private network for internal DNS.
+      # Must run AFTER links are created so linked_services association is populated.
       if project.server&.ssh_key.present?
         engine = DokkuEngine.new(project.server)
         network_manager = ProjectNetworkManager.new(project, engine)
         created.each do |service|
           begin
+            # Reload to pick up any newly-created service links
+            service.reload
             network_manager.connect_service(service)
           rescue => e
             Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
