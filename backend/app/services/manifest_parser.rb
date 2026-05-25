@@ -64,6 +64,7 @@ class ManifestParser
   end
 
   def parse(raw_content, filename: nil)
+    @secret_cache = {}
     format = detect_format(raw_content, filename)
     hash = parse_raw(raw_content, format)
     normalize(hash, format, raw_content)
@@ -420,9 +421,65 @@ class ManifestParser
     }
   end
 
-  def normalize_env(env)
+def normalize_env(env)
     return {} unless env.is_a?(Hash)
     env.transform_keys(&:to_s).transform_values { |v| resolve_placeholders(v.to_s) }
+  end
+
+  def resolve_placeholders(value)
+    return value unless value.is_a?(String)
+
+    result = value.dup
+
+    # Cache for inline secret() calls to return the same value within one parse
+    @secret_cache ||= {}
+
+    # ── Coolify-style legacy placeholders ─────────────────────
+
+    result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) { SecureRandom.hex(16) }
+    result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) { "user" }
+    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://example.com" }
+    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "app.example.com" }
+    result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) { SecureRandom.base64(32) }
+    result.gsub!(/\$\{?SERVICE_PASSWORD\}?/) { SecureRandom.hex(16) }
+    result.gsub!(/\$\{?SERVICE_USER\}?/) { "user" }
+    result.gsub!(/\$\{?SERVICE_URL\}?/) { "https://example.com" }
+    result.gsub!(/\$\{?SERVICE_FQDN\}?/) { "app.example.com" }
+    result.gsub!(/CHANGE_ME/) { SecureRandom.hex(16) }
+
+    # ── Railway-style ${{ }} expressions ───────────────────────
+
+    # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex (cached per call site)
+    result.gsub!(/\$\{\{\s*secret\(\s*(\d+)?\s*\)\s*\}\}/) do
+      length = ($1 || "32").to_i
+      length = [1, [length, 128].min].max
+      cache_key = "secret_#{length}"
+      @secret_cache[cache_key] ||= SecureRandom.hex(length / 2)
+    end
+
+    # ${{ randomInt(min, max) }}
+    result.gsub!(/\$\{\{\s*randomInt\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\}\}/) do
+      min = $1.to_i
+      max = $2.to_i
+      min = [min, max].min
+      max = [min, max].max
+      rand(min..max).to_s
+    end
+
+    # ${{ RAILDOCK_PUBLIC_DOMAIN }} → runtime resolved (placeholder tag for now)
+    result.gsub!(/\$\{\{\s*RAILDOCK_PUBLIC_DOMAIN\s*\}\}/) { "[RAILDOCK_PUBLIC_DOMAIN]" }
+
+    # ${{ shared.VAR }} → runtime resolved (placeholder tag)
+    result.gsub!(/\$\{\{\s*shared\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      "[SHARED:#{$1}]"
+    end
+
+    # ${{ linked.SERVICE.VAR }} → runtime resolved (placeholder tag)
+    result.gsub!(/\$\{\{\s*linked\.([A-Za-z][A-Za-z0-9_-]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      "[LINKED:#{$1}:#{$2}]"
+    end
+
+    result
   end
 
   # Resolve Coolify-style placeholders AND Railway-style ${{ }} expressions.

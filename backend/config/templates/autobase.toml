@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PG_CONSOLE_AUTHORIZATION_TOKEN = "CHANGE_ME"
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "${{ secret() }}"
     PG_CONSOLE_API_HOST = "autobase-api"
   [services.checks]
     enabled = true
@@ -28,7 +28,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "autobase-db-data"
       container = "/var/lib/postgresql"
@@ -47,9 +47,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PG_CONSOLE_DB_HOST = "autobase-db"
-    PG_CONSOLE_DB_PASSWORD = "CHANGE_ME"
-    PG_CONSOLE_AUTHORIZATION_TOKEN = "CHANGE_ME"
-    PG_CONSOLE_ENCRYPTIONKEY = "BASE64_GENERATED"
+    PG_CONSOLE_DB_PASSWORD = "${{ linked.autobase-db.POSTGRES_PASSWORD }}"
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "${{ secret() }}"
+    PG_CONSOLE_ENCRYPTIONKEY = "${{ secret() }}"
     PG_CONSOLE_LOGGER_LEVEL = "info"
   [services.checks]
     enabled = true

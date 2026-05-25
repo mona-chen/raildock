@@ -88,6 +88,17 @@ class Service < ApplicationRecord
     linked_by_services.pluck(:id)
   end
 
+  def docker_image_database?
+    return true if service_type_database?
+    return false if docker_image.blank?
+
+    img = docker_image.downcase
+    img.include?("postgres") || img.include?("mysql") || img.include?("mariadb") ||
+      img.include?("redis") || img.include?("mongo") || img.include?("postgres") ||
+      img.include?("clickhouse") || img.include?("qdrant") || img.include?("meilisearch") ||
+      img.include?("typesense") || img.include?("elasticsearch") || img.include?("minio")
+  end
+
   def logs
     # Return recent deployments' logs as log entries
     deployments.order(created_at: :desc).limit(10).flat_map do |d|

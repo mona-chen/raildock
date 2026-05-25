@@ -432,8 +432,13 @@ class ManifestReconciler
     if change.change_type == :added
       # Create DB link
       ServiceLink.create!(from_service: from_svc, to_service: to_svc)
-      # Dokku link
-      if to_svc.service_type_database?
+
+      if to_svc.docker_image_database?
+        # Docker-image DB: sync container password vars to linked app so
+        # ${{ linked.X.VAR }} resolution works when env vars are applied.
+        sync_docker_image_passwords_to_linked_app(from_svc, to_svc)
+      elsif to_svc.service_type_database?
+        # Dokku-managed DB (postgres:create, redis:create, etc.): call dokku link
         link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
         unless link_result[:success]
           Rails.logger.error "Dokku link failed for #{from_svc.name} -> #{to_svc.name}: #{link_result[:output]}"
@@ -459,6 +464,48 @@ class ManifestReconciler
   rescue => e
     Rails.logger.error "Link change failed: #{e.message}"
     { success: false, error: e.message }
+  end
+
+  PASSWORD_VAR_NAMES = %w[
+    POSTGRES_PASSWORD POSTGRES_DB_PASSWORD POSTGRES_USER_PASSWORD
+    MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MARIADB_ROOT_PASSWORD MARIADB_PASSWORD
+    REDIS_PASSWORD MONGO_PASSWORD MONGODB_PASSWORD
+    DB_PASSWORD DATABASE_PASSWORD DB_PASS
+    PASSWORD SECRET SECRET_KEY SECRET_KEY_BASE
+    ENCRYPTION_KEY ENCRYPTION_KEY_BASE
+    ADMIN_TOKEN ADMIN_PASSWORD APP_SECRET SESSION_SECRET
+    AUTH_SECRET AUTH_TOKEN API_SECRET API_KEY
+  ].freeze
+
+  # For docker-image database services (e.g. autobase-db), read the running
+  # container's env vars and copy password-type vars to the linked app so
+  # ${{ linked.SERVICE.VAR }} resolution works.
+  def sync_docker_image_passwords_to_linked_app(app_svc, db_svc)
+    host_engine = HostEngine.new(@project.server)
+    container_name = host_engine.dokku_container_name(db_svc.dokku_app_name)
+    return unless container_name.present?
+
+    result = host_engine.docker_inspect(container_name, format: "{{range .Config.Env}}{{.}}\\n{{end}}")
+    return unless result[:success] && result[:output].present?
+
+    result[:output].each_line do |line|
+      line = line.strip
+      next unless line.include?("=")
+      key, _, value = line.partition("=")
+      key = key.strip
+      value = value.strip
+      next unless PASSWORD_VAR_NAMES.any? { |p| key.upcase.include?(p) }
+      next if value.blank? || value.start_with?("$")
+
+      existing = db_svc.environment_variables.find_by(key: key)
+      if existing
+        existing.update!(value: value) if existing.value != value
+      else
+        db_svc.environment_variables.create!(key: key, value: value, source: "container-inspect")
+      end
+    end
+  rescue => e
+    Rails.logger.warn "Failed to sync docker image passwords for #{db_svc.dokku_app_name}: #{e.message}"
   end
 
   # ── Field-specific apply helpers ────────────────────────────

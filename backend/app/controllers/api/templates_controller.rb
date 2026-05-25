@@ -92,6 +92,17 @@ module Api
         service
       end
 
+      # Sync container env vars (passwords, secrets) from newly-deployed docker-image
+      # services into the Service record so linked services can reference them via
+      # ${{ linked.SERVICE.VAR }} when links are created and resolved below.
+      if project.server&.ssh_key.present?
+        engine = DokkuEngine.new(project.server)
+        created.each do |service|
+          next unless service.docker_image.present?
+          sync_docker_image_env_vars(engine, service)
+        end
+      end
+
       # Create links
       template.links.each do |link|
         from_svc = project.services.find_by(name: link[:from])
@@ -100,8 +111,8 @@ module Api
 
         ServiceLink.create!(from_service: from_svc, to_service: to_svc)
 
-        # Dokku link
-        if to_svc.service_type_database? && project.server&.ssh_key.present?
+        # Dokku link for real database services (postgres:create, redis:create, etc.)
+        if to_svc.docker_image_database? && project.server&.ssh_key.present?
           engine = DokkuEngine.new(project.server)
           begin
             link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
@@ -280,6 +291,45 @@ module Api
       end
     rescue => e
       Rails.logger.error "Failed to sync Dokku env vars for #{service.dokku_app_name}: #{e.message}"
+    end
+
+    PASSWORD_VAR_NAMES = %w[
+      POSTGRES_PASSWORD POSTGRES_DB_PASSWORD POSTGRES_USER_PASSWORD
+      MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MARIADB_ROOT_PASSWORD MARIADB_PASSWORD
+      REDIS_PASSWORD MONGO_PASSWORD MONGODB_PASSWORD
+      DB_PASSWORD DATABASE_PASSWORD DB_PASS
+      PASSWORD SECRET SECRET_KEY SECRET_KEY_BASE
+      ENCRYPTION_KEY ENCRYPTION_KEY_BASE
+      ADMIN_TOKEN ADMIN_PASSWORD APP_SECRET SESSION_SECRET
+      AUTH_SECRET AUTH_TOKEN API_SECRET API_KEY
+    ].freeze
+
+    def sync_docker_image_env_vars(engine, service)
+      host_engine = HostEngine.new(project.server)
+      container_name = host_engine.dokku_container_name(service.dokku_app_name)
+      return unless container_name.present?
+
+      result = host_engine.docker_inspect(container_name, format: "{{range .Config.Env}}{{.}}\\n{{end}}")
+      return unless result[:success] && result[:output].present?
+
+      result[:output].each_line do |line|
+        line = line.strip
+        next unless line.include?("=")
+        key, _, value = line.partition("=")
+        key = key.strip
+        value = value.strip
+        next unless PASSWORD_VAR_NAMES.any? { |p| key.upcase.include?(p) }
+        next if value.blank? || value.start_with?("$")
+
+        existing = service.environment_variables.find_by(key: key)
+        if existing
+          existing.update!(value: value) if existing.value != value
+        else
+          service.environment_variables.create!(key: key, value: value, source: "container-inspect")
+        end
+      end
+    rescue => e
+      Rails.logger.warn "Failed to sync docker image env vars for #{service.dokku_app_name}: #{e.message}"
     end
 
     # Fetches the first non-localhost domain assigned by Dokku for an app.

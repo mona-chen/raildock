@@ -195,7 +195,19 @@ class DeploymentJob < ApplicationJob
         Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
       end
 
-      # 14. Mark success
+      # 14. For docker-image services, read container env vars and sync password-type
+      #     vars to the Service record so linked services can reference them via
+      #     ${{ linked.SERVICE.VAR }} at deploy time.
+      if service.docker_image.present?
+        sync_docker_image_env_vars(service, project)
+
+        # Also update linked apps that have env vars referencing this service's
+        # password vars via ${{ linked.SERVICE.VAR }} — they need the resolved
+        # password value (not a new random one from a fresh secret() call).
+        update_linked_app_password_refs(service, project)
+      end
+
+      # 15. Mark success
       deployment.update!(
         status: :succeeded,
         deploy_log: deploy_output,
@@ -254,5 +266,76 @@ class DeploymentJob < ApplicationJob
       message: message,
       completed_at: Time.current.iso8601
     })
+  end
+
+  PASSWORD_VAR_NAMES = %w[
+    POSTGRES_PASSWORD POSTGRES_DB_PASSWORD POSTGRES_PASSWORD POSTGRES_USER_PASSWORD
+    MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MARIADB_ROOT_PASSWORD MARIADB_PASSWORD
+    REDIS_PASSWORD MONGO_PASSWORD MONGODB_PASSWORD
+    DB_PASSWORD DATABASE_PASSWORD DB_PASS
+    PASSWORD SECRET SECRET_KEY SECRET_KEY_BASE
+    ENCRYPTION_KEY ENCRYPTION_KEY_BASE
+    ADMIN_TOKEN ADMIN_PASSWORD APP_SECRET SESSION_SECRET
+    AUTH_SECRET AUTH_TOKEN API_SECRET API_KEY
+  ].freeze
+
+  def sync_docker_image_env_vars(service, project)
+    container_name = HostEngine.new(project.server).dokku_container_name(service.dokku_app_name)
+    return unless container_name.present?
+
+    result = HostEngine.new(project.server).docker_inspect(container_name, format: "{{range .Config.Env}}{{.}}\\n{{end}}")
+    return unless result[:success] && result[:output].present?
+
+    result[:output].each_line do |line|
+      line = line.strip
+      next unless line.include?("=")
+      key, _, value = line.partition("=")
+      key = key.strip
+      value = value.strip
+      next unless PASSWORD_VAR_NAMES.any? { |p| key.upcase.include?(p) }
+      next if value.blank? || value.start_with?("$")
+
+      existing = service.environment_variables.find_by(key: key)
+      if existing
+        existing.update!(value: value) if existing.value != value
+      else
+        service.environment_variables.create!(key: key, value: value, source: "container-inspect")
+      end
+    end
+  rescue => e
+    Rails.logger.warn "Failed to sync docker image env vars for #{service.dokku_app_name}: #{e.message}"
+  end
+
+  # After syncing password vars from a docker-image container, find any linked
+  # apps that have [LINKED:SERVICE:VAR] markers in their env vars pointing to
+  # those password vars, and update the linked app's env var with the resolved
+  # (not re-randomized) password value so the container gets the right credential.
+  def update_linked_app_password_refs(service, project)
+    service.reload
+    return if service.linked_services.empty?
+
+    service.linked_services.each do |linked_app|
+      linked_app.environment_variables.each do |ev|
+        next unless ev.value.to_s.include?("[LINKED:")
+        linked_svc_name = service.name
+
+        ev.value.to_s.scan(/\[LINKED:([A-Za-z][A-Za-z0-9_-]*):([A-Za-z_][A-Za-z0-9_]*)\]/) do |svc_name, var_name|
+          next unless svc_name == linked_svc_name
+
+          password_value = service.environment_variables.find_by(key: var_name)&.value
+          next if password_value.blank?
+
+          resolved = ManifestParser.resolve_runtime(ev.value, project, linked_app, linked_app.linked_services)
+          next if resolved == ev.value || resolved.include?("[")
+
+          engine = DokkuEngine.new(project.server)
+          engine.config_set(linked_app.dokku_app_name, ev.key, resolved)
+          ev.update!(value: resolved)
+          Rails.logger.info "Updated #{ev.key} on #{linked_app.dokku_app_name} via linked ref to #{linked_svc_name}.#{var_name}"
+        end
+      end
+    end
+  rescue => e
+    Rails.logger.warn "Failed to update linked app password refs for #{service.dokku_app_name}: #{e.message}"
   end
 end
