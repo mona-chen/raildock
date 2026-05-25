@@ -13,9 +13,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     EDGEDB_SERVER_ADMIN_UI = "enabled"
-    EDGEDB_SERVER_BACKEND_DSN = "postgres://user:CHANGE_ME@postgresql:5432/edgedb"
+    EDGEDB_SERVER_BACKEND_DSN = "postgres:${{ secret() }}@postgresql:5432/edgedb"
     EDGEDB_SERVER_SECURITY = "strict"
-    EDGEDB_SERVER_PASSWORD = "CHANGE_ME"
+    EDGEDB_SERVER_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "edgedb"
     [[services.storage]]
       host = "edgedb-data"
@@ -33,7 +33,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "edgedb"
     [[services.storage]]
       host = "edgedb-postgresql-data"

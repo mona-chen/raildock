@@ -36,7 +36,7 @@ source = { type = "docker"  }
     SMTP_ENABLE_STARTTLS_AUTO = "CHATWOOT_SMTP_ENABLE_STARTTLS_AUTO_VALUE"
     SMTP_PORT = "3000"
     SMTP_USERNAME = "CHATWOOT_SMTP_USERNAME_VALUE"
-    SMTP_PASSWORD = "CHANGE_ME"
+    SMTP_PASSWORD = "${{ secret() }}"
     ACTIVE_STORAGE_SERVICE = "local"
     [[services.storage]]
       host = "rails-data"
@@ -79,7 +79,7 @@ source = { type = "docker"  }
     SMTP_ENABLE_STARTTLS_AUTO = "CHATWOOT_SMTP_ENABLE_STARTTLS_AUTO_VALUE"
     SMTP_PORT = "3000"
     SMTP_USERNAME = "CHATWOOT_SMTP_USERNAME_VALUE"
-    SMTP_PASSWORD = "CHANGE_ME"
+    SMTP_PASSWORD = "${{ secret() }}"
     ACTIVE_STORAGE_SERVICE = "local"
     [[services.storage]]
       host = "rails-data"

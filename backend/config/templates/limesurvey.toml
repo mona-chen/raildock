@@ -13,17 +13,17 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     LIMESURVEY_DB_HOST = "mariadb"
-    LIMESURVEY_DB_PASSWORD = "CHANGE_ME"
+    LIMESURVEY_DB_PASSWORD = "${{ secret() }}"
     LIMESURVEY_DB_USER = "user"
     LIMESURVEY_DB_NAME = "limesurvey-db"
     LIMESURVEY_ADMIN_USER = "admin"
-    LIMESURVEY_ADMIN_PASSWORD = "CHANGE_ME"
+    LIMESURVEY_ADMIN_PASSWORD = "${{ secret() }}"
     LIMESURVEY_ADMIN_NAME = "Admin"
     LIMESURVEY_ADMIN_EMAIL = "admin@example.com"
     LIMESURVEY_FROM_EMAIL = "admin@example.com"
     LIMESURVEY_SMTP_HOST = "https://example.com"
     LIMESURVEY_SMTP_USER = "LIMESURVEY_SMTP_USER_VALUE"
-    LIMESURVEY_SMTP_PASSWORD = "CHANGE_ME"
+    LIMESURVEY_SMTP_PASSWORD = "${{ secret() }}"
     LIMESURVEY_SMTP_SSL = "LIMESURVEY_SMTP_SSL_VALUE"
     LIMESURVEY_PHP_SESSION_SAVE_HANDLER = "redis"
     LIMESURVEY_PHP_SESSION_SAVE_PATH = "tcp://redis:6379"
@@ -53,9 +53,9 @@ docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "limesurvey-db"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "limesurvey_mariadb_data"
       container = "/var/lib/mysql"

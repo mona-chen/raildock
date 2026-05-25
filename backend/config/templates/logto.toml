@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     TRUST_PROXY_HEADER = "1"
-    DB_URL = "postgres://user:CHANGE_ME@postgres:5432/logto"
+    DB_URL = "postgres:${{ secret() }}@postgres:5432/logto"
     ENDPOINT = "$LOGTO_ENDPOINT"
     ADMIN_ENDPOINT = "$LOGTO_ADMIN_ENDPOINT"
   [services.checks]
@@ -29,7 +29,7 @@ docker_image = "postgres:14-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "logto"
     [[services.storage]]
       host = "logto-postgres-data"

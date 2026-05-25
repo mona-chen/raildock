@@ -15,7 +15,7 @@ source = { type = "docker"  }
     DB_ENGINE = "mysqli"
     DB_HOST = "mysql"
     DB_USER = "user"
-    DB_PASSWORD = "CHANGE_ME"
+    DB_PASSWORD = "${{ secret() }}"
     DB_NAME = "vvveb"
     [[services.storage]]
       host = "vvveb-data"
@@ -32,10 +32,10 @@ subtype = "mysql"
 docker_image = "mysql:8.4.2"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "vvveb"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "vvveb-mysql-data"
       container = "/var/lib/mysql"

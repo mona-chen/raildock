@@ -25,10 +25,10 @@ source = { type = "docker"  }
     SPARKY_FITNESS_DB_USER = "user"
     SPARKY_FITNESS_DB_HOST = "sparkyfitness-db"
     SPARKY_FITNESS_DB_NAME = "sparkyfitness"
-    SPARKY_FITNESS_DB_PASSWORD = "CHANGE_ME"
+    SPARKY_FITNESS_DB_PASSWORD = "${{ secret() }}"
     SPARKY_FITNESS_DB_PORT = "5432"
-    SPARKY_FITNESS_API_ENCRYPTION_KEY = "CHANGE_ME"
-    JWT_SECRET = "CHANGE_ME"
+    SPARKY_FITNESS_API_ENCRYPTION_KEY = "${{ secret() }}"
+    JWT_SECRET = "${{ secret() }}"
     SPARKY_FITNESS_FRONTEND_URL = "https://example.com"
     SPARKY_FITNESS_DISABLE_SIGNUP = "false"
     SPARKY_FITNESS_ADMIN_EMAIL = "admin@example.com"
@@ -54,7 +54,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "sparkyfitness"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_PORT = "5432"
     [[services.storage]]
       host = "sparkyfitness-db-postgresql"

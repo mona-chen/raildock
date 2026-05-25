@@ -15,8 +15,8 @@ source = { type = "docker"  }
     DATABASE_URL = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@cap-db:3306/planetscale"
     WEB_URL = "https://example.com"
     NEXTAUTH_URL = "https://example.com"
-    DATABASE_ENCRYPTION_KEY = "CHANGE_ME"
-    NEXTAUTH_SECRET = "CHANGE_ME"
+    DATABASE_ENCRYPTION_KEY = "${{ secret() }}"
+    NEXTAUTH_SECRET = "${{ secret() }}"
     CAP_AWS_ACCESS_KEY = "${CAP_AWS_ACCESS_KEY:?}"
     CAP_AWS_SECRET_KEY = "${CAP_AWS_SECRET_KEY:?}"
     CAP_AWS_BUCKET = "${CAP_AWS_BUCKET:?}"
@@ -36,9 +36,9 @@ start_command = "--max_connections=1000 --default-authentication-plugin=mysql_na
 source = { type = "docker"  }
   [services.env]
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "planetscale"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_ALLOW_EMPTY_PASSWORD = "yes"
     [[services.storage]]
       host = "cap_db"

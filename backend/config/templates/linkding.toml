@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     LD_SUPERUSER_NAME = "user"
-    LD_SUPERUSER_PASSWORD = "CHANGE_ME"
+    LD_SUPERUSER_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "linkding_data"
       container = "/etc/linkding/data"

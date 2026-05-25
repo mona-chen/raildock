@@ -14,8 +14,8 @@ source = { type = "docker"  }
   [services.env]
     SOKETI_DEBUG = "0"
     SOKETI_DEFAULT_APP_ID = "user"
-    SOKETI_DEFAULT_APP_KEY = "CHANGE_ME"
-    SOKETI_DEFAULT_APP_SECRET = "CHANGE_ME"
+    SOKETI_DEFAULT_APP_KEY = "${{ secret() }}"
+    SOKETI_DEFAULT_APP_SECRET = "${{ secret() }}"
     SOKETI_PUSHER_SCHEME = "https"
     SOKETI_DEFAULT_APP_ENABLE_CLIENT_MESSAGES = "DEFAULT_APP_ENABLE_CLIENT_MESSAGES_VALUE"
   [services.checks]

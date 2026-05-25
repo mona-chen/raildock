@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PBW_ENCRYPTION_KEY = "CHANGE_ME"
+    PBW_ENCRYPTION_KEY = "${{ secret() }}"
     PBW_POSTGRES_CONN_STRING = "postgresql://user:CHANGE_ME@postgres:5432/pgbackweb-db?sslmode=disable"
     TZ = "UTC"
     [[services.storage]]
@@ -27,7 +27,7 @@ docker_image = "postgres:17"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "pgbackweb-db"
     [[services.storage]]
       host = "pgbackweb_postgres_data"

@@ -16,7 +16,7 @@ source = { type = "docker"  }
     HTTP_ALLOWED = "true"
     ALLOW_UNAUTHENTICATED = "false"
     AUTO_DELETE_EVERY_N_HOURS = "24"
-    JWT_SECRET = "CHANGE_ME"
+    JWT_SECRET = "${{ secret() }}"
     [[services.storage]]
       host = "convertx_data"
       container = "/app/data"

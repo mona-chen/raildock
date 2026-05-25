@@ -10,7 +10,7 @@ subtype = "postgres"
 docker_image = "postgres:16"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "windmill-db"
     [[services.storage]]
@@ -30,7 +30,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
+    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "server"
     BASE_URL = "https://example.com"
     [[services.storage]]
@@ -50,7 +50,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
+    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -73,7 +73,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
+    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -96,7 +96,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
+    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -119,7 +119,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@db/windmill-db"
+    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "native"
     NUM_WORKERS = "8"

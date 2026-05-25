@@ -13,8 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SECRET_KEY_BASE = "BASE64_GENERATED"
-    VAPID_PUBLIC_KEY = "CHANGE_ME"
-    VAPID_PRIVATE_KEY = "CHANGE_ME"
+    VAPID_PUBLIC_KEY = "${{ secret() }}"
+    VAPID_PRIVATE_KEY = "${{ secret() }}"
     DISABLE_SSL = "true"
     SSL_DOMAIN = "false"
     SKIP_TELEMETRY = "true"

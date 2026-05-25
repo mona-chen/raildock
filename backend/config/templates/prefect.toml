@@ -15,7 +15,7 @@ source = { type = "docker"  }
   [services.env]
     PREFECT_API_URL = "https://example.com/api"
     PREFECT_API_DATABASE_CONNECTION_URL = "postgresql+asyncpg://user:CHANGE_ME@postgresql:5432/prefect"
-    PREFECT_API_KEY = "CHANGE_ME"
+    PREFECT_API_KEY = "${{ secret() }}"
     PREFECT_EXPERIMENTAL_WARN = "false"
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = "false"
     PREFECT_RUNNER_SERVER_ENABLE = "false"
@@ -53,7 +53,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PREFECT_API_URL = "http://prefect:4200/api"
-    PREFECT_API_KEY = "CHANGE_ME"
+    PREFECT_API_KEY = "${{ secret() }}"
     DEFAULT_POOL_NAME = "default"
     DEFAULT_POOL_LIMIT = "1"
     DEFAULT_WORKER_NAME = "worker1"

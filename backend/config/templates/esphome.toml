@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     USERNAME = "user"
-    PASSWORD = "CHANGE_ME"
+    PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "esp_config"
       container = "/config"

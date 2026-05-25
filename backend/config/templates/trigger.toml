@@ -16,11 +16,11 @@ source = { type = "docker"  }
     APP_ORIGIN = "https://example.com"
     LOGIN_ORIGIN = "https://example.com"
     API_ORIGIN = "https://example.com"
-    SESSION_SECRET = "CHANGE_ME"
-    MAGIC_LINK_SECRET = "CHANGE_ME"
-    ENCRYPTION_KEY = "CHANGE_ME"
-    MANAGED_WORKER_SECRET = "CHANGE_ME"
-    TRIGGER_WORKER_TOKEN = "CHANGE_ME"
+    SESSION_SECRET = "${{ secret() }}"
+    MAGIC_LINK_SECRET = "${{ secret() }}"
+    ENCRYPTION_KEY = "${{ secret() }}"
+    MANAGED_WORKER_SECRET = "${{ secret() }}"
+    TRIGGER_WORKER_TOKEN = "${{ secret() }}"
     NODE_ENV = "production"
     APP_LOG_LEVEL = "info"
     DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/trigger-db?schema=public&sslmode=disable"
@@ -34,8 +34,8 @@ source = { type = "docker"  }
     DEPLOY_REGISTRY_NAMESPACE = "trigger"
     V4_DEPLOY_REGISTRY_NAMESPACE = "trigger"
     OBJECT_STORE_BASE_URL = "https://example.com"
-    OBJECT_STORE_ACCESS_KEY_ID = "CHANGE_ME"
-    OBJECT_STORE_SECRET_ACCESS_KEY = "CHANGE_ME"
+    OBJECT_STORE_ACCESS_KEY_ID = "${{ secret() }}"
+    OBJECT_STORE_SECRET_ACCESS_KEY = "${{ secret() }}"
     CLICKHOUSE_URL = "http://user:CHANGE_ME@clickhouse:8123?secure=false"
     CLICKHOUSE_LOG_LEVEL = "info"
     RUN_REPLICATION_ENABLED = "1"
@@ -47,11 +47,11 @@ source = { type = "docker"  }
     DEFAULT_ORG_EXECUTION_CONCURRENCY_LIMIT = "300"
     DEFAULT_ENV_EXECUTION_CONCURRENCY_LIMIT = "100"
     EMAIL_TRANSPORT = "smtp"
-    RESEND_API_KEY = "CHANGE_ME"
+    RESEND_API_KEY = "${{ secret() }}"
     SMTP_HOST = "https://example.com"
     SMTP_PORT = "3000"
     SMTP_USER = "SMTP_USER_VALUE"
-    SMTP_PASSWORD = "CHANGE_ME"
+    SMTP_PASSWORD = "${{ secret() }}"
     SMTP_SECURE = "SMTP_SECURE_VALUE"
     FROM_EMAIL = "admin@example.com"
     REPLY_TO_EMAIL = "admin@example.com"
@@ -81,7 +81,7 @@ source = { type = "docker"  }
     TRIGGER_API_URL = "http://trigger:3000"
     OTEL_EXPORTER_OTLP_ENDPOINT = "http://trigger:3000/otel"
     TRIGGER_WORKER_TOKEN = "file:///home/node/shared/worker_token"
-    MANAGED_WORKER_SECRET = "CHANGE_ME"
+    MANAGED_WORKER_SECRET = "${{ secret() }}"
     TRIGGER_WORKLOAD_API_DOMAIN = "TRIGGER_WORKLOAD_API_DOMAIN_VALUE"
     TRIGGER_WORKLOAD_API_PORT_EXTERNAL = "8020"
     DOCKER_HOST = "tcp://docker-proxy:2375"
@@ -89,7 +89,7 @@ source = { type = "docker"  }
     DOCKER_AUTOREMOVE_EXITED_CONTAINERS = "1"
     DOCKER_REGISTRY_URL = "https://ghcr.io"
     DOCKER_REGISTRY_USERNAME = "DEPLOY_REGISTRY_USERNAME_VALUE"
-    DOCKER_REGISTRY_PASSWORD = "CHANGE_ME"
+    DOCKER_REGISTRY_PASSWORD = "${{ secret() }}"
     ENFORCE_MACHINE_PRESETS = "1"
     TRIGGER_DEQUEUE_INTERVAL_MS = "1000"
     DEBUG = "0"
@@ -132,7 +132,7 @@ start_command = "-c wal_level=logical"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "trigger-db"
     [[services.storage]]
       host = "postgresql-data"
@@ -166,7 +166,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/trigger-db?sslmode=disable"
-    ELECTRIC_SECRET = "CHANGE_ME"
+    ELECTRIC_SECRET = "${{ secret() }}"
     ELECTRIC_USAGE_REPORTING = "false"
   [services.checks]
     enabled = true
@@ -183,7 +183,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     CLICKHOUSE_USER = "user"
-    CLICKHOUSE_PASSWORD = "CHANGE_ME"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
     CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT = "1"
     [[services.storage]]
       host = "clickhouse-data"

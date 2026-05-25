@@ -11,7 +11,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "peppermint-db"
     [[services.storage]]
       host = "peppermint-postgresql-data"
@@ -31,10 +31,10 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DB_USERNAME = "user"
-    DB_PASSWORD = "CHANGE_ME"
+    DB_PASSWORD = "${{ secret() }}"
     DB_HOST = "postgres"
     DB_NAME = "peppermint-db"
-    SECRET = "CHANGE_ME"
+    SECRET = "${{ secret() }}"
     API_URL = "https://example.com"
   [services.checks]
     enabled = true

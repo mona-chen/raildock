@@ -13,9 +13,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     FOUNDRY_USERNAME = "FOUNDRY_USERNAME_VALUE"
-    FOUNDRY_PASSWORD = "CHANGE_ME"
+    FOUNDRY_PASSWORD = "${{ secret() }}"
     FOUNDRY_RELEASE_URL = "https://example.com"
-    FOUNDRY_LICENSE_KEY = "CHANGE_ME"
+    FOUNDRY_LICENSE_KEY = "${{ secret() }}"
     FOUNDRY_ADMIN_KEY = "atropos"
     FOUNDRY_HOSTNAME = "https://example.com"
     FOUNDRY_ROUTE_PREFIX = "FOUNDRY_ROUTE_PREFIX_VALUE"

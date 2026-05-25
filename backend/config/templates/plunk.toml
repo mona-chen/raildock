@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     REDIS_URL = "redis://redis:6379"
     DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql/plunk-db?schema=public"
-    JWT_SECRET = "CHANGE_ME"
+    JWT_SECRET = "${{ secret() }}"
     AWS_REGION = "${AWS_REGION:?}"
     AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID:?}"
     AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY:?}"
@@ -37,7 +37,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "plunk-db"
     [[services.storage]]
       host = "plunk-postgresql-data"

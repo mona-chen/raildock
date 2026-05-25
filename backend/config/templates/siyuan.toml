@@ -15,7 +15,7 @@ source = { type = "docker"  }
     TZ = "UTC"
     PUID = "1000"
     PGID = "1000"
-    SIYUAN_ACCESS_AUTH_CODE = "CHANGE_ME"
+    SIYUAN_ACCESS_AUTH_CODE = "${{ secret() }}"
     [[services.storage]]
       host = "siyuan_workspace"
       container = "/siyuan/workspace"

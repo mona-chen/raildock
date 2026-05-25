@@ -10,7 +10,7 @@ subtype = "postgres"
 docker_image = "postgres:15"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "azimutt"
     [[services.storage]]
@@ -88,8 +88,8 @@ source = { type = "docker"  }
     PUBLIC_SITE = "false"
     S3_BUCKET = "S3_BUCKET_VALUE"
     S3_HOST = "https://example.com"
-    S3_KEY_ID = "CHANGE_ME"
-    S3_KEY_SECRET = "CHANGE_ME"
+    S3_KEY_ID = "${{ secret() }}"
+    S3_KEY_SECRET = "${{ secret() }}"
     EMAIL_ADAPTER = "smtp"
     SMTP_RELAY = "$SERVICE_URL_SMTP"
     SMTP_USERNAME = "$SERVICE_EMAIL_SMTP"

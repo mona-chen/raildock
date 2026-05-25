@@ -16,7 +16,7 @@ source = { type = "docker"  }
     DB_HOST = "mysql"
     DB_NAME = "easyappointments"
     DB_USERNAME = "root"
-    DB_PASSWORD = "CHANGE_ME"
+    DB_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 2
@@ -29,7 +29,7 @@ subtype = "mysql"
 docker_image = "mysql:8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "easyappointments"
     [[services.storage]]
       host = "easyappointments-mysql-data"

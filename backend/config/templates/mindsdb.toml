@@ -16,10 +16,10 @@ source = { type = "docker"  }
     MINDSDB_DOCKER_ENV = "true"
     MINDSDB_STORAGE_DIR = "/mindsdb/var"
     FLASK_DEBUG = "1"
-    OPENAI_API_KEY = "CHANGE_ME"
+    OPENAI_API_KEY = "${{ secret() }}"
     LANGFUSE_HOST = "https://example.com"
-    LANGFUSE_PUBLIC_KEY = "CHANGE_ME"
-    LANGFUSE_SECRET_KEY = "CHANGE_ME"
+    LANGFUSE_PUBLIC_KEY = "${{ secret() }}"
+    LANGFUSE_SECRET_KEY = "${{ secret() }}"
     LANGFUSE_RELEASE = "local"
     LANGFUSE_DEBUG = "False"
     LANGFUSE_TIMEOUT = "10"
@@ -41,7 +41,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "mindsdb-db"
     [[services.storage]]
       host = "mindsdb-postgresql-data"

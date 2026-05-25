@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     GF_SERVER_ROOT_URL = "https://example.com"
     GF_SERVER_DOMAIN = "app.example.com"
-    GF_SECURITY_ADMIN_PASSWORD = "CHANGE_ME"
+    GF_SECURITY_ADMIN_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "grafana-data"
       container = "/var/lib/grafana"

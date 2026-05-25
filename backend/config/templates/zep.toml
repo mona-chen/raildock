@@ -11,7 +11,7 @@ docker_image = "ghcr.io/getzep/postgres:postgres-15"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "pg_data"
       container = "/var/lib/postgresql/data"
@@ -29,8 +29,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ZEP_OPENAI_API_KEY = "CHANGE_ME"
-    ZEP_AUTH_SECRET = "CHANGE_ME"
+    ZEP_OPENAI_API_KEY = "${{ secret() }}"
+    ZEP_AUTH_SECRET = "${{ secret() }}"
     ZEP_SERVER_WEB_ENABLED = "false"
   [services.checks]
     enabled = true
@@ -46,7 +46,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ZEP_STORE_POSTGRES_DSN = "postgres://user:CHANGE_ME@postgres:5432/postgres?sslmode=disable"
+    ZEP_STORE_POSTGRES_DSN = "postgres:${{ secret() }}@postgres:5432/postgres?sslmode=disable"
     ZEP_NLP_SERVER_URL = "http://nlp:5557"
     ZEP_EXTRACTORS_DOCUMENTS_EMBEDDINGS_SERVICE = "openai"
     ZEP_EXTRACTORS_DOCUMENTS_EMBEDDINGS_DIMENSIONS = "1536"
@@ -54,8 +54,8 @@ source = { type = "docker"  }
     ZEP_EXTRACTORS_MESSAGES_EMBEDDINGS_DIMENSIONS = "1536"
     ZEP_EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_SERVICE = "openai"
     ZEP_EXTRACTORS_MESSAGES_SUMMARIZER_EMBEDDINGS_DIMENSIONS = "1536"
-    ZEP_OPENAI_API_KEY = "CHANGE_ME"
-    ZEP_AUTH_SECRET = "CHANGE_ME"
+    ZEP_OPENAI_API_KEY = "${{ secret() }}"
+    ZEP_AUTH_SECRET = "${{ secret() }}"
     ZEP_SERVER_WEB_ENABLED = "false"
   [services.checks]
     enabled = true

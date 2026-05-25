@@ -14,10 +14,10 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PDS_HOSTNAME = "app.example.com"
-    PDS_JWT_SECRET = "CHANGE_ME"
-    PDS_ADMIN_PASSWORD = "CHANGE_ME"
+    PDS_JWT_SECRET = "${{ secret() }}"
+    PDS_ADMIN_PASSWORD = "${{ secret() }}"
     PDS_ADMIN_EMAIL = "admin@example.com"
-    PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX = "CHANGE_ME"
+    PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX = "${{ secret() }}"
     PDS_DATA_DIRECTORY = "/pds"
     PDS_BLOBSTORE_DISK_LOCATION = "/pds/blocks"
     PDS_BLOB_UPLOAD_LIMIT = "104857600"

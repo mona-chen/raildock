@@ -13,7 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ACCESS_TOKEN = "CHANGE_ME"
+    ACCESS_TOKEN = "${{ secret() }}"
     [[services.storage]]
       host = "${COOLIFY_VOLUME_APP}"
       container = "/data"

@@ -13,8 +13,8 @@ source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "kimai"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "kimai-mysql-data"
       container = "/var/lib/mysql"
@@ -32,12 +32,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_SECRET = "CHANGE_ME"
+    APP_SECRET = "${{ secret() }}"
     MAILER_FROM = "kimai@example.com"
     MAILER_URL = "null://null"
     ADMINMAIL = "admin@kimai.local"
-    ADMINPASS = "CHANGE_ME"
-    DATABASE_URL = "mysql://user:CHANGE_ME@mysql/MYSQL_DATABASE_VALUE?charset=utf8mb4&serverVersion=8.3.0"
+    ADMINPASS = "${{ secret() }}"
+    DATABASE_URL = "mysql:${{ secret() }}@mysql/MYSQL_DATABASE_VALUE?charset=utf8mb4&serverVersion=8.3.0"
     TRUSTED_HOSTS = "https://example.com|localhost|127.0.0.1"
     [[services.storage]]
       host = "kimai-data"

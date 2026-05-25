@@ -39,7 +39,7 @@ docker_image = "postgres:15"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "hoppscotch"
     [[services.storage]]
       host = "postgres_data"
@@ -60,9 +60,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "hoppscotch"
-    DATABASE_URL = "postgres://user:CHANGE_ME@hoppscotch-db:5432/hoppscotch"
+    DATABASE_URL = "postgres:${{ secret() }}@hoppscotch-db:5432/hoppscotch"
 
 [[links]]
 from = "backend"

@@ -18,9 +18,9 @@ source = { type = "docker"  }
     OWNCLOUD_DB_HOST = "mariadb"
     OWNCLOUD_DB_NAME = "owncloud"
     OWNCLOUD_DB_USERNAME = "user"
-    OWNCLOUD_DB_PASSWORD = "CHANGE_ME"
+    OWNCLOUD_DB_PASSWORD = "${{ secret() }}"
     OWNCLOUD_ADMIN_USERNAME = "user"
-    OWNCLOUD_ADMIN_PASSWORD = "CHANGE_ME"
+    OWNCLOUD_ADMIN_PASSWORD = "${{ secret() }}"
     OWNCLOUD_MYSQL_UTF8MB4 = "true"
     OWNCLOUD_REDIS_ENABLED = "true"
     OWNCLOUD_REDIS_HOST = "redis"
@@ -40,9 +40,9 @@ docker_image = "mariadb:latest"
 start_command = "--character-set-server=utf8mb4 --collation-server=utf8mb4_bin --max-allowed-packet=128M --innodb-log-file-size=64M"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "owncloud"
     TZ = "auto"
     [[services.storage]]

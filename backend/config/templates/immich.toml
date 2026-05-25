@@ -59,7 +59,7 @@ subtype = "postgres"
 docker_image = "ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "immich"
     POSTGRES_INITDB_ARGS = "--data-checksums"

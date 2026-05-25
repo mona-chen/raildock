@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     MQTT_USERNAME = "user"
-    MQTT_PASSWORD = "CHANGE_ME"
+    MQTT_PASSWORD = "${{ secret() }}"
     REQUIRE_CERTIFICATE = "false"
     ALLOW_ANONYMOUS = "true"
   [services.proxy]

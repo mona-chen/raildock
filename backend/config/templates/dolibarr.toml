@@ -17,10 +17,10 @@ source = { type = "docker"  }
     DOLI_DB_HOST = "mariadb"
     DOLI_DB_NAME = "dolibarr-db"
     DOLI_DB_USER = "user"
-    DOLI_DB_PASSWORD = "CHANGE_ME"
+    DOLI_DB_PASSWORD = "${{ secret() }}"
     DOLI_URL_ROOT = "https://example.com"
     DOLI_ADMIN_LOGIN = "user"
-    DOLI_ADMIN_PASSWORD = "CHANGE_ME"
+    DOLI_ADMIN_PASSWORD = "${{ secret() }}"
     DOLI_CRON = "0"
     DOLI_INIT_DEMO = "0"
     DOLI_COMPANY_NAME = "MyBigCompany"
@@ -44,8 +44,8 @@ source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "dolibarr-db"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "dolibarr_mariadb_data"
       container = "/var/lib/mysql"

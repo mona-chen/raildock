@@ -15,7 +15,7 @@ source = { type = "docker"  }
     APP_DOMAIN = "$SERVICE_FQDN_SURE"
     SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sure"
     REDIS_URL = "redis://valkey:6379"
     DB_HOST = "postgresql"
@@ -45,7 +45,7 @@ source = { type = "docker"  }
     APP_DOMAIN = "$SERVICE_FQDN_SURE"
     SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sure"
     REDIS_URL = "redis://valkey:6379"
     DB_HOST = "postgresql"
@@ -70,7 +70,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sure"
     [[services.storage]]
       host = "sure-postgresql-data"

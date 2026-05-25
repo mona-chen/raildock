@@ -36,7 +36,7 @@ docker_image = "postgres:18-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "cloudreve-db"
     [[services.storage]]
       host = "postgres-data"

@@ -15,11 +15,11 @@ source = { type = "docker"  }
     DOMAIN = "https://example.com"
     DATABASE_URL = "data/db.sqlite3"
     SIGNUPS_ALLOWED = "true"
-    ADMIN_TOKEN = "CHANGE_ME"
+    ADMIN_TOKEN = "${{ secret() }}"
     IP_HEADER = "X-Forwarded-For"
     PUSH_ENABLED = "false"
     PUSH_INSTALLATION_ID = "PUSH_SERVICE_ID_VALUE"
-    PUSH_INSTALLATION_KEY = "CHANGE_ME"
+    PUSH_INSTALLATION_KEY = "${{ secret() }}"
     [[services.storage]]
       host = "vaultwarden-data"
       container = "/data"

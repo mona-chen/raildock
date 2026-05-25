@@ -10,7 +10,7 @@ subtype = "elasticsearch"
 docker_image = "docker.elastic.co/elasticsearch/elasticsearch-wolfi:8.19.0"
 source = { type = "docker"  }
   [services.env]
-    ELASTIC_PASSWORD = "CHANGE_ME"
+    ELASTIC_PASSWORD = "${{ secret() }}"
     ES_JAVA_OPTS = "-Xms512m -Xmx512m"
     discovery.type = "single-node"
     bootstrap.memory_lock = "true"

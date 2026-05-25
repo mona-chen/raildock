@@ -13,11 +13,11 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SECRET_KEY = "BASE64_GENERATED"
-    MAPBOX_API_KEY = "CHANGE_ME"
+    MAPBOX_API_KEY = "${{ secret() }}"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "superset-db"
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -31,7 +31,7 @@ docker_image = "postgres:18"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "superset-db"
     [[services.storage]]
       host = "superset_postgres_data"

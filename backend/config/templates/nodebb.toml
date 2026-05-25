@@ -34,7 +34,7 @@ docker_image = "postgres:17.2-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "nodebb"
     [[services.storage]]
       host = "nodebb_postgres_data"

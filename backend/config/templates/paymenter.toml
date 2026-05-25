@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     SERVICE_URL_PAYMENTER = "https://example.com"
     DB_DATABASE = "paymenter-db"
-    DB_PASSWORD = "CHANGE_ME"
+    DB_PASSWORD = "${{ secret() }}"
     DB_USERNAME = "user"
     APP_ENV = "production"
     CACHE_STORE = "redis"
@@ -22,7 +22,7 @@ source = { type = "docker"  }
     QUEUE_CONNECTION = "redis"
     REDIS_HOST = "redis"
     REDIS_USERNAME = "default"
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     DB_CONNECTION = "mariadb"
     DB_HOST = "mariadb"
     DB_PORT = "3306"
@@ -54,10 +54,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11.8"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "paymenter-db"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "paymenter_mariadb_data"
       container = "/var/lib/mysql"

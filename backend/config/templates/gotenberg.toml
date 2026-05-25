@@ -14,7 +14,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     GOTENBERG_API_BASIC_AUTH_USERNAME = "user"
-    GOTENBERG_API_BASIC_AUTH_PASSWORD = "CHANGE_ME"
+    GOTENBERG_API_BASIC_AUTH_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5

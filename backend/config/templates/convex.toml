@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     INSTANCE_NAME = "self-hosted-convex"
-    INSTANCE_SECRET = "CHANGE_ME"
+    INSTANCE_SECRET = "${{ secret() }}"
     CONVEX_CLOUD_ORIGIN = "https://example.com"
     CONVEX_SITE_ORIGIN = "https://example.com"
     DISABLE_BEACON = "${DISABLE_BEACON:?false}"

@@ -14,7 +14,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     USERNAME = "user"
-    PASSWORD = "CHANGE_ME"
+    PASSWORD = "${{ secret() }}"
     REGISTRY_AUTH = "htpasswd"
     REGISTRY_AUTH_HTPASSWD_REALM = "Registry Realm"
     REGISTRY_AUTH_HTPASSWD_PATH = "/auth/registry.password"

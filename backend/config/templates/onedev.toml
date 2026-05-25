@@ -16,9 +16,9 @@ source = { type = "docker"  }
     hibernate_connection_driver_class = "org.postgresql.Driver"
     hibernate_connection_url = "jdbc:postgresql://postgres:5432/onedev"
     hibernate_connection_username = "user"
-    hibernate_connection_password = "CHANGE_ME"
+    hibernate_connection_password = "${{ secret() }}"
     initial_user = "user"
-    initial_password = "CHANGE_ME"
+    initial_password = "${{ secret() }}"
     initial_email = "mail@example.com"
     initial_server_url = "https://example.com"
     initial_ssh_root_url = "ssh://changeme:22"
@@ -41,7 +41,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "onedev"
     [[services.storage]]
       host = "onedev-postgresql-data"

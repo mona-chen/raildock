@@ -21,7 +21,7 @@ source = { type = "docker"  }
     AP_JWT_SECRET = "$SERVICE_PASSWORD_64_JWT"
     AP_POSTGRES_DATABASE = "activepieces"
     AP_POSTGRES_HOST = "postgres"
-    AP_POSTGRES_PASSWORD = "CHANGE_ME"
+    AP_POSTGRES_PASSWORD = "${{ secret() }}"
     AP_POSTGRES_PORT = "5432"
     AP_POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
     AP_REDIS_HOST = "redis"
@@ -45,7 +45,7 @@ docker_image = "postgres:18-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "activepieces"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_PORT = "5432"
     [[services.storage]]

@@ -16,7 +16,7 @@ source = { type = "docker"  }
     APP_FULL_BASE_URL = "https://example.com"
     DATASOURCES_DEFAULT_HOST = "mariadb"
     DATASOURCES_DEFAULT_USERNAME = "user"
-    DATASOURCES_DEFAULT_PASSWORD = "CHANGE_ME"
+    DATASOURCES_DEFAULT_PASSWORD = "${{ secret() }}"
     DATASOURCES_DEFAULT_DATABASE = "passbolt-db"
     [[services.storage]]
       host = "gpg_volume"
@@ -36,10 +36,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
-    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
+    MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "passbolt-db"
     MARIADB_USER = "user"
-    MARIADB_PASSWORD = "CHANGE_ME"
+    MARIADB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "passbolt_mariadb_data"
       container = "/var/lib/mysql"

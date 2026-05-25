@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.env]
     RI_APP_HOST = "0.0.0.0"
     RI_APP_PORT = "5540"
-    RI_ENCRYPTION_KEY = "CHANGE_ME"
+    RI_ENCRYPTION_KEY = "${{ secret() }}"
     RI_LOG_LEVEL = "info"
     RI_FILES_LOGGER = "true"
     RI_STDOUT_LOGGER = "true"

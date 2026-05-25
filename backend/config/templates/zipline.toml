@@ -13,8 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     CORE_RETURN_HTTPS = "false"
-    CORE_SECRET = "CHANGE_ME"
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgres/zipline-db"
+    CORE_SECRET = "${{ secret() }}"
+    DATABASE_URL = "postgres:${{ secret() }}@postgres/zipline-db"
     CORE_LOGGER = "true"
     [[services.storage]]
       host = "zipline-uploads"
@@ -35,7 +35,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "zipline-db"
     [[services.storage]]
       host = "zipline-postgres-data"

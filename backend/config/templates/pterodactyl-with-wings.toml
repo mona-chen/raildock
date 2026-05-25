@@ -49,7 +49,7 @@ source = { type = "docker"  }
     ADMIN_USERNAME = "user"
     ADMIN_FIRSTNAME = "Admin"
     ADMIN_LASTNAME = "User"
-    ADMIN_PASSWORD = "CHANGE_ME"
+    ADMIN_PASSWORD = "${{ secret() }}"
     PTERODACTYL_HTTPS = "false"
     APP_ENV = "production"
     APP_ENVIRONMENT_ONLY = "false"

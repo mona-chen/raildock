@@ -18,7 +18,7 @@ source = { type = "docker"  }
     MONGO_URI = "mongodb://mongo:27017/heyform"
     REDIS_HOST = "keydb"
     REDIS_PORT = "6379"
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "heyform-assets"
       container = "/app/static/upload"
@@ -51,7 +51,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    KEYDB_PASSWORD = "CHANGE_ME"
+    KEYDB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "heyform-keydb-data"
       container = "/data"

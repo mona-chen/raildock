@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    QDRANT__SERVICE__API_KEY = "CHANGE_ME"
+    QDRANT__SERVICE__API_KEY = "${{ secret() }}"
     [[services.storage]]
       host = "qdrant-storage"
       container = "/qdrant/storage"

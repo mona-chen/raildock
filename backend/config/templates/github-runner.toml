@@ -15,7 +15,7 @@ source = { type = "docker"  }
     REPO_URL = "https://example.com"
     RUNNER_NAME_PREFIX = "coolify-runner"
     RUNNER_NAME_SUFFIX = "false"
-    ACCESS_TOKEN = "CHANGE_ME"
+    ACCESS_TOKEN = "${{ secret() }}"
     RUNNER_WORKDIR = "/runner/work"
     RUNNER_SCOPE = "repo"
     LABELS = "default"

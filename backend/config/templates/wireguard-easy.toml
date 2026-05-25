@@ -15,7 +15,7 @@ source = { type = "docker"  }
     WG_HOST = "app.example.com"
     LANG = "en"
     WG_PORT = "51820"
-    _PASSWORD = "CHANGE_ME"
+    _PASSWORD = "${{ secret() }}"
   [services.proxy]
     enabled = true
     type = "traefik"

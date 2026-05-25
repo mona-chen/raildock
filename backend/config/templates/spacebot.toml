@@ -12,13 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ANTHROPIC_API_KEY = "CHANGE_ME"
-    OPENAI_API_KEY = "CHANGE_ME"
-    OPENROUTER_API_KEY = "CHANGE_ME"
-    DISCORD_BOT_TOKEN = "CHANGE_ME"
-    SLACK_BOT_TOKEN = "CHANGE_ME"
-    SLACK_APP_TOKEN = "CHANGE_ME"
-    BRAVE_SEARCH_API_KEY = "CHANGE_ME"
+    ANTHROPIC_API_KEY = "${{ secret() }}"
+    OPENAI_API_KEY = "${{ secret() }}"
+    OPENROUTER_API_KEY = "${{ secret() }}"
+    DISCORD_BOT_TOKEN = "${{ secret() }}"
+    SLACK_BOT_TOKEN = "${{ secret() }}"
+    SLACK_APP_TOKEN = "${{ secret() }}"
+    BRAVE_SEARCH_API_KEY = "${{ secret() }}"
     SPACEBOT_CHANNEL_MODEL = "SPACEBOT_CHANNEL_MODEL_VALUE"
     SPACEBOT_WORKER_MODEL = "SPACEBOT_WORKER_MODEL_VALUE"
     [[services.storage]]

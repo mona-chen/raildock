@@ -19,7 +19,7 @@ source = { type = "docker"  }
     HBOX_MAILER_HOST = "https://example.com"
     HBOX_MAILER_PORT = "587"
     HBOX_MAILER_USERNAME = "HBOX_MAILER_USERNAME_VALUE"
-    HBOX_MAILER_PASSWORD = "CHANGE_ME"
+    HBOX_MAILER_PASSWORD = "${{ secret() }}"
     HBOX_MAILER_FROM = "HBOX_MAILER_FROM_VALUE"
     [[services.storage]]
       host = "homebox-data"

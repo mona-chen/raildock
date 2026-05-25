@@ -16,7 +16,7 @@ source = { type = "docker"  }
     BASE_URL = "https://example.com"
     SEARXNG_URL = "https://example.com"
     SEARXNG_BIND_ADDRESS = "0.0.0.0"
-    SEARXNG_SECRET = "CHANGE_ME"
+    SEARXNG_SECRET = "${{ secret() }}"
     SEARXNG_REDIS_URL = "redis://redis:6379/0"
   [services.checks]
     enabled = true

@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     CONFIG_USE_ENVIRONMENT_VARIABLES = "true"
     DATABASE_USER = "user"
-    DATABASE_PASSWORD = "CHANGE_ME"
+    DATABASE_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -28,7 +28,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "traccar"
     [[services.storage]]
       host = "traccar-postgresql-data"

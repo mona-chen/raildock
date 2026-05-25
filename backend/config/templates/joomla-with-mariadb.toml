@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     JOOMLA_DB_HOST = "mariadb"
     JOOMLA_DB_USER = "user"
-    JOOMLA_DB_PASSWORD = "CHANGE_ME"
+    JOOMLA_DB_PASSWORD = "${{ secret() }}"
     JOOMLA_DB_NAME = "joomla-db"
     [[services.storage]]
       host = "joomla_data"
@@ -31,10 +31,10 @@ subtype = "mariadb"
 docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "joomla-db"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "joomla_mariadb_data"
       container = "/var/lib/mysql"

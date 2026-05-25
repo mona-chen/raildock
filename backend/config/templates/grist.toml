@@ -38,7 +38,7 @@ source = { type = "docker"  }
     TYPEORM_TYPE = "postgres"
     TYPEORM_DATABASE = "grist-db"
     TYPEORM_USERNAME = "user"
-    TYPEORM_PASSWORD = "CHANGE_ME"
+    TYPEORM_PASSWORD = "${{ secret() }}"
     TYPEORM_HOST = "postgres"
     TYPEORM_PORT = "5432"
     TYPEORM_LOGGING = "false"
@@ -64,7 +64,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "grist-db"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "grist_postgres_data"
       container = "/var/lib/postgresql/data"

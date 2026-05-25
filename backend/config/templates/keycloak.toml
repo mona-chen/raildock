@@ -15,7 +15,7 @@ source = { type = "docker"  }
   [services.env]
     TZ = "UTC"
     KC_BOOTSTRAP_ADMIN_USERNAME = "user"
-    KC_BOOTSTRAP_ADMIN_PASSWORD = "CHANGE_ME"
+    KC_BOOTSTRAP_ADMIN_PASSWORD = "${{ secret() }}"
     KC_HOSTNAME = "https://example.com"
     KC_HTTP_ENABLED = "true"
     KC_HEALTH_ENABLED = "true"

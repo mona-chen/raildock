@@ -32,8 +32,8 @@ source = { type = "docker"  }
     NODE_ENV = "production"
     TRUST_PROXY = "true"
     BASE_URL = "https://example.com"
-    CLICKHOUSE_PASSWORD = "CHANGE_ME"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     BETTER_AUTH_SECRET = "BASE64_GENERATED"
     DISABLE_SIGNUP = "false"
     DISABLE_TELEMETRY = "true"
@@ -58,7 +58,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "analytics"
     POSTGRES_USER = "frog"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres_data"
       container = "/var/lib/postgresql/data"
@@ -78,7 +78,7 @@ source = { type = "docker"  }
   [services.env]
     CLICKHOUSE_DB = "analytics"
     CLICKHOUSE_USER = "default"
-    CLICKHOUSE_PASSWORD = "CHANGE_ME"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "clickhouse_data"
       container = "/var/lib/clickhouse"

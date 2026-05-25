@@ -15,8 +15,8 @@ source = { type = "docker"  }
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/London"
-    SETTINGS_ENCRYPTION_KEY = "CHANGE_ME"
-    DUPLICATI__WEBSERVICE_PASSWORD = "CHANGE_ME"
+    SETTINGS_ENCRYPTION_KEY = "${{ secret() }}"
+    DUPLICATI__WEBSERVICE_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "duplicati-config"
       container = "/config"

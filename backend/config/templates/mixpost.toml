@@ -19,7 +19,7 @@ source = { type = "docker"  }
     APP_URL = "https://example.com"
     DB_DATABASE = "mixpost_db"
     DB_USERNAME = "user"
-    DB_PASSWORD = "CHANGE_ME"
+    DB_PASSWORD = "${{ secret() }}"
     SSL_EMAIL = "user@example.com"
     [[services.storage]]
       host = "mixpost-storage"
@@ -37,8 +37,8 @@ source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "mixpost_db"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mixpost-mysql"
       container = "/var/lib/mysql"

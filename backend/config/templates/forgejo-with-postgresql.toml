@@ -50,7 +50,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "POSTGRESQL_DATABASE_VALUE"
     [[services.storage]]
       host = "forgejo-postgresql-data"

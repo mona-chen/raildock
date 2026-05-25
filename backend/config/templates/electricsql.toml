@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DATABASE_URL = "${DATABASE_URL:?}"
-    ELECTRIC_SECRET = "CHANGE_ME"
+    ELECTRIC_SECRET = "${{ secret() }}"
     ELECTRIC_STORAGE_DIR = "/app/persistent"
     ELECTRIC_USAGE_REPORTING = "false"
     [[services.storage]]

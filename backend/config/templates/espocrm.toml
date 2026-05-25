@@ -13,12 +13,12 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     ESPOCRM_ADMIN_USERNAME = "admin"
-    ESPOCRM_ADMIN_PASSWORD = "CHANGE_ME"
+    ESPOCRM_ADMIN_PASSWORD = "${{ secret() }}"
     ESPOCRM_DATABASE_PLATFORM = "Mysql"
     ESPOCRM_DATABASE_HOST = "espocrm-db"
     ESPOCRM_DATABASE_NAME = "espocrm"
     ESPOCRM_DATABASE_USER = "user"
-    ESPOCRM_DATABASE_PASSWORD = "CHANGE_ME"
+    ESPOCRM_DATABASE_PASSWORD = "${{ secret() }}"
     ESPOCRM_SITE_URL = "https://example.com"
     [[services.storage]]
       host = "espocrm"
@@ -66,8 +66,8 @@ source = { type = "docker"  }
   [services.env]
     MARIADB_DATABASE = "espocrm"
     MARIADB_USER = "user"
-    MARIADB_PASSWORD = "CHANGE_ME"
-    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
+    MARIADB_PASSWORD = "${{ secret() }}"
+    MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "espocrm-db"
       container = "/var/lib/mysql"

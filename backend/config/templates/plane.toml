@@ -284,7 +284,7 @@ source = { type = "docker"  }
     RABBITMQ_HOST = "plane-mq"
     RABBITMQ_PORT = "5672"
     RABBITMQ_DEFAULT_USER = "user"
-    RABBITMQ_DEFAULT_PASS = "CHANGE_ME"
+    RABBITMQ_DEFAULT_PASS = "${{ secret() }}"
     RABBITMQ_DEFAULT_VHOST = "plane"
     RABBITMQ_VHOST = "plane"
     [[services.storage]]

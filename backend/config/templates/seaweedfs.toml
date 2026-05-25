@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     AWS_ACCESS_KEY_ID = "user"
-    AWS_SECRET_ACCESS_KEY = "CHANGE_ME"
+    AWS_SECRET_ACCESS_KEY = "${{ secret() }}"
     [[services.storage]]
       host = "seaweedfs-s3-data"
       container = "/data"
@@ -33,7 +33,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SEAWEED_USER_ADMIN = "user"
-    SEAWEED_PASSWORD_ADMIN = "CHANGE_ME"
+    SEAWEED_PASSWORD_ADMIN = "${{ secret() }}"
     [[services.storage]]
       host = "seaweedfs-admin-data"
       container = "/data"

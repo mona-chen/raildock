@@ -31,7 +31,7 @@ source = { type = "docker"  }
   [services.env]
     BACKEND_PORT = "8201"
     GIN_MODE = "release"
-    JWT_SECRET = "CHANGE_ME"
+    JWT_SECRET = "${{ secret() }}"
     COOKIE_DOMAIN = "https://example.com"
     FRONTEND_URL = "https://example.com"
     ALLOW_UNSECURE = "false"
@@ -39,12 +39,12 @@ source = { type = "docker"  }
     DATABASE_PORT = "3306"
     DATABASE_NAME = "alexandrie-db"
     DATABASE_USER = "user"
-    DATABASE_PASSWORD = "CHANGE_ME"
+    DATABASE_PASSWORD = "${{ secret() }}"
     MINIO_ENDPOINT = "rustfs:9000"
     MINIO_PUBLIC_URL = "https://example.com"
     MINIO_SECURE = "false"
     MINIO_ACCESSKEY = "user"
-    MINIO_SECRETKEY = "CHANGE_ME"
+    MINIO_SECRETKEY = "${{ secret() }}"
     MINIO_BUCKET = "alexandrie"
 
 [[services]]
@@ -54,9 +54,9 @@ subtype = "mysql"
 docker_image = "mysql:8.0"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "alexandrie-db"
     [[services.storage]]
       host = "mysql-data"
@@ -76,7 +76,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     RUSTFS_ACCESS_KEY = "user"
-    RUSTFS_SECRET_KEY = "CHANGE_ME"
+    RUSTFS_SECRET_KEY = "${{ secret() }}"
     RUSTFS_CONSOLE_ENABLE = "false"
     RUSTFS_LOG_LEVEL = "info"
     [[services.storage]]

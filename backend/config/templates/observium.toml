@@ -13,11 +13,11 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SERVICE_URL_OBSERVIUM = "https://example.com"
-    OBSERVIUM_ADMIN_PASS = "CHANGE_ME"
+    OBSERVIUM_ADMIN_PASS = "${{ secret() }}"
     OBSERVIUM_ADMIN_USER = "user"
     OBSERVIUM_DB_HOST = "mariadb"
     OBSERVIUM_DB_NAME = "observium-db"
-    OBSERVIUM_DB_PASS = "CHANGE_ME"
+    OBSERVIUM_DB_PASS = "${{ secret() }}"
     OBSERVIUM_DB_USER = "user"
     [[services.storage]]
       host = "observium_logs"
@@ -37,9 +37,9 @@ subtype = "mariadb"
 docker_image = "mariadb:lts"
 source = { type = "docker"  }
   [services.env]
-    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
+    MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_USER = "user"
-    MARIADB_PASSWORD = "CHANGE_ME"
+    MARIADB_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "observium-db"
     [[services.storage]]
       host = "observium_mariadb_data"

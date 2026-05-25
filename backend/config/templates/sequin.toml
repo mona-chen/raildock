@@ -17,10 +17,10 @@ source = { type = "docker"  }
     PG_DATABASE = "sequin-db"
     PG_PORT = "5432"
     PG_USERNAME = "user"
-    PG_PASSWORD = "CHANGE_ME"
+    PG_PASSWORD = "${{ secret() }}"
     PG_POOL_SIZE = "20"
-    SECRET_KEY_BASE = "CHANGE_ME"
-    VAULT_KEY = "CHANGE_ME"
+    SECRET_KEY_BASE = "${{ secret() }}"
+    VAULT_KEY = "${{ secret() }}"
     REDIS_URL = "redis://redis:6379"
     CONFIG_FILE_PATH = "/config/playground.yml"
     FEATURE_ACCOUNT_SELF_SIGNUP = "false"
@@ -41,7 +41,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "sequin-db"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres_data"
       container = "/var/lib/postgresql/data"

@@ -18,7 +18,7 @@ source = { type = "docker"  }
     DB_POSTGRESDB_HOST = "postgres"
     DB_POSTGRESDB_PORT = "5432"
     DB_POSTGRESDB_USER = "user"
-    DB_POSTGRESDB_PASSWORD = "CHANGE_ME"
+    DB_POSTGRESDB_PASSWORD = "${{ secret() }}"
     DATABASE_PROVIDER = "postgresql"
     DATABASE_URL = "postgresql://user:CHANGE_ME@postgres:5432/postgres"
     DATABASE_CONNECTION_URI = "postgresql://user:CHANGE_ME@postgres:5432/postgres"
@@ -121,7 +121,7 @@ source = { type = "docker"  }
     S3_REGION = "us-east-1"
     S3_ENDPOINT = "files.site.com"
     S3_USE_SSL = "true"
-    AUTHENTICATION_API_KEY = "CHANGE_ME"
+    AUTHENTICATION_API_KEY = "${{ secret() }}"
     AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES = "true"
     LANGUAGE = "en"
     [[services.storage]]
@@ -156,9 +156,9 @@ start_command = "postgres -c max_connections=1000"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "postgres"
-    AUTHENTICATION_API_KEY = "CHANGE_ME"
+    AUTHENTICATION_API_KEY = "${{ secret() }}"
     [[services.storage]]
       host = "postgres_data"
       container = "/var/lib/postgresql/data"

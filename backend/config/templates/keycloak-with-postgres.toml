@@ -15,10 +15,10 @@ source = { type = "docker"  }
   [services.env]
     TZ = "UTC"
     KC_BOOTSTRAP_ADMIN_USERNAME = "user"
-    KC_BOOTSTRAP_ADMIN_PASSWORD = "CHANGE_ME"
+    KC_BOOTSTRAP_ADMIN_PASSWORD = "${{ secret() }}"
     KC_DB = "postgres"
     KC_DB_USERNAME = "user"
-    KC_DB_PASSWORD = "CHANGE_ME"
+    KC_DB_PASSWORD = "${{ secret() }}"
     KC_DB_URL_PORT = "5432"
     KC_DB_URL = "jdbc:postgresql://postgres/keycloak"
     KC_HOSTNAME = "https://example.com"
@@ -41,7 +41,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "keycloak"
     [[services.storage]]
       host = "keycloak-postgresql-data"

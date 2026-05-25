@@ -16,7 +16,7 @@ source = { type = "docker"  }
     UPTIME_APP_CLIENT_HOST = "https://example.com"
     DB_CONNECTION_STRING = "mongodb://mongodb:27017/uptime_db"
     CLIENT_HOST = "https://example.com"
-    JWT_SECRET = "CHANGE_ME"
+    JWT_SECRET = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 30

@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PROXYSCOTCH_TOKEN = "CHANGE_ME"
+    PROXYSCOTCH_TOKEN = "${{ secret() }}"
     PROXYSCOTCH_ALLOWED_ORIGINS = "*"
     PROXYSCOTCH_BANNED_OUTPUTS = "BANNED_OUTPUTS_VALUE"
     PROXYSCOTCH_BANNED_DESTS = "BANNED_DESTS_VALUE"

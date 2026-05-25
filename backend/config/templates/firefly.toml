@@ -37,9 +37,9 @@ docker_image = "mariadb:11"
 source = { type = "docker"  }
   [services.env]
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "firefly"
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "firefly-mysql-data"
       container = "/var/lib/mysql"

@@ -41,7 +41,7 @@ source = { type = "docker"  }
     MAX_MEMORY = "1G"
     GUI = "false"
     ENABLE_AUTOPAUSE = "false"
-    RCON_PASSWORD = "CHANGE_ME"
+    RCON_PASSWORD = "${{ secret() }}"
     PORT = "25565"
   [services.proxy]
     enabled = true

@@ -15,10 +15,10 @@ source = { type = "docker"  }
     DB_HOST = "mariadb"
     DB_NAME = "freescout"
     DB_USER = "user"
-    DB_PASS = "CHANGE_ME"
+    DB_PASS = "${{ secret() }}"
     SITE_URL = "https://example.com"
     ADMIN_EMAIL = "admin@example.com"
-    ADMIN_PASS = "CHANGE_ME"
+    ADMIN_PASS = "${{ secret() }}"
     DISPLAY_ERRORS = "FALSE"
     TIMEZONE = "UTC"
     [[services.storage]]
@@ -39,10 +39,10 @@ subtype = "mariadb"
 docker_image = "mariadb"
 source = { type = "docker"  }
   [services.env]
-    MARIADB_ROOT_PASSWORD = "CHANGE_ME"
+    MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "MARIADB_DATABASE_VALUE"
     MARIADB_USER = "user"
-    MARIADB_PASSWORD = "CHANGE_ME"
+    MARIADB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mariadb-data"
       container = "/var/lib/mysql"

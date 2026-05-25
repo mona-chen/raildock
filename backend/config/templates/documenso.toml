@@ -17,20 +17,20 @@ source = { type = "docker"  }
     NEXT_PRIVATE_ENCRYPTION_KEY = "BASE64_GENERATED"
     NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY = "BASE64_GENERATED"
     NEXT_PUBLIC_WEBAPP_URL = "https://example.com"
-    NEXT_PRIVATE_RESEND_API_KEY = "CHANGE_ME"
+    NEXT_PRIVATE_RESEND_API_KEY = "${{ secret() }}"
     NEXT_PRIVATE_SMTP_TRANSPORT = "3000"
     NEXT_PRIVATE_SMTP_HOST = "https://example.com"
     NEXT_PRIVATE_SMTP_PORT = "3000"
     NEXT_PRIVATE_SMTP_USERNAME = "NEXT_PRIVATE_SMTP_USERNAME_VALUE"
-    NEXT_PRIVATE_SMTP_PASSWORD = "CHANGE_ME"
+    NEXT_PRIVATE_SMTP_PASSWORD = "${{ secret() }}"
     NEXT_PRIVATE_SMTP_FROM_NAME = "NEXT_PRIVATE_SMTP_FROM_NAME_VALUE"
     NEXT_PRIVATE_SMTP_FROM_ADDRESS = "NEXT_PRIVATE_SMTP_FROM_ADDRESS_VALUE"
     NEXT_PRIVATE_DATABASE_URL = "postgresql://user:CHANGE_ME@database/documenso-db?schema=public"
     NEXT_PRIVATE_DIRECT_DATABASE_URL = "postgresql://user:CHANGE_ME@database/documenso-db?schema=public"
     NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH = "/app/certs/cert.p12"
-    NEXT_PRIVATE_SIGNING_PASSPHRASE = "CHANGE_ME"
+    NEXT_PRIVATE_SIGNING_PASSPHRASE = "${{ secret() }}"
     NEXT_PRIVATE_SIGNING_TRANSPORT = "local"
-    NEXT_PRIVATE_SIGNING_LOCAL_FILE_PASSPHRASE = "CHANGE_ME"
+    NEXT_PRIVATE_SIGNING_LOCAL_FILE_PASSPHRASE = "${{ secret() }}"
     CERT_VALID_DAYS = "365"
     CERT_INFO_COUNTRY_NAME = "DO"
     CERT_INFO_STATE_OR_PROVIDENCE = "Santiago"
@@ -39,7 +39,7 @@ source = { type = "docker"  }
     CERT_INFO_ORGANIZATIONAL_UNIT = "IT Department"
     CERT_INFO_EMAIL = "example@gmail.com"
     NEXT_PUBLIC_DISABLE_SIGNUP = "false"
-    SERVICE_PASSWORD_DOCUMENSO = "CHANGE_ME"
+    SERVICE_PASSWORD_DOCUMENSO = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 2
@@ -53,7 +53,7 @@ docker_image = "postgres:17"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "documenso-db"
     [[services.storage]]
       host = "documenso_postgresql_data"

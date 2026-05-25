@@ -14,7 +14,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     BITCOIN_RPCUSER = "bitcoinuser"
-    BITCOIN_RPCPASSWORD = "CHANGE_ME"
+    BITCOIN_RPCPASSWORD = "${{ secret() }}"
     BITCOIN_PRINTTOCONSOLE = "1"
     BITCOIN_TXINDEX = "1"
     BITCOIN_SERVER = "1"

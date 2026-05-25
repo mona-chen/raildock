@@ -13,15 +13,15 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PUBLIC_ORIGIN = "https://example.com"
-    POSTGRES_PASSWORD = "CHANGE_ME"
-    SECRET_KEY = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
+    SECRET_KEY = "${{ secret() }}"
     TZ = "TIMEZONE_VALUE"
     PRISMA_DATABASE_URL = "postgresql://user:CHANGE_ME@teable-db:3000/POSTGRES_DB_VALUE"
     NEXT_ENV_IMAGES_ALL_REMOTE = "true"
     PORT = "3000"
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     BACKEND_CACHE_PROVIDER = "redis"
-    BACKEND_CACHE_REDIS_URI = "redis://default:CHANGE_ME@teable-cache:6379/0"
+    BACKEND_CACHE_REDIS_URI = "redis:${{ secret() }}@teable-cache:6379/0"
     BACKEND_MAIL_HOST = "https://example.com"
     BACKEND_MAIL_PORT = "3000"
     BACKEND_MAIL_SECURE = "BACKEND_MAIL_SECURE_VALUE"
@@ -46,7 +46,7 @@ source = { type = "docker"  }
   [services.env]
     TZ = "TIMEZONE_VALUE"
     POSTGRES_DB = "teable"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_PORT = "5432"
     [[services.storage]]
@@ -79,7 +79,7 @@ source = { type = "docker"  }
   [services.env]
     REDIS_PORT = "6379"
     REDIS_DB = "0"
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "teable_cache_data"
       container = "/data"

@@ -15,9 +15,9 @@ source = { type = "docker"  }
     LEAN_APP_URL = "https://example.com"
     LEAN_DB_HOST = "mysql"
     LEAN_DB_USER = "user"
-    LEAN_DB_PASSWORD = "CHANGE_ME"
+    LEAN_DB_PASSWORD = "${{ secret() }}"
     LEAN_DB_DATABASE = "leantime-db"
-    LEAN_SESSION_PASSWORD = "CHANGE_ME"
+    LEAN_SESSION_PASSWORD = "${{ secret() }}"
     LEAN_SESSION_EXPIRATION = "28800"
     LEAN_USE_REDIS = "true"
     LEAN_REDIS_HOST = "redis"
@@ -45,9 +45,9 @@ docker_image = "mysql:8.4"
 start_command = "--character-set-server=UTF8MB4 --collation-server=UTF8MB4_unicode_ci"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "leantime-db"
     [[services.storage]]
       host = "leantime_mysql_data"

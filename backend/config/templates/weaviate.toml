@@ -22,7 +22,7 @@ source = { type = "docker"  }
     AUTHORIZATION_ADMINLIST_USERS = "admin@example.com"
     AUTHENTICATION_APIKEY_USERS = "admin@example.com"
     AUTHENTICATION_APIKEY_ENABLED = "true"
-    AUTHENTICATION_APIKEY_ALLOWED_KEYS = "CHANGE_ME"
+    AUTHENTICATION_APIKEY_ALLOWED_KEYS = "${{ secret() }}"
     PERSISTENCE_DATA_PATH = "/var/lib/weaviate"
     DEFAULT_VECTORIZER_MODULE = "none"
     ENABLE_MODULES = "text2vec-openai,generative-openai,qna-openai"

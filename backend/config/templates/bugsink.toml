@@ -10,10 +10,10 @@ subtype = "mysql"
 docker_image = "mysql:latest"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "bugsink"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "my-datavolume"
       container = "/var/lib/mysql"

@@ -23,7 +23,7 @@ source = { type = "docker"  }
     N8N_RUNNERS_MODE = "external"
     N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "0.0.0.0"
     N8N_RUNNERS_BROKER_PORT = "5679"
-    N8N_RUNNERS_AUTH_TOKEN = "CHANGE_ME"
+    N8N_RUNNERS_AUTH_TOKEN = "${{ secret() }}"
     N8N_NATIVE_PYTHON_RUNNER = "true"
     N8N_RUNNERS_MAX_CONCURRENCY = "5"
     N8N_BLOCK_ENV_ACCESS_IN_NODE = "true"
@@ -49,7 +49,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     N8N_RUNNERS_TASK_BROKER_URI = "http://n8n:5679"
-    N8N_RUNNERS_AUTH_TOKEN = "CHANGE_ME"
+    N8N_RUNNERS_AUTH_TOKEN = "${{ secret() }}"
     N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT = "15"
     N8N_RUNNERS_MAX_CONCURRENCY = "5"
   [services.checks]

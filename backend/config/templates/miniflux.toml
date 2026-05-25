@@ -17,8 +17,8 @@ source = { type = "docker"  }
     RUN_MIGRATIONS = "1"
     CREATE_ADMIN = "1"
     ADMIN_USERNAME = "user"
-    ADMIN_PASSWORD = "CHANGE_ME"
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/miniflux-db?sslmode=disable"
+    ADMIN_PASSWORD = "${{ secret() }}"
+    DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/miniflux-db?sslmode=disable"
   [services.checks]
     enabled = true
     wait = 5
@@ -32,7 +32,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "miniflux-db"
     [[services.storage]]
       host = "miniflux-postgres-data"

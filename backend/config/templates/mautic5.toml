@@ -10,10 +10,10 @@ subtype = "mysql"
 docker_image = "mysql:8.0"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_ROOT_PASSWORD = "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "mautic"
     MYSQL_USER = "user"
-    MYSQL_PASSWORD = "CHANGE_ME"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mysql-data"
       container = "/var/lib/mysql"
@@ -53,7 +53,7 @@ source = { type = "docker"  }
     MAUTIC_DB_PORT = "3306"
     MAUTIC_DB_DATABASE = "mautic"
     MAUTIC_DB_USER = "user"
-    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_DB_PASSWORD = "${{ secret() }}"
     MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]
@@ -99,7 +99,7 @@ source = { type = "docker"  }
     MAUTIC_DB_PORT = "3306"
     MAUTIC_DB_DATABASE = "mautic"
     MAUTIC_DB_USER = "user"
-    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_DB_PASSWORD = "${{ secret() }}"
     MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]
@@ -145,7 +145,7 @@ source = { type = "docker"  }
     MAUTIC_DB_PORT = "3306"
     MAUTIC_DB_DATABASE = "mautic"
     MAUTIC_DB_USER = "user"
-    MAUTIC_DB_PASSWORD = "CHANGE_ME"
+    MAUTIC_DB_PASSWORD = "${{ secret() }}"
     MAUTIC_MESSENGER_DSN_EMAIL = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     MAUTIC_MESSENGER_DSN_HIT = "amqp://guest:guest@rabbitmq:5672/mautic/messages"
     [[services.storage]]

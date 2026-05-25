@@ -10,7 +10,7 @@ subtype = "postgres"
 docker_image = "postgres:16"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "joplin"
     [[services.storage]]
@@ -32,7 +32,7 @@ source = { type = "docker"  }
   [services.env]
     APP_BASE_URL = "https://example.com"
     DB_CLIENT = "pg"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DATABASE = "joplin"
     POSTGRES_USER = "user"
     POSTGRES_PORT = "5432"

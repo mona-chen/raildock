@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    NB_SETUP_KEY = "CHANGE_ME"
+    NB_SETUP_KEY = "${{ secret() }}"
     NB_ENABLE_ROSENPASS = "false"
     NB_ENABLE_EXPERIMENTAL_LAZY_CONN = "false"
     [[services.storage]]

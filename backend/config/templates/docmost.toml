@@ -20,11 +20,11 @@ source = { type = "docker"  }
     SMTP_HOST = "https://example.com"
     SMTP_PORT = "3000"
     SMTP_USERNAME = "SMTP_USERNAME_VALUE"
-    SMTP_PASSWORD = "CHANGE_ME"
+    SMTP_PASSWORD = "${{ secret() }}"
     SMTP_SECURE = "SMTP_SECURE_VALUE"
     MAIL_FROM_ADDRESS = "MAIL_FROM_ADDRESS_VALUE"
     MAIL_FROM_NAME = "MAIL_FROM_NAME_VALUE"
-    POSTMARK_TOKEN = "CHANGE_ME"
+    POSTMARK_TOKEN = "${{ secret() }}"
     [[services.storage]]
       host = "docmost"
       container = "/app/data/storage"

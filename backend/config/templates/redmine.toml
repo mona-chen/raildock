@@ -12,11 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY_BASE = "CHANGE_ME"
+    SECRET_KEY_BASE = "${{ secret() }}"
     REDMINE_DB_POSTGRES = "postgresql"
     REDMINE_DB_PORT = "5432"
     REDMINE_DB_USERNAME = "user"
-    REDMINE_DB_PASSWORD = "CHANGE_ME"
+    REDMINE_DB_PASSWORD = "${{ secret() }}"
     REDMINE_DB_DATABASE = "redmine-db"
     [[services.storage]]
       host = "redmine-config"
@@ -43,7 +43,7 @@ docker_image = "postgres:17-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "redmine-db"
     [[services.storage]]
       host = "postgresql-data"

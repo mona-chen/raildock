@@ -19,7 +19,7 @@ source = { type = "docker"  }
     TOLGEE_POSTGRES_AUTOSTART_ENABLED = "false"
     SPRING_DATASOURCE_URL = "jdbc:postgresql://postgresql:5432/tolgee"
     SPRING_DATASOURCE_USERNAME = "user"
-    SPRING_DATASOURCE_PASSWORD = "CHANGE_ME"
+    SPRING_DATASOURCE_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "tolgee-data"
       container = "/data"
@@ -36,7 +36,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "tolgee"
     [[services.storage]]
       host = "tolgee-postgresql-data"

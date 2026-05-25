@@ -42,7 +42,7 @@ docker_image = "postgres:17-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "langfuse-db"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     [[services.storage]]
       host = "langfuse_postgres_data"
@@ -60,7 +60,7 @@ docker_image = "redis:8"
 start_command = "sh -c redis-server --requirepass \"$SERVICE_PASSWORD_REDIS\""
 source = { type = "docker"  }
   [services.env]
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "langfuse_redis_data"
       container = "/data"
@@ -80,7 +80,7 @@ source = { type = "docker"  }
   [services.env]
     CLICKHOUSE_DB = "default"
     CLICKHOUSE_USER = "user"
-    CLICKHOUSE_PASSWORD = "CHANGE_ME"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "langfuse_clickhouse_data"
       container = "/var/lib/clickhouse"

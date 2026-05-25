@@ -15,7 +15,7 @@ source = { type = "docker"  }
     PUID = "1000"
     PGID = "1000"
     USER = "user"
-    PASS = "CHANGE_ME"
+    PASS = "${{ secret() }}"
     [[services.storage]]
       host = "transmission-config"
       container = "/config"

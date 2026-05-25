@@ -17,7 +17,7 @@ source = { type = "docker"  }
     DJANGO_DB = "default"
     POSTGRE_NAME = "labelstudio"
     POSTGRE_USER = "user"
-    POSTGRE_PASSWORD = "CHANGE_ME"
+    POSTGRE_PASSWORD = "${{ secret() }}"
     POSTGRE_PORT = "5432"
     POSTGRE_HOST = "postgres"
     LABEL_STUDIO_HOST = "https://example.com"
@@ -25,7 +25,7 @@ source = { type = "docker"  }
     LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK = "true"
     DATA_UPLOAD_MAX_NUMBER_FILES = "10000"
     LABEL_STUDIO_USERNAME = "admin@example.com"
-    LABEL_STUDIO_PASSWORD = "CHANGE_ME"
+    LABEL_STUDIO_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "labelstudio-data"
       container = "/label-studio/data"
@@ -42,7 +42,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "labelstudio"
     [[services.storage]]
       host = "pg-data"

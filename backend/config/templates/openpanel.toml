@@ -16,8 +16,8 @@ source = { type = "docker"  }
     SELF_HOSTED = "true"
     API_URL = "https://example.com"
     DASHBOARD_URL = "https://example.com"
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/openpanel-db?schema=public"
-    REDIS_URL = "redis://default:CHANGE_ME@redis:6379"
+    DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/openpanel-db?schema=public"
+    REDIS_URL = "redis:${{ secret() }}@redis:6379"
     CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
   [services.checks]
     enabled = true
@@ -38,15 +38,15 @@ source = { type = "docker"  }
     SELF_HOSTED = "true"
     API_URL = "https://example.com"
     DASHBOARD_URL = "https://example.com"
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/openpanel-db?schema=public"
-    DATABASE_URL_DIRECT = "postgres://user:CHANGE_ME@postgres:5432/openpanel-db?schema=public"
-    REDIS_URL = "redis://default:CHANGE_ME@redis:6379"
+    DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/openpanel-db?schema=public"
+    DATABASE_URL_DIRECT = "postgres:${{ secret() }}@postgres:5432/openpanel-db?schema=public"
+    REDIS_URL = "redis:${{ secret() }}@redis:6379"
     CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
     COOKIE_SECRET = "BASE64_GENERATED"
     ALLOW_REGISTRATION = "false"
     ALLOW_INVITATION = "false"
     EMAIL_SENDER = "admin@example.com"
-    RESEND_API_KEY = "CHANGE_ME"
+    RESEND_API_KEY = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 10
@@ -65,9 +65,9 @@ source = { type = "docker"  }
     NODE_ENV = "production"
     SELF_HOSTED = "true"
     API_URL = "https://example.com"
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgres:5432/openpanel-db?schema=public"
-    DATABASE_URL_DIRECT = "postgres://user:CHANGE_ME@postgres:5432/openpanel-db?schema=public"
-    REDIS_URL = "redis://default:CHANGE_ME@redis:6379"
+    DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/openpanel-db?schema=public"
+    DATABASE_URL_DIRECT = "postgres:${{ secret() }}@postgres:5432/openpanel-db?schema=public"
+    REDIS_URL = "redis:${{ secret() }}@redis:6379"
     CLICKHOUSE_URL = "http://clickhouse:8123/openpanel"
   [services.checks]
     enabled = true
@@ -83,7 +83,7 @@ source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "openpanel-db"
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "openpanel_postgres_data"
       container = "/var/lib/postgresql/data"
@@ -100,7 +100,7 @@ docker_image = "redis:7.4-alpine"
 start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS} --maxmemory-policy noeviction"
 source = { type = "docker"  }
   [services.env]
-    REDIS_PASSWORD = "CHANGE_ME"
+    REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "openpanel_redis_data"
       container = "/data"

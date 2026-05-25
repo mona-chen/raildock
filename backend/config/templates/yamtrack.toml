@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     URLS = "https://example.com"
     TZ = "Europe/Berlin"
-    SECRET = "CHANGE_ME"
+    SECRET = "${{ secret() }}"
     REGISTRATION = "true"
     REDIS_URL = "redis://redis:6379"
     [[services.storage]]

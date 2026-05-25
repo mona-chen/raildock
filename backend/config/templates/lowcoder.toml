@@ -13,8 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     LOWCODER_EMAIL_SIGNUP_ENABLED = "true"
-    LOWCODER_DB_ENCRYPTION_PASSWORD = "CHANGE_ME"
-    LOWCODER_DB_ENCRYPTION_SALT = "CHANGE_ME"
+    LOWCODER_DB_ENCRYPTION_PASSWORD = "${{ secret() }}"
+    LOWCODER_DB_ENCRYPTION_SALT = "${{ secret() }}"
     [[services.storage]]
       host = "lowcoder_data"
       container = "/lowcoder-stacks"

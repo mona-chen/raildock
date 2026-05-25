@@ -12,8 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@postgresql:5432/POSTGRES_DB_VALUE"
-    SERVER_ADMIN_ACCESS_TOKEN = "CHANGE_ME"
+    DATABASE_URL = "postgres:${{ secret() }}@postgresql:5432/POSTGRES_DB_VALUE"
+    SERVER_ADMIN_ACCESS_TOKEN = "${{ secret() }}"
     TZ = "Europe/Amsterdam"
   [services.checks]
     enabled = true
@@ -28,7 +28,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "ryot-db"
     TZ = "Europe/Amsterdam"
     [[services.storage]]

@@ -10,7 +10,7 @@ subtype = "postgres"
 docker_image = "postgres:14.2"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "rallly"
     [[services.storage]]
@@ -30,8 +30,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://user:CHANGE_ME@rallly_db:5432/rallly"
-    SECRET_PASSWORD = "CHANGE_ME"
+    DATABASE_URL = "postgres:${{ secret() }}@rallly_db:5432/rallly"
+    SECRET_PASSWORD = "${{ secret() }}"
     NEXT_PUBLIC_BASE_URL = "https://example.com"
     ALLOWED_EMAILS = "admin@example.com"
     SUPPORT_EMAIL = "support@example.com"

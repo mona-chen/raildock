@@ -13,9 +13,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     CMD_DOMAIN = "app.example.com"
-    CMD_SESSION_SECRET = "CHANGE_ME"
+    CMD_SESSION_SECRET = "${{ secret() }}"
     CMD_USECDN = "false"
-    CMD_DB_URL = "postgres://user:CHANGE_ME@postgres:5432/codimd-db"
+    CMD_DB_URL = "postgres:${{ secret() }}@postgres:5432/codimd-db"
     CMD_EMAIL = "true"
     CMD_ALLOW_EMAIL_REGISTER = "true"
     [[services.storage]]
@@ -34,7 +34,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "codimd-db"
     [[services.storage]]
       host = "codimd_postgres_data"

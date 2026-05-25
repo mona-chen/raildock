@@ -20,7 +20,7 @@ source = { type = "docker"  }
     WAKAPI_DB_TYPE = "postgres"
     WAKAPI_DB_NAME = "wakapi"
     WAKAPI_DB_USER = "user"
-    WAKAPI_DB_PASSWORD = "CHANGE_ME"
+    WAKAPI_DB_PASSWORD = "${{ secret() }}"
     WAKAPI_DB_HOST = "postgres"
     WAKAPI_DB_PORT = "5432"
     WAKAPI_MAIL_ENABLED = "false"
@@ -29,7 +29,7 @@ source = { type = "docker"  }
     WAKAPI_MAIL_SMTP_HOST = "https://example.com"
     WAKAPI_MAIL_SMTP_PORT = "587"
     WAKAPI_MAIL_SMTP_USER = "WAKAPI_MAIL_SMTP_USERNAME_VALUE"
-    WAKAPI_MAIL_SMTP_PASS = "CHANGE_ME"
+    WAKAPI_MAIL_SMTP_PASS = "${{ secret() }}"
     WAKAPI_MAIL_SMTP_TLS = "true"
     WAKAPI_ALLOW_SIGNUP = "true"
     WAKAPI_LEADERBOARD_ENABLED = "true"
@@ -51,7 +51,7 @@ docker_image = "postgres:16-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "wakapi"
     POSTGRES_PORT = "5432"
     [[services.storage]]

@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.env]
     MEILI_NO_ANALYTICS = "true"
     MEILI_ENV = "production"
-    MEILI_MASTER_KEY = "CHANGE_ME"
+    MEILI_MASTER_KEY = "${{ secret() }}"
     [[services.storage]]
       host = "meilisearch-data"
       container = "/meili_data"

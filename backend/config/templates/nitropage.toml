@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     NP_AUTH_SALT = "BASE64_GENERATED"
-    NP_AUTH_PASSWORD = "CHANGE_ME"
+    NP_AUTH_PASSWORD = "${{ secret() }}"
     DATABASE_URL = "file:../.data/dev.db"
     [[services.storage]]
       host = "nitropage-data"

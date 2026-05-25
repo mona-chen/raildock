@@ -10,7 +10,7 @@ subtype = "postgres"
 docker_image = "postgres:latest"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"
     POSTGRES_DB = "faraday"
     [[services.storage]]
@@ -45,9 +45,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    AUTHENTIK_POSTGRESQL__PASSWORD = "CHANGE_ME"
+    AUTHENTIK_POSTGRESQL__PASSWORD = "${{ secret() }}"
     PGSQL_USER = "user"
-    PGSQL_PASSWD = "CHANGE_ME"
+    PGSQL_PASSWD = "${{ secret() }}"
     PGSQL_DBNAME = "POSTGRES_DB_VALUE"
     PGSQL_HOST = "postgresql"
     REDIS_SERVER = "redis"

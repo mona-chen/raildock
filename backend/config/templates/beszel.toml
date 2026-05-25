@@ -36,8 +36,8 @@ source = { type = "docker"  }
   [services.env]
     LISTEN = "/beszel_socket/beszel.sock"
     HUB_URL = "$SERVICE_URL_BESZEL"
-    TOKEN = "CHANGE_ME"
-    KEY = "CHANGE_ME"
+    TOKEN = "${{ secret() }}"
+    KEY = "${{ secret() }}"
     DISABLE_SSH = "false"
     LOG_LEVEL = "warn"
     SKIP_GPU = "false"

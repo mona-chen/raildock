@@ -13,11 +13,11 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     NEXTAUTH_URL = "https://example.com"
-    NEXTAUTH_SECRET = "CHANGE_ME"
-    MEILI_MASTER_KEY = "CHANGE_ME"
+    NEXTAUTH_SECRET = "${{ secret() }}"
+    MEILI_MASTER_KEY = "${{ secret() }}"
     MEILI_ADDR = "http://meilisearch:7700"
     BROWSER_WEB_URL = "http://chrome:9222"
-    OPENAI_API_KEY = "CHANGE_ME"
+    OPENAI_API_KEY = "${{ secret() }}"
     DISABLE_SIGNUPS = "false"
     DATA_DIR = "/data"
     [[services.storage]]
@@ -42,8 +42,8 @@ docker_image = "getmeili/meilisearch:v1.13.3"
 source = { type = "docker"  }
   [services.env]
     MEILI_NO_ANALYTICS = "true"
-    NEXTAUTH_SECRET = "CHANGE_ME"
-    MEILI_MASTER_KEY = "CHANGE_ME"
+    NEXTAUTH_SECRET = "${{ secret() }}"
+    MEILI_MASTER_KEY = "${{ secret() }}"
     NEXTAUTH_URL = "https://example.com"
     [[services.storage]]
       host = "karakeep-meilisearch"

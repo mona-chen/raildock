@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     TZ = "Europe/London"
-    FTLCONF_webserver_api_password = "CHANGE_ME"
+    FTLCONF_webserver_api_password = "${{ secret() }}"
     FTLCONF_dns_listeningMode = "all"
   [services.proxy]
     enabled = true

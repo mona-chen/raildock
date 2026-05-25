@@ -12,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    OPENAI_API_KEY = "CHANGE_ME"
+    OPENAI_API_KEY = "${{ secret() }}"
     OPENAI_PROXY_URL = "https://api.openai.com/v1"
-    ACCESS_CODE = "CHANGE_ME"
+    ACCESS_CODE = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5
