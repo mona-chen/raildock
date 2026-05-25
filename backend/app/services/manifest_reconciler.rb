@@ -91,9 +91,9 @@ class ManifestReconciler
     results = []
     grouped = ChangeClassifier.group_by_severity(@changes)
 
-    # Phase 1: Create new services (databases first)
+    # Phase 1: Create new services in depends_on order (deps before dependents)
     create_services = @changes.select { |c| c.change_type == :added && c.field == :service }
-    create_services.sort_by { |c| c.new_value[:category] == "database" ? 0 : 1 }.each do |change|
+    topo_sort(create_services).each do |change|
       results << apply_create_service(engine, change)
     end
 
@@ -107,8 +107,9 @@ class ManifestReconciler
       results << apply_restart_change(engine, change)
     end
 
-    # Phase 4: Redeploy changes
-    (grouped[:redeploy] || []).each do |change|
+    # Phase 4: Redeploy changes in depends_on order
+    redeploy_changes = (grouped[:redeploy] || [])
+    topo_sort(redeploy_changes).each do |change|
       results << apply_redeploy_change(engine, change)
     end
 
@@ -125,6 +126,43 @@ class ManifestReconciler
     end
 
     { success: results.all? { |r| r[:success] }, results: results }
+  end
+
+  # Topologically sort services by depends_on. Services with no dependencies
+  # (or only satisfied dependencies) come first. Breaks cycles by omitting
+  # services that would create a circular dependency.
+  def topo_sort(changes)
+    return changes unless changes.any? { |c| c.new_value&.dig(:depends_on)&.present? }
+
+    svc_map = {}
+    changes.each { |c| svc_map[c.service_name] = c }
+
+    in_degree = Hash.new(0)
+    dependents = Hash.new { |h, k| h[k] = [] }
+
+    changes.each do |change|
+      deps = change.new_value&.dig(:depends_on) || []
+      in_degree[change.service_name] += 0 # ensure key exists
+      deps.each do |dep|
+        next unless svc_map.key?(dep)
+        dependents[dep] << change.service_name
+        in_degree[change.service_name] += 1
+      end
+    end
+
+    queue = changes.select { |c| in_degree[c.service_name] == 0 }
+    sorted = []
+
+    until queue.empty?
+      current = queue.shift
+      sorted << current
+      dependents[current.service_name].each do |dependent|
+        in_degree[dependent] -= 1
+        queue << svc_map[dependent] if in_degree[dependent] == 0
+      end
+    end
+
+    sorted + changes.reject { |c| sorted.include?(c) }
   end
 
   private
@@ -183,12 +221,12 @@ class ManifestReconciler
     # Skip UI-managed services unless explicitly included
     return if actual_svc[:managed_by] == "ui"
 
-    fields = %i[
+    fields = %w[
       category subtype builder git_repo branch docker_image version
       root_directory start_command exposed port maintenance_mode
       restart_policy restart_max_retries auto_deploy env domains
       storage proxy scaling limits reservations checks cron
-      docker_options traefik_labels letsencrypt
+      docker_options traefik_labels letsencrypt depends_on
     ]
 
     fields.each do |field|

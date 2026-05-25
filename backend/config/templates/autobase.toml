@@ -4,22 +4,6 @@ category = "stack"
 logo = "svgs/autobase.svg"
 
 [[services]]
-name = "autobase"
-category = "app"
-subtype = "docker"
-docker_image = "autobase/console_ui:2.5.2"
-source = { type = "docker"  }
-  [services.scaling]
-    web = 1
-  [services.env]
-    PG_CONSOLE_AUTHORIZATION_TOKEN = "${{ secret() }}"
-    PG_CONSOLE_API_HOST = "autobase-api"
-  [services.checks]
-    enabled = true
-    wait = 10
-    timeout = 5
-
-[[services]]
 name = "autobase-db"
 category = "app"
 subtype = "docker"
@@ -43,6 +27,7 @@ category = "app"
 subtype = "docker"
 docker_image = "autobase/console_api:2.5.2"
 source = { type = "docker"  }
+  depends_on = ["autobase-db"]
   [services.scaling]
     web = 1
   [services.env]
@@ -51,6 +36,23 @@ source = { type = "docker"  }
     PG_CONSOLE_AUTHORIZATION_TOKEN = "${{ secret() }}"
     PG_CONSOLE_ENCRYPTIONKEY = "${{ secret() }}"
     PG_CONSOLE_LOGGER_LEVEL = "info"
+  [services.checks]
+    enabled = true
+    wait = 10
+    timeout = 5
+
+[[services]]
+name = "autobase"
+category = "app"
+subtype = "docker"
+docker_image = "autobase/console_ui:2.5.2"
+source = { type = "docker"  }
+  depends_on = ["autobase-api"]
+  [services.scaling]
+    web = 1
+  [services.env]
+    PG_CONSOLE_AUTHORIZATION_TOKEN = "${{ secret() }}"
+    PG_CONSOLE_API_HOST = "autobase-api"
   [services.checks]
     enabled = true
     wait = 10

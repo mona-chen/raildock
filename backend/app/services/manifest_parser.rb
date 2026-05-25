@@ -279,7 +279,7 @@ class ManifestParser
     traefik_labels = normalize_traefik_labels(svc_hash["traefik_labels"] || svc_hash[:traefik_labels])
     letsencrypt = normalize_letsencrypt(svc_hash["letsencrypt"] || svc_hash[:letsencrypt])
 
-    {
+{
       name: name.to_s,
       category: category,
       subtype: (svc_hash["subtype"] || svc_hash[:subtype] || "web").to_s,
@@ -294,13 +294,14 @@ class ManifestParser
       checks: checks,
       cron: cron,
       docker_options: docker_options,
-      traefik_labels: traefik_labels,
-      letsencrypt: letsencrypt,
+      traefik_labels: normalize_traefik_labels(svc_hash["traefik_labels"] || svc_hash[:traefik_labels]),
+      letsencrypt: normalize_letsencrypt(svc_hash["letsencrypt"] || svc_hash[:letsencrypt]),
       maintenance: svc_hash["maintenance"] || svc_hash[:maintenance] || false,
       version: svc_hash["version"] || svc_hash[:version],
       docker_image: svc_hash["docker_image"] || svc_hash[:docker_image],
       start_command: svc_hash["start_command"] || svc_hash[:start_command],
-      exposed: svc_hash["exposed"] || svc_hash[:exposed]
+      exposed: svc_hash["exposed"] || svc_hash[:exposed],
+      depends_on: normalize_depends_on(svc_hash["depends_on"] || svc_hash[:depends_on])
     }
   end
 
@@ -419,6 +420,11 @@ class ManifestParser
       staging: le["staging"] == true || le[:staging] == true,
       auto_renew: le["auto_renew"] != false && le[:auto_renew] != false
     }
+  end
+
+  def normalize_depends_on(deps)
+    return [] unless deps
+    Array(deps).map(&:to_s)
   end
 
 def normalize_env(env)
