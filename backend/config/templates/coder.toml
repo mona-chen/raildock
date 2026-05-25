@@ -12,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    CODER_PG_CONNECTION_URL = "postgresql://user:CHANGE_ME@coder-database/coder-db?sslmode=disable"
+    CODER_PG_CONNECTION_URL = "${{ linked.coder-database.DATABASE_URL }}"
     CODER_HTTP_ADDRESS = "0.0.0.0:7080"
-    CODER_ACCESS_URL = "https://example.com"
+    CODER_ACCESS_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -28,7 +28,7 @@ docker_image = "postgres:16.4-alpine"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "CHANGE_ME"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "coder-db"
     [[services.storage]]
       host = "coder-postgres-data"

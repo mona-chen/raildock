@@ -42,11 +42,11 @@ class Server < ApplicationRecord
   end
 
   def disk_usage
-    { used: disk_used || 0, total: disk_total || 100 }
+    { used: disk_used || 0, total: disk_total || 0 }
   end
 
   def memory_usage
-    { used: memory_used || 0, total: memory_total || 128 }
+    { used: memory_used || 0, total: memory_total || 0 }
   end
 
   def project_ids

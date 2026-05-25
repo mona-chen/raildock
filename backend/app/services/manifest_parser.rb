@@ -29,6 +29,34 @@ class ManifestParser
     end
   end
 
+  # Resolves runtime variable markers inserted during manifest parsing.
+  # Called after services and links are fully created, so project context
+  # is available to fetch actual values for [RAILDOCK_*], [SHARED:*],
+  # and [LINKED:*] markers.
+  def self.resolve_runtime(env_value, project, service, linked_services)
+    new.resolve_runtime(env_value, project, service, linked_services)
+  end
+
+  def resolve_runtime(env_value, project, service, linked_services)
+    result = env_value.to_s.dup
+
+    # ${{ RAILDOCK_PUBLIC_DOMAIN }} → this service's public domain
+    # Handles raw ${{ }} syntax (for direct API calls) AND pre-parsed [MARKER] tags
+    if result.include?("[RAILDOCK_PUBLIC_DOMAIN]") || result.include?("${{ RAILDOCK_PUBLIC_DOMAIN }}")
+      domain = service&.domains&.reject { |d| d.hostname.to_s.include?(".localhost") || d.hostname == "localhost" }&.first&.hostname
+      result = result.gsub("[RAILDOCK_PUBLIC_DOMAIN]", domain || "[RAILDOCK_PUBLIC_DOMAIN]")
+      result = result.gsub("${{ RAILDOCK_PUBLIC_DOMAIN }}", domain || "[RAILDOCK_PUBLIC_DOMAIN]")
+    end
+
+    # ${{ shared.VAR }} → runtime resolved
+    result = resolve_shared_vars(result, project) if result.include?("[SHARED:") || result.match?(/\$\{\{\s*shared\./)
+
+    # ${{ linked.SERVICE.VAR }} → runtime resolved
+    result = resolve_linked_vars(result, linked_services) if result.include?("[LINKED:") || result.match?(/\$\{\{\s*linked\./)
+
+    result
+  end
+
   # ── Public API ──────────────────────────────────────────────
 
   def self.parse(raw_content, filename: nil)
@@ -397,50 +425,66 @@ class ManifestParser
     env.transform_keys(&:to_s).transform_values { |v| resolve_placeholders(v.to_s) }
   end
 
-  # Resolve Coolify-style placeholders in env var values.
-  # $SERVICE_PASSWORD_XXX → random hex password
-  # $SERVICE_USER_XXX     → "user"
-  # $SERVICE_URL_XXX      → "https://example.com"
-  # $SERVICE_BASE64_XXX   → base64 random string
+  # Resolve Coolify-style placeholders AND Railway-style ${{ }} expressions.
+  # $SERVICE_PASSWORD_XXX  → random hex password (Coolify legacy)
+  # $SERVICE_USER_XXX      → "user" (Coolify legacy)
+  # $SERVICE_URL_XXX       → "https://example.com" (Coolify legacy)
+  # $SERVICE_BASE64_XXX    → base64 random string (Coolify legacy)
+  # CHANGE_ME              → random hex (Coolify legacy)
+  # ${{ secret() }}        → 32-char random hex (Railway-style)
+  # ${{ secret(N) }}       → N-char random hex
+  # ${{ randomInt(min,max) }} → random integer
+  # ${{ RAILDOCK_PUBLIC_DOMAIN }} → "[REQUIRES_DEPLOY]" (runtime)
+  # ${{ shared.VAR }}      → "[REQUIRES_SHARED:VAR]" (runtime)
+  # ${{ linked.SERVICE.VAR }} → "[REQUIRES_LINKED:SERVICE:VAR]" (runtime)
   def resolve_placeholders(value)
     return value unless value.is_a?(String)
 
     result = value.dup
 
-    # $SERVICE_PASSWORD_64_APIKEY or $SERVICE_PASSWORD_ENCRYPTIONKEY
-    result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) do |match|
-      SecureRandom.hex(16)
-    end
+    # ── Coolify-style legacy placeholders ─────────────────────
 
-    # $SERVICE_USER_XXX
-    result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) do |match|
-      "user"
-    end
-
-    # $SERVICE_URL_XXX
-    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) do |match|
-      "https://example.com"
-    end
-
-    # $SERVICE_FQDN_XXX
-    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) do |match|
-      "app.example.com"
-    end
-
-    # $SERVICE_BASE64_XXX
-    result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) do |match|
-      SecureRandom.base64(32)
-    end
-
-    # Generic $SERVICE_PASSWORD, $SERVICE_USER, etc.
+    result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) { SecureRandom.hex(16) }
+    result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) { "user" }
+    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://example.com" }
+    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "app.example.com" }
+    result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) { SecureRandom.base64(32) }
     result.gsub!(/\$\{?SERVICE_PASSWORD\}?/) { SecureRandom.hex(16) }
     result.gsub!(/\$\{?SERVICE_USER\}?/) { "user" }
     result.gsub!(/\$\{?SERVICE_URL\}?/) { "https://example.com" }
     result.gsub!(/\$\{?SERVICE_FQDN\}?/) { "app.example.com" }
-
-    # Replace literal "CHANGE_ME" placeholders (common in community templates)
-    # with generated secrets so templates deploy without manual intervention.
     result.gsub!(/CHANGE_ME/) { SecureRandom.hex(16) }
+
+    # ── Railway-style ${{ }} expressions ───────────────────────
+
+    # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex
+    result.gsub!(/\$\{\{\s*secret\(\s*(\d+)?\s*\)\s*\}\}/) do
+      length = ($1 || "32").to_i
+      length = [1, [length, 128].min].max
+      SecureRandom.hex(length / 2)
+    end
+
+    # ${{ randomInt(min, max) }}
+    result.gsub!(/\$\{\{\s*randomInt\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\}\}/) do
+      min = $1.to_i
+      max = $2.to_i
+      min = [min, max].min
+      max = [min, max].max
+      rand(min..max).to_s
+    end
+
+    # ${{ RAILDOCK_PUBLIC_DOMAIN }} → runtime resolved (placeholder tag for now)
+    result.gsub!(/\$\{\{\s*RAILDOCK_PUBLIC_DOMAIN\s*\}\}/) { "[RAILDOCK_PUBLIC_DOMAIN]" }
+
+    # ${{ shared.VAR }} → runtime resolved (placeholder tag)
+    result.gsub!(/\$\{\{\s*shared\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      "[SHARED:#{$1}]"
+    end
+
+    # ${{ linked.SERVICE.VAR }} → runtime resolved (placeholder tag)
+    result.gsub!(/\$\{\{\s*linked\.([A-Za-z][A-Za-z0-9_-]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      "[LINKED:#{$1}:#{$2}]"
+    end
 
     result
   end
@@ -457,5 +501,91 @@ class ManifestParser
       to: to.to_s,
       alias: (link_hash["alias"] || link_hash[:alias]).to_s
     }
+  end
+
+  # ── Runtime variable resolution helpers ──────────────────────
+
+  def fetch_public_domain(project)
+    return nil unless project&.server&.ssh_key.present?
+
+    engine = DokkuEngine.new(project.server)
+    result = engine.run("domains:report #{engine.escape(project.server.dokku_app_name)} --domains-app-vhosts")
+    return nil unless result[:success]
+
+    domains = result[:output].to_s.strip.split
+    domains.reject { |d| d.include?(".localhost") || d == "localhost" }.first
+  rescue => e
+    Rails.logger.warn "Failed to fetch public domain: #{e.message}"
+    nil
+  end
+
+  def resolve_shared_vars(value, project)
+    return value unless value.include?("[SHARED:") || value.match?(/\$\{\{\s*shared\./)
+
+    result = value.dup
+    # Handle pre-parsed [SHARED:X] markers
+    result.gsub!(/\[SHARED:([A-Za-z_][A-Za-z0-9_]*)\]/) do
+      var_name = $1
+      if project && project.respond_to?(:project_variables)
+        shared_var = project.project_variables.find_by(key: var_name)
+        shared_var&.value || "[SHARED:#{var_name}]"
+      else
+        "[SHARED:#{var_name}]"
+      end
+    end
+    # Handle raw ${{ shared.VAR }} syntax
+    result.gsub!(/\$\{\{\s*shared\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      var_name = $1
+      if project && project.respond_to?(:project_variables)
+        shared_var = project.project_variables.find_by(key: var_name)
+        shared_var&.value || "[SHARED:#{var_name}]"
+      else
+        "[SHARED:#{var_name}]"
+      end
+    end
+    result
+  end
+
+  def resolve_linked_vars(value, linked_services)
+    return value unless value.include?("[LINKED:") || value.match?(/\$\{\{\s*linked\./)
+
+    result = value.dup
+    # Handle pre-parsed [LINKED:svc:var] markers
+    result.gsub!(/\[LINKED:([A-Za-z][A-Za-z0-9_-]*):([A-Za-z_][A-Za-z0-9_]*)\]/) do
+      svc_name = $1
+      var_name = $2
+      linked_svc = linked_services.find { |s| s.name == svc_name }
+      unless linked_svc
+        Rails.logger.warn "Linked service '#{svc_name}' not found"
+        next "[LINKED:#{svc_name}:#{var_name}]"
+      end
+      env_vars = linked_svc.environment_variables
+      env_vars = env_vars.to_a if env_vars.is_a?(ActiveRecord::Associations::CollectionProxy)
+      ev = env_vars.find { |e| e.key == var_name }
+      unless ev
+        Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
+        next "[LINKED:#{svc_name}:#{var_name}]"
+      end
+      ev.value
+    end
+    # Handle raw ${{ linked.svc.VAR }} syntax
+    result.gsub!(/\$\{\{\s*linked\.([A-Za-z][A-Za-z0-9_-]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      svc_name = $1
+      var_name = $2
+      linked_svc = linked_services.find { |s| s.name == svc_name }
+      unless linked_svc
+        Rails.logger.warn "Linked service '#{svc_name}' not found for ${{ linked.#{svc_name}.#{var_name} }}"
+        next "[LINKED:#{svc_name}:#{var_name}]"
+      end
+      env_vars = linked_svc.environment_variables
+      env_vars = env_vars.to_a if env_vars.is_a?(ActiveRecord::Associations::CollectionProxy)
+      ev = env_vars.find { |e| e.key == var_name }
+      unless ev
+        Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
+        next "[LINKED:#{svc_name}:#{var_name}]"
+      end
+      ev.value
+    end
+    result
   end
 end

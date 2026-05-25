@@ -443,6 +443,8 @@ class ManifestReconciler
         if to_svc.subtype == "postgres"
           engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
         end
+        # Sync injected env vars and rewrite placeholder connection URLs
+        rewrite_linked_db_urls(engine, from_svc, to_svc)
       end
       { success: true }
     elsif change.change_type == :removed
@@ -467,14 +469,16 @@ class ManifestReconciler
 
     # Set new / changed
     (desired.keys - actual.keys).each do |key|
-      engine.config_set(service.dokku_app_name, key, desired[key])
-      service.environment_variables.find_or_initialize_by(key: key).update!(value: desired[key])
+      resolved = ManifestParser.resolve_runtime(desired[key], @project, service, service.linked_services)
+      engine.config_set(service.dokku_app_name, key, resolved)
+      service.environment_variables.find_or_initialize_by(key: key).update!(value: resolved)
     end
 
     (desired.keys & actual.keys).each do |key|
       next if desired[key] == actual[key]
-      engine.config_set(service.dokku_app_name, key, desired[key])
-      service.environment_variables.find_by(key: key)&.update!(value: desired[key])
+      resolved = ManifestParser.resolve_runtime(desired[key], @project, service, service.linked_services)
+      engine.config_set(service.dokku_app_name, key, resolved)
+      service.environment_variables.find_by(key: key)&.update!(value: resolved)
     end
 
     # Unset removed
@@ -649,5 +653,60 @@ class ManifestReconciler
     config["traefik"] = svc[:traefik_labels] if svc[:traefik_labels]
     config["letsencrypt"] = svc[:letsencrypt] if svc[:letsencrypt]
     config
+  end
+
+  # After a database link, sync the injected DATABASE_URL / REDIS_URL etc. from
+  # Dokku into our DB, then rewrite any env vars on the app that look like
+  # connection URLs (e.g. CODER_PG_CONNECTION_URL) to use the real credentials.
+  def rewrite_linked_db_urls(engine, app_service, db_service)
+    db_url_map = {
+      "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
+      "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
+      "mysql"    => [ "MYSQL_URL",    /\Amysql:\/\//i ],
+      "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
+    }.freeze
+
+    mapping = db_url_map[db_service.subtype]
+    return unless mapping
+
+    url_var, url_pattern = mapping
+
+    # Fetch current Dokku config for the app
+    result = engine.config_show(app_service.dokku_app_name)
+    return unless result[:success]
+
+    # Find and store the injected URL
+    url_value = nil
+    result[:output].each_line do |line|
+      next unless line.include?(":")
+      key, value = line.split(":", 2)
+      next unless key && value
+      key = key.strip
+      value = value.strip
+      if key == url_var
+        url_value = value
+        break
+      end
+    end
+
+    return if url_value.blank?
+
+    # Persist the injected URL in our DB
+    app_service.environment_variables.find_or_initialize_by(key: url_var).tap do |ev|
+      ev.value = url_value
+      ev.is_dokku_internal = true
+      ev.source = "dokku-link"
+      ev.save!
+    end
+
+    # Rewrite any other env var whose value looks like a connection URL
+    # for this database type to use the actual injected URL
+    app_service.environment_variables.where.not(key: url_var).each do |ev|
+      next unless ev.value.match?(url_pattern)
+
+      engine.config_set(app_service.dokku_app_name, ev.key, url_value)
+      ev.update!(value: url_value)
+      Rails.logger.info "Rewrote #{ev.key} on #{app_service.dokku_app_name} to use actual #{db_service.subtype} credentials from #{url_var}"
+    end
   end
 end

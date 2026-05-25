@@ -155,6 +155,70 @@ module Api
         end
       end
 
+      # Resolve runtime variable markers inserted by manifest parsing.
+      # After links are established, ${{ linked.SERVICE.VAR }}, ${{ shared.VAR }},
+      # and ${{ RAILDOCK_PUBLIC_DOMAIN }} can be resolved to actual values.
+      if project.server&.ssh_key.present?
+        engine = DokkuEngine.new(project.server)
+        app_services.each do |service|
+          service.environment_variables.each do |ev|
+            next unless ev.value.to_s.include?("[")
+            resolved = ManifestParser.resolve_runtime(ev.value, project, service, service.linked_services)
+            next if resolved == ev.value
+
+            engine.config_set(service.dokku_app_name, ev.key, resolved)
+            ev.update!(value: resolved)
+            Rails.logger.info "Resolved runtime markers in #{ev.key} on #{service.dokku_app_name}"
+          end
+        end
+      end
+
+      # Rewrite connection URL env vars on app services to use actual credentials
+      # from linked databases after the link step pushes DATABASE_URL / REDIS_URL etc.
+      #
+      # Templates often hardcode placeholder passwords (CHANGE_ME) or use custom
+      # env var names (e.g. CODER_PG_CONNECTION_URL) instead of the standard
+      # DATABASE_URL that Dokku injects via postgres:link. Without this rewrite,
+      # apps would try to connect with the wrong (placeholder) credentials.
+      #
+      # This is generic: it handles postgres, redis, mysql, and mongo by matching
+      # URL prefix patterns against every env var on the app, then replacing the
+      # value with the actual linked URL injected by Dokku.
+      if project.server&.ssh_key.present?
+        engine = DokkuEngine.new(project.server)
+        app_services.each do |service|
+          linked_dbs = service.linked_services.select(&:service_type_database?)
+          next if linked_dbs.empty?
+
+          db_url_map = {
+            "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
+            "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
+            "mysql"    => [ "MYSQL_URL",    /\Amysql:\/\//i ],
+            "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
+          }.freeze
+
+          linked_dbs.each do |db|
+            mapping = db_url_map[db.subtype]
+            next unless mapping
+
+            url_var, url_pattern = mapping
+
+            actual_ev = service.environment_variables.find_by(key: url_var)
+            next unless actual_ev
+            actual_url = actual_ev.value
+            next if actual_url.blank?
+
+            service.environment_variables.where.not(key: url_var).each do |ev|
+              next unless ev.value.match?(url_pattern)
+
+              engine.config_set(service.dokku_app_name, ev.key, actual_url)
+              ev.update!(value: actual_url)
+              Rails.logger.info "Rewrote #{ev.key} on #{service.dokku_app_name} to use actual #{db.subtype} credentials from #{url_var}"
+            end
+          end
+        end
+      end
+
       # Auto-deploy app services so the template is actually running
       app_services.each do |service|
         deployment = service.deployments.create!(
