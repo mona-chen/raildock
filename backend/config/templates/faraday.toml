@@ -7,8 +7,6 @@ logo = "svgs/faraday.png"
 name = "postgresql"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:latest"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"

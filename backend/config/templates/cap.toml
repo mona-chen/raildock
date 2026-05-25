@@ -31,7 +31,6 @@ source = { type = "docker"  }
 name = "cap-db"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql:8.0"
 start_command = "--max_connections=1000 --default-authentication-plugin=mysql_native_password"
 source = { type = "docker"  }
   [services.env]

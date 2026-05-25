@@ -40,8 +40,6 @@ source = { type = "docker"  }
 name = "postgres"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:16-alpine"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "litellm"
     POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"

@@ -29,8 +29,6 @@ source = { type = "docker"  }
 name = "glpi-db"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql:8"
-source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "glpi-db"

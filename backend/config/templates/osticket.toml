@@ -36,8 +36,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:11"
-source = { type = "docker"  }
   [services.env]
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "osticket-db"

@@ -151,7 +151,6 @@ source = { type = "docker"  }
 name = "postgres"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:16-alpine"
 start_command = "postgres -c max_connections=1000"
 source = { type = "docker"  }
   [services.env]

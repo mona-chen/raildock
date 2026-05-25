@@ -39,8 +39,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:latest"
-source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "dolibarr-db"
     MYSQL_USER = "user"

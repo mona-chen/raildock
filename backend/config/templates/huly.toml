@@ -6,8 +6,6 @@ category = "stack"
 name = "mongodb"
 category = "database"
 subtype = "mongo"
-docker_image = "mongo:7-jammy"
-source = { type = "docker"  }
   [services.env]
     PUID = "1000"
     PGID = "1000"

@@ -51,8 +51,6 @@ source = { type = "docker"  }
 name = "mysql"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql:8.0"
-source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_USER = "user"

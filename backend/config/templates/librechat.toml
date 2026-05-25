@@ -58,8 +58,6 @@ source = { type = "docker"  }
 name = "mongodb"
 category = "database"
 subtype = "mongo"
-docker_image = "mongo:8"
-source = { type = "docker"  }
   [services.env]
     MONGO_INITDB_ROOT_USERNAME = "user"
     MONGO_INITDB_ROOT_PASSWORD = "${{ secret() }}"

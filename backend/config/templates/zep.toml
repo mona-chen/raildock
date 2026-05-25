@@ -7,8 +7,6 @@ logo = "svgs/zep.png"
 name = "postgres"
 category = "database"
 subtype = "postgres"
-docker_image = "ghcr.io/getzep/postgres:postgres-15"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
     POSTGRES_PASSWORD = "${{ secret() }}"

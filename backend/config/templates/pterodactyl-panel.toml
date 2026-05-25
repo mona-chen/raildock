@@ -7,8 +7,6 @@ logo = "svgs/pterodactyl.png"
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:11.8"
-source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQLROOT"
     MYSQL_DATABASE = "pterodactyl-db"

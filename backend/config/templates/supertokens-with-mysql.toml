@@ -7,8 +7,6 @@ logo = "svgs/supertokens.svg"
 name = "supertokens"
 category = "database"
 subtype = "mysql"
-docker_image = "registry.supertokens.io/supertokens/supertokens-mysql:latest"
-source = { type = "docker"  }
   [services.env]
     MYSQL_CONNECTION_URI = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@mysql:3306/supertokens"
   [services.checks]
@@ -20,8 +18,6 @@ source = { type = "docker"  }
 name = "mysql"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql:latest"
-source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
     MYSQL_USER = "$SERVICE_USER_MYSQL"

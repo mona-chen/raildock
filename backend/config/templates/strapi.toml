@@ -47,8 +47,6 @@ source = { type = "docker"  }
 name = "postgresql"
 category = "database"
 subtype = "postgres"
-docker_image = "elestio/postgres:latest"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "strapi"
     POSTGRES_USER = "$SERVICE_USER_POSTGRESQL"

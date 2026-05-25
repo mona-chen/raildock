@@ -31,8 +31,6 @@ source = { type = "docker"  }
 name = "mongo"
 category = "database"
 subtype = "mongo"
-docker_image = "percona/percona-server-mongodb:latest"
-source = { type = "docker"  }
     [[services.storage]]
       host = "heyform-mongo-data"
       container = "/data/db"

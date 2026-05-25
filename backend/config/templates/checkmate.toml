@@ -26,7 +26,6 @@ source = { type = "docker"  }
 name = "mongodb"
 category = "database"
 subtype = "mongo"
-docker_image = "ghcr.io/bluewave-labs/checkmate-mongo:v3.2.0"
 start_command = "mongod --quiet --bind_ip_all"
 source = { type = "docker"  }
     [[services.storage]]

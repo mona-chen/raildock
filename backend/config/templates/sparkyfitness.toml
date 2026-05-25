@@ -49,8 +49,6 @@ source = { type = "docker"  }
 name = "sparkyfitness-db"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:15-alpine"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "sparkyfitness"
     POSTGRES_USER = "user"

@@ -7,8 +7,6 @@ logo = "svgs/windmill.svg"
 name = "db"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:16"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"

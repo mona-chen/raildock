@@ -24,8 +24,6 @@ source = { type = "docker"  }
 name = "coder-database"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:16.4-alpine"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_USER = "user"
     POSTGRES_PASSWORD = "${{ secret() }}"

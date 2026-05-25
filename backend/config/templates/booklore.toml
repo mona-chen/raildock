@@ -37,8 +37,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:12"
-source = { type = "docker"  }
   [services.env]
     MARIADB_USER = "user"
     MARIADB_PASSWORD = "${{ secret() }}"

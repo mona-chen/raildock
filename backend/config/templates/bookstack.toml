@@ -45,8 +45,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "lscr.io/linuxserver/mariadb:latest"
-source = { type = "docker"  }
   [services.env]
     PUID = "1000"
     PGID = "1000"

@@ -28,8 +28,6 @@ source = { type = "docker"  }
 name = "mysql"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql:8"
-source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_ROOT"
     MYSQL_DATABASE = "classicpress"

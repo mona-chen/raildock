@@ -7,8 +7,6 @@ logo = "svgs/rallly.svg"
 name = "rallly_db"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:14.2"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"

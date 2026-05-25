@@ -7,8 +7,6 @@ logo = "svgs/azimutt.png"
 name = "postgres"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:15"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_USER = "user"

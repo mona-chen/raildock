@@ -37,8 +37,6 @@ source = { type = "docker"  }
 name = "postgres"
 category = "database"
 subtype = "postgres"
-docker_image = "postgres:16"
-source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "postgres"
     POSTGRES_USER = "postgres"

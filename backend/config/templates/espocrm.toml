@@ -61,8 +61,6 @@ source = { type = "docker"  }
 name = "espocrm-db"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:11.8"
-source = { type = "docker"  }
   [services.env]
     MARIADB_DATABASE = "espocrm"
     MARIADB_USER = "user"

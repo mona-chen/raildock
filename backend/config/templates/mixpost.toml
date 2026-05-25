@@ -32,8 +32,6 @@ source = { type = "docker"  }
 name = "mysql"
 category = "database"
 subtype = "mysql"
-docker_image = "mysql/mysql-server:8.0"
-source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "mixpost_db"
     MYSQL_USER = "user"

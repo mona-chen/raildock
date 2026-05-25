@@ -7,8 +7,6 @@ logo = "svgs/moodle.png"
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:11.1"
-source = { type = "docker"  }
   [services.env]
     ALLOW_EMPTY_PASSWORD = "no"
     MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_ROOT"

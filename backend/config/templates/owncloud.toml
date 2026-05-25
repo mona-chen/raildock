@@ -36,7 +36,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:latest"
 start_command = "--character-set-server=utf8mb4 --collation-server=utf8mb4_bin --max-allowed-packet=128M --innodb-log-file-size=64M"
 source = { type = "docker"  }
   [services.env]

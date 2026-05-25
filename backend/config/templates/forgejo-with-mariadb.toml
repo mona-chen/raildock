@@ -46,8 +46,6 @@ source = { type = "docker"  }
 name = "mariadb"
 category = "database"
 subtype = "mariadb"
-docker_image = "mariadb:11"
-source = { type = "docker"  }
   [services.env]
     MYSQL_USER = "user"
     MYSQL_PASSWORD = "${{ secret() }}"
