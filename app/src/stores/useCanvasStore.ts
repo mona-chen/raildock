@@ -8,7 +8,7 @@ interface CanvasState {
   searchQuery: string
 
   setZoom: (zoom: number | ((prev: number) => number)) => void
-  setPan: (pan: { x: number; y: number }) => void
+  setPan: (pan: { x: number; y: number } | ((prev: { x: number; y: number }) => { x: number; y: number })) => void
   setActiveService: (id: string | null) => void
   setFilter: (filter: CanvasState['filter']) => void
   setSearchQuery: (query: string) => void
@@ -23,7 +23,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   searchQuery: '',
 
   setZoom: (zoom) => set((state) => ({ zoom: Math.max(0.3, Math.min(2, typeof zoom === 'function' ? (zoom as (prev: number) => number)(state.zoom) : zoom)) })),
-  setPan: (pan) => set({ pan }),
+  setPan: (pan) => set((state) => ({ pan: typeof pan === 'function' ? pan(state.pan) : pan })),
   setActiveService: (id) => set({ activeServiceId: id }),
   setFilter: (filter) => set({ filter }),
   setSearchQuery: (query) => set({ searchQuery: query }),

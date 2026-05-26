@@ -59,10 +59,11 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
-      services = project.services.where.not(service_type: "database")
+      services = project.services.where.not(service_type: "database").to_a
+      sorted = topo_sort_by_depends_on(services)
       results = []
 
-      services.each do |service|
+      sorted.each do |service|
         deployment = service.deployments.create!(
           status: :pending,
           started_at: Time.current,
@@ -85,8 +86,11 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
+      services = project.services.to_a
+      sorted = topo_sort_by_depends_on(services)
       queued = []
-      project.services.each do |service|
+
+      sorted.each do |service|
         RestartJob.perform_later(service.id)
         queued << service.name
       end
@@ -126,6 +130,35 @@ module Api
     end
 
     private
+
+    def topo_sort_by_depends_on(services)
+      svc_map = services.map { |s| [s.name, s] }.to_h
+      in_degree = Hash.new(0)
+      dependents = Hash.new { |h, k| h[k] = [] }
+
+      services.each do |svc|
+        deps = svc.config&.dig("depends_on") || []
+        in_degree[svc.name] += 0
+        deps.each do |dep|
+          if svc_map.key?(dep)
+            dependents[dep] << svc.name
+            in_degree[svc.name] += 1
+          end
+        end
+      end
+
+      queue = services.select { |s| in_degree[s.name] == 0 }
+      sorted = []
+      while queue.any?
+        svc = queue.shift
+        sorted << svc
+        dependents[svc.name].each do |dep|
+          in_degree[dep] -= 1
+          queue << svc_map[dep] if in_degree[dep] == 0
+        end
+      end
+      sorted + services.reject { |s| sorted.include?(s) }
+    end
 
     def project_params
       params.require(:project).permit(:name, :description, :environment, :server_id)

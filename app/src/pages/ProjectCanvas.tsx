@@ -40,7 +40,7 @@ function autoLayout(services: Service[]) {
   return pos
 }
 
-const CLICK_THRESHOLD = 5 // pixels — max movement to count as a click
+const CLICK_THRESHOLD = 8 // pixels — max movement to count as a click
 
 // ── Main Project Canvas ───────────────────────
 
@@ -164,35 +164,45 @@ export default function ProjectCanvas() {
     [pan]
   )
 
-  // Wheel zoom — attached natively with { passive: false } to allow preventDefault
+  // Wheel zoom — only triggers on pinch gesture (ctrlKey), otherwise pan the canvas
   const canvasRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
     const handleWheel = (e: WheelEvent) => {
-      // Don't zoom when scrolling inside the service panel or modals
+      // Don't handle when scrolling inside the service panel or modals
       const target = e.target as HTMLElement
       const panel = el.querySelector('[data-service-panel]')
-      const modal = document.querySelector('[data-modal]')
+      const modal = document.querySelector('[data-slot="dialog-overlay"]')
       if (panel?.contains(target) || modal?.contains(target)) return
-      e.preventDefault()
-      const rect = el.getBoundingClientRect()
-      const delta = e.deltaY > 0 ? -0.1 : 0.1
-      setZoom((prev) => {
-        const next = Math.max(0.2, Math.min(prev + delta, 3))
-        // Cursor-relative zoom: keep the point under cursor fixed
-        const mx = (e.clientX - rect.left - pan.x) / prev
-        const my = (e.clientY - rect.top - pan.y) / prev
-        setPan({
-          x: e.clientX - rect.left - mx * next,
-          y: e.clientY - rect.top - my * next,
+
+      // Pinch gesture (ctrlKey) = zoom
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const rect = el.getBoundingClientRect()
+        const delta = e.deltaY > 0 ? -0.1 : 0.1
+        setZoom((prev) => {
+          const next = Math.max(0.2, Math.min(prev + delta, 3))
+          const mx = (e.clientX - rect.left - pan.x) / prev
+          const my = (e.clientY - rect.top - pan.y) / prev
+          setPan({
+            x: e.clientX - rect.left - mx * next,
+            y: e.clientY - rect.top - my * next,
+          })
+          return next
         })
-        return next
-      })
+      } else {
+        // Two-finger swipe / plain wheel = pan
+        e.preventDefault()
+        setPan((prev) => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY,
+        }))
+      }
     }
     el.addEventListener('wheel', handleWheel, { passive: false })
     return () => el.removeEventListener('wheel', handleWheel)
-  }, [setZoom, isLoading])
+  }, [setZoom, setPan, isLoading])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -246,8 +256,30 @@ export default function ProjectCanvas() {
 
   const handleLayout = useCallback(() => {
     setPositions(autoLayout(services))
-    resetView()
-  }, [services, resetView])
+    // Center the layout without fully resetting view
+    if (canvasRef.current && visibleServices.length > 0) {
+      const padding = 80
+      const cardW = 240
+      const cardH = 120
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      visibleServices.forEach((s) => {
+        const pos = positions[s.id] || { x: 0, y: 0 }
+        minX = Math.min(minX, pos.x)
+        minY = Math.min(minY, pos.y)
+        maxX = Math.max(maxX, pos.x + cardW)
+        maxY = Math.max(maxY, pos.y + cardH)
+      })
+      const contentW = maxX - minX + padding * 2
+      const contentH = maxY - minY + padding * 2
+      const containerW = canvasRef.current.clientWidth
+      const containerH = canvasRef.current.clientHeight
+      const nextZoom = Math.min(containerW / contentW, containerH / contentH, 1.5)
+      const nextPanX = (containerW - (maxX - minX) * nextZoom) / 2 - minX * nextZoom
+      const nextPanY = (containerH - (maxY - minY) * nextZoom) / 2 - minY * nextZoom
+      setZoom(nextZoom)
+      setPan({ x: nextPanX, y: nextPanY })
+    }
+  }, [services, visibleServices, positions, setZoom, setPan])
 
   const handleFit = useCallback(() => {
     if (visibleServices.length === 0 || !canvasRef.current) {
@@ -306,10 +338,10 @@ export default function ProjectCanvas() {
           setActiveService(null)
         }
       }
-      if (e.key === 'ArrowUp') { e.preventDefault(); setPan({ x: pan.x, y: pan.y + 50 }) }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setPan({ x: pan.x, y: pan.y - 50 }) }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); setPan({ x: pan.x + 50, y: pan.y }) }
-      if (e.key === 'ArrowRight') { e.preventDefault(); setPan({ x: pan.x - 50, y: pan.y }) }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setPan({ x: pan.x, y: pan.y + 80 / zoom }) }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setPan({ x: pan.x, y: pan.y - 80 / zoom }) }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); setPan({ x: pan.x + 80 / zoom, y: pan.y }) }
+      if (e.key === 'ArrowRight') { e.preventDefault(); setPan({ x: pan.x - 80 / zoom, y: pan.y }) }
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault()
         setZoom((z) => Math.min(z + 0.2, 3))

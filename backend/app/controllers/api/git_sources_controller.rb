@@ -4,11 +4,23 @@ module Api
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
         authorize_organization_access!(org)
-        sources = org.git_sources
+        # Show org sources + personal GitHub App sources the user has access to
+        # (GitHub App installations for personal accounts should still be visible in org context)
+        sources = org.git_sources.or(
+          GitSource.where(user_id: current_user.id, organization_id: nil)
+        ).where(auth_method: 'oauth_app').or(
+          GitSource.where(organization_id: org.id)
+        )
+        # Simplify: show all GitHub App sources accessible to this user in this org context
+        sources = GitSource.where(
+          "organization_id = ? OR (organization_id IS NULL AND user_id = ? AND auth_method = 'oauth_app')",
+          org.id, current_user.id
+        )
       else
-        # Return personal git sources for the current user + global sources (backward compat)
+        # Personal context: user's own sources + any org sources they belong to
+        user_org_ids = current_user.organization_memberships.pluck(:organization_id)
         sources = GitSource.where(user_id: current_user.id)
-                           .or(GitSource.where(user_id: nil, organization_id: nil))
+                           .or(GitSource.where(organization_id: user_org_ids))
       end
       render json: sources
     end
