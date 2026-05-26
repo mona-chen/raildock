@@ -260,17 +260,12 @@ export default function ProjectCanvas() {
             setActiveService(null)
           }
         } else if (dragId) {
-          // Dragged: snap to 20px grid and save to DB
-          const snapped = {
-            x: Math.round(positions[dragId].x / 20) * 20,
-            y: Math.round(positions[dragId].y / 20) * 20,
-          }
-          setPositions((prev) => ({ ...prev, [dragId]: snapped }))
-          savedPosition = snapped
+          // Dragged: persist final position to DB
+          savedPosition = { x: positions[dragId].x, y: positions[dragId].y }
         }
       }
 
-      // Persist to backend
+      // Persist to backend (fluid positions — no grid snapping on cards)
       if (savedPosition && dragId) {
         updatePositionMutation.mutate({ id: dragId, canvas_x: savedPosition.x, canvas_y: savedPosition.y })
       }
