@@ -74,9 +74,7 @@ export default function ProjectCanvas() {
     },
   })
 
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() =>
-    autoLayout(services)
-  )
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
   const [dragId, setDragId] = useState<string | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [showAdd, setShowAdd] = useState(false)

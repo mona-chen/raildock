@@ -49,6 +49,15 @@ export function normalizeService(data: unknown): Service {
   if (Array.isArray(camel.linkedByServiceIds)) {
     camel.linkedByServiceIds = camel.linkedByServiceIds.map((id) => String(id))
   }
+  // Map camelized canvas positions back to snake_case
+  if (camel.canvasX !== undefined) {
+    camel.canvas_x = camel.canvasX as number | null
+    delete camel.canvasX
+  }
+  if (camel.canvasY !== undefined) {
+    camel.canvas_y = camel.canvasY as number | null
+    delete camel.canvasY
+  }
   const config = (camel.config || {}) as Record<string, unknown>
   delete camel.config
   const defaults = {
