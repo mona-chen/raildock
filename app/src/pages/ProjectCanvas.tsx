@@ -63,7 +63,6 @@ export default function ProjectCanvas() {
   const setPan = useCanvasStore((s) => s.setPan)
   const setActiveService = useCanvasStore((s) => s.setActiveService)
   const resetView = useCanvasStore((s) => s.resetView)
-  const updateService = useUpdateService()
   const linkService = useLinkService()
   const unlinkService = useUnlinkService()
   const queryClient = useQueryClient()
