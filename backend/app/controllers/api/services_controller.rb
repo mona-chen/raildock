@@ -849,6 +849,7 @@ module Api
         :locked, :restart_policy, :restart_max_retries,
         :docker_image, :auto_deploy, :root_directory,
         :start_command, :maintenance_mode,
+        :canvas_x, :canvas_y,
         config: config_permitted_params,
         config_overrides: config_permitted_params
       ]

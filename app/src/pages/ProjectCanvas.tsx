@@ -83,12 +83,23 @@ export default function ProjectCanvas() {
   const lastMouseRef = useRef({ x: 0, y: 0 })
   const clickStartRef = useRef<{ x: number; y: number; id: string | null } | null>(null)
 
-  // Update positions when services change
+  // Sync positions: load from DB (canvas_x/canvas_y) first, then auto-layout for new services
   useEffect(() => {
     setPositions((prev) => {
       const next: typeof prev = {}
       services.forEach((s) => {
-        next[s.id] = prev[s.id] || autoLayout(services)[s.id]
+        // Prefer saved DB positions
+        const dbX = (s as any).canvas_x
+        const dbY = (s as any).canvas_y
+        if (dbX != null && dbY != null) {
+          next[s.id] = { x: dbX, y: dbY }
+        } else if (prev[s.id]) {
+          // Keep existing local position
+          next[s.id] = prev[s.id]
+        } else {
+          // First time: auto-layout
+          next[s.id] = autoLayout(services)[s.id]
+        }
       })
       return next
     })
@@ -224,7 +235,9 @@ export default function ProjectCanvas() {
         })
       }
     }
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
+      let savedPosition: { x: number; y: number } | null = null
+
       // Drag-vs-click detection
       if (clickStartRef.current) {
         const dx = lastMouseRef.current.x - clickStartRef.current.x
@@ -239,7 +252,20 @@ export default function ProjectCanvas() {
             // Click on canvas background → deselect
             setActiveService(null)
           }
+        } else if (dragId) {
+          // Dragged: snap to 20px grid and save to DB
+          const snapped = {
+            x: Math.round(positions[dragId].x / 20) * 20,
+            y: Math.round(positions[dragId].y / 20) * 20,
+          }
+          setPositions((prev) => ({ ...prev, [dragId]: snapped }))
+          savedPosition = snapped
         }
+      }
+
+      // Persist to backend
+      if (savedPosition && dragId) {
+        updateService(dragId, { canvas_x: savedPosition.x, canvas_y: savedPosition.y })
       }
 
       setDragId(null)
