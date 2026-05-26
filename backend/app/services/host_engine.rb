@@ -79,8 +79,32 @@ class HostEngine
     run("docker inspect #{fmt}#{Shellwords.escape(container)}")
   end
 
-  def docker_ps
-    run("docker ps --format '{{.Names}}'")
+  # Wait for a container to be running and return its name
+  # Returns the container name if found, nil if not found after timeout
+  def wait_for_container(app_name, timeout: 60)
+    start_time = Time.now
+    while Time.now - start_time < timeout
+      result = run("docker ps --format '{{.Names}}'")
+      if result[:success]
+        containers = result[:output].strip.split("\n")
+        exact = "#{app_name}.web.1"
+        return exact if containers.include?(exact)
+
+        %w[postgres redis mongo mysql].each do |plugin|
+          exact = "dokku.#{plugin}.#{app_name}"
+          return exact if containers.include?(exact)
+        end
+      end
+      sleep 1
+    end
+    nil
+  end
+
+  # Check if a container is running
+  def container_running?(container_name)
+    return false if container_name.blank?
+    result = run("docker inspect -f '{{.State.Running}}' #{Shellwords.escape(container_name)} 2>/dev/null")
+    result[:output]&.strip == "true"
   end
 
   # ── Dokku container helpers ─────────────────

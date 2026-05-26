@@ -76,23 +76,60 @@ class ProjectNetworkManager
   end
 
   # Ensure all linked services have network aliases on the project network.
+  # Waits for linked service containers to be running before attempting to connect.
   def ensure_linked_aliases(service)
     return if service.linked_services.blank?
 
     service.linked_services.each do |linked|
-      container = host_engine.dokku_container_name(linked.dokku_app_name)
+      # Wait for linked container to be running
+      container = wait_for_linked_container(linked.dokku_app_name)
+      unless container
+        Rails.logger.warn "Linked container for #{linked.dokku_app_name} not found after waiting"
+        next
+      end
+
       alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
       connect_container_with_aliases(container, [alias_name])
     end
+  end
+
+  def wait_for_linked_container(app_name, timeout: 60)
+    start_time = Time.now
+    while Time.now - start_time < timeout
+      container = host_engine.dokku_container_name(app_name)
+      return container if container.present? && host_engine.container_running?(container)
+      sleep 1
+    end
+    # Try one more time without the running check
+    container = host_engine.dokku_container_name(app_name)
+    container if container.present?
   end
 
   private
 
   attr_reader :project, :engine, :host_engine
 
-  def connect_container_with_aliases(container, aliases)
-    return if container.blank?
+  def connect_container_with_aliases(container, aliases, wait: true)
     return if aliases.empty?
+
+    # If container is not provided, try to find it or wait for it
+    if container.blank?
+      Rails.logger.warn "connect_container_with_aliases called with blank container"
+      return
+    end
+
+    # Wait for container to be running if requested
+    if wait
+      wait_start = Time.now
+      while Time.now - wait_start < 30
+        break if host_engine.container_running?(container)
+        sleep 1
+      end
+      unless host_engine.container_running?(container)
+        Rails.logger.warn "Container #{container} not running after 30s wait, skipping alias connect"
+        return
+      end
+    end
 
     host_engine.docker_network_disconnect(container, network_name)
     result = host_engine.docker_network_connect(container, network_name, aliases: aliases)
@@ -101,5 +138,18 @@ class ProjectNetworkManager
     end
   rescue => e
     Rails.logger.warn "Alias connect failed for #{container}: #{e.message}"
+  end
+
+  # Wait for a container to be registered in the network with its alias
+  def wait_for_network_alias(container, alias_name, timeout: 30)
+    start_time = Time.now
+    while Time.now - start_time < timeout
+      result = host_engine.docker_network_inspect(network_name)
+      if result[:success] && result[:output].include?(alias_name)
+        return true
+      end
+      sleep 1
+    end
+    false
   end
 end

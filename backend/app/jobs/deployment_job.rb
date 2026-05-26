@@ -312,15 +312,24 @@ class DeploymentJob < ApplicationJob
   # (not re-randomized) password value so the container gets the right credential.
   def update_linked_app_password_refs(service, project)
     service.reload
-    return if service.linked_services.empty?
 
-    service.linked_services.each do |linked_app|
+    # Find all services that link TO this service (i.e., services that have
+    # this service as a dependency in their [[links]] section).
+    # For example, if autobase-api links to autobase-db, then when we deploy
+    # autobase-db, we need to update autobase-api's [LINKED:autobase-db:VAR] refs.
+    linking_services = Service.where.not(id: service.id).select do |s|
+      s.linked_services.any? { |linked| linked.id == service.id }
+    end
+
+    host_engine = HostEngine.new(project.server)
+
+    linking_services.each do |linked_app|
+      had_updates = false
       linked_app.environment_variables.each do |ev|
         next unless ev.value.to_s.include?("[LINKED:")
-        linked_svc_name = service.name
 
         ev.value.to_s.scan(/\[LINKED:([A-Za-z][A-Za-z0-9_-]*):([A-Za-z_][A-Za-z0-9_]*)\]/) do |svc_name, var_name|
-          next unless svc_name == linked_svc_name
+          next unless svc_name == service.name
 
           password_value = service.environment_variables.find_by(key: var_name)&.value
           next if password_value.blank?
@@ -331,7 +340,17 @@ class DeploymentJob < ApplicationJob
           engine = DokkuEngine.new(project.server)
           engine.config_set(linked_app.dokku_app_name, ev.key, resolved)
           ev.update!(value: resolved)
-          Rails.logger.info "Updated #{ev.key} on #{linked_app.dokku_app_name} via linked ref to #{linked_svc_name}.#{var_name}"
+          had_updates = true
+          Rails.logger.info "Updated #{ev.key} on #{linked_app.dokku_app_name} via linked ref to #{service.name}.#{var_name}"
+        end
+      end
+
+      # Restart the linked app's container so it picks up the new password value
+      if had_updates
+        container = host_engine.dokku_container_name(linked_app.dokku_app_name)
+        if container.present? && host_engine.container_running?(container)
+          host_engine.run("docker restart #{container}")
+          Rails.logger.info "Restarted #{container} to pick up resolved linked password"
         end
       end
     end

@@ -489,6 +489,11 @@ class ManifestReconciler
         # Sync injected env vars and rewrite placeholder connection URLs
         rewrite_linked_db_urls(engine, from_svc, to_svc)
       end
+
+      # Ensure network aliases are set for the linked services
+      # This is needed so the from_svc can reach the to_svc by name
+      ensure_link_aliases(from_svc, to_svc)
+
       { success: true }
     elsif change.change_type == :removed
       # Remove DB link
@@ -502,6 +507,37 @@ class ManifestReconciler
   rescue => e
     Rails.logger.error "Link change failed: #{e.message}"
     { success: false, error: e.message }
+  end
+
+  def ensure_link_aliases(from_svc, to_svc)
+    host_engine = HostEngine.new(@project.server)
+    network_manager = ProjectNetworkManager.new(@project, DokkuEngine.new(@project.server))
+
+    # Wait for to_svc container to be running and set its alias
+    to_container = wait_for_container(to_svc.dokku_app_name, host_engine)
+    if to_container
+      to_alias = to_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+      network_manager.connect_container_with_aliases(to_container, [to_alias])
+    end
+
+    # Also ensure from_svc's container has the correct alias
+    from_container = wait_for_container(from_svc.dokku_app_name, host_engine)
+    if from_container
+      from_alias = from_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+      network_manager.connect_container_with_aliases(from_container, [from_alias])
+    end
+  rescue => e
+    Rails.logger.warn "Failed to ensure link aliases for #{from_svc.name} -> #{to_svc.name}: #{e.message}"
+  end
+
+  def wait_for_container(app_name, host_engine, timeout: 60)
+    start_time = Time.now
+    while Time.now - start_time < timeout
+      container = host_engine.dokku_container_name(app_name)
+      return container if container.present? && host_engine.container_running?(container)
+      sleep 1
+    end
+    nil
   end
 
   PASSWORD_VAR_NAMES = %w[
