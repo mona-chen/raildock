@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Keyboard } from 'lucide-react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { api } from '@/lib/api'
 import {
   Box, Activity, Settings, Rocket, Plus, Search, FileCode,
 } from 'lucide-react'
-import { useServices, useUpdateService, useLinkService, useUnlinkService } from '@/hooks/useServices'
+import { useServices, useLinkService, useUnlinkService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import { toast } from 'sonner'
@@ -64,6 +66,14 @@ export default function ProjectCanvas() {
   const updateService = useUpdateService()
   const linkService = useLinkService()
   const unlinkService = useUnlinkService()
+  const queryClient = useQueryClient()
+  const updatePositionMutation = useMutation({
+    mutationFn: ({ id, canvas_x, canvas_y }: { id: string; canvas_x: number; canvas_y: number }) =>
+      api.services.update(id, { canvas_x, canvas_y }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id] })
+    },
+  })
 
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() =>
     autoLayout(services)
@@ -263,7 +273,7 @@ export default function ProjectCanvas() {
 
       // Persist to backend
       if (savedPosition && dragId) {
-        updateService({ id: dragId, data: { canvas_x: savedPosition.x, canvas_y: savedPosition.y } })
+        updatePositionMutation.mutate({ id: dragId, canvas_x: savedPosition.x, canvas_y: savedPosition.y })
       }
 
       setDragId(null)
