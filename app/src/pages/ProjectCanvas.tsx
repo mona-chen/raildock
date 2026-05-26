@@ -89,10 +89,8 @@ export default function ProjectCanvas() {
       const next: typeof prev = {}
       services.forEach((s) => {
         // Prefer saved DB positions
-        const dbX = (s as any).canvas_x
-        const dbY = (s as any).canvas_y
-        if (dbX != null && dbY != null) {
-          next[s.id] = { x: dbX, y: dbY }
+        if (s.canvas_x != null && s.canvas_y != null) {
+          next[s.id] = { x: s.canvas_x, y: s.canvas_y }
         } else if (prev[s.id]) {
           // Keep existing local position
           next[s.id] = prev[s.id]
@@ -265,7 +263,7 @@ export default function ProjectCanvas() {
 
       // Persist to backend
       if (savedPosition && dragId) {
-        updateService(dragId, { canvas_x: savedPosition.x, canvas_y: savedPosition.y })
+        updateService({ id: dragId, data: { canvas_x: savedPosition.x, canvas_y: savedPosition.y } })
       }
 
       setDragId(null)

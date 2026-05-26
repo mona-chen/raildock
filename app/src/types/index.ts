@@ -78,6 +78,8 @@ export interface Service {
   managedBy?: 'ui' | 'manifest' | 'hybrid'
   configOverrides?: Record<string, any>
   config?: Record<string, any>
+  canvas_x?: number | null
+  canvas_y?: number | null
 }
 
 export interface ProcessType {
