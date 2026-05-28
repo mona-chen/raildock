@@ -10,8 +10,7 @@ on:
         type: string
 
 env:
-  IMAGE_PREFIX: ghcr.io/mona-chen/raildock
-  RAILDOCK_PATH: /opt/raildock
+  IMAGE: ghcr.io/mona-chen/raildock/raildock
 
 jobs:
   deploy:
@@ -19,10 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Validate inputs
+      - name: Validate version
         run: |
-          if [[ ! "${{ inputs.version }}" =~ ^(latest|v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
-            echo "Invalid version format. Use 'latest' or semver (e.g. v1.0.0)"
+          VERSION="${{ inputs.version || 'latest' }}"
+          if [[ ! "$VERSION" =~ ^(latest|v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
+            echo "Invalid version: $VERSION"
             exit 1
           fi
 
@@ -32,70 +32,60 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: IMAGE_PREFIX,RAILDOCK_PATH,VERSION
+          envs: IMAGE,VERSION
           env: |
             VERSION=${{ inputs.version || 'latest' }}
           script: |
             set -e
 
-            echo "==> Pulling images for version: $VERSION"
-
             if [ "$VERSION" = "latest" ]; then
-              IMG_FRONTEND="$IMAGE_PREFIX/raildock-frontend:latest"
-              IMG_BACKEND="$IMAGE_PREFIX/raildock-backend:latest"
+              IMG="$IMAGE:latest"
             else
-              # Strip 'v' prefix if present
               TAG="${VERSION#v}"
-              IMG_FRONTEND="$IMAGE_PREFIX/raildock-frontend:v${TAG}"
-              IMG_BACKEND="$IMAGE_PREFIX/raildock-backend:v${TAG}"
+              IMG="$IMAGE:v${TAG}"
             fi
 
-            echo "Frontend: $IMG_FRONTEND"
-            echo "Backend: $IMG_BACKEND"
+            echo "==> Pulling $IMG"
+            docker pull "$IMG"
 
-            # Pull images
-            docker pull "$IMG_FRONTEND" || echo "Warning: frontend pull failed"
-            docker pull "$IMG_BACKEND" || echo "Warning: backend pull failed"
+            echo "==> Stopping existing container (if running)"
+            docker stop raildock 2>/dev/null || true
+            docker rm raildock 2>/dev/null || true
 
-            # Update compose file to point to new images
-            cd "$RAILDOCK_PATH"
+            # Read existing env vars from .env to reuse them
+            ENV_FILE="${RAILDOCK_DIR:-/opt/raildock}/.env"
+            if [ -f "$ENV_FILE" ]; then
+              # Load existing env vars, override only the image
+              set -a
+              . "$ENV_FILE"
+              set +a
+            fi
 
-            # Create a version-specific compose override
-            cat > docker-compose.deployed.yml <<EOF
-            services:
-              frontend:
-                image: $IMG_FRONTEND
-              backend:
-                image: $IMG_BACKEND
-            EOF
+            echo "==> Starting RailDock $VERSION"
+            docker run -d \
+              --name raildock \
+              --restart unless-stopped \
+              --network raildock-network \
+              -p 80:80 \
+              --env-file "$ENV_FILE" \
+              "$IMG"
 
-            # Stop and remove old containers (keep volumes and networks)
-            docker compose -f docker-compose.yml -f docker-compose.deployed.yml down --remove-orphans
-
-            # Start with new images
-            docker compose -f docker-compose.yml -f docker-compose.deployed.yml up -d
-
-            # Wait for backend to be healthy
-            echo "==> Waiting for backend health..."
+            echo "==> Waiting for health check..."
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
-                echo "Backend healthy after ${i}s"
+              if curl -sf http://localhost/health > /dev/null 2>&1; then
+                echo "Ready after ${i}s"
                 break
               fi
               if [ $i -eq 30 ]; then
-                echo "Backend did not become healthy after 30s"
-                docker compose -f docker-compose.yml -f docker-compose.deployed.yml logs backend | tail -20
+                echo "Health check failed after 30s"
+                docker logs raildock | tail -20
                 exit 1
               fi
               sleep 1
             done
 
-            # Run migrations
-            echo "==> Running database migrations..."
-            docker compose -f docker-compose.yml -f docker-compose.deployed.yml exec backend bundle exec rails db:migrate RAILS_ENV=production || true
+            echo "==> Checking API..."
+            curl -sf http://localhost/api/health
 
-            # Restart worker
-            docker compose -f docker-compose.yml -f docker-compose.deployed.yml up -d --no-deps worker || true
-
-            echo "==> Deploy complete. Version: $VERSION"
-            docker compose -f docker-compose.yml -f docker-compose.deployed.yml ps
+            echo "==> Deploy complete: $VERSION"
+            docker ps --filter name=raildock --format "{{.Status}}"

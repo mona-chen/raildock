@@ -1,114 +1,47 @@
 name: raildock
 
-services:
-  frontend:
-    image: ghcr.io/mona-chen/raildock/raildock-frontend:latest
-    build:
-      context: ./app
-      dockerfile: Dockerfile.prod
-    ports:
-      - "3000:80"
-    networks:
-      - raildock
-      - raildock-bridge
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.raildock-web.rule=Host(`raildock.${RAILDOCK_DOMAIN:-localhost}`) || Host(`${RAILDOCK_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.raildock-web.priority=10"
-      - "traefik.http.routers.raildock-web.entrypoints=http"
-      - "traefik.http.routers.raildock-web.service=raildock-web"
-      - "traefik.http.services.raildock-web.loadbalancer.server.port=80"
-    restart: unless-stopped
+# Single-image RailDock setup.
+# One command to get up and running:
+#   docker compose up -d
+#
+# Required env vars:
+#   DATABASE_URL     — PostgreSQL connection string
+#   RAILS_MASTER_KEY — Rails credentials key (generate with: rails credentials:edit)
+#   JWT_SECRET_KEY   — Long random string for JWT signing
+# Optional:
+#   POSTGRES_PASSWORD — defaults to "raildock"
+#   RAILS_ENV         — defaults to "production"
+#   PORT              — defaults to 80 (external port)
 
-  backend:
-    image: ghcr.io/mona-chen/raildock/raildock-backend:latest
+services:
+  raildock:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
+    image: ghcr.io/mona-chen/raildock/raildock:latest
     ports:
-      - "3001:3000"
+      - "${PORT:-80}:80"
     environment:
-      RAILS_ENV: production
-      RAILS_MAX_THREADS: "5"
-      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: raildock
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
-      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:3000
+      RAILS_ENV: ${RAILS_ENV:-production}
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       RAILS_SERVE_STATIC_FILES: "true"
-    volumes:
-      - rails_storage:/rails/storage
-      - ./data/dokku-ssh:/data/dokku-ssh:ro
+      RAILS_LOG_TO_STDOUT: "1"
+      # Optional: for encrypted storage of SSH keys / tokens
+      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - raildock
-      - raildock-bridge
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.raildock-api.rule=Host(`api.${RAILDOCK_DOMAIN:-localhost}`) || (Host(`${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/api`))"
-      - "traefik.http.routers.raildock-api.priority=20"
-      - "traefik.http.routers.raildock-api.entrypoints=http"
-      - "traefik.http.routers.raildock-api.service=raildock-api"
-      - "traefik.http.routers.raildock-api-secure.rule=Host(`api.${RAILDOCK_DOMAIN:-localhost}`) || (Host(`${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/api`))"
-      - "traefik.http.routers.raildock-api-secure.priority=20"
-      - "traefik.http.routers.raildock-api-secure.entrypoints=https"
-      - "traefik.http.routers.raildock-api-secure.service=raildock-api"
-      - "traefik.http.routers.raildock-api-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.raildock-cable.rule=(Host(`api.${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/cable`)) || (Host(`${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/cable`))"
-      - "traefik.http.routers.raildock-cable.priority=30"
-      - "traefik.http.routers.raildock-cable.entrypoints=http"
-      - "traefik.http.routers.raildock-cable.service=raildock-api"
-      - "traefik.http.routers.raildock-cable-secure.rule=(Host(`api.${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/cable`)) || (Host(`${RAILDOCK_DOMAIN:-localhost}`) && PathPrefix(`/cable`))"
-      - "traefik.http.routers.raildock-cable-secure.priority=30"
-      - "traefik.http.routers.raildock-cable-secure.entrypoints=https"
-      - "traefik.http.routers.raildock-cable-secure.service=raildock-api"
-      - "traefik.http.routers.raildock-cable-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.services.raildock-api.loadbalancer.server.port=3000"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 15s
+      test: ["CMD", "curl", "-sf", "http://localhost/health"]
+      interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-  worker:
-    image: ghcr.io/mona-chen/raildock/raildock-backend:latest
-    build: !reset null
-    command: ["./bin/rails", "solid_queue:start"]
-    environment:
-      RAILS_ENV: production
-      RAILS_MAX_THREADS: "5"
-      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD}@db:5432/raildock_production
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: raildock
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:3000
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      RAILS_SERVE_STATIC_FILES: "true"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - raildock
-    healthcheck:
-      test: ["CMD-SHELL", "ruby -e 'exit(Dir.glob(\"/proc/*/cmdline\").any?{|f| File.read(f).include?(\"solid-queue\")} ? 0 : 1)'"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
+      start_period: 20s
 
   db:
     image: postgres:16-alpine
@@ -118,8 +51,6 @@ services:
       POSTGRES_DB: raildock_production
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - raildock
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raildock -d raildock_production"]
       interval: 5s
@@ -127,42 +58,5 @@ services:
       retries: 5
     restart: unless-stopped
 
-  dokku:
-    image: dokku/dokku:0.38.1
-    hostname: dokku
-    environment:
-      DOKKU_HOSTNAME: ${RAILDOCK_DOMAIN:-localhost}
-      DOKKU_HOST_ROOT: ${DOKKU_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/home/dokku}
-      DOKKU_LIB_HOST_ROOT: ${DOKKU_LIB_HOST_ROOT:-/var/lib/docker/volumes/raildock_dokku_data/_data/var/lib/dokku}
-    volumes:
-      - dokku_data:/mnt/dokku
-      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
-      - ./data/dokku-ssh:/data/dokku-ssh
-      - ./scripts/dokku-init.sh:/etc/my_init.d/99-raildock-init.sh:ro
-      - letsencrypt:/var/lib/dokku/data/traefik
-    ports:
-      - "3022:22"
-    networks:
-      - raildock
-      - raildock-bridge
-    healthcheck:
-      test: ["CMD-SHELL", "ss -tln | grep -q ':22 ' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
-networks:
-  raildock:
-    name: raildock-network
-    driver: bridge
-  raildock-bridge:
-    name: raildock-bridge
-    external: true
-
 volumes:
   postgres_data:
-  rails_storage:
-  letsencrypt:
-  dokku_data:

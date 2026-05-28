@@ -20,16 +20,13 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true
-
       - name: Install dependencies
         run: bundle install
-
       - name: Lint with RuboCop
         run: bundle exec rubocop --format github
 
@@ -60,22 +57,17 @@ jobs:
       RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY || 'test_master_key_for_ci' }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true
-
       - name: Install dependencies
         run: bundle install
-
       - name: Set up DB
         run: bundle exec rails db:test:prepare
-
       - name: Run RSpec
         run: bundle exec rspec --format progress
-
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,26 +85,20 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: app/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: Lint
         run: npm run lint
-
       - name: Type check
         run: npm run typecheck
-
       - name: Build for production
         run: npm run build
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -129,20 +115,16 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: app/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run Vitest
         run: npm test -- --run
-
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

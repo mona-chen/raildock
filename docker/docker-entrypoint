@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+# Always run db:prepare on boot — Rails checks if DB exists and only
+# creates/migrates if needed. Safe to call repeatedly (idempotent).
+if [ -n "$DATABASE_URL" ]; then
+  echo "==> Preparing database..."
+  /rails/bin/rails db:prepare 2>/dev/null || {
+    echo "   db:prepare failed (database may not be ready yet — will retry on next start)"
+  }
+fi
+
+exec "${@}"
