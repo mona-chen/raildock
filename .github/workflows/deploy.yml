@@ -1,0 +1,101 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy (e.g. v1.0.0 or latest)"
+        required: false
+        default: "latest"
+        type: string
+
+env:
+  IMAGE_PREFIX: ghcr.io/mona-chen/raildock
+  RAILDOCK_PATH: /opt/raildock
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.version || 'latest' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate inputs
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^(latest|v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
+            echo "Invalid version format. Use 'latest' or semver (e.g. v1.0.0)"
+            exit 1
+          fi
+
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: IMAGE_PREFIX,RAILDOCK_PATH,VERSION
+          env: |
+            VERSION=${{ inputs.version || 'latest' }}
+          script: |
+            set -e
+
+            echo "==> Pulling images for version: $VERSION"
+
+            if [ "$VERSION" = "latest" ]; then
+              IMG_FRONTEND="$IMAGE_PREFIX/raildock-frontend:latest"
+              IMG_BACKEND="$IMAGE_PREFIX/raildock-backend:latest"
+            else
+              # Strip 'v' prefix if present
+              TAG="${VERSION#v}"
+              IMG_FRONTEND="$IMAGE_PREFIX/raildock-frontend:v${TAG}"
+              IMG_BACKEND="$IMAGE_PREFIX/raildock-backend:v${TAG}"
+            fi
+
+            echo "Frontend: $IMG_FRONTEND"
+            echo "Backend: $IMG_BACKEND"
+
+            # Pull images
+            docker pull "$IMG_FRONTEND" || echo "Warning: frontend pull failed"
+            docker pull "$IMG_BACKEND" || echo "Warning: backend pull failed"
+
+            # Update compose file to point to new images
+            cd "$RAILDOCK_PATH"
+
+            # Create a version-specific compose override
+            cat > docker-compose.deployed.yml <<EOF
+            services:
+              frontend:
+                image: $IMG_FRONTEND
+              backend:
+                image: $IMG_BACKEND
+            EOF
+
+            # Stop and remove old containers (keep volumes and networks)
+            docker compose -f docker-compose.yml -f docker-compose.deployed.yml down --remove-orphans
+
+            # Start with new images
+            docker compose -f docker-compose.yml -f docker-compose.deployed.yml up -d
+
+            # Wait for backend to be healthy
+            echo "==> Waiting for backend health..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+                echo "Backend healthy after ${i}s"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "Backend did not become healthy after 30s"
+                docker compose -f docker-compose.yml -f docker-compose.deployed.yml logs backend | tail -20
+                exit 1
+              fi
+              sleep 1
+            done
+
+            # Run migrations
+            echo "==> Running database migrations..."
+            docker compose -f docker-compose.yml -f docker-compose.deployed.yml exec backend bundle exec rails db:migrate RAILS_ENV=production || true
+
+            # Restart worker
+            docker compose -f docker-compose.yml -f docker-compose.deployed.yml up -d --no-deps worker || true
+
+            echo "==> Deploy complete. Version: $VERSION"
+            docker compose -f docker-compose.yml -f docker-compose.deployed.yml ps

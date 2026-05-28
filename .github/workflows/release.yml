@@ -1,0 +1,77 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  IMAGE_PREFIX: ghcr.io/mona-chen/raildock
+
+jobs:
+  metadata:
+    name: Extract metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      changelog_body: ${{ steps.changelog.outputs.body }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV=$(git tag --sort=-version:refname | grep -A1 "^${TAG}$" | tail -1)
+          if [ -z "$PREV" ]; then
+            BODY=$(git log --oneline --format="* %s" HEAD)
+          else
+            BODY=$(git log --oneline --format="* %s" ${PREV}..${TAG})
+          fi
+          echo "body=${BODY:-No changes}" >> $GITHUB_OUTPUT
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: metadata
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.metadata.outputs.tag }}
+          name: RailDock v${{ needs.metadata.outputs.version }}
+          body: |
+            ## RailDock v${{ needs.metadata.outputs.version }}
+
+            **Docker images:**
+            - `ghcr.io/mona-chen/raildock/raildock-frontend:v${{ needs.metadata.outputs.version }}`
+            - `ghcr.io/mona-chen/raildock/raildock-backend:v${{ needs.metadata.outputs.version }}`
+
+            **Upgrade on your server:**
+            ```bash
+            docker pull ghcr.io/mona-chen/raildock/raildock-frontend:v${{ needs.metadata.outputs.version }}
+            docker pull ghcr.io/mona-chen/raildock/raildock-backend:v${{ needs.metadata.outputs.version }}
+            docker compose -f /opt/raildock/docker-compose.yml up -d
+            docker exec raildock-backend-1 bundle exec rails db:migrate
+            ```
+
+            ## Changelog
+
+            ${{ needs.metadata.outputs.changelog_body }}
+          draft: false
+          prerelease: ${{ contains(needs.metadata.outputs.tag, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
