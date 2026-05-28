@@ -168,12 +168,41 @@ function ProjectCard({
 }) {
   const { total, app: appCount, database: dbCount, cache: cacheCount } = project.serviceCounts
   const [showConfirm, setShowConfirm] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+
+  const isConfirmValid = confirmName === project.name
+
+  const handleOpen = () => {
+    setShowConfirm(false)
+    setConfirmName('')
+    onOpen(project.id)
+  }
+
+  const handleDeleteClick = () => {
+    setShowConfirm(true)
+    setConfirmName('')
+  }
+
+  const handleDelete = () => {
+    if (!isConfirmValid) return
+    setShowConfirm(false)
+    setConfirmName('')
+    onDelete(project.id)
+  }
+
+  const handleClose = () => {
+    setShowConfirm(false)
+    setConfirmName('')
+  }
 
   return (
     <>
       <div className="relative group">
         <button
-          onClick={() => onOpen(project.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleOpen()
+          }}
           className="w-full text-left bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] hover:border-[rgba(139,92,246,0.2)] rounded-2xl p-5 transition-all hover:bg-[rgba(255,255,255,0.04)]"
         >
           <div className="flex items-start justify-between mb-3">
@@ -211,7 +240,7 @@ function ProjectCard({
         <button
           onClick={(e) => {
             e.stopPropagation()
-            setShowConfirm(true)
+            handleDeleteClick()
           }}
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.04] transition-all"
           title="Delete project"
@@ -261,19 +290,30 @@ function ProjectCard({
               . All associated Dokku resources (apps, databases) will be destroyed.
             </p>
 
+            <div className="mb-4">
+              <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
+                Type <span className="font-mono font-medium text-white">{project.name}</span> to confirm
+              </label>
+              <input
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-red-500/50 placeholder-[#4A4A55]"
+                placeholder={project.name}
+                autoFocus
+              />
+            </div>
+
             <div className="w-full flex gap-2">
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={handleClose}
                 className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-all"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  setShowConfirm(false)
-                  onDelete(project.id)
-                }}
-                className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all"
+                onClick={handleDelete}
+                disabled={!isConfirmValid}
+                className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Delete Project
               </button>
