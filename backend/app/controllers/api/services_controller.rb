@@ -18,9 +18,9 @@ module Api
     ]
 
     def index
-      project = scoped_projects.find_by(id: params[:project_id])
+      project = scoped_projects.find(params[:project_id])
       authorize_project!(project)
-      services = Service.where(project_id: params[:project_id])
+      services = project.services
       render json: services
     end
 
@@ -387,7 +387,7 @@ module Api
         )
       end
 
-      render json: { success: true, linkedServiceIds: @service.reload.linked_service_ids }
+      render json: { success: true, linked_service_ids: @service.reload.linked_service_ids }
     end
 
     def unlink
@@ -432,7 +432,7 @@ module Api
         message: "Unlinked #{@service.name} from #{target.name}"
       )
 
-      render json: { success: true, linkedServiceIds: @service.reload.linked_service_ids }
+      render json: { success: true, linked_service_ids: @service.reload.linked_service_ids }
     end
 
     def metrics

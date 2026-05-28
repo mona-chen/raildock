@@ -1,17 +1,17 @@
 class LogsChannel < ApplicationCable::Channel
   # Thread-safe map to track active log streams per service
   cattr_accessor(:active_log_streams, default: Concurrent::Map.new)
+  cattr_accessor(:active_log_threads, default: Concurrent::Map.new)
 
   def subscribed
     service = Service.find(params[:service_id])
+    @service = service
 
     # Authorization: verify the user can access this service's project
     reject unless current_user
-    if service.project&.organization_id
-      unless current_user.organizations.exists?(id: service.project.organization_id)
-        reject
-        return
-      end
+    unless logs_allowed?(service)
+      reject
+      return
     end
 
     stream_for service
@@ -31,6 +31,18 @@ class LogsChannel < ApplicationCable::Channel
 
   private
 
+  def logs_allowed?(service)
+    project = service.project
+    return false unless project
+    return true if current_user.admin?
+
+    if project.organization_id.nil?
+      return project.user_id == current_user.id
+    end
+
+    current_user.organizations.exists?(id: project.organization_id)
+  end
+
   def start_log_stream(service)
     # Clean up any existing stream for this service
     stop_log_stream_for(service)
@@ -42,21 +54,25 @@ class LogsChannel < ApplicationCable::Channel
     active_log_streams[service.id] = stop_token
 
     # Run log tailing in a background executor to avoid blocking ActionCable
-    Concurrent::SingleThreadExecutor.new.post do
+    thread = Thread.new do
       tail_logs(service, stop_token)
     end
+    active_log_threads[service.id] = thread
   end
 
   def stop_log_stream
-    # Find which service this subscription is for and signal stop
-    active_log_streams.each do |service_id, stop_token|
-      stop_token.reset(true)
-    end
+    return unless @service
+
+    stop_log_stream_for(@service)
   end
 
   def stop_log_stream_for(service)
     if stop_token = active_log_streams.delete(service.id)
       stop_token.reset(true)
+    end
+
+    if thread = active_log_threads.delete(service.id)
+      thread.kill
     end
   end
 
@@ -114,6 +130,7 @@ class LogsChannel < ApplicationCable::Channel
       Rails.logger.error "LogsChannel error: #{e.message}"
     ensure
       active_log_streams.delete(service.id)
+      active_log_threads.delete(service.id)
     end
   end
 

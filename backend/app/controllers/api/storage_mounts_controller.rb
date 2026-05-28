@@ -40,7 +40,7 @@ module Api
       if action == :mount
         engine.storage_mount(@service.dokku_app_name, host_path, container_path)
       else
-        engine.storage_unmount(@service.dokku_app_name, host_path, container_path)
+        engine.storage_unmount(@service.dokku_app_name, host_path, container_path: container_path)
       end
     end
   end

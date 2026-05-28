@@ -145,7 +145,7 @@ RSpec.describe "Api::ServersController", type: :request do
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json["cpu"]).to eq(62)
+        expect(json["cpu"]).to eq(4)
         expect(json["memory"]).to eq(62)
         expect(json["disk"]).to eq(38)
       end

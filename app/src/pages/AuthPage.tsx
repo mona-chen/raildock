@@ -150,12 +150,14 @@ export default function AuthPage() {
           <form onSubmit={isSetup ? handleSetup : handleLogin} className="space-y-3">
             {isSetup && (
               <div>
-                <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-name" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
                   Full Name
                 </label>
                 <input
+                  id="auth-name"
                   ref={nameRef}
                   type="text"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -165,12 +167,14 @@ export default function AuthPage() {
               </div>
             )}
             <div>
-              <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-email" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
                 Email
               </label>
               <input
+                id="auth-email"
                 ref={emailRef}
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -179,13 +183,15 @@ export default function AuthPage() {
               />
             </div>
             <div>
-              <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-password" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="auth-password"
                   ref={passwordRef}
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete={isSetup ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -195,6 +201,7 @@ export default function AuthPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#4A4A55] hover:text-[#A0A0B0]"
                 >
@@ -231,12 +238,14 @@ export default function AuthPage() {
 
             {isSetup && (
               <div>
-                <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-confirm-password" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
                   Confirm Password
                 </label>
                 <input
+                  id="auth-confirm-password"
                   ref={confirmPasswordRef}
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required

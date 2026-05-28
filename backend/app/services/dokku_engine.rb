@@ -346,6 +346,10 @@ class DokkuEngine
     run("proxy:report #{escape(app_name)}")
   end
 
+  def nginx_set(app_name, property, value)
+    run("nginx:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
+  end
+
   # ── Ports Management ─────────────────────────
   # Dokku uses the ports plugin for port management
   # Syntax: ports:add <app> [<scheme>:<host-port>:<container-port>...]

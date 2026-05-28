@@ -3,30 +3,42 @@ module Api
     include Authorizable
 
     before_action :set_server, only: [:show, :update, :destroy, :validate, :metrics]
-    before_action :authorize_server_action!, except: [:index, :create]
 
     def index
-      servers = Server.all
+      authorize_server!(action: :read)
+      return if performed?
+
+      servers = scoped_servers
       render json: servers
     end
 
     def show
+      authorize_server_record!(@server, action: :read)
+      return if performed?
+
       render json: @server
     end
 
     def create
       authorize_server!(action: :create)
-      server = Server.create!(server_params.merge(status: :disconnected))
+      return if performed?
+
+      server = Server.create!(server_params.merge(status: :disconnected, user: current_user))
       render json: server, status: :created
     end
 
     def update
-      authorize_server!(action: :update)
+      authorize_server_record!(@server, action: :update)
+      return if performed?
+
       @server.update!(server_params)
       render json: @server
     end
 
     def validate
+      authorize_server_record!(@server, action: :update)
+      return if performed?
+
       engine = DokkuEngine.new(@server)
       result = engine.validate_connection
 
@@ -52,6 +64,9 @@ module Api
     end
 
     def metrics
+      authorize_server_record!(@server, action: :read)
+      return if performed?
+
       if @server.ssh_key.present?
         engine = DokkuEngine.new(@server)
 
@@ -77,7 +92,9 @@ module Api
     end
 
     def destroy
-      authorize_server!(action: :delete)
+      authorize_server_record!(@server, action: :delete)
+      return if performed?
+
       @server.destroy!
       head :no_content
     end
@@ -85,7 +102,7 @@ module Api
     private
 
     def set_server
-      @server = Server.find(params[:id])
+      @server = scoped_servers.find(params[:id])
     end
 
     def server_params
@@ -94,14 +111,11 @@ module Api
       params.permit(:name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains)
     end
 
-    def authorize_server_action!
-      action = case params[:action]
-               when 'show' then :read
-               when 'update', 'validate', 'metrics' then :update
-               when 'destroy' then :delete
-               else :read
-               end
-      authorize_server!(action: action)
+    def authorize_server_record!(server, action:)
+      return true if current_user.admin?
+      return true if server.user_id == current_user.id
+
+      render json: { error: "Forbidden" }, status: :forbidden
     end
 
     def detect_proxy_type(output)

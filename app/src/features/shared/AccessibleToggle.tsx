@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 
 interface AccessibleToggleProps {
   checked: boolean
@@ -14,7 +14,8 @@ interface AccessibleToggleProps {
  */
 const AccessibleToggle = forwardRef<HTMLInputElement, AccessibleToggleProps>(
   ({ checked, onChange, label, id, disabled }, ref) => {
-    const toggleId = id || `toggle-${Math.random().toString(36).slice(2, 9)}`
+    const generatedId = useId()
+    const toggleId = id || generatedId
 
     return (
       <label

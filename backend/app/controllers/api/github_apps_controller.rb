@@ -8,9 +8,15 @@ module Api
       installation_id = params[:installation_id]
       setup_action = params[:setup_action]
       state = params[:state]
+      callback_user = user_from_state(state)
 
       unless installation_id.present?
         redirect_to frontend_redirect_url(github_app: 'error', message: 'Missing installation_id')
+        return
+      end
+
+      unless callback_user
+        redirect_to frontend_redirect_url(github_app: 'error', message: 'Invalid setup state')
         return
       end
 
@@ -41,11 +47,11 @@ module Api
 
       # Associate with organization or user based on actual GitHub account type
       if account_type == 'organization'
-        org = find_or_create_organization(account['login'], current_user)
+        org = find_or_create_organization(account['login'], callback_user)
         git_source.organization = org
         git_source.user = nil
       else
-        git_source.user = current_user
+        git_source.user = callback_user
         git_source.organization = nil
       end
 
@@ -216,6 +222,11 @@ module Api
       {}
     end
 
+    def user_from_state(state)
+      decoded = decode_state(state)
+      User.find_by(id: decoded["user_id"] || decoded[:user_id])
+    end
+
     def frontend_redirect_url(params = {})
       base = ENV.fetch('FRONTEND_URL') { request.base_url }
       query = URI.encode_www_form(params)
@@ -224,7 +235,7 @@ module Api
 
     def verify_webhook(payload, signature)
       secret = GithubAppService.webhook_secret
-      return true if secret.blank? # Allow unverified in dev if no secret configured
+      return !Rails.env.production? if secret.blank?
 
       expected = 'sha256=' + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), secret, payload)
       ActiveSupport::SecurityUtils.secure_compare(expected, signature.to_s)

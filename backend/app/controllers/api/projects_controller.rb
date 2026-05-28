@@ -21,7 +21,8 @@ module Api
       authorize_project!(nil, action: :create)
       project = Project.new(project_params)
       project.organization = current_organization
-      project.server ||= Server.first
+      project.user = current_user unless current_organization
+      project.server ||= scoped_servers.first
       project.save!
       ActivityEvent.create!(project: project, service_name: "-", action: :created, message: "Project #{project.name} created")
       render json: project, status: :created
@@ -161,9 +162,13 @@ module Api
     end
 
     def project_params
-      params.require(:project).permit(:name, :description, :environment, :server_id)
+      params.require(:project).permit(:name, :description, :environment, :server_id).tap do |permitted|
+        permitted.delete(:server_id) if permitted[:server_id].present? && !scoped_servers.exists?(id: permitted[:server_id])
+      end
     rescue ActionController::ParameterMissing
-      params.permit(:name, :description, :environment, :server_id)
+      params.permit(:name, :description, :environment, :server_id).tap do |permitted|
+        permitted.delete(:server_id) if permitted[:server_id].present? && !scoped_servers.exists?(id: permitted[:server_id])
+      end
     end
 
     def with_dokku_engine(service)

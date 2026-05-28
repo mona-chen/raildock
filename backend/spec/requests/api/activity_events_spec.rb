@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe "Activity Events API", type: :request do
   let(:user) { create(:user) }
   let(:server) { create(:server) }
-  let(:project) { create(:project, server: server) }
+  let(:project) { create(:project, server: server, user: user) }
   let(:service) { create(:service, project: project) }
   let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
 
@@ -25,10 +25,10 @@ RSpec.describe "Activity Events API", type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it "returns empty array for non-existent project" do
+    it "returns 404 for non-existent project" do
       get "/api/projects/99999/activity-events", headers: auth_headers
-      expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)).to eq([])
+      expect(response).to have_http_status(:not_found)
+      expect(JSON.parse(response.body)["error"]).to eq("Not found")
     end
   end
 end

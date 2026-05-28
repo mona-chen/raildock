@@ -61,7 +61,7 @@ export default function ManifestEditorPage() {
     if (manifest?.content) {
       setContent(manifest.content)
     }
-  }, [manifest?.content])
+  }, [manifest])
 
   const handlePreview = useCallback(async () => {
     if (!projectId) return
@@ -95,7 +95,7 @@ export default function ManifestEditorPage() {
       setContent(DEFAULT_MANIFEST)
     }
     setPreviewResult(null)
-  }, [manifest?.content])
+  }, [manifest])
 
   const handleUseAsManifest = useCallback((templateId: string, rawToml: string) => {
     if (!rawToml) {

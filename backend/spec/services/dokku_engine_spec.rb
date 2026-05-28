@@ -23,9 +23,10 @@ RSpec.describe DokkuEngine, type: :service do
     allow(channel).to receive(:on_data) { |&block| block.call(channel, output) }
     allow(channel).to receive(:on_extended_data) { |&block| block.call(channel, 1, "") }
     allow(channel).to receive(:on_request).with("exit-status") { |&block| block.call(channel, exit_status_data) }
+    allow(channel).to receive(:wait)
 
     ssh = double("ssh_session")
-    allow(ssh).to receive(:open_channel).and_yield(channel)
+    allow(ssh).to receive(:open_channel).and_yield(channel).and_return(channel)
     allow(ssh).to receive(:loop)
 
     allow(Net::SSH).to receive(:start)
@@ -50,7 +51,7 @@ RSpec.describe DokkuEngine, type: :service do
     context "when the SSH session executes successfully" do
       it "returns success and captures stdout" do
         channel = mock_ssh_channel(output: "dokku version 0.35.13", exit_code: 0)
-        expect(channel).to receive(:exec).with("dokku version").and_yield(channel, true)
+        expect(channel).to receive(:exec).with("version").and_yield(channel, true)
 
         result = engine.run("version")
         expect(result[:success]).to be true
@@ -61,7 +62,7 @@ RSpec.describe DokkuEngine, type: :service do
     context "when the command exits with a non-zero status" do
       it "returns failure and captures output" do
         channel = mock_ssh_channel(output: "Error: app does not exist", exit_code: 1)
-        expect(channel).to receive(:exec).with("dokku apps:exists myapp").and_yield(channel, true)
+        expect(channel).to receive(:exec).with("apps:exists myapp").and_yield(channel, true)
 
         result = engine.run("apps:exists myapp")
         expect(result[:success]).to be false
@@ -72,7 +73,7 @@ RSpec.describe DokkuEngine, type: :service do
     context "when the channel fails to execute the command" do
       it "returns failure immediately" do
         channel = mock_ssh_channel
-        expect(channel).to receive(:exec).with("dokku version").and_yield(channel, false)
+        expect(channel).to receive(:exec).with("version").and_yield(channel, false)
 
         result = engine.run("version")
         expect(result[:success]).to be false
@@ -180,12 +181,12 @@ RSpec.describe DokkuEngine, type: :service do
 
   describe "configuration methods" do
     it "#config_set generates the correct command" do
-      expect(engine).to receive(:run).with("config:set --no-restart myapp KEY='value'").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("config:set --no-restart myapp KEY=value").and_return({ success: true, output: "" })
       engine.config_set("myapp", "KEY", "value")
     end
 
     it "#config_set escapes single quotes in values" do
-      expect(engine).to receive(:run).with("config:set --no-restart myapp KEY='it's's'").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("config:set --no-restart myapp KEY=it\\'s").and_return({ success: true, output: "" })
       engine.config_set("myapp", "KEY", "it's")
     end
 
@@ -312,34 +313,34 @@ RSpec.describe DokkuEngine, type: :service do
 
   describe "docker option methods" do
     it "#docker_option_add generates the correct command" do
-      expect(engine).to receive(:run).with("docker-options:add myapp deploy --restart=on-failure").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("docker-options:add myapp deploy --restart\\=on-failure").and_return({ success: true, output: "" })
       engine.docker_option_add("myapp", "deploy", "--restart=on-failure")
     end
 
     it "#docker_option_remove generates the correct command" do
-      expect(engine).to receive(:run).with("docker-options:remove myapp deploy --restart=on-failure").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("docker-options:remove myapp deploy --restart\\=on-failure").and_return({ success: true, output: "" })
       engine.docker_option_remove("myapp", "deploy", "--restart=on-failure")
     end
   end
 
   describe "resource limit methods" do
     it "#resource_limit builds a command with all options" do
-      expect(engine).to receive(:run).with("resource:limit myapp web --memory 512 --cpu 1 --nvidia-gpu 1").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("resource:limit myapp --process-type web --memory 512 --cpu 1 --nvidia-gpu 1").and_return({ success: true, output: "" })
       engine.resource_limit("myapp", "web", memory: "512", cpu: "1", nvidia_gpu: "1")
     end
 
     it "#resource_limit omits missing options" do
-      expect(engine).to receive(:run).with("resource:limit myapp web --memory 256").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("resource:limit myapp --process-type web --memory 256").and_return({ success: true, output: "" })
       engine.resource_limit("myapp", "web", memory: "256")
     end
 
     it "#resource_reserve builds a command with all options" do
-      expect(engine).to receive(:run).with("resource:reserve myapp web --memory 512 --cpu 1").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("resource:reserve myapp --process-type web --memory 512 --cpu 1").and_return({ success: true, output: "" })
       engine.resource_reserve("myapp", "web", memory: "512", cpu: "1")
     end
 
     it "#resource_reserve omits missing options" do
-      expect(engine).to receive(:run).with("resource:reserve myapp web --cpu 2").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("resource:reserve myapp --process-type web --cpu 2").and_return({ success: true, output: "" })
       engine.resource_reserve("myapp", "web", cpu: "2")
     end
   end
@@ -348,6 +349,7 @@ RSpec.describe DokkuEngine, type: :service do
     it "#letsencrypt_enable sets email and enables" do
       expect(engine).to receive(:run).with("letsencrypt:set myapp email admin@example.com").and_return({ success: true, output: "" })
       expect(engine).to receive(:run).with("letsencrypt:enable myapp").and_return({ success: true, output: "" })
+      allow(engine).to receive(:run).with("apps:report myapp --traefik-api-enabled").and_return({ success: true, output: "true" })
       engine.letsencrypt_enable("myapp", "admin@example.com")
     end
 
@@ -364,13 +366,13 @@ RSpec.describe DokkuEngine, type: :service do
 
   describe "git deployment methods" do
     it "#deploy generates the correct command with default branch" do
-      expect(engine).to receive(:run).with("git:sync myapp main").and_return({ success: true, output: "" })
-      engine.deploy("myapp")
+      expect(engine).to receive(:run).with("git:sync myapp https://github.com/example/repo.git main").and_return({ success: true, output: "" })
+      engine.deploy("myapp", "https://github.com/example/repo.git")
     end
 
     it "#deploy generates the correct command with custom branch" do
-      expect(engine).to receive(:run).with("git:sync myapp develop").and_return({ success: true, output: "" })
-      engine.deploy("myapp", branch: "develop")
+      expect(engine).to receive(:run).with("git:sync myapp https://github.com/example/repo.git develop").and_return({ success: true, output: "" })
+      engine.deploy("myapp", "https://github.com/example/repo.git", branch: "develop")
     end
 
     it "#git_set_deploy_branch generates the correct command" do
@@ -421,19 +423,19 @@ RSpec.describe DokkuEngine, type: :service do
     end
 
     it "#postgres_export generates the correct command" do
-      expect(engine).to receive(:run).with("postgres:export mydb > /tmp/dump.sql").and_return({ success: true, output: "" })
-      engine.postgres_export("mydb", "/tmp/dump.sql")
+      expect(engine).to receive(:run).with("postgres:export mydb").and_return({ success: true, output: "" })
+      engine.postgres_export("mydb")
     end
 
     it "#postgres_import generates the correct command" do
-      expect(engine).to receive(:run).with("postgres:import mydb < /tmp/dump.sql").and_return({ success: true, output: "" })
-      engine.postgres_import("mydb", "/tmp/dump.sql")
+      expect(engine).to receive(:run_with_stdin).with("postgres:import mydb", "dump-data").and_return({ success: true, output: "" })
+      engine.postgres_import("mydb", "dump-data")
     end
   end
 
   describe "cron methods" do
     it "#cron_set generates the correct command" do
-      expect(engine).to receive(:run).with("cron:set myapp * * * * * echo hello").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("cron:set myapp \\*\\ \\*\\ \\*\\ \\*\\ \\* echo\\ hello").and_return({ success: true, output: "" })
       engine.cron_set("myapp", "* * * * *", "echo hello")
     end
 

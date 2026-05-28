@@ -167,15 +167,21 @@ class TemplateLoader
     def sync_remote_repo(repo_url)
       if Dir.exist?(File.join(REMOTE_DIR, ".git"))
         # Pull latest
-        system("git -C #{REMOTE_DIR} pull --depth 1 --quiet")
+        system("git", "-C", REMOTE_DIR, "pull", "--depth", "1", "--quiet")
       else
         # Clone fresh
+        raise ArgumentError, "Invalid templates repo URL" unless valid_git_repo_url?(repo_url)
+
         FileUtils.rm_rf(REMOTE_DIR)
         FileUtils.mkdir_p(REMOTE_DIR)
-        system("git clone --depth 1 #{repo_url} #{REMOTE_DIR} --quiet")
+        system("git", "clone", "--depth", "1", repo_url, REMOTE_DIR, "--quiet")
       end
     rescue => e
       Rails.logger.error "Failed to sync remote templates repo: #{e.message}"
+    end
+
+    def valid_git_repo_url?(repo_url)
+      repo_url.to_s.match?(/\A(?:https?:\/\/|ssh:\/\/|git@)[^\s;&|`]+\z/)
     end
   end
 end

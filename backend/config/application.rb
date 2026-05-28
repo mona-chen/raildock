@@ -45,7 +45,9 @@ module Backend
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore, key: '_raildock_session'
 
-    # Fallback secret_key_base from environment when credentials.yml.enc is missing
-    config.secret_key_base = ENV.fetch("RAILS_MASTER_KEY") { SecureRandom.hex(64) }
+    # Fallback secret_key_base from environment when credentials.yml.enc is missing.
+    # Production must be configured explicitly; random boot keys invalidate sessions
+    # and make signed values unreliable across restarts.
+    config.secret_key_base = ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(64)
   end
 end

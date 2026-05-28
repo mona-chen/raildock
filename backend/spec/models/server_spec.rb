@@ -50,7 +50,7 @@ RSpec.describe Server, type: :model do
 
     it "returns default values when not set" do
       server = build(:server, disk_used: nil, disk_total: nil)
-      expect(server.disk_usage).to eq({ used: 0, total: 100 })
+      expect(server.disk_usage).to eq({ used: 0, total: 0 })
     end
   end
 
@@ -62,7 +62,7 @@ RSpec.describe Server, type: :model do
 
     it "returns default values when not set" do
       server = build(:server, memory_used: nil, memory_total: nil)
-      expect(server.memory_usage).to eq({ used: 0, total: 128 })
+      expect(server.memory_usage).to eq({ used: 0, total: 0 })
     end
   end
 

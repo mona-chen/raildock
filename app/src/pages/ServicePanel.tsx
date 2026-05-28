@@ -44,7 +44,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   return (
     <div
       data-service-panel
-      className="absolute right-0 top-0 bottom-0 w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+      className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       onWheel={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -211,10 +211,13 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/[0.06] overflow-x-auto flex-shrink-0">
+      <div className="flex border-b border-white/[0.06] overflow-x-auto flex-shrink-0" role="tablist" aria-label="Service sections">
         {tabs.map((t) => (
           <button
             key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`px-4 py-2.5 text-[13px] border-b-2 transition-all whitespace-nowrap ${
               tab === t

@@ -2,13 +2,11 @@ class TerminalChannel < ApplicationCable::Channel
   def subscribed
     @service = Service.find(params[:service_id])
 
-    # Authorization
+    # Authorization: terminal access is equivalent to command execution.
     reject unless current_user
-    if @service.project&.organization_id
-      unless current_user.organizations.exists?(id: @service.project.organization_id)
-        reject
-        return
-      end
+    unless terminal_allowed?(@service)
+      reject
+      return
     end
 
     stream_for @service
@@ -43,6 +41,19 @@ class TerminalChannel < ApplicationCable::Channel
   end
 
   private
+
+  def terminal_allowed?(service)
+    project = service.project
+    return false unless project
+    return true if current_user.admin?
+
+    if project.organization_id.nil?
+      return project.user_id == current_user.id
+    end
+
+    membership = current_user.memberships.find_by(organization_id: project.organization_id)
+    membership&.owner? || membership&.admin?
+  end
 
   def open_terminal_session
     server = @service.project&.server

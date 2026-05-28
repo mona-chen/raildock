@@ -38,6 +38,11 @@ class DeploymentJob < ApplicationJob
       if service.config&.dig("proxy", "enabled") == false
         engine.proxy_disable(service.dokku_app_name)
       else
+        if (proxy_type = service.config&.dig("proxy", "proxyType")).present?
+          engine.proxy_set(service.dokku_app_name, proxy_type)
+        end
+
+        apply_nginx_settings(engine, service)
         engine.proxy_enable(service.dokku_app_name)
       end
 
@@ -234,6 +239,22 @@ class DeploymentJob < ApplicationJob
   end
 
   private
+
+  def apply_nginx_settings(engine, service)
+    nginx_config = service.config&.dig("nginx")
+    return if nginx_config.blank?
+
+    nginx_settings = {
+      "clientMaxBodySize" => "client-max-body-size",
+      "readTimeout" => "proxy-read-timeout",
+      "keepaliveTimeout" => "proxy-send-timeout"
+    }
+
+    nginx_settings.each do |source_key, dokku_key|
+      value = nginx_config[source_key]
+      engine.nginx_set(service.dokku_app_name, dokku_key, value) if value.present?
+    end
+  end
 
   def mark_failed(deployment, service, message, output = nil)
     # Preserve existing streamed logs; only append a brief failure marker

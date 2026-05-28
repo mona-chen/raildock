@@ -12,7 +12,7 @@ module Api
         return
       end
 
-      user = User.new(user_params)
+      user = User.new(user_params.merge(admin: true))
       if user.save
         ensure_local_dokku_server
         render json: { token: user.generate_jwt, user: user.as_json(only: [:id, :email, :name]) }, status: :created

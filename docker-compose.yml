@@ -36,6 +36,8 @@ services:
       FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:3000
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       RAILS_SERVE_STATIC_FILES: "true"
     volumes:
       - rails_storage:/rails/storage
@@ -91,6 +93,8 @@ services:
       FRONTEND_URL: http://${RAILDOCK_DOMAIN:-localhost}:3000
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       RAILS_SERVE_STATIC_FILES: "true"
     depends_on:
       db:

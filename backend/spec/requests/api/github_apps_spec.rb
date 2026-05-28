@@ -11,6 +11,11 @@ RSpec.describe "Api::GithubAppsController", type: :request do
     end
 
     it "creates a GitSource for the installation and redirects" do
+      allow(GithubAppService).to receive(:installation_details).with("12345").and_return(
+        { "account" => { "type" => "User", "login" => "monalisa" } }
+      )
+      allow(GithubSyncReposJob).to receive(:perform_later)
+
       expect {
         get "/api/github-apps/callback", params: { installation_id: "12345", state: Base64.urlsafe_encode64({ user_id: user.id }.to_json) }
       }.to change(GitSource, :count).by(1)

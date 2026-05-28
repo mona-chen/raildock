@@ -1,5 +1,6 @@
 class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
+  belongs_to :user, optional: true
 
   validates :name, presence: true
   validates :host, presence: true

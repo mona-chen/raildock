@@ -1,5 +1,6 @@
 class Project < ApplicationRecord
   belongs_to :organization, optional: true
+  belongs_to :user, optional: true
   belongs_to :server, optional: true
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
@@ -20,15 +21,18 @@ class Project < ApplicationRecord
   # For backward compat + new org scoping
   scope :for_user, ->(user) {
     org_ids = user.organization_ids
-    where(organization_id: org_ids).or(where(organization_id: nil))
+    where(organization_id: org_ids).or(where(organization_id: nil, user_id: user.id))
   }
+
+  scope :personal_for, ->(user) { where(organization_id: nil, user_id: user.id) }
 
   def set_default_environment
     self.environment ||= 'production'
   end
 
   def set_default_server
-    self.server ||= Server.first if server_id.blank?
+    return if server_id.present?
+    self.server ||= Server.where(user_id: user_id).first if user_id.present?
   end
 
   def service_ids

@@ -3,7 +3,7 @@ module Api
     # Skip auth for webhooks — they use token-based verification
     skip_before_action :authenticate_user!, raise: false
 
-    before_action :verify_webhook_signature!
+    before_action :verify_webhook_signature!, only: [:deploy]
 
     def deploy
       # Extract repo info from webhook payload (GitHub/GitLab format)
@@ -52,7 +52,12 @@ module Api
 
     def verify_webhook_signature!
       secret = webhook_secret
-      return if secret.blank?
+      if secret.blank?
+        return unless Rails.env.production?
+
+        render json: { error: "Webhook secret is not configured" }, status: :forbidden
+        return
+      end
 
       payload = request.body.read
       request.body.rewind
@@ -93,7 +98,7 @@ module Api
     end
 
     def webhook_secret
-      Rails.application.credentials.dig(:webhook_secret)
+      ENV["WEBHOOK_SECRET"].presence || Rails.application.credentials.dig(:webhook_secret)
     end
   end
 end

@@ -1,4 +1,4 @@
-import { Server, HardDrive, Activity, Plus } from 'lucide-react'
+import { Server, HardDrive, Activity, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useServers, useCreateServer, useDestroyServer, useValidateServer } from '@/hooks/useServers'
 
@@ -141,7 +141,7 @@ export default function ServerPage() {
                   className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.04] transition-all"
                   title="Remove server"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))
@@ -160,26 +160,26 @@ export default function ServerPage() {
       </div>
 
       {showAdd && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setShowAdd(false)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowAdd(false)}>
+          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white mb-1">Add Server</h3>
             <p className="text-xs text-[#4A4A55] mb-4">Connect a Dokku host via SSH</p>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Server Name</label>
-                <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="dokku-prod-01" />
+                <label htmlFor="server-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Server Name</label>
+                <input id="server-name" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="dokku-prod-01" />
               </div>
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Host / IP</label>
-                <input value={newHost} onChange={(e) => setNewHost(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="192.168.1.100" />
+                <label htmlFor="server-host" className="text-[11px] text-[#6B6B7B] block mb-1.5">Host / IP</label>
+                <input id="server-host" value={newHost} onChange={(e) => setNewHost(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="192.168.1.100" />
               </div>
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">SSH Private Key</label>
-                <textarea value={newSshKey} onChange={(e) => setNewSshKey(e.target.value)} rows={4} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple font-mono text-[11px]" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..." />
+                <label htmlFor="server-ssh-key" className="text-[11px] text-[#6B6B7B] block mb-1.5">SSH Private Key</label>
+                <textarea id="server-ssh-key" value={newSshKey} onChange={(e) => setNewSshKey(e.target.value)} rows={4} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple font-mono text-[11px]" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..." />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
+                  <label htmlFor="server-base-domain" className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
                   <button
                     type="button"
                     onClick={() => setNewBaseDomain('sslip.io')}
@@ -188,7 +188,7 @@ export default function ServerPage() {
                     Use sslip.io
                   </button>
                 </div>
-                <input value={newBaseDomain} onChange={(e) => setNewBaseDomain(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="example.com" />
+                <input id="server-base-domain" value={newBaseDomain} onChange={(e) => setNewBaseDomain(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="example.com" />
                 <p className="text-[10px] text-[#4A4A55] mt-1">
                   {newBaseDomain === 'sslip.io'
                     ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)'

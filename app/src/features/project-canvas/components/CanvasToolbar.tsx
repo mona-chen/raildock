@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, ChevronDown, Activity, Bell, Bot, Rocket, RotateCcw, Square, Loader2 } from 'lucide-react'
+import { Box, ChevronDown, Rocket, RotateCcw, Square, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,18 +97,6 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-5 w-px bg-white/[0.08]" />
-
-        <button type="button" className="text-white/30 hover:text-white/60" aria-label="Activity">
-          <Activity size={16} />
-        </button>
-        <button type="button" className="text-white/30 hover:text-white/60" aria-label="Notifications">
-          <Bell size={16} />
-        </button>
-        <div className="h-5 w-px bg-white/[0.08]" />
-        <button type="button" className="flex items-center gap-1 text-[12px] text-white/50" aria-label="AI Agent">
-          <Bot size={14} /> Agent
-        </button>
       </div>
     </div>
   )

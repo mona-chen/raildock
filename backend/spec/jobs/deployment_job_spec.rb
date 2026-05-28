@@ -35,6 +35,7 @@ RSpec.describe DeploymentJob, type: :job do
   end
 
   let(:engine) { instance_double(DokkuEngine) }
+  let(:network_manager) { instance_double(ProjectNetworkManager, connect_service: true, ensure_linked_aliases: true, inject_internal_hostnames: true) }
 
   before do
     create_list(:environment_variable, 2, service: service)
@@ -44,6 +45,7 @@ RSpec.describe DeploymentJob, type: :job do
     create(:process_type, service: service, name: "worker", quantity: 1)
 
     allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+    allow(ProjectNetworkManager).to receive(:new).with(project, engine).and_return(network_manager)
     allow(DeploymentsChannel).to receive(:broadcast_to)
 
     allow(engine).to receive(:app_exists?).and_return(true)
@@ -52,10 +54,12 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:domain_add).and_return({ success: true, output: "" })
     allow(engine).to receive(:storage_mount).and_return({ success: true, output: "" })
     allow(engine).to receive(:nginx_set).and_return({ success: true, output: "" })
+    allow(engine).to receive(:proxy_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:proxy_enable).and_return({ success: true, output: "" })
     allow(engine).to receive(:proxy_disable).and_return({ success: true, output: "" })
     allow(engine).to receive(:docker_option_add).and_return({ success: true, output: "" })
     allow(engine).to receive(:resource_limit).and_return({ success: true, output: "" })
+    allow(engine).to receive(:ports_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:git_set_deploy_branch).and_return({ success: true, output: "" })
     allow(engine).to receive(:run).and_return({ success: true, output: "synced" })
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
@@ -101,6 +105,7 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:nginx_set).with(service.dokku_app_name, "client-max-body-size", "50m")
         expect(engine).to have_received(:nginx_set).with(service.dokku_app_name, "proxy-read-timeout", "60s")
         expect(engine).to have_received(:nginx_set).with(service.dokku_app_name, "proxy-send-timeout", "75s")
+        expect(engine).to have_received(:proxy_set).with(service.dokku_app_name, "nginx")
         expect(engine).to have_received(:proxy_enable).with(service.dokku_app_name)
         expect(engine).to have_received(:docker_option_add).with(service.dokku_app_name, "deploy", "--restart=on-failure")
         expect(engine).to have_received(:resource_limit).with(

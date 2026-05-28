@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/hooks/useServices', () => ({
   useService: vi.fn(),
@@ -26,6 +27,9 @@ vi.mock('@/hooks/useServices', () => ({
   useRebuildService: () => ({ mutate: vi.fn(), isPending: false }),
   useDeployment: () => ({ data: null, isLoading: false }),
   useServiceLogs: () => ({ data: null }),
+  useLinkedByServices: () => ({ data: [] }),
+  useLinkService: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnlinkService: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/hooks/useWebSocketLogs', () => ({
@@ -65,6 +69,13 @@ import AuthPage from '@/pages/AuthPage'
 import ServerPage from '@/pages/ServerPage'
 import CanvasToolbar from '@/features/project-canvas/components/CanvasToolbar'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
+
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
 
 function mockService(overrides = {}) {
   return {
@@ -113,7 +124,7 @@ describe('ServicePanel', () => {
   it('renders tabs and shows service name for app service', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
 
-    render(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
     expect(screen.getAllByText('Test Service').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Overview')).toBeInTheDocument()
@@ -129,7 +140,7 @@ describe('ServicePanel', () => {
   it('switches tabs when clicked', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
 
-    render(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
     fireEvent.click(screen.getByText('Logs'))
     expect(screen.getByText('Waiting for logs...')).toBeInTheDocument()
@@ -140,7 +151,7 @@ describe('ServicePanel', () => {
       data: mockService({ type: 'database', subtype: 'postgres' }),
     })
 
-    render(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
     expect(screen.getByText('Database')).toBeInTheDocument()
     expect(screen.getByText('Backups')).toBeInTheDocument()
@@ -243,7 +254,7 @@ describe('ServerPage', () => {
 
 describe('CanvasToolbar', () => {
   it('renders project name and environment', () => {
-    render(
+    renderWithClient(
       <MemoryRouter>
         <CanvasToolbar projectId="test-project" projectName="My Project" projectEnvironment="production" />
       </MemoryRouter>

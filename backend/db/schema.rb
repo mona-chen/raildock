@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_28_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -194,8 +194,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
     t.bigint "server_id"
     t.jsonb "shared_vars", default: []
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
     t.index ["server_id"], name: "index_projects_on_server_id"
+    t.index ["user_id"], name: "index_projects_on_user_id"
   end
 
   create_table "servers", force: :cascade do |t|
@@ -218,6 +220,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.string "uptime"
+    t.bigint "user_id"
+    t.index ["user_id"], name: "index_servers_on_user_id"
   end
 
   create_table "service_links", force: :cascade do |t|
@@ -234,6 +238,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
     t.boolean "auto_deploy", default: true, null: false
     t.string "branch"
     t.string "builder"
+    t.integer "canvas_x"
+    t.integer "canvas_y"
     t.jsonb "config", default: {}
     t.jsonb "config_overrides", default: {}, null: false
     t.datetime "created_at", null: false
@@ -294,7 +300,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
   end
 
   create_table "users", force: :cascade do |t|
-    t.boolean "admin"
+    t.boolean "admin", default: false, null: false
     t.datetime "created_at", null: false
     t.string "email"
     t.string "name"
@@ -320,6 +326,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_24_220000) do
   add_foreign_key "process_types", "services"
   add_foreign_key "projects", "organizations"
   add_foreign_key "projects", "servers"
+  add_foreign_key "projects", "users"
+  add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"
   add_foreign_key "service_links", "services", column: "to_service_id"
   add_foreign_key "services", "projects"

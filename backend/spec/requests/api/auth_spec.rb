@@ -46,12 +46,12 @@ RSpec.describe "Api::AuthController", type: :request do
 
     context "when authenticated" do
       it "returns current user info" do
-        # AuthController uses JwtService which is not defined in the codebase.
-        # The rescue clause swallows the NameError and returns nil, resulting in 401.
-        # This test documents the current behaviour.
         get "/api/me", headers: auth_headers(user)
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["email"]).to eq(user.email)
+        expect(json["name"]).to eq(user.name)
       end
     end
 

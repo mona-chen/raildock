@@ -45,9 +45,10 @@ module Authorizable
     return true if project.nil?
 
     if project.organization_id.nil?
-      # Personal projects - allow if user is authenticated
-      # TODO: Add owner field to personal projects for proper authorization
-      return true
+      return true if project.user_id == current_user.id
+      return true if project.user_id.nil? && current_user.admin?
+
+      render json: { error: "Forbidden" }, status: :forbidden and return
     end
 
     membership = current_user.memberships.find_by(organization_id: project.organization_id)
@@ -68,8 +69,10 @@ module Authorizable
     return true if project.nil?
 
     if project.organization_id.nil?
-      # Personal projects - allow if user is authenticated
-      return true
+      return true if project.user_id == current_user.id
+      return true if project.user_id.nil? && current_user.admin?
+
+      render json: { error: "Forbidden" }, status: :forbidden and return
     end
 
     membership = current_user.memberships.find_by(organization_id: project.organization_id)
@@ -98,12 +101,15 @@ module Authorizable
   end
 
   def authorize_server!(action: :read)
-    # Server authorization is based on organization role
-    # Check current organization membership for server permissions
-    return true unless current_organization
+    return true if current_user.admin?
+
+    # Server authorization is based on organization role when an org is selected.
+    return false unless current_organization
 
     membership = current_user.memberships.find_by(organization_id: current_organization.id)
-    return true unless membership # Will be caught by authenticate_user!
+    unless membership
+      render json: { error: "Forbidden" }, status: :forbidden and return
+    end
 
     allowed_roles = PERMISSIONS.dig(:server, action) || []
     unless allowed_roles.include?(membership.role.to_sym)
@@ -115,8 +121,17 @@ module Authorizable
     if current_organization
       Project.where(organization: current_organization)
     else
-      Project.where(organization_id: nil)
+      personal = Project.where(organization_id: nil, user_id: current_user.id)
+      return personal unless current_user.admin?
+
+      personal.or(Project.where(organization_id: nil, user_id: nil))
     end
+  end
+
+  def scoped_servers
+    return Server.all if current_user.admin?
+
+    Server.where(user_id: current_user.id)
   end
 
   # Get current user's role in the organization

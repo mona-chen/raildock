@@ -470,6 +470,10 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key present and target is database" do
         it "creates a link and calls DokkuEngine" do
           allow_any_instance_of(DokkuEngine).to receive(:postgres_link).and_return({ success: true })
+          allow_any_instance_of(DokkuEngine).to receive(:run).and_return({ success: true, output: "" })
+          allow_any_instance_of(ProjectNetworkManager).to receive(:connect_service)
+          allow_any_instance_of(ProjectNetworkManager).to receive(:ensure_linked_aliases)
+          allow_any_instance_of(ProjectNetworkManager).to receive(:inject_internal_hostnames)
 
           expect {
             post "/api/services/#{service.id}/link", params: { target_id: target_service.id }, headers: auth_headers(user)
@@ -521,6 +525,7 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key present and target is database" do
         it "destroys the link and calls DokkuEngine" do
           allow_any_instance_of(DokkuEngine).to receive(:postgres_unlink).and_return({ success: true })
+          allow_any_instance_of(DokkuEngine).to receive(:run).and_return({ success: true, output: "" })
 
           expect {
             post "/api/services/#{service.id}/unlink", params: { target_id: target_service.id }, headers: auth_headers(user)
@@ -560,6 +565,8 @@ RSpec.describe "Api::ServicesController", type: :request do
   end
 
   describe "POST /api/services/:id/backup" do
+    let(:database_service) { create(:service, :database, project: project, subtype: "postgres") }
+
     context "when unauthenticated" do
       it "returns 401" do
         post "/api/services/#{service.id}/backup"
@@ -575,13 +582,13 @@ RSpec.describe "Api::ServicesController", type: :request do
           )
 
           expect {
-            post "/api/services/#{service.id}/backup", headers: auth_headers(user)
+            post "/api/services/#{database_service.id}/backup", headers: auth_headers(user)
           }.to change(ActivityEvent, :count).by(1)
 
           expect(response).to have_http_status(:ok)
           json = JSON.parse(response.body)
           expect(json["success"]).to be true
-          expect(json["output"]).to eq("backup_data")
+          expect(json["backup"]["status"]).to eq("completed")
         end
 
         it "returns 422 when backup fails" do
@@ -589,7 +596,7 @@ RSpec.describe "Api::ServicesController", type: :request do
             { success: false, output: "export failed" }
           )
 
-          post "/api/services/#{service.id}/backup", headers: auth_headers(user)
+          post "/api/services/#{database_service.id}/backup", headers: auth_headers(user)
 
           expect(response).to have_http_status(:unprocessable_entity)
           json = JSON.parse(response.body)
@@ -623,6 +630,8 @@ RSpec.describe "Api::ServicesController", type: :request do
   end
 
   describe "POST /api/services/:id/restore" do
+    let(:database_service) { create(:service, :database, project: project, subtype: "postgres") }
+
     context "when unauthenticated" do
       it "returns 401" do
         post "/api/services/#{service.id}/restore"
@@ -633,14 +642,16 @@ RSpec.describe "Api::ServicesController", type: :request do
     context "when authenticated" do
       context "with server ssh_key present" do
         it "returns success and creates an activity event" do
+          allow_any_instance_of(DokkuEngine).to receive(:postgres_import).and_return({ success: true, output: "ok" })
+
           expect {
-            post "/api/services/#{service.id}/restore", headers: auth_headers(user)
+            post "/api/services/#{database_service.id}/restore", headers: auth_headers(user)
           }.to change(ActivityEvent, :count).by(1)
 
           expect(response).to have_http_status(:ok)
           json = JSON.parse(response.body)
           expect(json["success"]).to be true
-          expect(json["message"]).to eq("Restore initiated")
+          expect(json["message"]).to eq("Restore completed")
         end
       end
 

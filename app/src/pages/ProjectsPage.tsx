@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Folder, Plus, Search, Box, Database } from 'lucide-react'
+import { Folder, Plus, Search, Box, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
 
@@ -94,14 +94,15 @@ export default function ProjectsPage() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setShowCreate(false)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white mb-1">New Project</h3>
             <p className="text-xs text-[#4A4A55] mb-4">Create a new project to organize your services</p>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Project Name</label>
+                <label htmlFor="project-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Project Name</label>
                 <input
+                  id="project-name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
@@ -109,8 +110,9 @@ export default function ProjectsPage() {
                 />
               </div>
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Description</label>
+                <label htmlFor="project-description" className="text-[11px] text-[#6B6B7B] block mb-1.5">Description</label>
                 <input
+                  id="project-description"
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
@@ -118,8 +120,9 @@ export default function ProjectsPage() {
                 />
               </div>
               <div>
-                <label className="text-[11px] text-[#6B6B7B] block mb-1.5">Environment</label>
+                <label htmlFor="project-environment" className="text-[11px] text-[#6B6B7B] block mb-1.5">Environment</label>
                 <select
+                  id="project-environment"
                   value={newEnv}
                   onChange={(e) => setNewEnv(e.target.value as 'production' | 'staging' | 'development')}
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple appearance-none cursor-pointer"
@@ -213,7 +216,7 @@ function ProjectCard({
         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.04] transition-all"
         title="Delete project"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        <Trash2 size={14} />
       </button>
     </div>
   )

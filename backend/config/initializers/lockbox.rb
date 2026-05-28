@@ -3,10 +3,12 @@
 # Use RAILS_MASTER_KEY directly - don't access credentials here as it causes
 # issues during Rails initialization when credentials.yml.enc is being loaded.
 
-raw_key = ENV.fetch('RAILS_MASTER_KEY') {
-  # Generate a fallback only for development - should never happen in production
-  SecureRandom.hex(32)
-}
+raw_key = ENV["LOCKBOX_MASTER_KEY"].presence || ENV["RAILS_MASTER_KEY"].presence
+if raw_key.blank?
+  raise "LOCKBOX_MASTER_KEY or RAILS_MASTER_KEY must be set in production" if Rails.env.production?
+
+  raw_key = SecureRandom.hex(32)
+end
 
 # RAILS_MASTER_KEY is 32 hex chars. Lockbox needs 32 binary bytes.
 # We'll use the key as-is but ensure it's binary-encoded.
@@ -21,6 +23,5 @@ elsif raw_key.length >= 32
   # Raw string - use first 32 bytes
   Lockbox.master_key = raw_key[0, 32].b
 else
-  # Short key - pad with random
-  Lockbox.master_key = (raw_key + SecureRandom.hex(32 - raw_key.length))[0, 32].b
+  raise "LOCKBOX_MASTER_KEY must be at least 32 bytes or 64 hex characters"
 end
