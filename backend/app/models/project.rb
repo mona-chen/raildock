@@ -5,6 +5,8 @@ class Project < ApplicationRecord
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
 
+  before_destroy :destroy_services_dokku
+
   validates :name, presence: true
   validates :environment, inclusion: { in: %w[production staging development] }
 
@@ -16,6 +18,27 @@ class Project < ApplicationRecord
     return if network_name.present?
     slug = name.to_s.downcase.gsub(/[^a-z0-9]+/, '-').gsub(/^-|-$/, '').presence || "project"
     update_column(:network_name, "rd-#{slug}-#{id}")
+  end
+
+  def destroy_services_dokku
+    return unless server&.ssh_key.present?
+    engine = DokkuEngine.new(server)
+
+    services.each do |service|
+      if service.service_type == "database"
+        case service.subtype
+        when "postgres" then engine.postgres_destroy(service.dokku_app_name)
+        when "redis" then engine.redis_destroy(service.dokku_app_name)
+        when "mysql" then engine.mysql_destroy(service.dokku_app_name)
+        when "mongo" then engine.mongo_destroy(service.dokku_app_name)
+        end
+      else
+        engine.app_destroy(service.dokku_app_name)
+      end
+    rescue StandardError
+      # Log but don't block the destroy — DB record must be removed
+      Rails.logger.error "Failed to destroy Dokku resource for service #{service.id}: #{$!.message}"
+    end
   end
 
   # For backward compat + new org scoping
