@@ -550,34 +550,108 @@ function AdvancedSettings({ svc }: { svc: Service }) {
 
 // ── Danger Zone ────────────────────────────────────────────
 function DangerZone({ svc }: { svc: Service }) {
+  const navigate = useNavigate()
   const destroyService = useDestroyService()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+
+  const isConfirmValid = confirmName === svc.name
+
+  const handleDestroy = () => {
+    if (!isConfirmValid) return
+    setShowConfirm(false)
+    setConfirmName('')
+    destroyService.mutate(svc.id, {
+      onSuccess: () => navigate(`/dashboard`), // go back to projects list after destroy
+    })
+  }
+
+  const handleClose = () => {
+    setShowConfirm(false)
+    setConfirmName('')
+  }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle className="text-red-400">Danger Zone</SectionTitle>
-      <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[13px] text-white/70">Destroy Service</div>
-            <div className="text-[11px] text-white/40 mt-0.5">
-              Permanently delete {svc.name} and all associated data. This cannot be undone.
+    <>
+      <div className="space-y-4">
+        <SectionTitle className="text-red-400">Danger Zone</SectionTitle>
+        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[13px] text-white/70">Destroy Service</div>
+              <div className="text-[11px] text-white/40 mt-0.5">
+                Permanently delete {svc.name} and all associated data. This cannot be undone.
+              </div>
             </div>
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={destroyService.isPending}
+              className="px-3 py-2 bg-red-500/15 text-red-400 rounded-lg text-[12px] font-medium hover:bg-red-500/25 transition-all disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Trash2 size={13} />
+              {destroyService.isPending ? 'Destroying...' : 'Destroy'}
+            </button>
           </div>
-          <button
-            onClick={() => {
-              if (confirm(`Are you sure you want to destroy "${svc.name}"? This will also remove the Dokku app and all data. This action cannot be undone.`)) {
-                destroyService.mutate(svc.id)
-              }
-            }}
-            disabled={destroyService.isPending}
-            className="px-3 py-2 bg-red-500/15 text-red-400 rounded-lg text-[12px] font-medium hover:bg-red-500/25 transition-all disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Trash2 size={13} />
-            {destroyService.isPending ? 'Destroying...' : 'Destroy'}
-          </button>
         </div>
       </div>
-    </div>
+
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={handleClose}
+        >
+          <div
+            className="bg-[#18181B] border border-red-500/20 rounded-2xl p-6 w-full max-w-[420px] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Trash2 size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Destroy Service</h3>
+                <p className="text-xs text-[#6B6B7B]">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-[#A0A0B0] mb-4">
+              You are about to permanently destroy{' '}
+              <span className="font-medium text-white">{svc.name}</span>
+              . This will remove the Dokku app and all data including databases, storage, and logs.
+            </p>
+
+            <div className="mb-4">
+              <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
+                Type <span className="font-mono font-medium text-white">{svc.name}</span> to confirm
+              </label>
+              <input
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-red-500/50 placeholder-[#4A4A55]"
+                placeholder={svc.name}
+                autoFocus
+              />
+            </div>
+
+            <div className="w-full flex gap-2">
+              <button
+                onClick={handleClose}
+                className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDestroy}
+                disabled={!isConfirmValid}
+                className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Destroy Service
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
