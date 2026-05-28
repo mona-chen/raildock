@@ -11,6 +11,7 @@ on:
 
 env:
   IMAGE: ghcr.io/mona-chen/raildock/raildock
+  SERVER_DIR: /opt/raildock
 
 jobs:
   deploy:
@@ -32,34 +33,30 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: IMAGE,VERSION
-          env: |
-            VERSION=${{ inputs.version || 'latest' }}
+          envs: IMAGE,SERVER_DIR
           script: |
             set -e
 
+            VERSION="${{ inputs.version || 'latest' }}"
             if [ "$VERSION" = "latest" ]; then
               IMG="$IMAGE:latest"
             else
-              TAG="${VERSION#v}"
-              IMG="$IMAGE:v${TAG}"
+              IMG="$IMAGE:$VERSION"
             fi
 
             echo "==> Pulling $IMG"
             docker pull "$IMG"
 
-            echo "==> Stopping existing container (if running)"
+            echo "==> Creating network if needed"
+            docker network inspect raildock-network >/dev/null 2>&1 || \
+              docker network create raildock-network
+
+            echo "==> Stopping existing container"
             docker stop raildock 2>/dev/null || true
             docker rm raildock 2>/dev/null || true
 
-            # Read existing env vars from .env to reuse them
-            ENV_FILE="${RAILDOCK_DIR:-/opt/raildock}/.env"
-            if [ -f "$ENV_FILE" ]; then
-              # Load existing env vars, override only the image
-              set -a
-              . "$ENV_FILE"
-              set +a
-            fi
+            # Read existing env vars so we don't lose secrets
+            ENV_FILE="${SERVER_DIR}/.env"
 
             echo "==> Starting RailDock $VERSION"
             docker run -d \
@@ -88,4 +85,3 @@ jobs:
             curl -sf http://localhost/api/health
 
             echo "==> Deploy complete: $VERSION"
-            docker ps --filter name=raildock --format "{{.Status}}"

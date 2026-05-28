@@ -1,0 +1,7 @@
+# This file is loaded by the deploy workflow:
+#   docker compose -f docker-compose.yml -f docker-compose.deployed.yml up -d
+# It requires an external network to avoid creating the network on each deploy.
+services:
+  raildock:
+    networks:
+      - raildock

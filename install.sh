@@ -1,8 +1,9 @@
 #!/bin/bash
-# RailDock Installer
-# One-command production installation
-# Usage: curl -sSL https://raw.githubusercontent.com/yourname/raildock/main/install.sh | bash
-# Usage: DOCKER_HOST=unix://$HOME/.colima/default/docker.sock bash install.sh
+# RailDock Installer — Single Image
+# Usage: curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+# Or download and run locally: ./install.sh
+#
+# Requirements: Docker 20+
 
 set -e
 
@@ -11,24 +12,23 @@ RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-$(pwd)}"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 NETWORK_NAME="raildock-network"
-NETWORK_BRIDGE_NAME="raildock-bridge"
-SSH_KEY_DIR="$INSTALL_DIR/data/dokku-ssh"
 ENV_FILE="$INSTALL_DIR/.env"
+DATA_DIR="$INSTALL_DIR/data"
+DB_VOLUME="raildock_postgres_data"
 
 # ── Colors ────────────────────────────────────
 B="\033[0;34m"
 G="\033[0;32m"
 Y="\033[1;33m"
 R="\033[0;31m"
-C="\033[0;36m"
 N="\033[0m"
 
-# ── Helpers ───────────────────────────────────
 log_info()  { printf "${B}●${N} %s\n" "$1"; }
 log_ok()    { printf "${G}✓${N} %s\n" "$1"; }
 log_warn()  { printf "${Y}⚠${N} %s\n" "$1"; }
 log_error() { printf "${R}✗${N} %s\n" "$1"; }
 log_step()  { printf "\n${C}▶${N} %s\n" "$1"; }
+C="\033[0;36m"
 
 print_banner() {
   printf "\n${B}╔══════════════════════════════════════════════════════════════╗${N}\n"
@@ -42,208 +42,62 @@ print_success() {
   local url="$1"
   printf "\n${G}╔══════════════════════════════════════════════════════════════╗${N}\n"
   printf "${G}║${N}                                                              ${G}║${N}\n"
-  printf "${G}║${N}          ${G}🎉 RailDock is installed!${N}                           ${G}║${N}\n"
+  printf "${G}║${N}                ${G}🎉 RailDock is installed!${N}                          ${G}║${N}\n"
   printf "${G}║${N}                                                              ${G}║${N}\n"
   printf "${G}╚══════════════════════════════════════════════════════════════╝${N}\n\n"
-  printf "  ${B}Dashboard:${N}     http://%s:3000\n" "$url"
-  printf "  ${B}API:${N}           http://%s:3001\n" "$url"
-  printf "  ${B}Dokku SSH:${N}     ssh -p 3022 dokku@%s\n" "$url"
+  printf "  ${B}Dashboard:${N}     http://%s\n" "$url"
   printf "\n"
-  printf "  ${Y}With a domain (via Traefik):${N}\n"
-  printf "    Dashboard:  http://raildock.%s\n" "${RAILDOCK_DOMAIN:-localhost}"
-  printf "    API:        http://api.raildock.%s\n" "${RAILDOCK_DOMAIN:-localhost}"
-  printf "\n"
-  printf "  ${B}First run:${N}     Open the dashboard and create your admin account\n"
-  printf "  ${B}View logs:${N}     docker compose -f %s logs -f\n\n" "$COMPOSE_FILE"
+  printf "  ${B}Stop:${N}          docker compose -f %s down\n" "$COMPOSE_FILE"
+  printf "  ${B}Start:${N}        docker compose -f %s up -d\n" "$COMPOSE_FILE"
+  printf "  ${B}View logs:${N}    docker compose -f %s logs -f\n" "$COMPOSE_FILE"
+  printf "  ${B}Update:${N}       ./install.sh update\n\n" "$COMPOSE_FILE"
 }
 
-detect_version() {
-  local version="${RAILDOCK_VERSION}"
-  if [ -z "$version" ] || [ "$version" = "latest" ]; then
-    log_info "Detecting latest version from GitHub..."
-    version=$(curl -fsSL -o /dev/null -w '%{url_effective}\n' \
-      https://github.com/raildock/raildock/releases/latest 2>/dev/null | sed 's#.*/tag/##')
-    if [ -z "$version" ]; then
-      log_warn "Could not detect latest version, using 'latest'"
-      version="latest"
-    else
-      log_ok "Latest version: $version"
-    fi
-  fi
-  echo "$version"
-}
-
+# ── Utilities ──────────────────────────────────
 generate_password() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-32
-  elif [ -r /dev/urandom ]; then
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
   else
-    date +%s%N | sha256sum | base64 | head -c 32
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
   fi
 }
 
-generate_master_key() {
-  # Rails 8.x uses AES-GCM which requires 16 bytes (32 hex chars)
+generate_hex() {
+  # Generates N hex chars (2 chars per byte)
+  local len="$1"
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex 16
+    openssl rand -hex "$((len / 2))" | head -c "$len"
   else
-    tr -dc 'a-f0-9' < /dev/urandom | head -c 32
+    tr -dc 'a-f0-9' </dev/urandom | head -c "$len"
   fi
-}
-
-create_env() {
-  # Check if we need to generate new credentials
-  if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
-    source "$ENV_FILE" 2>/dev/null || true
-    # Validate existing keys - regenerate if invalid
-    # Rails 8.x AES-GCM uses 16 bytes = 32 hex chars
-    if [ -n "$RAILS_MASTER_KEY" ] && [ "${#RAILS_MASTER_KEY}" -eq 32 ]; then
-      log_warn ".env exists with valid credentials — keeping"
-      return 0
-    fi
-    log_warn ".env exists but has invalid keys — regenerating"
-  fi
-
-  local pg_pass master_key jwt_secret domain
-  pg_pass=$(generate_password)
-  master_key=$(generate_master_key)
-  jwt_secret=$(generate_jwt_secret)
-  # Default to public IP for remote servers; allow override via RAILDOCK_DOMAIN env var
-  domain="${RAILDOCK_DOMAIN:-$(get_public_ip)}"
-
-  cat > "$ENV_FILE" <<EOF
-# RailDock Environment — generated by install.sh on $(date)
-# Domain used for FRONTEND_URL, Traefik routing, and Dokku hostname.
-# Set to the server's public IP by default. Override with a real domain
-# (e.g., raildock.example.com) once DNS is configured.
-RAILDOCK_DOMAIN=${domain}
-POSTGRES_PASSWORD=${pg_pass}
-RAILS_MASTER_KEY=${master_key}
-JWT_SECRET_KEY=${jwt_secret}
-EOF
-
-  chmod 600 "$ENV_FILE"
-  log_ok "Created .env with secure credentials (domain: ${domain})"
 }
 
 generate_jwt_secret() {
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -base64 64 | tr -d "=+/"| head -c 64
-  elif [ -r /dev/urandom ]; then
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64
+    openssl rand -base64 64 | tr -d "=+/" | head -c 64
   else
-    date +s%N | sha256sum | base64 | head -c 64
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64
   fi
 }
 
-generate_ssh_key() {
-  mkdir -p "$SSH_KEY_DIR"
-  # 755 so container users (uid 1000/rails) can read the directory
-  chmod 755 "$SSH_KEY_DIR"
-  if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
-    ssh-keygen -t ed25519 -f "$SSH_KEY_DIR/id_ed25519" -N "" -C "raildock-$(date +%s)" >/dev/null 2>&1
-    # 644 so the rails user in the backend container (uid 1000) can read the key
-    chmod 644 "$SSH_KEY_DIR/id_ed25519"
-    chmod 644 "$SSH_KEY_DIR/id_ed25519.pub"
-    log_ok "Generated Ed25519 SSH key pair for Dokku"
-  fi
+get_public_ip() {
+  local ip=""
+  ip=$(curl -4s --connect-timeout 5 https://ifconfig.io 2>/dev/null)
+  [ -z "$ip" ] && ip=$(curl -4s --connect-timeout 5 https://icanhazip.com 2>/dev/null)
+  [ -z "$ip" ] && ip=$(curl -4s --connect-timeout 5 https://ipecho.net/plain 2>/dev/null)
+  [ -z "$ip" ] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  [ -z "$ip" ] && ip="127.0.0.1"
+  echo "$ip"
 }
 
-inject_dokku_ssh_key() {
-  local pub_key="$SSH_KEY_DIR/id_ed25519.pub"
-  local dokku_container="raildock-dokku-1"
-
-  if [ ! -f "$pub_key" ]; then
-    log_warn "SSH public key not found, skipping Dokku key injection"
-    return 0
-  fi
-
-  log_step "Configuring Dokku SSH access..."
-
-  # Wait for Dokku container to be ready
-  for i in $(seq 1 15); do
-    if docker exec "$dokku_container" dokku version >/dev/null 2>&1; then
-      break
-    fi
-    sleep 2
-  done
-
-  # Check if key is already added
-  if docker exec "$dokku_container" dokku ssh-keys:list 2>/dev/null | grep -q "raildock"; then
-    log_ok "SSH key already registered with Dokku"
-    return 0
-  fi
-
-  docker cp "$pub_key" "$dokku_container:/tmp/raildock.pub"
-  docker exec "$dokku_container" dokku ssh-keys:add raildock /tmp/raildock.pub
-  docker exec "$dokku_container" rm -f /tmp/raildock.pub
-
-  log_ok "SSH key registered with Dokku"
-}
-
-inject_server() {
-  local backend_container="raildock-backend-1"
-  local priv_key="$SSH_KEY_DIR/id_ed25519"
-
-  if [ ! -f "$priv_key" ]; then
-    log_warn "SSH private key not found, skipping server configuration"
-    return 0
-  fi
-
-  log_step "Configuring RailDock server record..."
-
-  docker cp "$priv_key" "$backend_container:/tmp/id_ed25519"
-  docker exec --user root "$backend_container" chmod 644 /tmp/id_ed25519
-
-  docker exec "$backend_container" bin/rails runner "
-    privkey = File.read('/tmp/id_ed25519')
-    server = Server.first
-
-    if server
-      server.update!(
-        name: 'Dokku Server',
-        host: 'dokku',
-        ssh_key: privkey,
-        status: :connected,
-        dokku_version: '0.38.1',
-        docker_version: '26.1.0',
-        os: 'Alpine Linux',
-        default_proxy: 'traefik'
-      )
-      puts \"Updated server: \#{server.name}\"
-    else
-      server = Server.create!(
-        name: 'Dokku Server',
-        host: 'dokku',
-        ssh_key: privkey,
-        status: :connected,
-        dokku_version: '0.38.1',
-        docker_version: '26.1.0',
-        os: 'Alpine Linux',
-        default_proxy: 'traefik'
-      )
-      puts \"Created server: \#{server.name}\"
-    end
-
-    Project.where(server_id: nil).find_each do |project|
-      project.update!(server: server)
-      puts \"Assigned server to project: \#{project.name}\"
-    end
-  "
-
-  docker exec --user root "$backend_container" rm -f /tmp/id_ed25519
-  log_ok "Server record configured"
-}
-
+# ── Checks ────────────────────────────────────
 check_os() {
   local os
   os=$(uname -s)
   if [ "$os" = "Darwin" ]; then
-    log_warn "macOS detected — using Colima/Docker Desktop mode"
-    log_info "Ensure Colima is running: colima start --cpu 4 --memory 8 --disk 60"
+    log_info "macOS detected — ensure Docker Desktop or Colima is running"
   elif [ "$os" != "Linux" ]; then
-    log_error "Unsupported OS: $os"
+    log_error "Unsupported OS: $os (Linux required)"
     exit 1
   fi
 }
@@ -254,99 +108,90 @@ check_docker() {
     log_info "Install: https://docs.docker.com/get-docker/"
     exit 1
   fi
-
   if ! docker info >/dev/null 2>&1; then
     log_error "Docker daemon is not running"
     if [ "$(uname)" = "Darwin" ]; then
-      log_info "Start Colima:  colima start --cpu 4 --memory 8 --disk 60"
-      log_info "Or start Docker Desktop"
+      log_info "Start Docker Desktop or Colima:  colima start"
     else
       log_info "Start Docker:  sudo systemctl start docker"
     fi
     exit 1
   fi
-
-  log_ok "Docker is ready ($(docker version --format '{{.Server.Version}}'))"
+  log_ok "Docker $(docker version --format '{{.Server.Version}}') is ready"
 }
 
 check_ports() {
-  local ports=("80" "443" "3000" "3001" "3022")
-  local failed=0
-  for port in "${ports[@]}"; do
-    if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ":${port} "; then
-      # Check if it's a docker-proxy (conflicting container)
-      local docker_proc=$(ss -tulnp 2>/dev/null | grep ":${port} " | grep -o 'docker-proxy' | head -1)
-      if [ -n "$docker_proc" ]; then
-        log_warn "Port ${port} is in use by Docker. Stopping conflicting containers..."
-        docker ps -a --format '{{.Names}}' | grep -E 'traefik|nginx|proxy' | xargs -r docker stop 2>/dev/null || true
-        docker ps -a --format '{{.Names}}' | grep -E 'traefik|nginx|proxy' | xargs -r docker rm 2>/dev/null || true
-        sleep 2
-        # Recheck
-        if ! ss -tulnp 2>/dev/null | grep -q ":${port} "; then
-          log_ok "Port ${port} is now available"
-          continue
-        fi
-      fi
-      log_error "Port ${port} is already in use"
-      failed=1
-    elif command -v lsof >/dev/null 2>&1 && lsof -Pi :"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
-      log_error "Port ${port} is already in use"
-      failed=1
-    elif command -v netstat >/dev/null 2>&1 && netstat -tulnp 2>/dev/null | grep -q ":${port} "; then
-      log_error "Port ${port} is already in use"
-      failed=1
-    fi
-  done
-  if [ "$failed" -eq 1 ]; then
+  if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ":80 "; then
+    log_error "Port 80 is already in use — stop the conflicting service first"
+    exit 1
+  elif command -v lsof >/dev/null 2>&1 && lsof -Pi :80 -sTCP:LISTEN >/dev/null 2>&1; then
+    log_error "Port 80 is already in use"
     exit 1
   fi
-  log_ok "Required ports are available"
+  log_ok "Port 80 is available"
 }
 
-get_public_ip() {
-  local ip=""
-  ip=$(curl -4s --connect-timeout 5 https://ifconfig.io 2>/dev/null)
-  [ -z "$ip" ] && ip=$(curl -4s --connect-timeout 5 https://icanhazip.com 2>/dev/null)
-  [ -z "$ip" ] && ip=$(curl -4s --connect-timeout 5 https://ipecho.net/plain 2>/dev/null)
-  if [ -z "$ip" ]; then
-    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+# ── Setup ─────────────────────────────────────
+download_compose_file() {
+  # If docker-compose.yml exists locally, skip download
+  if [ -f "$COMPOSE_FILE" ] && grep -q "raildock" "$COMPOSE_FILE" 2>/dev/null; then
+    log_info "Using existing docker-compose.yml"
+    return 0
   fi
-  [ -z "$ip" ] && ip="127.0.0.1"
-  echo "$ip"
-}
 
-get_private_ip() {
-  local ip
-  ip=$(ip addr show 2>/dev/null | grep -E "inet (192\.168\.|10\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.)" | head -n1 | awk '{print $2}' | cut -d/ -f1)
-  [ -z "$ip" ] && ip=$(ifconfig 2>/dev/null | grep -E "inet (192\.168\.|10\.|172\.1[6-9]\.)" | head -n1 | awk '{print $2}' | sed 's/addr://')
-  echo "$ip"
-}
-
-wait_for_backend() {
-  log_step "Waiting for backend to be healthy..."
-  for i in $(seq 1 30); do
-    if docker exec raildock-backend-1 curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
-      log_ok "Backend is healthy"
-      return 0
-    fi
-    sleep 2
-  done
-  log_error "Backend failed to become healthy"
-  log_info "Check logs: docker compose -f $COMPOSE_FILE logs backend"
-  return 1
-}
-
-run_migrations() {
-  log_step "Running database migrations..."
-  docker exec raildock-backend-1 bin/rails db:prepare >/dev/null 2>&1 || {
-    log_error "Database preparation failed"
-    log_info "Check logs: docker compose -f $COMPOSE_FILE logs backend"
+  log_info "Downloading docker-compose.yml..."
+  local tag_url="https://raw.githubusercontent.com/mona-chen/raildock/main/docker-compose.yml"
+  if [ "$RAILDOCK_VERSION" != "latest" ]; then
+    local version="${RAILDOCK_VERSION#v}"
+    tag_url="https://raw.githubusercontent.com/mona-chen/raildock/v${version}/docker-compose.yml"
+  fi
+  if curl -fsSL "$tag_url" -o "$COMPOSE_FILE"; then
+    log_ok "Downloaded docker-compose.yml"
+  else
+    log_error "Failed to download docker-compose.yml"
     exit 1
-  }
-  log_ok "Database is ready"
+  fi
 }
 
-# ── Main Install ──────────────────────────────
+create_env() {
+  if [ -f "$ENV_FILE" ] && grep -q "RAILS_MASTER_KEY" "$ENV_FILE" 2>/dev/null; then
+    log_warn ".env exists — keeping existing credentials"
+    return 0
+  fi
+
+  local pg_pass master_key jwt_secret
+  pg_pass=$(generate_password)
+  master_key=$(generate_hex 32)
+  jwt_secret=$(generate_jwt_secret)
+
+  cat > "$ENV_FILE" <<EOF
+# RailDock Environment — generated by install.sh on $(date +%Y-%m-%d)
+RAILS_ENV=production
+POSTGRES_PASSWORD=${pg_pass}
+RAILS_MASTER_KEY=${master_key}
+JWT_SECRET_KEY=${jwt_secret}
+EOF
+
+  chmod 600 "$ENV_FILE"
+  log_ok "Created $ENV_FILE with secure credentials"
+
+  # Write master.key for image builds (if building locally)
+  mkdir -p "$INSTALL_DIR/backend/config"
+  echo "$master_key" > "$INSTALL_DIR/backend/config/master.key"
+  chmod 600 "$INSTALL_DIR/backend/config/master.key"
+  log_ok "Created backend/config/master.key"
+}
+
+create_network() {
+  if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    log_ok "Network $NETWORK_NAME already exists"
+  else
+    docker network create "$NETWORK_NAME" 2>/dev/null || true
+    log_ok "Created network $NETWORK_NAME"
+  fi
+}
+
+# ── Main ──────────────────────────────────────
 install_raildock() {
   print_banner
 
@@ -355,104 +200,54 @@ install_raildock() {
   check_docker
   check_ports
 
+  log_step "Downloading configuration..."
+  download_compose_file
+
   log_step "Generating credentials..."
   create_env
-  generate_ssh_key
+  create_network
 
-  # Create master.key for Rails credentials decryption
-  mkdir -p "$INSTALL_DIR/backend/config"
-  if [ -f "$INSTALL_DIR/.env" ]; then
-    source "$INSTALL_DIR/.env" 2>/dev/null || true
+  log_step "Starting RailDock..."
+  docker compose -f "$COMPOSE_FILE" up -d --pull always
+
+  log_step "Waiting for RailDock to be ready..."
+  local ready=false
+  for i in $(seq 1 30); do
+    if curl -sf http://localhost:80/api/health >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 2
+    printf "."
+  done
+  echo
+  if [ "$ready" = "true" ]; then
+    log_ok "RailDock is healthy"
+  else
+    log_error "RailDock failed to become healthy after 60s"
+    log_info "Debug: curl -v http://localhost:80/api/health"
+    log_info "Logs:  docker compose -f $COMPOSE_FILE logs"
+    exit 1
   fi
-  if [ -n "$RAILS_MASTER_KEY" ]; then
-    echo "$RAILS_MASTER_KEY" > "$INSTALL_DIR/backend/config/master.key"
-    chmod 600 "$INSTALL_DIR/backend/config/master.key"
-    log_ok "Created backend/config/master.key"
-  fi
-
-  log_step "Creating Docker networks..."
-  # Remove any existing networks
-  docker network rm -f "$NETWORK_NAME" 2>/dev/null || true
-  docker network rm -f "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
-  # Create networks with labels so docker-compose can find them as external
-  docker network create \
-    --driver bridge \
-    --label com.docker.compose.network=raildock \
-    "$NETWORK_NAME" 2>/dev/null || true
-  docker network create \
-    --driver bridge \
-    --label com.docker.compose.network=raildock-bridge \
-    "$NETWORK_BRIDGE_NAME" 2>/dev/null || true
-  log_ok "Networks ready"
-
-  # Generate encrypted credentials.yml.enc BEFORE building images
-  # This ensures credentials are baked into the Docker image
-  log_step "Generating encrypted credentials..."
-  if [ -n "$RAILS_MASTER_KEY" ]; then
-    # Remove any existing directory/file
-    rm -rf "$INSTALL_DIR/backend/config/credentials.yml.enc"
-    # Build backend image first (just for credential generation)
-    docker compose -f "$COMPOSE_FILE" build backend >/dev/null 2>&1 || {
-      log_warn "Backend build failed, cannot encrypt credentials"
-    }
-    # Use the built backend image to encrypt credentials
-    # Run as root to ensure we can write to the mounted host directory
-    docker run --rm --user root \
-      -v "$INSTALL_DIR/backend/config:/config" \
-      -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
-      raildock-backend:latest bash -c '
-        bundle exec ruby -e "
-        require \"bundler/setup\"
-        require \"active_support\"
-        require \"active_support/encrypted_file\"
-        
-        content = <<~YAML
-        # Used as the base secret for all MessageVerifiers in Rails, including the one protecting cookies.
-        secret_key_base: #{ENV[\"RAILS_MASTER_KEY\"]}
-        YAML
-        
-        ef = ActiveSupport::EncryptedFile.new(
-          content_path: \"/config/credentials.yml.enc\",
-          key_path: \"/config/master.key\",
-          env_key: \"RAILS_MASTER_KEY\",
-          raise_if_missing_key: true
-        )
-        
-        encrypted = ef.send(:encrypt, content)
-        File.write(\"/config/credentials.yml.enc\", encrypted)
-        puts \"Credentials encrypted successfully\"
-        "
-      ' 2>&1 || log_warn "Could not encrypt credentials"
-    chmod 644 "$INSTALL_DIR/backend/config/credentials.yml.enc" 2>/dev/null || true
-  fi
-
-  log_step "Starting RailDock stack..."
-  # Stop any existing containers first
-  docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
-  docker compose -f "$COMPOSE_FILE" up -d --build
-
-  wait_for_backend
-  run_migrations
-  inject_dokku_ssh_key
-  inject_server
 
   local public_ip
   public_ip=$(get_public_ip)
-
-  print_success "$public_ip"
+  print_success "$public_ip:80"
 }
 
-# ── Update ────────────────────────────────────
 update_raildock() {
-  log_step "Updating RailDock..."
+  log_step "Updating RailDock ${RAILDOCK_VERSION}..."
   docker compose -f "$COMPOSE_FILE" pull
   docker compose -f "$COMPOSE_FILE" up -d
   log_ok "RailDock updated"
 }
 
 # ── Entrypoint ────────────────────────────────
-if [ "$1" = "update" ]; then
-  update_raildock
-else
-  install_raildock
-fi
+case "${1:-install}" in
+  update|upgrade)
+    update_raildock
+    ;;
+  *)
+    install_raildock
+    ;;
+esac
