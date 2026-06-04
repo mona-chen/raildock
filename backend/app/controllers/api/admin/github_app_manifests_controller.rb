@@ -15,7 +15,7 @@ module Api
       # GET /api/admin/github-app-manifest
       # Returns the manifest JSON for the frontend to submit to GitHub
       def manifest
-        base_url = request.base_url
+        base_url = public_base_url
 
         manifest = {
           name: "RailDock",
@@ -165,15 +165,35 @@ module Api
       end
 
       def frontend_redirect_url(params = {})
-        base = ENV.fetch("FRONTEND_URL") { request.base_url }
         query = URI.encode_www_form(params)
-        "#{base}/#/dashboard/settings?tab=git-sources&#{query}"
+        "#{public_base_url}/#/dashboard/settings?tab=git-sources&#{query}"
       end
 
       def authorize_admin!
         unless current_user&.admin?
           render json: { error: "Forbidden - admin access required" }, status: :forbidden
         end
+      end
+
+      def public_base_url
+        configured_url =
+          ENV["RAILDOCK_PUBLIC_URL"].presence ||
+          ENV["APP_URL"].presence ||
+          public_frontend_url
+
+        (configured_url.presence || request.base_url).delete_suffix("/")
+      end
+
+      def public_frontend_url
+        frontend_url = ENV["FRONTEND_URL"].presence
+        return if frontend_url.blank?
+
+        uri = URI.parse(frontend_url)
+        return if uri.host.in?(%w[localhost 127.0.0.1 ::1])
+
+        frontend_url
+      rescue URI::InvalidURIError
+        nil
       end
     end
   end

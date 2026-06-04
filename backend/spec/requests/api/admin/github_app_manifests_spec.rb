@@ -15,6 +15,19 @@ RSpec.describe "Api::Admin::GithubAppManifestsController", type: :request do
       expect(json["manifest"]["default_permissions"]).to be_a(Hash)
     end
 
+    it "uses the configured public URL for GitHub callbacks" do
+      with_env(RAILDOCK_PUBLIC_URL: "http://152.53.163.11:8888", FRONTEND_URL: "http://localhost:8888") do
+        get "/api/admin/github-app-manifest", headers: auth_headers(admin)
+      end
+
+      expect(response).to have_http_status(:ok)
+      manifest = JSON.parse(response.body).fetch("manifest")
+      expect(manifest["url"]).to eq("http://152.53.163.11:8888")
+      expect(manifest["redirect_url"]).to eq("http://152.53.163.11:8888/api/admin/github-app-manifest/callback")
+      expect(manifest["setup_url"]).to eq("http://152.53.163.11:8888/api/admin/github-app-manifest/setup")
+      expect(manifest.dig("hook_attributes", "url")).to eq("http://152.53.163.11:8888/api/github-apps/webhook")
+    end
+
     it "returns 403 for non-admin" do
       get "/api/admin/github-app-manifest", headers: auth_headers(user)
       expect(response).to have_http_status(:forbidden)
@@ -29,9 +42,12 @@ RSpec.describe "Api::Admin::GithubAppManifestsController", type: :request do
   describe "GET /api/admin/github-app-manifest/callback" do
     context "without code" do
       it "redirects with error" do
-        get "/api/admin/github-app-manifest/callback"
+        with_env(RAILDOCK_PUBLIC_URL: "http://152.53.163.11:8888", FRONTEND_URL: "http://localhost:8888") do
+          get "/api/admin/github-app-manifest/callback"
+        end
+
         expect(response).to have_http_status(:found)
-        expect(response).to redirect_to(%r{github_app_manifest=error})
+        expect(response).to redirect_to(%r{\Ahttp://152\.53\.163\.11:8888/#/dashboard/settings\?tab=git-sources&github_app_manifest=error})
       end
     end
 
@@ -49,6 +65,18 @@ RSpec.describe "Api::Admin::GithubAppManifestsController", type: :request do
       get "/api/admin/github-app-manifest/setup"
       expect(response).to have_http_status(:found)
       expect(response).to redirect_to(%r{tab=git-sources})
+    end
+  end
+
+  def with_env(values)
+    previous = {}
+    values.each_key { |key| previous[key] = ENV[key.to_s] }
+    values.each { |key, value| ENV[key.to_s] = value }
+
+    yield
+  ensure
+    previous&.each do |key, value|
+      value.nil? ? ENV.delete(key.to_s) : ENV[key.to_s] = value
     end
   end
 end
