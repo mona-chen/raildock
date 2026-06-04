@@ -9,7 +9,7 @@
 # For docker-compose example, see: https://github.com/mona-chen/raildock
 
 ARG RUBY_VERSION=3.4.4
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 
 # ── Stage 1: Build React frontend ──────────────────────────────────────────
 FROM docker.io/node:${NODE_VERSION}-alpine AS frontend-builder
@@ -23,6 +23,11 @@ RUN npm run build
 FROM docker.io/ruby:${RUBY_VERSION}-slim AS gems
 WORKDIR /gem-cache
 COPY backend/Gemfile backend/Gemfile.lock ./
+# Install build tools for native gem extensions (bigdecimal, pg, psych, etc.)
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+        build-essential libyaml-dev pkg-config && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 ENV BUNDLE_PATH=/gem-cache/vendor
 RUN bundle install && rm -rf ~/.bundle/
 
@@ -34,25 +39,26 @@ WORKDIR /rails
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
         curl nginx supervisor libjemalloc2 postgresql-client \
-        && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \
-        && rm -rf /var/lib/apt/lists /var/cache/apt/archives \
-        # Clean default nginx config
-        && rm -rf /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/conf.d/*.default
+    && apt-get install -y libcap2-bin \
+    && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
+    && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \
+    && rm -rf /var/lib/apt/lists /var/cache/apt/archives \
+    && rm -rf /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/conf.d/*.default
 
 ENV RAILS_ENV=production \
-    BUNDLE_PATH=/usr/local/bundle \
-    BUNDLE_DEPLOYMENT=1 \
-    BUNDLE_WITHOUT="development:test" \
+    BUNDLE_PATH=/usr/local/bundle/vendor \
+    BUNDLE_DEPLOYMENT=true \
+    BUNDLE_WITHOUT=development:test \
     LD_PRELOAD=/usr/local/lib/libjemalloc.so \
     PORT=3000 \
     RAILS_LOG_TO_STDOUT=1 \
-    RAILS_SERVE_STATIC_FILES=true
+    RAILS_SERVE_STATIC_FILES=true \
+    PATH=/usr/local/bundle/vendor/ruby/3.4.0/bin:/usr/local/bundle/vendor/bin:/usr/local/bin:$PATH
 
-# Copy gems from stage 2
-COPY --from=/gems /gem-cache /usr/local/bundle
+# Copy frozen gem cache from stage 2
+COPY --from=gems /gem-cache /usr/local/bundle
 
-# Copy Rails app code (gems from above, code below)
-COPY --from=gems /usr/local/bundle /usr/local/bundle
+# Copy the Rails app code
 COPY backend/ .
 
 # Non-root user for security
@@ -63,16 +69,21 @@ RUN groupadd --system --gid 1000 rails && \
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
 # Copy nginx config for RailDock (serves static + proxies API to Puma)
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 
 # Copy supervisor config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Entrypoint: must chmod before switching to non-root user
+COPY --chmod=755 docker/docker-entrypoint /usr/local/bin/raildock-entrypoint
+
+RUN mkdir -p /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids && \
+    chown -R rails:rails /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids /usr/share/nginx/html
 
 # Run as non-root
 USER 1000:1000
 EXPOSE 80
 
 # Entrypoint: prepare DB then start supervisord
-COPY docker/docker-entrypoint /usr/local/bin/raildock-entrypoint
 ENTRYPOINT ["/usr/local/bin/raildock-entrypoint"]
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

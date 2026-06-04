@@ -267,6 +267,9 @@ export interface GitRepo {
   fullName: string
   defaultBranch: string
   private: boolean
+  cloneUrl?: string
+  sshUrl?: string
+  htmlUrl?: string
   serviceName?: string  // which service this deploys to
 }
 

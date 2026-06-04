@@ -144,7 +144,9 @@ class GithubAppService
             full_name: repo['full_name'],
             default_branch: repo['default_branch'],
             private: repo['private'],
-            clone_url: repo['clone_url']
+            clone_url: repo['clone_url'],
+            ssh_url: repo['ssh_url'],
+            html_url: repo['html_url']
           }
         end)
 

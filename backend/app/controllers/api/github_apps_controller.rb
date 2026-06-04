@@ -127,6 +127,8 @@ module Api
       case event
       when 'installation'
         handle_installation_event(data)
+      when 'installation_repositories'
+        handle_installation_repositories_event(data)
       when 'push'
         handle_push_event(data)
       when 'pull_request'
@@ -248,35 +250,10 @@ module Api
 
       git_source = GitSource.find_by(installation_id: installation['id'].to_s, provider: 'github')
 
-      if git_source.nil? && %w[created new_permissions_accepted].include?(action)
-        # Create a GitSource from webhook if it doesn't exist (fallback)
-        account = installation['account']
-        account_type = account['type'] == 'Organization' ? 'organization' : 'personal'
-
-        git_source = GitSource.new(
-          provider: 'github',
-          installation_id: installation['id'].to_s,
-          auth_method: :oauth_app,
-          connected: true,
-          account_type: account_type,
-          username: account['login']
-        )
-
-        if account_type == 'organization'
-          # Webhook can't determine owner — create org without owner for now
-          org = Organization.find_by(slug: account['login'].parameterize)
-          org ||= Organization.create!(name: account['login'], slug: account['login'].parameterize, owner: User.first)
-          git_source.organization = org
-        else
-          git_source.user = User.first
-        end
-
-        git_source.save!
-        GithubSyncReposJob.perform_later(git_source.id)
+      if git_source.nil?
+        Rails.logger.info "Ignoring GitHub installation #{installation['id']} #{action} webhook until a user completes setup"
         return
       end
-
-      return unless git_source
 
       case action
       when 'deleted'
@@ -287,26 +264,75 @@ module Api
       end
     end
 
-    def handle_push_event(data)
-      repo_full_name = data.dig('repository', 'full_name')
-      branch = data['ref']&.sub('refs/heads/', '')
-      return unless repo_full_name && branch
+    def handle_installation_repositories_event(data)
+      installation_id = data.dig('installation', 'id')
+      return unless installation_id
 
-      # Find services linked to this repo/branch and trigger deploy
-      Service.where(git_repo: repo_full_name).find_each do |service|
-        next unless service.branch == branch
+      git_source = GitSource.find_by(installation_id: installation_id.to_s, provider: 'github')
+      return unless git_source
+
+      GithubSyncReposJob.perform_later(git_source.id)
+    end
+
+    def handle_push_event(data)
+      installation_id = data.dig('installation', 'id')
+      git_source = GitSource.find_by(installation_id: installation_id.to_s, provider: 'github') if installation_id
+      trigger_deployments_for_push(data, git_source: git_source, triggered_by: 'github_app')
+    end
+
+    def handle_pull_request_event(data)
+      # Future: preview deployments for PRs
+    end
+
+    def trigger_deployments_for_push(data, git_source:, triggered_by:)
+      repo = data['repository'] || {}
+      branch = data['ref'].to_s.delete_prefix('refs/heads/')
+      commit_sha = data['after'].to_s
+      return if repo.blank? || branch.blank?
+      return if commit_sha.blank? || commit_sha.match?(/\A0+\z/)
+
+      identifiers = [
+        repo['full_name'],
+        repo['clone_url'],
+        repo['ssh_url'],
+        repo['html_url'],
+        repo['url']
+      ]
+
+      services = Service.matching_repo(*identifiers).where(auto_deploy: true).includes(project: :organization)
+      services = services.select { |service| github_source_can_deploy_service?(git_source, service) } if git_source
+
+      services.each do |service|
+        next unless auto_deploy_branch_matches?(service, branch, repo['default_branch'])
+
         deployment = service.deployments.create!(
           status: :pending,
+          started_at: Time.current,
           branch: branch,
-          commit_sha: data.dig('after')&.first(7)
+          commit_sha: commit_sha,
+          triggered_by: triggered_by
         )
         DeploymentJob.perform_later(service.id, deployment.id)
         service.update!(status: :deploying)
       end
     end
 
-    def handle_pull_request_event(data)
-      # Future: preview deployments for PRs
+    def auto_deploy_branch_matches?(service, branch, default_branch)
+      expected = service.branch.presence || default_branch.presence || branch
+      ActiveSupport::SecurityUtils.secure_compare(expected, branch)
+    rescue ArgumentError
+      false
+    end
+
+    def github_source_can_deploy_service?(git_source, service)
+      return false unless git_source&.connected?
+
+      project = service.project
+      if git_source.organization_id.present?
+        project.organization_id == git_source.organization_id
+      else
+        project.organization_id.nil? && project.user_id == git_source.user_id
+      end
     end
   end
 end

@@ -91,11 +91,11 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const reposSyncing = reposData?.syncing || false
 
   const selectedRepo = useMemo(() => {
-    return repos.find((r: GitRepo) => r.fullName === gitRepo)
+    return repos.find((r: GitRepo) => (r.cloneUrl || r.fullName) === gitRepo)
   }, [repos, gitRepo])
 
   const handleSelectRepo = (repo: GitRepo) => {
-    setGitRepo(repo.fullName)
+    setGitRepo(repo.cloneUrl || repo.fullName)
     if (repo.defaultBranch) setGitBranch(repo.defaultBranch)
   }
 
@@ -262,17 +262,17 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                           key={repo.id}
                           onClick={() => handleSelectRepo(repo)}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors ${
-                            gitRepo === repo.fullName
+                            gitRepo === (repo.cloneUrl || repo.fullName)
                               ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
                               : 'text-white/60 hover:bg-white/[0.03]'
                           }`}
                         >
-                          <GitBranch size={12} className={gitRepo === repo.fullName ? 'text-[#8b5cf6]' : 'text-white/30'} />
+                          <GitBranch size={12} className={gitRepo === (repo.cloneUrl || repo.fullName) ? 'text-[#8b5cf6]' : 'text-white/30'} />
                           <span className="flex-1 truncate">{repo.fullName}</span>
                           {repo.private && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-white/30 rounded">Private</span>
                           )}
-                          {gitRepo === repo.fullName && <Check size={12} />}
+                          {gitRepo === (repo.cloneUrl || repo.fullName) && <Check size={12} />}
                         </button>
                       ))}
                     </div>

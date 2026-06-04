@@ -7,21 +7,38 @@ module Api
 
     def deploy
       # Extract repo info from webhook payload (GitHub/GitLab format)
-      repo_name = params[:repository]&.[]('full_name') || params[:project]&.[]('path_with_namespace')
-      ref = params[:ref] || ''
-      branch = ref.split('/').last || 'main'
+      repository = params[:repository] || {}
+      project = params[:project] || {}
+      repo_name = repository[:full_name] || repository['full_name'] || project[:path_with_namespace] || project['path_with_namespace']
+      ref = params[:ref].to_s
+      branch = ref.delete_prefix('refs/heads/').presence || params[:branch].presence || 'main'
 
       return head :bad_request unless repo_name
 
       # Find services linked to this repo that have auto_deploy enabled
-      services = Service.where(git_repo: repo_name, auto_deploy: true)
+      services = Service.matching_repo(
+        repo_name,
+        repository[:clone_url] || repository['clone_url'],
+        repository[:ssh_url] || repository['ssh_url'],
+        repository[:html_url] || repository['html_url'],
+        project[:git_http_url] || project['git_http_url'],
+        project[:git_ssh_url] || project['git_ssh_url'],
+      ).where(auto_deploy: true)
+
+      services = services.select do |service|
+        expected_branch = service.branch.presence || repository[:default_branch] || repository['default_branch'] || project[:default_branch] || project['default_branch'] || branch
+        expected_branch == branch
+      end
+
       return head :not_found if services.empty?
 
       services.each do |service|
         deployment = service.deployments.create!(
           status: :pending,
           started_at: Time.current,
-          branch: branch
+          branch: branch,
+          commit_sha: params[:after].presence || params[:checkout_sha].presence,
+          triggered_by: 'webhook'
         )
         DeploymentJob.perform_later(service.id, deployment.id)
         service.update!(status: :deploying)

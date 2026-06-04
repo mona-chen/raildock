@@ -16,6 +16,35 @@ RSpec.describe "Api::WebhooksController", type: :request do
 
         expect(response).to have_http_status(:accepted)
       end
+
+      it "matches GitHub clone URLs and preserves branch names with slashes" do
+        service.update!(git_repo: "https://github.com/acme/app.git", branch: "feature/api")
+
+        expect {
+          post "/api/webhooks/deploy", params: {
+            repository: { full_name: "acme/app", clone_url: "https://github.com/acme/app.git" },
+            ref: "refs/heads/feature/api",
+            after: "abc1234"
+          }
+        }.to change(Deployment, :count).by(1)
+
+        expect(response).to have_http_status(:accepted)
+        deployment = Deployment.last
+        expect(deployment.branch).to eq("feature/api")
+        expect(deployment.commit_sha).to eq("abc1234")
+        expect(deployment.triggered_by).to eq("webhook")
+      end
+
+      it "does not trigger deployment for non-matching branches" do
+        expect {
+          post "/api/webhooks/deploy", params: {
+            repository: { full_name: "acme/app" },
+            ref: "refs/heads/develop"
+          }
+        }.not_to change(Deployment, :count)
+
+        expect(response).to have_http_status(:not_found)
+      end
     end
 
     context "with webhook secret configured" do

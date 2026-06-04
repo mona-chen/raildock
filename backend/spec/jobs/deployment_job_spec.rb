@@ -190,6 +190,35 @@ RSpec.describe DeploymentJob, type: :job do
       end
     end
 
+    context "when the service uses a GitHub App repository" do
+      let!(:owner) { create(:user) }
+      let!(:project) { create(:project, server: server, user: owner) }
+
+      before do
+        service.update!(git_repo: "https://github.com/acme/private-app.git")
+        create(
+          :git_source,
+          user: owner,
+          provider: "github",
+          access_token: nil,
+          installation_id: "12345",
+          auth_method: :oauth_app,
+          metadata: {
+            "repos" => [
+              { "full_name" => "acme/private-app", "clone_url" => "https://github.com/acme/private-app.git" }
+            ]
+          }
+        )
+        allow(GithubAppService).to receive(:installation_token).with("12345").and_return("install-token")
+      end
+
+      it "uses an installation-token clone URL for git sync" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:run).with("git:sync #{service.dokku_app_name} https://x-access-token:install-token@github.com/acme/private-app.git feature")
+      end
+    end
+
     context "when ps:rebuild fails" do
       before do
         allow(engine).to receive(:run_streaming).and_yield("build error").and_return({ success: false, output: "build error" })

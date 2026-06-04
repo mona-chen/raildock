@@ -179,8 +179,8 @@ function GitSourcesSection() {
     window.location.href = url
   }
 
-  const openLinkModal = (repoFullName: string) => {
-    setLinkRepo(repoFullName)
+  const openLinkModal = (repo: import('@/types').GitRepo) => {
+    setLinkRepo(repo.cloneUrl || repo.fullName)
     setLinkServiceId('')
     setLinkModalOpen(true)
   }
@@ -199,8 +199,30 @@ function GitSourcesSection() {
     )
   }
 
-  // Find services linked to each repo
-  const getLinkedService = (repoFullName: string) => svcs.find((s) => s.gitRepo === repoFullName)
+  const normalizeRepo = (value?: string) => {
+    if (!value) return ''
+    const trimmed = value.trim().replace(/\.git$/, '')
+    const sshMatch = trimmed.match(/^git@github\.com:(.+)$/)
+    if (sshMatch) return sshMatch[1]
+    try {
+      const url = new URL(trimmed)
+      if (url.hostname === 'github.com') return url.pathname.replace(/^\//, '')
+    } catch {
+      // plain owner/repo
+    }
+    return trimmed
+  }
+
+  const selectedRepo = connected.flatMap((gs) => gs.repos).find((repo) => {
+    const link = normalizeRepo(linkRepo || undefined)
+    return normalizeRepo(repo.fullName) === link || normalizeRepo(repo.cloneUrl) === link
+  })
+
+  // Find services linked to each repo, whether the service stores owner/repo or a clone URL.
+  const getLinkedService = (repo: import('@/types').GitRepo) => {
+    const fullName = normalizeRepo(repo.fullName)
+    return svcs.find((s) => normalizeRepo(s.gitRepo) === fullName)
+  }
 
   return (
     <div>
@@ -234,7 +256,7 @@ function GitSourcesSection() {
               </div>
               <div className="space-y-2">
                 {gs.repos.map((r) => {
-                  const linkedSvc = getLinkedService(r.fullName)
+                  const linkedSvc = getLinkedService(r)
                   return (
                     <div
                       key={r.id}
@@ -263,7 +285,7 @@ function GitSourcesSection() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => openLinkModal(r.fullName)}
+                          onClick={() => openLinkModal(r)}
                           className="text-[11px] px-2 py-1 bg-white/[0.06] text-white/50 rounded hover:bg-white/[0.1] transition-colors"
                         >
                           Link
@@ -349,7 +371,7 @@ function GitSourcesSection() {
           <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white mb-1">Link Repository</h3>
             <p className="text-xs text-[#4A4A55] mb-4">
-              Link <span className="text-white/60 font-mono">{linkRepo}</span> to a service in this project
+              Link <span className="text-white/60 font-mono">{selectedRepo?.fullName || linkRepo}</span> to a service in this project
             </p>
             <div className="space-y-3">
               <div>

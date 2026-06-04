@@ -1,13 +1,122 @@
 #!/bin/bash
 set -e
 
-# Always run db:prepare on boot — Rails checks if DB exists and only
-# creates/migrates if needed. Safe to call repeatedly (idempotent).
+# Runtime directories are created and owned in the image, but keep this
+# idempotent for derived images and bind-mounted deployments.
+mkdir -p /var/log/supervisor /var/log/nginx /tmp/nginx /tmp/pids
+
+parse_database_url() {
+  local database_url="$1"
+  local field="$2"
+
+  case "$field" in
+    user)
+      echo "$database_url" | sed -n 's|.*//\([^:]*\):.*@\([^:]*\):\([0-9]*\)/.*|\1|p'
+      ;;
+    password)
+      echo "$database_url" | sed -n 's|.*//[^:]*:\([^@]*\)@.*|\1|p'
+      ;;
+    host)
+      echo "$database_url" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\1|p'
+      ;;
+    port)
+      echo "$database_url" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\2|p'
+      ;;
+    name)
+      echo "$database_url" | sed -n 's|.*/\([^?]*\)\(?.*\)\?$|\1|p'
+      ;;
+  esac
+}
+
+ensure_database_exists() {
+  local database_url="$1"
+  local db_name
+  local db_user
+  local db_password
+  local db_host
+  local db_port
+
+  [ -n "$database_url" ] || return 0
+
+  db_name=$(parse_database_url "$database_url" name)
+  db_user=$(parse_database_url "$DATABASE_URL" user)
+  db_password=$(parse_database_url "$DATABASE_URL" password)
+  db_host=$(parse_database_url "$DATABASE_URL" host)
+  db_port=$(parse_database_url "$DATABASE_URL" port)
+
+  [ -n "$db_name" ] || return 0
+  [ -n "$db_user" ] || return 0
+  [ -n "$db_host" ] || db_host="localhost"
+  [ -n "$db_port" ] || db_port="5432"
+
+  if PGPASSWORD="$db_password" psql -h "$db_host" -p "$db_port" -U "$db_user" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" 2>/dev/null | grep -q '^1$'; then
+    return 0
+  fi
+
+  echo "==> Creating ${db_name} database..."
+  PGPASSWORD="$db_password" createdb -h "$db_host" -p "$db_port" -U "$db_user" "$db_name"
+}
+
+ensure_auxiliary_schema() {
+  local env_name="$1"
+  local task_name="$2"
+  local table_name="$3"
+  local database_url="${!env_name}"
+  local non_internal_tables
+
+  [ -n "$database_url" ] || return 0
+
+  if DATABASE_URL="$database_url" bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?('$table_name') ? 0 : 1)" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  non_internal_tables=$(DATABASE_URL="$database_url" bundle exec rails runner "puts (ActiveRecord::Base.connection.tables - %w[schema_migrations ar_internal_metadata]).join(',')" 2>/dev/null || true)
+  if [ -n "$non_internal_tables" ]; then
+    echo "   ${task_name} schema is missing ${table_name}, but the database is not empty; skipping schema load"
+    return 0
+  fi
+
+  echo "==> Loading ${task_name} schema..."
+  SOLID_QUEUE_SKIP_RECURRING=1 DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bundle exec rails "db:schema:load:${task_name}"
+}
+
+# Wait for database before migrations
 if [ -n "$DATABASE_URL" ]; then
-  echo "==> Preparing database..."
-  /rails/bin/rails db:prepare 2>/dev/null || {
-    echo "   db:prepare failed (database may not be ready yet — will retry on next start)"
-  }
+  echo "==> Waiting for database..."
+
+  # Parse host and port from DATABASE_URL (postgres://user:pass@host:port/db)
+  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\1|p')
+  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):\([0-9]*\)/.*|\2|p')
+  DB_HOST="${DB_HOST:-localhost}"
+  DB_PORT="${DB_PORT:-5432}"
+
+  attempt=0
+  max_attempts=30
+  while [ $attempt -lt $max_attempts ]; do
+    if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U raildock >/dev/null 2>&1; then
+      break
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+    printf "."
+  done
+  echo
+
+  if [ $attempt -eq $max_attempts ]; then
+    echo "   Database not reachable — continuing anyway"
+  else
+    echo "==> Database is ready — running migrations..."
+    cd /rails
+    bundle exec rails db:prepare || {
+      echo "   db:prepare failed — will retry on next start"
+    }
+    ensure_database_exists "$QUEUE_DATABASE_URL"
+    ensure_database_exists "$CACHE_DATABASE_URL"
+    ensure_database_exists "$CABLE_DATABASE_URL"
+    ensure_auxiliary_schema "QUEUE_DATABASE_URL" "queue" "solid_queue_recurring_tasks"
+    ensure_auxiliary_schema "CACHE_DATABASE_URL" "cache" "solid_cache_entries"
+    ensure_auxiliary_schema "CABLE_DATABASE_URL" "cable" "solid_cable_messages"
+  fi
 fi
 
 exec "${@}"

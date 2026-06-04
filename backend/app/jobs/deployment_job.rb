@@ -122,7 +122,8 @@ class DeploymentJob < ApplicationJob
       elsif service.git_repo.present?
         # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
         # Run git:sync first (non-streaming, usually short)
-        sync_result = engine.run("git:sync #{service.dokku_app_name} #{service.git_repo} #{deployment.branch || service.branch || 'main'}")
+        git_repo = git_repo_for_deploy(service)
+        sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{deployment.branch || service.branch || 'main'}")
         deploy_output += sync_result[:output]
         deployment.update!(deploy_log: deploy_output) if deploy_output.present?
 
@@ -239,6 +240,37 @@ class DeploymentJob < ApplicationJob
   end
 
   private
+
+  def git_repo_for_deploy(service)
+    github_source = github_source_for_service(service)
+    return service.git_repo unless github_source
+
+    full_name = Service.repo_full_name(service.git_repo)
+    return service.git_repo if full_name.blank?
+
+    token = GithubAppService.installation_token(github_source.installation_id)
+    escaped_token = ERB::Util.url_encode(token)
+    "https://x-access-token:#{escaped_token}@github.com/#{full_name}.git"
+  rescue => e
+    Rails.logger.warn "GitHub App deploy token resolution failed for service #{service.id}: #{e.message}"
+    service.git_repo
+  end
+
+  def github_source_for_service(service)
+    full_name = Service.repo_full_name(service.git_repo)
+    return nil if full_name.blank?
+
+    sources = GitSource.where(provider: "github", connected: true).where.not(installation_id: nil)
+    if service.project.organization_id.present?
+      sources = sources.where(organization_id: service.project.organization_id)
+    else
+      sources = sources.where(user_id: service.project.user_id, organization_id: nil)
+    end
+
+    sources.find do |source|
+      source.repos.any? { |repo| Service.repo_full_name(repo["full_name"] || repo[:full_name] || repo["clone_url"] || repo[:clone_url]) == full_name }
+    end
+  end
 
   def apply_nginx_settings(engine, service)
     nginx_config = service.config&.dig("nginx")

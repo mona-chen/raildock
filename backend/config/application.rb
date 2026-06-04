@@ -49,5 +49,12 @@ module Backend
     # Production must be configured explicitly; random boot keys invalidate sessions
     # and make signed values unreliable across restarts.
     config.secret_key_base = ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(64)
+
+    # Keep Active Record encryption off Rails credentials so fresh installs can boot
+    # from environment variables alone. This avoids a credentials-file decryption
+    # failure when the generated master key does not match the repository seed.
+    config.active_record.encryption.primary_key = ENV["ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
+    config.active_record.encryption.deterministic_key = ENV["ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
+    config.active_record.encryption.key_derivation_salt = ENV["ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
   end
 end

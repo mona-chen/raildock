@@ -4,18 +4,7 @@ module Api
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
         authorize_organization_access!(org)
-        # Show org sources + personal GitHub App sources the user has access to
-        # (GitHub App installations for personal accounts should still be visible in org context)
-        sources = org.git_sources.or(
-          GitSource.where(user_id: current_user.id, organization_id: nil)
-        ).where(auth_method: 'oauth_app').or(
-          GitSource.where(organization_id: org.id)
-        )
-        # Simplify: show all GitHub App sources accessible to this user in this org context
-        sources = GitSource.where(
-          "organization_id = ? OR (organization_id IS NULL AND user_id = ? AND auth_method = 'oauth_app')",
-          org.id, current_user.id
-        )
+        sources = org.git_sources
       else
         # Personal context: user's own sources + any org sources they belong to
         user_org_ids = current_user.organization_memberships.pluck(:organization_id)
@@ -26,7 +15,7 @@ module Api
     end
 
     def create
-      source = GitSource.new(git_source_params.merge(connected: true))
+      source = GitSource.new(git_source_params.merge(connected: true, auth_method: :token))
 
       # Assign owner: organization if specified, otherwise current user
       if params[:organization_id]
@@ -76,13 +65,13 @@ module Api
       recently_failed = sync_failed_at.present? && Time.parse(sync_failed_at) > 5.minutes.ago rescue false
 
       # Trigger async refresh only if we don't have repos AND haven't recently failed
-      if !has_repos && !recently_failed
+      if source.github_app? && !has_repos && !recently_failed
         GithubSyncReposJob.perform_later(source.id) rescue nil
       end
 
       render json: {
         repos: source.repos,
-        syncing: !has_repos && !recently_failed,
+        syncing: source.github_app? && !has_repos && !recently_failed,
         error: recently_failed ? sync_error : nil
       }
     rescue ActiveRecord::RecordNotFound
@@ -92,7 +81,7 @@ module Api
     private
 
     def git_source_params
-      params.permit(:provider, :access_token, :username, :installation_id, :auth_method, :account_type)
+      params.permit(:provider, :access_token, :username)
     end
   end
 end

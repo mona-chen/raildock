@@ -11,7 +11,7 @@ COMPOSE_FILE="$RAILDOCK_DIR/docker-compose.yml"
 ENV_FILE="$RAILDOCK_DIR/.env"
 DATA_DIR="$RAILDOCK_DIR/data"
 SSH_KEY_DIR="$DATA_DIR/dokku-ssh"
-NETWORK_NAME="raildock"
+NETWORK_NAMES=("raildock" "raildock-network")
 COMPOSE_PROJECT_NAME="raildock"
 
 # ── Colors ───────────────────────────────────
@@ -153,7 +153,7 @@ remove_images() {
   log_step "Removing RailDock images..."
   
   # Get image names from compose file
-  local images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^raildock-|^${COMPOSE_PROJECT_NAME}_" 2>/dev/null || true)
+  local images=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^(ghcr.io/mona-chen/raildock/raildock|raildock/raildock|raildock-|${COMPOSE_PROJECT_NAME}_)" 2>/dev/null || true)
   
   if [ -n "$images" ]; then
     if confirm "Remove RailDock Docker images?" "n"; then
@@ -202,16 +202,16 @@ remove_volumes() {
 remove_networks() {
   log_step "Removing Docker networks..."
   
-  # Remove RailDock network
-  if docker network ls --format '{{.Name}}' 2>/dev/null | grep -q "^${NETWORK_NAME}$"; then
-    docker network rm "$NETWORK_NAME" 2>/dev/null || true
-    log_ok "Network '$NETWORK_NAME' removed"
-  fi
-  
-  # Clean up any bridge networks
-  if docker network ls --format '{{.Name}}' 2>/dev/null | grep -q "^${NETWORK_NAME}-bridge$"; then
-    docker network rm "${NETWORK_NAME}-bridge" 2>/dev/null || true
-  fi
+  for network_name in "${NETWORK_NAMES[@]}"; do
+    if docker network ls --format '{{.Name}}' 2>/dev/null | grep -q "^${network_name}$"; then
+      docker network rm "$network_name" 2>/dev/null || true
+      log_ok "Network '$network_name' removed"
+    fi
+
+    if docker network ls --format '{{.Name}}' 2>/dev/null | grep -q "^${network_name}-bridge$"; then
+      docker network rm "${network_name}-bridge" 2>/dev/null || true
+    fi
+  done
 }
 
 # ── Remove Data Directory ───────────────────────
@@ -268,10 +268,6 @@ remove_env_file() {
   if [ -f "$creds_dir/master.key" ]; then
     rm -f "$creds_dir/master.key"
     log_ok "master.key removed"
-  fi
-  if [ -f "$creds_dir/credentials.yml.enc" ]; then
-    rm -f "$creds_dir/credentials.yml.enc"
-    log_ok "credentials.yml.enc removed"
   fi
   if [ -f "$creds_dir/credentials.yml.enc.bak" ]; then
     rm -f "$creds_dir/credentials.yml.enc.bak"

@@ -51,7 +51,7 @@ module Authorizable
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
 
-    membership = current_user.memberships.find_by(organization_id: project.organization_id)
+    membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
     unless membership
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
@@ -75,7 +75,7 @@ module Authorizable
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
 
-    membership = current_user.memberships.find_by(organization_id: project.organization_id)
+    membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
     unless membership
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
@@ -89,7 +89,7 @@ module Authorizable
   def authorize_organization!(organization, action: :settings)
     return true if organization.nil?
 
-    membership = current_user.memberships.find_by(organization_id: organization.id)
+    membership = current_user.organization_memberships.find_by(organization_id: organization.id)
     unless membership
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
@@ -106,7 +106,7 @@ module Authorizable
     # Server authorization is based on organization role when an org is selected.
     return false unless current_organization
 
-    membership = current_user.memberships.find_by(organization_id: current_organization.id)
+    membership = current_user.organization_memberships.find_by(organization_id: current_organization.id)
     unless membership
       render json: { error: "Forbidden" }, status: :forbidden and return
     end
@@ -138,7 +138,7 @@ module Authorizable
   def current_role
     return nil unless current_organization
 
-    membership = current_user.memberships.find_by(organization_id: current_organization.id)
+    membership = current_user.organization_memberships.find_by(organization_id: current_organization.id)
     membership&.role&.to_sym
   end
 

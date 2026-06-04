@@ -1,6 +1,14 @@
 require 'rails_helper'
 
 RSpec.describe Service, type: :model do
+  describe ".repo_full_name" do
+    it "normalizes GitHub full names and clone URLs" do
+      expect(described_class.repo_full_name("acme/app")).to eq("acme/app")
+      expect(described_class.repo_full_name("https://github.com/acme/app.git")).to eq("acme/app")
+      expect(described_class.repo_full_name("git@github.com:acme/app.git")).to eq("acme/app")
+    end
+  end
+
   describe "validations" do
     it { is_expected.to validate_presence_of(:name) }
 

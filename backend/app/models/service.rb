@@ -76,6 +76,54 @@ class Service < ApplicationRecord
   scope :databases, -> { where(service_type: :database) }
   scope :caches, -> { where(service_type: :cache) }
 
+  def self.matching_repo(*identifiers)
+    normalized = identifiers.flatten.compact_blank.flat_map { |value| repo_identifiers(value) }.uniq
+    return none if normalized.empty?
+
+    where(git_repo: normalized)
+  end
+
+  def self.repo_identifiers(value)
+    raw = value.to_s.strip
+    return [] if raw.blank?
+
+    normalized = raw.delete_suffix(".git")
+    full_name = repo_full_name(normalized)
+    identifiers = [raw, normalized]
+
+    if full_name.present?
+      identifiers.concat([
+        full_name,
+        "https://github.com/#{full_name}.git",
+        "https://github.com/#{full_name}",
+        "git@github.com:#{full_name}.git",
+        "ssh://git@github.com/#{full_name}.git"
+      ])
+    end
+
+    identifiers.uniq
+  end
+
+  def self.repo_full_name(value)
+    raw = value.to_s.strip
+    return nil if raw.blank?
+
+    if raw.match?(/\A[\w.-]+\/[\w.-]+(?:\.git)?\z/)
+      return raw.delete_suffix(".git")
+    end
+
+    if (match = raw.match(/\Agit@github\.com:(?<full>[^\/\s]+\/[^\/\s]+?)(?:\.git)?\z/i))
+      return match[:full].delete_suffix(".git")
+    end
+
+    uri = URI.parse(raw)
+    return nil unless uri.host&.casecmp("github.com")&.zero?
+
+    uri.path.to_s.sub(%r{\A/}, "").delete_suffix(".git").presence
+  rescue URI::InvalidURIError
+    nil
+  end
+
   def type
     service_type
   end

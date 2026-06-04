@@ -24,8 +24,8 @@ RSpec.describe "Api::GitSourcesController#repos", type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
-    it "triggers async sync when repos are empty and stale" do
-      empty_source = create(:git_source, user: user, provider: "gitlab", metadata: { "repos" => [] })
+    it "triggers async sync when GitHub App repos are empty and stale" do
+      empty_source = create(:git_source, user: user, provider: "github", access_token: nil, installation_id: "123", auth_method: :oauth_app, metadata: { "repos" => [] })
       empty_source.update_column(:updated_at, 10.minutes.ago)
 
       expect {
@@ -37,16 +37,16 @@ RSpec.describe "Api::GitSourcesController#repos", type: :request do
       expect(json["syncing"]).to eq(true)
     end
 
-    it "always triggers sync when repos are empty" do
+    it "does not enqueue GitHub sync for token sources" do
       empty_source = create(:git_source, user: user, provider: "gitlab", metadata: { "repos" => [] })
 
       expect {
         get "/api/git-sources/#{empty_source.id}/repos", headers: auth_headers(user)
-      }.to have_enqueued_job(GithubSyncReposJob)
+      }.not_to have_enqueued_job(GithubSyncReposJob)
 
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
-      expect(json["syncing"]).to eq(true)
+      expect(json["syncing"]).to eq(false)
     end
 
     it "does not trigger sync when repos exist and recently synced" do

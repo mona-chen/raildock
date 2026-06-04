@@ -26,9 +26,15 @@ services:
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL}
+      QUEUE_DATABASE_URL: ${QUEUE_DATABASE_URL}
+      CACHE_DATABASE_URL: ${CACHE_DATABASE_URL}
+      CABLE_DATABASE_URL: ${CABLE_DATABASE_URL}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       RAILS_SERVE_STATIC_FILES: "true"
       RAILS_LOG_TO_STDOUT: "1"
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: ${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY}
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
       # Optional: for encrypted storage of SSH keys / tokens
       LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY:-}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
@@ -37,7 +43,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5
