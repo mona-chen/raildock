@@ -98,10 +98,16 @@ export function useCreateGitHubAppManifest() {
 
 export function useFinishGitHubAppSetup() {
   const queryClient = useQueryClient()
+  const setCurrentOrganizationId = useAuthStore((s) => s.setCurrentOrganizationId)
+
   return useMutation({
     mutationFn: (installationId: string) => api.adminSettings.finishGitHubAppSetup(installationId),
     onSuccess: (data) => {
+      if (data.git_source.organizationId) {
+        setCurrentOrganizationId(data.git_source.organizationId)
+      }
       queryClient.invalidateQueries({ queryKey: ['git-sources'] })
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
       toast.success(data.message || 'GitHub App connected')
     },
     onError: (err: Error) => toast.error(`Setup failed: ${err.message}`),

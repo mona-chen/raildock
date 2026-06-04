@@ -21,6 +21,13 @@ services:
     image: ghcr.io/mona-chen/raildock/raildock:latest
     ports:
       - "${PORT:-80}:80"
+    labels:
+      traefik.enable: "${TRAEFIK_ENABLE:-false}"
+      traefik.docker.network: "raildock_default"
+      traefik.http.routers.raildock-public-http.entrypoints: "http"
+      traefik.http.routers.raildock-public-http.rule: "PathPrefix(`/api/admin/github-app-manifest`) || PathPrefix(`/api/github-apps`)"
+      traefik.http.routers.raildock-public-http.priority: "1000"
+      traefik.http.services.raildock-public-http.loadbalancer.server.port: "80"
     environment:
       RAILS_ENV: ${RAILS_ENV:-production}
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
