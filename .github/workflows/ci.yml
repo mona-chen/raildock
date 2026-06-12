@@ -9,6 +9,8 @@ on:
 env:
   RUBY_VERSION: "3.4"
   NODE_VERSION: "22"
+  # Opt into Node 24 ahead of the GitHub Actions Node 20 deprecation.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ── Backend ────────────────────────────────────────────────

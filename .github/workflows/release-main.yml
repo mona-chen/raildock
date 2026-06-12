@@ -8,6 +8,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/mona-chen/raildock/raildock
+  # Opt into Node 24 ahead of the GitHub Actions Node 20 deprecation.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
