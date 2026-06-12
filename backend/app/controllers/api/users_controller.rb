@@ -48,8 +48,10 @@ module Api
       result = engine.validate_connection
 
       if result[:success]
-        proxy_result = engine.run("proxy:report")
-        detected = %w[traefik caddy haproxy openresty].find { |p| proxy_result[:output].to_s.downcase.include?(p) } || "nginx"
+        proxy_type_result = engine.run("proxy:report --global --proxy-global-type")
+        detected = proxy_type_result[:output].to_s.strip.presence
+        detected ||= %w[traefik caddy haproxy openresty].find { |p| engine.run("proxy:report")[:output].to_s.downcase.include?(p) }
+        detected ||= "nginx"
         server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],

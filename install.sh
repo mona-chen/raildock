@@ -189,6 +189,50 @@ register_ssh_key_with_dokku() {
   log_ok "Registered RailDock SSH key with Dokku"
 }
 
+configure_dokku_proxy() {
+  if ! is_dokku_installed; then
+    return 0
+  fi
+
+  # Allow users to force nginx if they don't want Traefik.
+  local proxy_type="${PROXY_TYPE:-traefik}"
+  if [ "$proxy_type" != "traefik" ]; then
+    log_info "PROXY_TYPE=$proxy_type — skipping Traefik default setup"
+    return 0
+  fi
+
+  # Only switch to Traefik if the core traefik-vhosts plugin is present.
+  if ! dokku plugin:list 2>/dev/null | grep -q "traefik-vhosts"; then
+    log_warn "Traefik plugin not found — keeping Dokku's default proxy"
+    return 0
+  fi
+
+  log_step "Configuring Traefik as the default proxy..."
+
+  local current_proxy
+  current_proxy=$(dokku proxy:report --global --proxy-global-type 2>/dev/null | tr -d '[:space:]' || true)
+  if [ "$current_proxy" != "traefik" ]; then
+    dokku proxy:set --global traefik
+    log_ok "Set Traefik as the global default proxy"
+  else
+    log_info "Traefik is already the global default proxy"
+  fi
+
+  # Stop nginx to avoid port 80 conflicts with Traefik.
+  if systemctl is-active --quiet nginx 2>/dev/null || systemctl is-enabled --quiet nginx 2>/dev/null; then
+    dokku nginx:stop 2>/dev/null || true
+    log_ok "Stopped nginx"
+  fi
+
+  # Ensure Traefik is running.
+  if ! docker ps --filter "name=traefik-traefik-1" --format "{{.Names}}" | grep -q "traefik-traefik-1"; then
+    dokku traefik:start
+    log_ok "Started Traefik"
+  else
+    log_info "Traefik is already running"
+  fi
+}
+
 detect_dokku_host() {
   # Prefer the explicit override, then host.docker.internal (works on Docker Desktop
   # and Docker 20.10+ Linux when extra_hosts is configured), then the public IP.
@@ -258,8 +302,10 @@ create_local_server_record() {
       engine = DokkuEngine.new(server)
       result = engine.validate_connection
       if result[:success]
-        proxy_result = engine.run('proxy:report')
-        detected = %w[traefik caddy haproxy openresty].find { |p| proxy_result[:output].to_s.downcase.include?(p) } || 'nginx'
+        proxy_type_result = engine.run('proxy:report --global --proxy-global-type')
+        detected = proxy_type_result[:output].to_s.strip.presence
+        detected ||= %w[traefik caddy haproxy openresty].find { |p| engine.run('proxy:report')[:output].to_s.downcase.include?(p) }
+        detected ||= 'nginx'
         server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],
@@ -493,6 +539,7 @@ install_raildock() {
   log_step "Generating SSH key for Dokku..."
   generate_ssh_key
   register_ssh_key_with_dokku
+  configure_dokku_proxy
 
   log_step "Generating credentials..."
   check_existing_volume

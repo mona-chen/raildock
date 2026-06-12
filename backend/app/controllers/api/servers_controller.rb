@@ -44,8 +44,9 @@ module Api
 
       if result[:success]
         # Detect installed proxy plugin
-        proxy_result = engine.run("proxy:report")
-        detected_proxy = detect_proxy_type(proxy_result[:output])
+        proxy_type_result = engine.run("proxy:report --global --proxy-global-type")
+        detected_proxy = proxy_type_result[:output].to_s.strip.presence
+        detected_proxy ||= detect_proxy_type(engine.run("proxy:report")[:output])
 
         @server.update!(
           status: :connected,
