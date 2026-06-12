@@ -89,6 +89,7 @@ class TemplateDeployJob < ApplicationJob
         end
 
         sync_dokku_env_vars(engine, from_svc)
+        set_canonical_db_url(engine, from_svc, to_svc)
         if to_svc.subtype == "postgres"
           engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
           from_svc.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
@@ -209,6 +210,32 @@ class TemplateDeployJob < ApplicationJob
     sorted + services.reject { |s| sorted.include?(s) }
   end
 
+  def set_canonical_db_url(engine, app_service, db_service)
+    info_method = "#{db_service.subtype}_info"
+    return unless engine.respond_to?(info_method)
+
+    info = engine.send(info_method, db_service.dokku_app_name)
+    return unless info[:success] && info[:dsn].present?
+
+    dsn = info[:dsn]
+    target_key = case db_service.subtype
+    when "postgres" then "DATABASE_URL"
+    when "mysql", "mariadb" then "DATABASE_URL"
+    when "redis" then "REDIS_URL"
+    when "mongo" then "MONGO_URL"
+    else nil
+    end
+
+    return unless target_key
+
+    engine.config_set(app_service.dokku_app_name, target_key, dsn)
+    ev = app_service.environment_variables.find_or_initialize_by(key: target_key)
+    ev.update!(value: dsn, source: "dokku-link")
+    Rails.logger.info "Set #{target_key} on #{app_service.dokku_app_name} to linked #{db_service.subtype} DSN"
+  rescue => e
+    Rails.logger.warn "Failed to set canonical DB URL for #{app_service.dokku_app_name}: #{e.message}"
+  end
+
   def sync_dokku_env_vars(engine, service)
     result = engine.config_show(service.dokku_app_name)
     return unless result[:success]
@@ -219,7 +246,7 @@ class TemplateDeployJob < ApplicationJob
       key, _, value = line.partition("=")
       key = key.strip
       value = value.strip
-      next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL)/i)
+      next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL|DOKKU_MYSQL|DOKKU_POSTGRES|DOKKU_REDIS|DOKKU_MONGO)/i)
       next if value.blank? || value.start_with?("$")
 
       existing = service.environment_variables.find_by(key: key)
