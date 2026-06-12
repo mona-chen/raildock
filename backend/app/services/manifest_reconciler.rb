@@ -343,6 +343,10 @@ class ManifestReconciler
         service.domains.create!(hostname: hostname)
       end
 
+      # Auto-provision a temporary domain for web services when the server
+      # has auto_domains enabled.
+      TemporaryDomainService.new(@project.server).ensure_for(service, engine: engine)
+
       # Create storage mounts
       (svc[:storage] || []).each do |mount|
         service.storage_mounts.create!(host_path: mount[:host], container_path: mount[:container])

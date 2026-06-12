@@ -64,6 +64,11 @@ class TemplateDeployJob < ApplicationJob
         engine.app_create(app_name)
         proxy_type = service.config&.dig("proxy", "type") || "traefik"
         engine.proxy_set(app_name, proxy_type)
+
+        # Auto-provision a temporary domain for web services when the server
+        # has auto_domains enabled. This must happen before runtime env vars
+        # like RAILDOCK_PUBLIC_DOMAIN are resolved.
+        TemporaryDomainService.new(project.server).ensure_for(service, engine: engine)
       end
 
       # Sync storage mounts

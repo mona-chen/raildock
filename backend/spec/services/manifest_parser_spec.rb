@@ -155,14 +155,14 @@ RSpec.describe ManifestParser do
         expect(result).to eq("user")
       end
 
-      it 'resolves $SERVICE_URL_XXX to "https://example.com"' do
+      it 'resolves $SERVICE_URL_XXX to a public-domain marker' do
         result = resolve('$SERVICE_URL_REDIS')
-        expect(result).to eq("https://example.com")
+        expect(result).to eq("https://[RAILDOCK_PUBLIC_DOMAIN]")
       end
 
-      it 'resolves $SERVICE_FQDN_XXX to "app.example.com"' do
+      it 'resolves $SERVICE_FQDN_XXX to a public-domain marker' do
         result = resolve('$SERVICE_FQDN_MYAPP')
-        expect(result).to eq("app.example.com")
+        expect(result).to eq("[RAILDOCK_PUBLIC_DOMAIN]")
       end
 
       it 'resolves $SERVICE_BASE64_XXX to base64 string' do

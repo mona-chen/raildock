@@ -67,6 +67,7 @@ module Api
         else
           engine.app_create(service.dokku_app_name)
           engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType])
+          TemporaryDomainService.new(server).ensure_for(service, engine: engine)
         end
       end
 

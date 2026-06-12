@@ -444,8 +444,8 @@ def normalize_env(env)
 
     result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) { SecureRandom.hex(16) }
     result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) { "user" }
-    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://example.com" }
-    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "app.example.com" }
+    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://[RAILDOCK_PUBLIC_DOMAIN]" }
+    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "[RAILDOCK_PUBLIC_DOMAIN]" }
     result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) { SecureRandom.base64(32) }
     result.gsub!(/\$\{?SERVICE_PASSWORD\}?/) { SecureRandom.hex(16) }
     result.gsub!(/\$\{?SERVICE_USER\}?/) { "user" }
@@ -509,8 +509,8 @@ def normalize_env(env)
 
     result.gsub!(/\$\{?SERVICE_PASSWORD(?:_64)?_[A-Z0-9_]+\}?/) { SecureRandom.hex(16) }
     result.gsub!(/\$\{?SERVICE_USER_[A-Z0-9_]+\}?/) { "user" }
-    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://example.com" }
-    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "app.example.com" }
+    result.gsub!(/\$\{?SERVICE_URL_[A-Z0-9_]+\}?/) { "https://[RAILDOCK_PUBLIC_DOMAIN]" }
+    result.gsub!(/\$\{?SERVICE_FQDN_[A-Z0-9_]+\}?/) { "[RAILDOCK_PUBLIC_DOMAIN]" }
     result.gsub!(/\$\{?SERVICE_BASE64(?:_64|_32)?_[A-Z0-9_]+\}?/) { SecureRandom.base64(32) }
     result.gsub!(/\$\{?SERVICE_PASSWORD\}?/) { SecureRandom.hex(16) }
     result.gsub!(/\$\{?SERVICE_USER\}?/) { "user" }
