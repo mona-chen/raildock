@@ -28,11 +28,14 @@ curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh |
 ```
 
 The installer:
-1. Clones the repo into the install directory.
-2. Generates `.env` and `backend/config/master.key`.
-3. Creates a fresh `backend/config/credentials.yml.enc` using the pulled Docker image.
-4. Pulls `ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}` and starts the stack.
-5. Binds the web UI to port `8888` by default so port `80` stays free for Traefik or another reverse proxy.
+1. Checks for Dokku on the host; installs it when `INSTALL_DOKKU=1`.
+2. Generates an SSH key in `data/dokku-ssh/` and registers it with Dokku.
+3. Clones the repo into the install directory.
+4. Generates `.env` and `backend/config/master.key`.
+5. Creates a fresh `backend/config/credentials.yml.enc` using the pulled Docker image.
+6. Pulls `ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}` and starts the stack.
+7. Binds the web UI to port `8888` by default so port `80` stays free for Dokku's Traefik.
+8. Creates the "Local Dokku" server record automatically via `DOKKU_HOST`.
 
 Use `BUILD_FROM_SOURCE=1 ./install.sh` to build the image locally.
 

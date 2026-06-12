@@ -132,7 +132,8 @@ Key backend pieces, all real code:
 ### Requirements
 
 - A Linux server with Docker and Docker Compose.
-- Port 8888 available (RailDock defaults here so port 80 stays free for Traefik or another reverse proxy).
+- [Dokku](https://dokku.com/) installed on the same server (or let the installer install it).
+- Port 8888 available (RailDock defaults here so port 80 stays free for Dokku's Traefik).
 - `curl`.
 
 ### Install
@@ -141,7 +142,27 @@ Key backend pieces, all real code:
 curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
 ```
 
-The installer clones the repo, generates secrets, creates a fresh Rails credentials file, pulls the image, and starts the stack on port 8888. Open `http://<your-server-ip>:8888` and create the first user.
+The installer:
+
+1. Checks for Dokku on the host (installs it automatically with `INSTALL_DOKKU=1`).
+2. Generates an SSH key and registers it with Dokku.
+3. Clones the repo, generates secrets, and creates a fresh Rails credentials file.
+4. Pulls the image and starts the stack on port 8888.
+5. Creates the "Local Dokku" server record automatically.
+
+Open `http://<your-server-ip>:8888` and create the first user.
+
+If Dokku is not installed and you want the installer to set it up:
+
+```bash
+INSTALL_DOKKU=1 curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+```
+
+To use a remote Dokku server instead of a local one:
+
+```bash
+SKIP_DOKKU_CHECK=1 curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+```
 
 To build from source instead:
 

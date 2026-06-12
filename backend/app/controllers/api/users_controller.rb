@@ -31,12 +31,13 @@ module Api
       dokku_key_path = "/data/dokku-ssh/id_ed25519"
       return unless File.exist?(dokku_key_path)
 
+      dokku_host = ENV.fetch("DOKKU_HOST", "dokku")
       private_key = File.read(dokku_key_path).strip
 
       # Find existing local server or create one
-      server = Server.find_by(host: "dokku") || Server.create!(
+      server = Server.find_by(host: dokku_host) || Server.create!(
         name: "Local Dokku",
-        host: "dokku",
+        host: dokku_host,
         ssh_key: private_key,
         status: :disconnected,
         default_proxy: "traefik"

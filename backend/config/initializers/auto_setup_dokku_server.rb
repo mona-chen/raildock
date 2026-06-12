@@ -6,13 +6,14 @@ Rails.application.config.after_initialize do
   next if Server.count > 0
 
   dokku_key_path = "/data/dokku-ssh/id_ed25519"
+  dokku_host = ENV.fetch("DOKKU_HOST", "dokku")
 
   if File.exist?(dokku_key_path)
     private_key = File.read(dokku_key_path).strip
 
     server = Server.create!(
       name: "Local Dokku",
-      host: "dokku",
+      host: dokku_host,
       ssh_key: private_key,
       status: :disconnected,
       default_proxy: "traefik"

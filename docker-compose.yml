@@ -12,6 +12,7 @@ name: raildock
 #   POSTGRES_PASSWORD — defaults to "raildock"
 #   RAILS_ENV         — defaults to "production"
 #   PORT              — defaults to 8888 (external port)
+#   DOKKU_HOST        — hostname/IP of the Dokku host (defaults to "dokku" for dev)
 
 services:
   raildock:
@@ -21,6 +22,10 @@ services:
     image: ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}
     ports:
       - "${PORT:-8888}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data/dokku-ssh:/data/dokku-ssh:ro
     labels:
       traefik.enable: "${TRAEFIK_ENABLE:-false}"
       traefik.docker.network: "raildock_default"
@@ -38,6 +43,7 @@ services:
       CABLE_DATABASE_URL: ${CABLE_DATABASE_URL}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       RAILDOCK_PUBLIC_URL: ${RAILDOCK_PUBLIC_URL:-}
+      DOKKU_HOST: ${DOKKU_HOST:-dokku}
       RAILS_SERVE_STATIC_FILES: "true"
       RAILS_LOG_TO_STDOUT: "1"
       ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}

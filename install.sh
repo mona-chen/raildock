@@ -96,6 +96,193 @@ generate_ar_encryption_key() {
   fi
 }
 
+# ── Dokku / SSH helpers ───────────────────────
+SSH_KEY_DIR="$INSTALL_DIR/data/dokku-ssh"
+
+is_dokku_installed() {
+  command -v dokku >/dev/null 2>&1
+}
+
+check_dokku() {
+  if is_dokku_installed; then
+    log_ok "Dokku $(dokku version | head -1) is installed"
+    return 0
+  fi
+
+  if [ "${INSTALL_DOKKU:-0}" = "1" ]; then
+    install_dokku
+    return 0
+  fi
+
+  log_warn "Dokku is not installed on this server"
+  log_info "RailDock needs a Dokku host to manage. Install Dokku first:"
+  log_info "  curl -fsSL https://raw.githubusercontent.com/dokku/dokku/v0.38.1/bootstrap.sh | sudo DOKKU_TAG=v0.38.1 bash"
+  log_info "Or re-run this installer with INSTALL_DOKKU=1 to install it automatically."
+  return 1
+}
+
+install_dokku() {
+  log_step "Installing Dokku..."
+  if [ "$(uname)" != "Linux" ]; then
+    log_error "Automatic Dokku installation is only supported on Linux"
+    exit 1
+  fi
+
+  local detected_hostname
+  detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+
+  export DOKKU_TAG="${DOKKU_TAG:-v0.38.1}"
+  export DOKKU_HOSTNAME="${DOKKU_HOSTNAME:-$detected_hostname}"
+  export DOKKU_VHOST_ENABLE="${DOKKU_VHOST_ENABLE:-false}"
+  export DOKKU_SKIP_KEY_FILE="true"
+
+  log_info "Dokku version: $DOKKU_TAG"
+  log_info "Dokku hostname: $DOKKU_HOSTNAME"
+
+  curl -fsSL "https://raw.githubusercontent.com/dokku/dokku/${DOKKU_TAG}/bootstrap.sh" | bash
+
+  # Stop the web installer if the package started it; we configure keys via CLI.
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl stop dokku-installer 2>/dev/null || true
+    systemctl disable dokku-installer 2>/dev/null || true
+  fi
+
+  log_ok "Dokku installed"
+}
+
+generate_ssh_key() {
+  mkdir -p "$SSH_KEY_DIR"
+  chmod 700 "$SSH_KEY_DIR"
+  if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
+    ssh-keygen -t ed25519 -f "$SSH_KEY_DIR/id_ed25519" -N "" -C "raildock-$(hostname -s)" >/dev/null 2>&1
+    log_ok "Generated Ed25519 SSH key for Dokku"
+  else
+    log_info "Using existing SSH key in $SSH_KEY_DIR"
+  fi
+
+  # The Rails container runs as UID/GID 1000. Ensure it can read the keys.
+  chown -R 1000:1000 "$SSH_KEY_DIR" 2>/dev/null || chmod -R 755 "$SSH_KEY_DIR"
+  chmod 600 "$SSH_KEY_DIR/id_ed25519"
+  chmod 644 "$SSH_KEY_DIR/id_ed25519.pub"
+}
+
+register_ssh_key_with_dokku() {
+  local pub_key="$SSH_KEY_DIR/id_ed25519.pub"
+  if [ ! -f "$pub_key" ]; then
+    log_error "SSH public key not found at $pub_key"
+    return 1
+  fi
+
+  if ! is_dokku_installed; then
+    log_warn "Cannot register SSH key: Dokku is not installed"
+    return 1
+  fi
+
+  if dokku ssh-keys:list 2>/dev/null | grep -q "raildock"; then
+    log_info "RailDock SSH key already registered with Dokku"
+    return 0
+  fi
+
+  dokku ssh-keys:add raildock "$pub_key"
+  log_ok "Registered RailDock SSH key with Dokku"
+}
+
+detect_dokku_host() {
+  # Prefer the explicit override, then host.docker.internal (works on Docker Desktop
+  # and Docker 20.10+ Linux when extra_hosts is configured), then the public IP.
+  if [ -n "${DOKKU_HOST:-}" ]; then
+    echo "$DOKKU_HOST"
+    return 0
+  fi
+
+  local public_ip
+  public_ip=$(get_public_ip)
+  if [ -n "$public_ip" ] && [ "$public_ip" != "127.0.0.1" ]; then
+    echo "$public_ip"
+    return 0
+  fi
+
+  echo "host.docker.internal"
+}
+
+create_local_server_record() {
+  if ! is_dokku_installed; then
+    log_warn "Skipping local server record: Dokku is not installed"
+    return 0
+  fi
+
+  if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
+    log_warn "Skipping local server record: SSH key not found"
+    return 0
+  fi
+
+  local dokku_host
+  dokku_host=$(detect_dokku_host)
+
+  log_step "Creating local Dokku server record..."
+
+  # Copy the key into the container temporarily so Rails can read it
+  docker compose -f "$COMPOSE_FILE" cp "$SSH_KEY_DIR/id_ed25519" "raildock:/tmp/raildock-dokku-key" >/dev/null 2>&1 || {
+    log_warn "Could not copy SSH key into RailDock container"
+    return 1
+  }
+
+  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock chmod 644 /tmp/raildock-dokku-key
+
+  docker compose -f "$COMPOSE_FILE" exec -T raildock bin/rails runner "
+    privkey = File.read('/tmp/raildock-dokku-key')
+    server = Server.find_by(host: '$dokku_host')
+
+    if server
+      server.update!(
+        name: 'Local Dokku',
+        ssh_key: privkey,
+        status: :disconnected,
+        default_proxy: 'traefik'
+      )
+      puts \"Updated server: #{server.name}\"
+    else
+      server = Server.create!(
+        name: 'Local Dokku',
+        host: '$dokku_host',
+        ssh_key: privkey,
+        status: :disconnected,
+        default_proxy: 'traefik'
+      )
+      puts \"Created server: #{server.name}\"
+    end
+
+    begin
+      engine = DokkuEngine.new(server)
+      result = engine.validate_connection
+      if result[:success]
+        proxy_result = engine.run('proxy:report')
+        detected = %w[traefik caddy haproxy openresty].find { |p| proxy_result[:output].to_s.downcase.include?(p) } || 'nginx'
+        server.update!(
+          status: :connected,
+          dokku_version: result[:dokku_version],
+          docker_version: result[:docker_version],
+          os: result[:os],
+          uptime: result[:uptime],
+          default_proxy: detected,
+          public_ip: result[:public_ip]
+        )
+        puts \"Validated connection (Dokku #{result[:dokku_version]})\"
+      else
+        server.update!(status: :error)
+        puts \"Connection failed: #{result[:output]}\"
+      end
+    rescue => e
+      server.update!(status: :error)
+      puts \"Validation error: #{e.message}\"
+    end
+  "
+
+  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock rm -f /tmp/raildock-dokku-key
+
+  log_ok "Local Dokku server record created"
+}
+
 get_public_ip() {
   local ip=""
   ip=$(curl -4s --connect-timeout 5 https://ifconfig.io 2>/dev/null)
@@ -214,6 +401,7 @@ create_env() {
   ar_key_derivation_salt=$(generate_ar_encryption_key)
   public_url="${RAILDOCK_PUBLIC_URL:-$(get_public_url)}"
   public_host="${RAILDOCK_PUBLIC_HOST:-$(get_public_host "$public_url")}"
+  dokku_host="${DOKKU_HOST:-$(detect_dokku_host)}"
 
   cat > "$ENV_FILE" <<EOF
 # RailDock Environment — generated by install.sh on $(date +%Y-%m-%d)
@@ -222,6 +410,7 @@ PORT=${APP_PORT}
 FRONTEND_URL=${public_url}
 RAILDOCK_PUBLIC_URL=${public_url}
 RAILDOCK_PUBLIC_HOST=${public_host}
+DOKKU_HOST=${dokku_host}
 TRAEFIK_ENABLE=${TRAEFIK_ENABLE:-false}
 POSTGRES_PASSWORD=${pg_pass}
 DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production
@@ -251,6 +440,13 @@ create_credentials_file() {
   fi
 
   log_info "Creating fresh Rails credentials file..."
+
+  # When building from source, build the image first so we can use it here.
+  if [ "$BUILD_FROM_SOURCE" = "1" ]; then
+    log_info "Building RailDock image for credentials creation..."
+    docker build -t "$IMAGE" -f "$INSTALL_DIR/Dockerfile" "$INSTALL_DIR"
+  fi
+
   # Run as root so we can write into the host-mounted config directory regardless
   # of its owner. The generated file is world-readable (0644) so the rails user
   # inside the production container can read it.
@@ -280,8 +476,21 @@ install_raildock() {
   check_docker
   check_ports
 
+  log_step "Checking Dokku..."
+  if ! check_dokku; then
+    if [ "${SKIP_DOKKU_CHECK:-0}" != "1" ]; then
+      log_info "Set SKIP_DOKKU_CHECK=1 to install RailDock without a local Dokku server."
+      exit 1
+    fi
+    log_warn "Continuing without local Dokku — you will need to add a server manually."
+  fi
+
   log_step "Downloading configuration..."
   ensure_repo_files
+
+  log_step "Generating SSH key for Dokku..."
+  generate_ssh_key
+  register_ssh_key_with_dokku
 
   log_step "Generating credentials..."
   check_existing_volume
@@ -320,6 +529,8 @@ install_raildock() {
     log_info "Logs:  docker compose -f $COMPOSE_FILE logs"
     exit 1
   fi
+
+  create_local_server_record
 
   local public_ip
   public_ip=$(get_public_ip)
