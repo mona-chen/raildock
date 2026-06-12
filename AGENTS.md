@@ -1,0 +1,61 @@
+# Agent Guide for RailDock
+
+This file contains conventions and operational details for agents working on RailDock.
+
+## Project layout
+
+- `app/` — React 19 + Vite frontend (TypeScript, Tailwind, shadcn/ui)
+- `backend/` — Rails 8 API (Ruby 3.4+)
+- `docker/` — nginx, supervisor, and entrypoint for the single production image
+- `scripts/` — Operational helpers (`backup.sh`, `restore.sh`, `setup-dev.sh`, etc.)
+- `dokku/` — Dokku source as a submodule/reference (not actively modified)
+
+## Build & run
+
+### Local development
+
+```bash
+make setup-dev   # First time
+make start       # Dev stack with live reload
+make test        # Frontend tests
+cd backend && bundle exec rspec
+```
+
+### Production install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+```
+
+The installer:
+1. Clones the repo into the install directory.
+2. Generates `.env` and `backend/config/master.key`.
+3. Creates a fresh `backend/config/credentials.yml.enc` using the pulled Docker image.
+4. Pulls `ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}` and starts the stack.
+
+Use `BUILD_FROM_SOURCE=1 ./install.sh` to build the image locally.
+
+## Credentials & secrets
+
+- `backend/config/credentials.yml.enc` is **not committed**. It is generated per install.
+- `backend/config/master.key` is **not committed**.
+- All production secrets live in `.env`.
+- The Docker entrypoint creates a fresh `credentials.yml.enc` if it is missing.
+
+When changing code that touches Rails credentials, ensure fresh installs still work without a pre-existing `credentials.yml.enc`.
+
+## CI / release
+
+- `.github/workflows/ci.yml` — lint, test, security audits (Brakeman, bundler-audit, npm audit).
+- `.github/workflows/release-main.yml` — builds and pushes `edge` image on every push to `main`.
+- `.github/workflows/build.yml` — builds and pushes image on git tags.
+- `.github/workflows/release.yml` — creates GitHub release on git tags.
+- `.github/workflows/deploy.yml` — manual deploy to a server via SSH with rollback.
+
+## Making changes
+
+- Keep changes minimal and focused.
+- Follow existing Rails/React style.
+- Run tests before committing.
+- Update this file if you change install, release, backup, or credentials flow.
+- Do not commit `.env`, `master.key`, or `credentials.yml.enc`.

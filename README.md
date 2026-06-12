@@ -1,10 +1,7 @@
 # RailDock
 
-> [!WARNING]
-> **RailDock is experimental and not production-ready.** This project is in active development. Expect breaking changes, limited documentation, and potential data loss. Do not use in production environments.
-
 > [!NOTE]
-> Looking for a stable Dokku management solution? Try the [Dokku CLI](https://dokku.com/docs/getting-started/installation/) or explore community plugins like [Dokku Dashboard](https://github.com/dokku/dokku-dashboard).
+> RailDock is a self-hosted PaaS management UI for Dokku. While it is now packaged for production-style deployments, you should still review the security and backup sections below before running it with sensitive workloads.
 
 A Railway-inspired PaaS management UI for [Dokku](https://dokku.com/). Deploy and manage apps, databases, and services on your own servers through a visual canvas interface.
 
@@ -247,20 +244,29 @@ RailDock uses **JWT Bearer tokens** (HS256) with:
 
 ## Deployment
 
-> [!WARNING]
-> RailDock is not production-ready. If you deploy it, you do so at your own risk.
-
 ### Deploy RailDock (Docker Compose)
 
 The recommended way to run RailDock itself:
 
 ```bash
-# Clone and configure
-git clone https://github.com/mona-chen/raildock.git
-cd raildock
-
-# Generate secrets and start
+# One-line installer
 curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+
+# Or install to a specific directory
+curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash -s -- /opt/raildock
+```
+
+The installer clones the repo, generates secrets, creates a fresh Rails credentials file, pulls the pre-built GHCR image, and starts the stack on port 80.
+
+**Back up these files after install:**
+- `.env`
+- `backend/config/master.key`
+
+### Upgrade RailDock
+
+```bash
+cd /opt/raildock
+./install.sh update
 ```
 
 ### Deploy Your Apps (RailDock manages Dokku)
@@ -270,12 +276,14 @@ RailDock is a UI layer on top of Dokku. Once RailDock is running, use the web UI
 ### Building from Source
 
 ```bash
-# Frontend
-docker build -t raildock-frontend -f app/Dockerfile.prod ./app
-
-# Backend
-docker build -t raildock-backend ./backend
+BUILD_FROM_SOURCE=1 ./install.sh
 ```
+
+### Release Process
+
+- Push to `main` → builds and pushes `ghcr.io/mona-chen/raildock/raildock:edge`.
+- Push a tag `v*.*.*` → builds image, creates GitHub release, tags `latest`.
+- Deploy manually via `.github/workflows/deploy.yml`.
 
 ---
 
@@ -331,15 +339,42 @@ Framework: RSpec Rails + Factory Bot + Faker + Shoulda Matchers
 
 ## Security
 
-> [!NOTE]
-> This project is experimental. Review the code and configuration before using with sensitive data.
+- **Secrets** are generated per-install and stored in `.env` and `backend/config/master.key`. Never commit these.
+- **SSH keys** for connecting to Dokku servers are stored in `./data/dokku-ssh/` (never committed).
+- **Sensitive data** is encrypted at rest via the Lockbox gem.
+- **JWT tokens** expire after 30 days.
+- **Rate limiting** is enabled for auth endpoints (`rack-attack`).
+- **CORS** is restricted to the configured `FRONTEND_URL`.
+- **Security headers** (CSP, HSTS opt-in, X-Frame-Options, etc.) are applied in production.
+- **Brakeman**, **bundler-audit**, and **npm audit** run in CI.
+- Set `FORCE_SSL=true` to enforce HTTPS when running behind a TLS-terminating proxy.
 
-- **SSH keys** stored in `./data/dokku-ssh/` (never committed)
-- **Sensitive data** encrypted at rest via Lockbox gem
-- **JWT tokens** expire after 30 days
-- **Rate limiting** on login endpoints (rack-attack)
-- **CORS** restricted to `FRONTEND_URL`
-- **Brakeman** and **bundler-audit** run in CI
+## Backups
+
+RailDock uses PostgreSQL for its own data. Back up the RailDock databases regularly:
+
+```bash
+# On-demand backup (uses the postgres container)
+cd /opt/raildock
+docker compose run --rm backup raildock-backup
+
+# Or run the script directly on the host
+cd /opt/raildock
+./scripts/backup.sh
+```
+
+Backups are written to `./backups` by default. Set `BACKUPS_DIR` and `BACKUP_RETENTION_DAYS` to customize.
+
+```bash
+# Add to host cron for daily backups
+0 3 * * * cd /opt/raildock && ./scripts/backup.sh >> /var/log/raildock-backup.log 2>&1
+```
+
+Restore from a backup:
+
+```bash
+./scripts/restore.sh backups/raildock_production-20260101-120000.sql.gz
+```
 
 ---
 
