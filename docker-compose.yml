@@ -26,6 +26,8 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data/dokku-ssh:/data/dokku-ssh:ro
+      - ./backend/config/credentials.yml.enc:/rails/config/credentials.yml.enc:ro
+      - ./backend/config/master.key:/rails/config/master.key:ro
     labels:
       traefik.enable: "${TRAEFIK_ENABLE:-false}"
       traefik.docker.network: "raildock_default"
