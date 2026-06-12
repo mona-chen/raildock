@@ -11,13 +11,19 @@ env:
 
 jobs:
   build-and-push:
-    name: Build and push edge image
+    name: Build and push image
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,8 +40,12 @@ jobs:
         run: |
           SHORT_SHA=${GITHUB_SHA::8}
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          VERSION="0.0.0-main-${SHORT_SHA}"
+          TAG="v${VERSION}"
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -48,6 +58,7 @@ jobs:
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.short_sha }}
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.timestamp }}
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=raildock-main
           cache-to: type=gha,mode=max,scope=raildock-main
           provenance: true
@@ -62,3 +73,30 @@ jobs:
             -f visibility=public 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: RailDock ${{ steps.meta.outputs.tag }}
+          body: |
+            ## RailDock ${{ steps.meta.outputs.tag }}
+
+            **Docker image:** `ghcr.io/mona-chen/raildock/raildock:${{ steps.meta.outputs.version }}`
+
+            ### Quick start (one line)
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+            ```
+
+            ### Tags
+
+            - `latest` – most recent main build
+            - `edge` – rolling main build
+            - `${{ steps.meta.outputs.version }}` – this build
+          generate_release_notes: true
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
