@@ -1,27 +1,33 @@
 #!/bin/bash
-# RailDock Installer — Single Image
-# Usage: curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
-# Or download and run locally: ./install.sh
+# RailDock Installer
+# Usage:
+#   curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
+#   curl -sSL .../install.sh | bash -s -- /opt/raildock
+#   ./install.sh [install-dir] [update]
 #
-# Requirements: Docker 20+
+# Requirements: Docker 20+ (with Buildx for source builds)
 
 set -e
 
 # ── Config ────────────────────────────────────
 RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
-INSTALL_DIR="${INSTALL_DIR:-$(pwd)}"
+INSTALL_DIR="${1:-$(pwd)}"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
-NETWORK_NAME="raildock-network"
 ENV_FILE="$INSTALL_DIR/.env"
 DATA_DIR="$INSTALL_DIR/data"
+NETWORK_NAME="raildock-network"
 DB_VOLUME="raildock_postgres_data"
 APP_PORT="${PORT:-80}"
+IMAGE="ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION}"
+BUILD_FROM_SOURCE="${BUILD_FROM_SOURCE:-0}"
+REPO_URL="${RAILDOCK_REPO:-https://github.com/mona-chen/raildock.git}"
 
 # ── Colors ────────────────────────────────────
 B="\033[0;34m"
 G="\033[0;32m"
 Y="\033[1;33m"
 R="\033[0;31m"
+C="\033[0;36m"
 N="\033[0m"
 
 log_info()  { printf "${B}●${N} %s\n" "$1"; }
@@ -29,7 +35,6 @@ log_ok()    { printf "${G}✓${N} %s\n" "$1"; }
 log_warn()  { printf "${Y}⚠${N} %s\n" "$1"; }
 log_error() { printf "${R}✗${N} %s\n" "$1"; }
 log_step()  { printf "\n${C}▶${N} %s\n" "$1"; }
-C="\033[0;36m"
 
 print_banner() {
   printf "\n${B}╔══════════════════════════════════════════════════════════════╗${N}\n"
@@ -46,12 +51,15 @@ print_success() {
   printf "${G}║${N}                ${G}🎉 RailDock is installed!${N}                          ${G}║${N}\n"
   printf "${G}║${N}                                                              ${G}║${N}\n"
   printf "${G}╚══════════════════════════════════════════════════════════════╝${N}\n\n"
-  printf "  ${B}Dashboard:${N}     http://%s\n" "$url"
+  printf "  ${B}Dashboard:${N}     %s\n" "$url"
   printf "\n"
-  printf "  ${B}Stop:${N}          docker compose -f %s down\n" "$COMPOSE_FILE"
-  printf "  ${B}Start:${N}        docker compose -f %s up -d\n" "$COMPOSE_FILE"
-  printf "  ${B}View logs:${N}    docker compose -f %s logs -f\n" "$COMPOSE_FILE"
-  printf "  ${B}Update:${N}       ./install.sh update\n\n" "$COMPOSE_FILE"
+  printf "  ${B}Stop:${N}          cd %s && docker compose down\n" "$INSTALL_DIR"
+  printf "  ${B}Start:${N}         cd %s && docker compose up -d\n" "$INSTALL_DIR"
+  printf "  ${B}View logs:${N}     cd %s && docker compose logs -f\n" "$INSTALL_DIR"
+  printf "  ${B}Update:${N}        cd %s && ./install.sh update\n\n" "$INSTALL_DIR"
+  printf "  ${Y}Back up these files:${N}\n"
+  printf "    ${B}%s/.env${N}\n" "$INSTALL_DIR"
+  printf "    ${B}%s/backend/config/master.key${N}\n\n" "$INSTALL_DIR"
 }
 
 # ── Utilities ──────────────────────────────────
@@ -64,7 +72,6 @@ generate_password() {
 }
 
 generate_hex() {
-  # Generates N hex chars (2 chars per byte)
   local len="$1"
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -hex "$((len / 2))" | head -c "$len"
@@ -102,7 +109,6 @@ get_public_ip() {
 get_public_url() {
   local host
   host=$(get_public_ip)
-
   if [ "$APP_PORT" = "80" ]; then
     echo "http://${host}"
   else
@@ -160,23 +166,28 @@ check_ports() {
 }
 
 # ── Setup ─────────────────────────────────────
-download_compose_file() {
-  # If docker-compose.yml exists locally, skip download
-  if [ -f "$COMPOSE_FILE" ] && grep -q "raildock" "$COMPOSE_FILE" 2>/dev/null; then
-    log_info "Using existing docker-compose.yml"
+ensure_repo_files() {
+  if [ -f "$COMPOSE_FILE" ] && [ -f "$INSTALL_DIR/Dockerfile" ] && grep -q "raildock" "$COMPOSE_FILE" 2>/dev/null; then
+    log_info "Using existing RailDock files in $INSTALL_DIR"
     return 0
   fi
 
-  log_info "Downloading docker-compose.yml..."
-  local tag_url="https://raw.githubusercontent.com/mona-chen/raildock/main/docker-compose.yml"
-  if [ "$RAILDOCK_VERSION" != "latest" ]; then
-    local version="${RAILDOCK_VERSION#v}"
-    tag_url="https://raw.githubusercontent.com/mona-chen/raildock/v${version}/docker-compose.yml"
-  fi
-  if curl -fsSL "$tag_url" -o "$COMPOSE_FILE"; then
-    log_ok "Downloaded docker-compose.yml"
+  log_info "Downloading RailDock files..."
+  mkdir -p "$INSTALL_DIR"
+  if command -v git >/dev/null 2>&1; then
+    git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
   else
-    log_error "Failed to download docker-compose.yml"
+    log_error "git is required but not installed"
+    exit 1
+  fi
+  log_ok "RailDock files downloaded to $INSTALL_DIR"
+}
+
+check_existing_volume() {
+  if docker volume inspect "$DB_VOLUME" >/dev/null 2>&1 && [ ! -f "$ENV_FILE" ]; then
+    log_warn "PostgreSQL volume '$DB_VOLUME' already exists but $ENV_FILE is missing"
+    log_warn "To keep existing data, restore your original .env file and re-run install.sh"
+    log_warn "To start fresh, remove the volume with: docker volume rm $DB_VOLUME"
     exit 1
   fi
 }
@@ -189,12 +200,14 @@ create_env() {
 
   local pg_pass master_key jwt_secret ar_primary_key ar_deterministic_key ar_key_derivation_salt public_url public_host
   pg_pass=$(generate_password)
+
   if [ -f "$INSTALL_DIR/backend/config/master.key" ]; then
     master_key=$(tr -d '[:space:]' < "$INSTALL_DIR/backend/config/master.key")
     log_info "Using existing backend/config/master.key"
   else
     master_key=$(generate_hex 32)
   fi
+
   jwt_secret=$(generate_jwt_secret)
   ar_primary_key=$(generate_ar_encryption_key)
   ar_deterministic_key=$(generate_ar_encryption_key)
@@ -225,11 +238,28 @@ EOF
   chmod 600 "$ENV_FILE"
   log_ok "Created $ENV_FILE with secure credentials"
 
-  # Write master.key for image builds (if building locally)
   mkdir -p "$INSTALL_DIR/backend/config"
   echo "$master_key" > "$INSTALL_DIR/backend/config/master.key"
   chmod 600 "$INSTALL_DIR/backend/config/master.key"
   log_ok "Created backend/config/master.key"
+}
+
+create_credentials_file() {
+  if [ -f "$INSTALL_DIR/backend/config/credentials.yml.enc" ]; then
+    log_info "Rails credentials file already exists"
+    return 0
+  fi
+
+  log_info "Creating fresh Rails credentials file..."
+  # Run as root so we can write into the host-mounted config directory regardless
+  # of its owner. The generated file is world-readable (0644) so the rails user
+  # inside the production container can read it.
+  docker run --rm --user root --entrypoint bash \
+    -e RAILS_MASTER_KEY="$(tr -d '[:space:]' < "$INSTALL_DIR/backend/config/master.key")" \
+    -v "$INSTALL_DIR/backend/config:/rails/config" \
+    "$IMAGE" \
+    -c 'cd /rails && ([ -f config/credentials.yml.enc ] || EDITOR=true bin/rails credentials:edit) && chmod 644 config/credentials.yml.enc'
+  log_ok "Created backend/config/credentials.yml.enc"
 }
 
 create_network() {
@@ -251,14 +281,25 @@ install_raildock() {
   check_ports
 
   log_step "Downloading configuration..."
-  download_compose_file
+  ensure_repo_files
 
   log_step "Generating credentials..."
+  check_existing_volume
   create_env
   create_network
 
+  log_step "Preparing Rails credentials..."
+  create_credentials_file
+
   log_step "Starting RailDock..."
-  docker compose -f "$COMPOSE_FILE" up -d --build --pull always
+  if [ "$BUILD_FROM_SOURCE" = "1" ]; then
+    log_info "BUILD_FROM_SOURCE=1 — building image locally"
+    RAILDOCK_VERSION="$RAILDOCK_VERSION" docker compose -f "$COMPOSE_FILE" up -d --build
+  else
+    docker pull "$IMAGE"
+    log_ok "Pulled $IMAGE"
+    RAILDOCK_VERSION="$RAILDOCK_VERSION" docker compose -f "$COMPOSE_FILE" up -d
+  fi
 
   log_step "Waiting for RailDock to be ready..."
   local ready=false
@@ -282,12 +323,20 @@ install_raildock() {
 
   local public_ip
   public_ip=$(get_public_ip)
-  print_success "$public_ip:${APP_PORT}"
+  print_success "http://${public_ip}:${APP_PORT}"
 }
 
 update_raildock() {
   log_step "Updating RailDock ${RAILDOCK_VERSION}..."
-  docker compose -f "$COMPOSE_FILE" pull
+  if [ ! -f "$COMPOSE_FILE" ]; then
+    log_error "RailDock does not appear to be installed in $INSTALL_DIR"
+    exit 1
+  fi
+  if [ "$BUILD_FROM_SOURCE" = "1" ]; then
+    docker compose -f "$COMPOSE_FILE" build --pull
+  else
+    docker compose -f "$COMPOSE_FILE" pull
+  fi
   docker compose -f "$COMPOSE_FILE" up -d
   log_ok "RailDock updated"
 }

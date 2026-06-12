@@ -5,6 +5,15 @@ set -e
 # idempotent for derived images and bind-mounted deployments.
 mkdir -p /var/log/supervisor /var/log/nginx /tmp/nginx /tmp/pids
 
+# The Rails credentials file must be created during install (see install.sh).
+# If it is missing here, fail fast with a clear message.
+if [ -n "$RAILS_MASTER_KEY" ] && [ ! -f /rails/config/credentials.yml.enc ]; then
+  echo "ERROR: /rails/config/credentials.yml.enc is missing."
+  echo "Run install.sh to generate it, or create it with:"
+  echo "  EDITOR=true RAILS_MASTER_KEY=<key> bin/rails credentials:edit"
+  exit 1
+fi
+
 parse_database_url() {
   local database_url="$1"
   local field="$2"

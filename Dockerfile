@@ -78,7 +78,8 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chmod=755 docker/docker-entrypoint /usr/local/bin/raildock-entrypoint
 
 RUN mkdir -p /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids && \
-    chown -R rails:rails /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids /usr/share/nginx/html
+    mkdir -p /rails/tmp /rails/log /rails/storage && \
+    chown -R rails:rails /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids /usr/share/nginx/html /rails
 
 # Run as non-root
 USER 1000:1000

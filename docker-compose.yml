@@ -18,7 +18,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/mona-chen/raildock/raildock:latest
+    image: ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}
     ports:
       - "${PORT:-80}:80"
     labels:
@@ -71,6 +71,22 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  backup:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      BACKUPS_DIR: /backups
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-7}"
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/raildock-backup:ro
+      - ./scripts/restore.sh:/usr/local/bin/raildock-restore:ro
+      - ${BACKUPS_DIR:-./backups}:/backups
+    command: ["sh", "-c", "echo 'Run: docker compose run --rm backup raildock-backup' && sleep 1"]
+    profiles:
+      - backup
+    restart: "no"
 
 volumes:
   postgres_data:
