@@ -11,7 +11,7 @@ name: raildock
 # Optional:
 #   POSTGRES_PASSWORD — defaults to "raildock"
 #   RAILS_ENV         — defaults to "production"
-#   PORT              — defaults to 80 (external port)
+#   PORT              — defaults to 8888 (external port)
 
 services:
   raildock:
@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}
     ports:
-      - "${PORT:-80}:80"
+      - "${PORT:-8888}:80"
     labels:
       traefik.enable: "${TRAEFIK_ENABLE:-false}"
       traefik.docker.network: "raildock_default"

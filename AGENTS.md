@@ -32,6 +32,7 @@ The installer:
 2. Generates `.env` and `backend/config/master.key`.
 3. Creates a fresh `backend/config/credentials.yml.enc` using the pulled Docker image.
 4. Pulls `ghcr.io/mona-chen/raildock/raildock:${RAILDOCK_VERSION:-latest}` and starts the stack.
+5. Binds the web UI to port `8888` by default so port `80` stays free for Traefik or another reverse proxy.
 
 Use `BUILD_FROM_SOURCE=1 ./install.sh` to build the image locally.
 

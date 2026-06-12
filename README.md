@@ -132,7 +132,7 @@ Key backend pieces, all real code:
 ### Requirements
 
 - A Linux server with Docker and Docker Compose.
-- Ports 80 and 443 available.
+- Port 8888 available (RailDock defaults here so port 80 stays free for Traefik or another reverse proxy).
 - `curl`.
 
 ### Install
@@ -141,7 +141,7 @@ Key backend pieces, all real code:
 curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
 ```
 
-The installer clones the repo, generates secrets, creates a fresh Rails credentials file, pulls the image, and starts the stack. Open `http://<your-server-ip>` and create the first user.
+The installer clones the repo, generates secrets, creates a fresh Rails credentials file, pulls the image, and starts the stack on port 8888. Open `http://<your-server-ip>:8888` and create the first user.
 
 To build from source instead:
 
