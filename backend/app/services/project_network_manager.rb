@@ -46,8 +46,10 @@ class ProjectNetworkManager
         linked_container = host_engine.dokku_container_name(linked.dokku_app_name)
         linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
         connect_container_with_aliases(linked_container, [ linked_alias ])
-        unless wait_for_network_alias(linked_container, linked_alias)
-          Rails.logger.warn "Network alias #{linked_alias} did not propagate for #{linked_container}"
+        if linked_container.present?
+          unless wait_for_network_alias(linked_container, linked_alias)
+            Rails.logger.warn "Network alias #{linked_alias} did not propagate for #{linked_container}"
+          end
         end
       end
     end
@@ -93,8 +95,10 @@ class ProjectNetworkManager
 
       alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
       connect_container_with_aliases(container, [ alias_name ])
-      unless wait_for_network_alias(container, alias_name)
-        Rails.logger.warn "Network alias #{alias_name} did not propagate for #{container}"
+      if container.present?
+        unless wait_for_network_alias(container, alias_name)
+          Rails.logger.warn "Network alias #{alias_name} did not propagate for #{container}"
+        end
       end
     end
   end
@@ -146,7 +150,8 @@ class ProjectNetworkManager
     Rails.logger.warn "Alias connect failed for #{container}: #{e.message}"
   end
 
-  # Wait for a container to be registered in the network with its alias
+  # Wait for a container to be registered in the network with its alias.
+  # Polls slowly to avoid hammering the host with SSH commands during deploys.
   def wait_for_network_alias(container, alias_name, timeout: 30)
     start_time = Time.now
     while Time.now - start_time < timeout
@@ -154,7 +159,7 @@ class ProjectNetworkManager
       if result[:success] && result[:output].include?(alias_name)
         return true
       end
-      sleep 1
+      sleep 2
     end
     false
   end

@@ -188,6 +188,25 @@ ensure_dokku_plugins() {
   log_ok "Dokku plugins ready"
 }
 
+configure_sshd_for_raildock() {
+  if ! is_dokku_installed; then
+    return 0
+  fi
+
+  # RailDock opens many short-lived SSH connections during one-click deploys.
+  # Raise sshd's unauthenticated connection limits so bursts don't get dropped.
+  local sshd_config="/etc/ssh/sshd_config"
+  if [ -f "$sshd_config" ]; then
+    if ! grep -qE "^MaxStartups\s+" "$sshd_config"; then
+      echo "MaxStartups 100:30:200" >> "$sshd_config"
+      log_ok "Raised sshd MaxStartups for RailDock deploy bursts"
+      if command -v systemctl >/dev/null 2>&1; then
+        systemctl reload sshd 2>/dev/null || true
+      fi
+    fi
+  fi
+}
+
 generate_ssh_key() {
   mkdir -p "$SSH_KEY_DIR"
   chmod 700 "$SSH_KEY_DIR"
@@ -572,6 +591,7 @@ install_raildock() {
   fi
 
   ensure_dokku_plugins
+  configure_sshd_for_raildock
 
   log_step "Downloading configuration..."
   ensure_repo_files
