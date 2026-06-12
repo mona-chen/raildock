@@ -44,6 +44,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
+            ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.short_sha }}
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.timestamp }}
