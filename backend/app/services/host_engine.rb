@@ -187,15 +187,24 @@ class HostEngine
 
   def open_session
     close_session
-    Thread.current[:host_engine_session] = Net::SSH.start(
-      server.public_ip || server.host,
-      SSH_USER,
-      key_data: [ server.ssh_key ],
-      non_interactive: true,
-      timeout: SSH_TIMEOUT,
-      verify_host_key: :never,
-      host_key_alias: "#{server.host}-root"
-    )
+    retries = 0
+    begin
+      Thread.current[:host_engine_session] = Net::SSH.start(
+        server.public_ip || server.host,
+        SSH_USER,
+        key_data: [ server.ssh_key ],
+        non_interactive: true,
+        timeout: SSH_TIMEOUT,
+        verify_host_key: :never,
+        host_key_alias: "#{server.host}-root"
+      )
+    rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
+      retries += 1
+      raise if retries > 3
+      Rails.logger.warn "Host SSH transient error during session open (#{retries}/3): #{e.message}"
+      sleep(retries * 2)
+      retry
+    end
   end
 
   def close_session

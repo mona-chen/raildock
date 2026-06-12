@@ -820,7 +820,16 @@ class DokkuEngine
 
   def open_session
     close_session
-    Thread.current[:dokku_engine_session] = Net::SSH.start(*ssh_connection_options)
+    retries = 0
+    begin
+      Thread.current[:dokku_engine_session] = Net::SSH.start(*ssh_connection_options)
+    rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
+      retries += 1
+      raise if retries > 3
+      Rails.logger.warn "Dokku SSH transient error during session open (#{retries}/3): #{e.message}"
+      sleep(retries * 2)
+      retry
+    end
   end
 
   def close_session

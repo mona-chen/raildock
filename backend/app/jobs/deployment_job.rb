@@ -17,7 +17,9 @@ class DeploymentJob < ApplicationJob
       # connection storm that causes sshd to drop connections during one-click
       # deploys, and keeps long streaming commands alive via keepalives.
       engine.with_session do
-        perform_deployment(service, project, deployment, engine)
+        HostEngine.new(server).with_session do
+          perform_deployment(service, project, deployment, engine)
+        end
       end
     rescue => e
       mark_failed(deployment, service, "Exception: #{e.message}")

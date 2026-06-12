@@ -244,6 +244,17 @@ register_ssh_key_with_dokku() {
 
   dokku ssh-keys:add raildock "$pub_key"
   log_ok "Registered RailDock SSH key with Dokku"
+
+  # HostEngine connects as root to run docker/network commands. Add the same
+  # public key to root's authorized_keys so root auth doesn't fail and trigger
+  # sshd per-source penalties that also drop dokku connections.
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+  if ! grep -qF "$(cat "$pub_key")" /root/.ssh/authorized_keys 2>/dev/null; then
+    cat "$pub_key" >> /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    log_ok "Registered RailDock SSH key for root access"
+  fi
 }
 
 configure_dokku_proxy() {
