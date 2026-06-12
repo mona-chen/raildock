@@ -666,23 +666,25 @@ class DokkuEngine
   # ── Datastore Logs ───────────────────────────
 
   def postgres_logs(service_name, lines: 100)
-    run("postgres:logs #{escape(service_name)} --tail #{lines.to_i}")
+    # Datastore plugins do not support --num. Without --tail the command
+    # prints recent logs and exits, which is what the REST endpoint needs.
+    run("postgres:logs #{escape(service_name)}")
   end
 
   def redis_logs(service_name, lines: 100)
-    run("redis:logs #{escape(service_name)} --tail #{lines.to_i}")
+    run("redis:logs #{escape(service_name)}")
   end
 
   def mysql_logs(service_name, lines: 100)
-    run("mysql:logs #{escape(service_name)} --tail #{lines.to_i}")
+    run("mysql:logs #{escape(service_name)}")
   end
 
   def mongo_logs(service_name, lines: 100)
-    run("mongo:logs #{escape(service_name)} --tail #{lines.to_i}")
+    run("mongo:logs #{escape(service_name)}")
   end
 
   def mariadb_logs(service_name, lines: 100)
-    run("mysql:logs #{escape(service_name)} --tail #{lines.to_i}")
+    run("mysql:logs #{escape(service_name)}")
   end
 
   # ── Datastore Backup / Restore ───────────────

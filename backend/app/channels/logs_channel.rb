@@ -84,7 +84,7 @@ class LogsChannel < ApplicationCable::Channel
       case service.subtype
       when "postgres" then "postgres:logs #{service.dokku_app_name} --tail"
       when "redis" then "redis:logs #{service.dokku_app_name} --tail"
-      when "mysql" then "mysql:logs #{service.dokku_app_name} --tail"
+      when "mysql", "mariadb" then "mysql:logs #{service.dokku_app_name} --tail"
       when "mongo" then "mongo:logs #{service.dokku_app_name} --tail"
       else "logs #{service.dokku_app_name} -n 0 --tail"
       end
