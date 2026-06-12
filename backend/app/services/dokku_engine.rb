@@ -28,108 +28,90 @@ class DokkuEngine
   def run(command)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 
-    output = ""
-    exit_code = nil
+    with_ssh_retry do
+      output = ""
+      exit_code = nil
 
-    Net::SSH.start(*ssh_connection_options) do |ssh|
-      channel = ssh.open_channel do |ch|
-        ch.exec(command) do |_, success|
-          unless success
-            return { success: false, output: "Failed to execute command" }
+      Net::SSH.start(*ssh_connection_options) do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            unless success
+              return { success: false, output: "Failed to execute command" }
+            end
+
+            ch.on_data { |_, data| output += data }
+            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
-
-          ch.on_data { |_, data| output += data }
-          ch.on_extended_data { |_, type, data| output += data }
-          ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
         end
+        channel.wait
       end
-      channel.wait
-    end
 
-    { success: exit_code == 0, output: output }
-  rescue Net::SSH::AuthenticationFailed => e
-    { success: false, output: "Authentication failed: #{e.message}" }
-  rescue Net::SSH::ConnectionTimeout
-    { success: false, output: "SSH connection timed out" }
-  rescue Net::SSH::ChannelOpenFailed => e
-    { success: false, output: "SSH channel failed: #{e.message}" }
-  rescue => e
-    { success: false, output: "SSH error: #{e.message}" }
+      { success: exit_code == 0, output: output }
+    end
   end
 
   # Run a command piping data to stdin
   def run_with_stdin(command, stdin_data)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 
-    output = ""
-    exit_code = nil
+    with_ssh_retry do
+      output = ""
+      exit_code = nil
 
-    Net::SSH.start(*ssh_connection_options) do |ssh|
-      channel = ssh.open_channel do |ch|
-        ch.exec(command) do |_, success|
-          unless success
-            return { success: false, output: "Failed to execute command" }
+      Net::SSH.start(*ssh_connection_options) do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            unless success
+              return { success: false, output: "Failed to execute command" }
+            end
+
+            ch.send_data(stdin_data)
+            ch.eof!
+
+            ch.on_data { |_, data| output += data }
+            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
-
-          ch.send_data(stdin_data)
-          ch.eof!
-
-          ch.on_data { |_, data| output += data }
-          ch.on_extended_data { |_, type, data| output += data }
-          ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
         end
+        channel.wait
       end
-      channel.wait
-    end
 
-    { success: exit_code == 0, output: output }
-  rescue Net::SSH::AuthenticationFailed => e
-    { success: false, output: "Authentication failed: #{e.message}" }
-  rescue Net::SSH::ConnectionTimeout
-    { success: false, output: "SSH connection timed out" }
-  rescue Net::SSH::ChannelOpenFailed => e
-    { success: false, output: "SSH channel failed: #{e.message}" }
-  rescue => e
-    { success: false, output: "SSH error: #{e.message}" }
+      { success: exit_code == 0, output: output }
+    end
   end
 
   # Run a command and yield each line of output in real-time
   def run_streaming(command)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 
-    output = ""
-    exit_code = nil
+    with_ssh_retry do
+      output = ""
+      exit_code = nil
 
-    Net::SSH.start(*ssh_connection_options) do |ssh|
-      channel = ssh.open_channel do |ch|
-        ch.exec(command) do |_, success|
-          unless success
-            return { success: false, output: "Failed to execute command" }
-          end
+      Net::SSH.start(*ssh_connection_options) do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            unless success
+              return { success: false, output: "Failed to execute command" }
+            end
 
-          ch.on_data do |_, data|
-            output += data
-            yield(data) if block_given?
+            ch.on_data do |_, data|
+              output += data
+              yield(data) if block_given?
+            end
+            ch.on_extended_data do |_, type, data|
+              output += data
+              yield(data) if block_given?
+            end
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
-          ch.on_extended_data do |_, type, data|
-            output += data
-            yield(data) if block_given?
-          end
-          ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
         end
+        channel.wait
       end
-      channel.wait
-    end
 
-    { success: exit_code == 0, output: output }
-  rescue Net::SSH::AuthenticationFailed => e
-    { success: false, output: "Authentication failed: #{e.message}" }
-  rescue Net::SSH::ConnectionTimeout
-    { success: false, output: "SSH connection timed out" }
-  rescue Net::SSH::ChannelOpenFailed => e
-    { success: false, output: "SSH channel failed: #{e.message}" }
-  rescue => e
-    { success: false, output: "SSH error: #{e.message}" }
+      { success: exit_code == 0, output: output }
+    end
   end
 
   # ── Server Validation ────────────────────────
@@ -594,6 +576,11 @@ class DokkuEngine
     run("mongo:create #{escape(service_name)}")
   end
 
+  # MariaDB is handled by Dokku's mysql plugin; alias the commands.
+  def mariadb_create(service_name)
+    run("mysql:create #{escape(service_name)}")
+  end
+
   def postgres_destroy(service_name)
     run("postgres:destroy #{escape(service_name)} --force")
   end
@@ -608,6 +595,10 @@ class DokkuEngine
 
   def mongo_destroy(service_name)
     run("mongo:destroy #{escape(service_name)} --force")
+  end
+
+  def mariadb_destroy(service_name)
+    run("mysql:destroy #{escape(service_name)} --force")
   end
 
   def postgres_link(service_name, app_name)
@@ -626,6 +617,10 @@ class DokkuEngine
     run("mongo:link #{escape(service_name)} #{escape(app_name)}")
   end
 
+  def mariadb_link(service_name, app_name)
+    run("mysql:link #{escape(service_name)} #{escape(app_name)}")
+  end
+
   def postgres_unlink(service_name, app_name)
     run("postgres:unlink #{escape(service_name)} #{escape(app_name)}")
   end
@@ -640,6 +635,10 @@ class DokkuEngine
 
   def mongo_unlink(service_name, app_name)
     run("mongo:unlink #{escape(service_name)} #{escape(app_name)}")
+  end
+
+  def mariadb_unlink(service_name, app_name)
+    run("mysql:unlink #{escape(service_name)} #{escape(app_name)}")
   end
 
   # ── Datastore Info ───────────────────────────
@@ -660,22 +659,30 @@ class DokkuEngine
     parse_datastore_info(run("mongo:info #{escape(service_name)}"), "mongo")
   end
 
+  def mariadb_info(service_name)
+    parse_datastore_info(run("mysql:info #{escape(service_name)}"), "mariadb")
+  end
+
   # ── Datastore Logs ───────────────────────────
 
   def postgres_logs(service_name, lines: 100)
-    run("postgres:logs #{escape(service_name)} --num #{lines.to_i}")
+    run("postgres:logs #{escape(service_name)} --tail #{lines.to_i}")
   end
 
   def redis_logs(service_name, lines: 100)
-    run("redis:logs #{escape(service_name)} --num #{lines.to_i}")
+    run("redis:logs #{escape(service_name)} --tail #{lines.to_i}")
   end
 
   def mysql_logs(service_name, lines: 100)
-    run("mysql:logs #{escape(service_name)} --num #{lines.to_i}")
+    run("mysql:logs #{escape(service_name)} --tail #{lines.to_i}")
   end
 
   def mongo_logs(service_name, lines: 100)
-    run("mongo:logs #{escape(service_name)} --num #{lines.to_i}")
+    run("mongo:logs #{escape(service_name)} --tail #{lines.to_i}")
+  end
+
+  def mariadb_logs(service_name, lines: 100)
+    run("mysql:logs #{escape(service_name)} --tail #{lines.to_i}")
   end
 
   # ── Datastore Backup / Restore ───────────────
@@ -729,7 +736,7 @@ class DokkuEngine
   end
 
   def container_status(app_name)
-    run("ps:report #{escape(app_name)} --process-status")
+    run("ps:report #{escape(app_name)} --running")
   end
 
   def app_report(app_name)
@@ -749,6 +756,36 @@ class DokkuEngine
     Shellwords.escape(value.to_s)
   end
 
+  # Retry transient SSH failures. dokku commands are idempotent where it matters,
+  # and bursts of connections during one-click deploys can hit sshd rate limits
+  # or idle-timeouts on long, quiet builds.
+  def with_ssh_retry(max_retries: 2)
+    retries = 0
+    begin
+      yield
+    rescue Net::SSH::AuthenticationFailed, Net::SSH::ChannelOpenFailed => e
+      # These are not recoverable with a simple retry.
+      { success: false, output: "SSH error: #{e.message}" }
+    rescue Net::SSH::ConnectionTimeout => e
+      if retries < max_retries
+        retries += 1
+        sleep(retries * 2)
+        retry
+      end
+      { success: false, output: "SSH connection timed out" }
+    rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
+      if retries < max_retries
+        retries += 1
+        Rails.logger.warn "SSH transient error (#{retries}/#{max_retries}): #{e.message}"
+        sleep(retries * 2)
+        retry
+      end
+      { success: false, output: "SSH error: #{e.message}" }
+    rescue => e
+      { success: false, output: "SSH error: #{e.message}" }
+    end
+  end
+
   # Build SSH connection options with timeouts and security settings
   def ssh_connection_options
     [
@@ -758,7 +795,10 @@ class DokkuEngine
         key_data: [ server.ssh_key ],
         non_interactive: true,
         timeout: DokkuEngineConstants::SSH_TIMEOUT,
-        verify_host_key: :never
+        verify_host_key: :never,
+        keepalive: true,
+        keepalive_interval: 15,
+        keepalive_maxcount: 3
       }
     ]
   end

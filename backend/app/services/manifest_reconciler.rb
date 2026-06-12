@@ -364,7 +364,7 @@ class ManifestReconciler
     result = case svc[:subtype]
     when "postgres" then engine.postgres_create(app_name)
     when "redis" then engine.redis_create(app_name)
-    when "mysql" then engine.mysql_create(app_name)
+    when "mysql", "mariadb" then engine.mysql_create(app_name)
     when "mongo" then engine.mongo_create(app_name)
     else
       { success: false, error: "Unknown database subtype: #{svc[:subtype]}" }
@@ -387,7 +387,7 @@ class ManifestReconciler
       case svc[:subtype]
       when "postgres" then engine.postgres_destroy(app_name)
       when "redis" then engine.redis_destroy(app_name)
-      when "mysql" then engine.mysql_destroy(app_name)
+      when "mysql", "mariadb" then engine.mysql_destroy(app_name)
       when "mongo" then engine.mongo_destroy(app_name)
       end
     else

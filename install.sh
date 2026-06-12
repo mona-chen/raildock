@@ -150,6 +150,44 @@ install_dokku() {
   log_ok "Dokku installed"
 }
 
+ensure_dokku_plugins() {
+  if ! is_dokku_installed; then
+    return 0
+  fi
+
+  log_step "Ensuring Dokku datastore plugins are installed..."
+
+  install_dokku_plugin() {
+    local name="$1"
+    local url="$2"
+    if [ ! -d "/var/lib/dokku/plugins/enabled/$name" ]; then
+      log_info "Installing $name plugin..."
+      dokku plugin:install "$url" "$name" || log_warn "Failed to install $name plugin"
+    fi
+  }
+
+  install_dokku_plugin "postgres" "https://github.com/dokku/dokku-postgres.git"
+  install_dokku_plugin "redis"    "https://github.com/dokku/dokku-redis.git"
+  install_dokku_plugin "mysql"    "https://github.com/dokku/dokku-mysql.git"
+  install_dokku_plugin "mongo"    "https://github.com/dokku/dokku-mongo.git"
+
+  # Patch postgres plugin if it ships with a broken default image
+  POSTGRES_DOCKERFILE="/var/lib/dokku/plugins/enabled/postgres/Dockerfile"
+  if [ -f "$POSTGRES_DOCKERFILE" ] && grep -q "postgres:18.3" "$POSTGRES_DOCKERFILE" 2>/dev/null; then
+    log_info "Patching postgres plugin Dockerfile (18.3 → 16-alpine)..."
+    echo 'FROM postgres:16-alpine' > "$POSTGRES_DOCKERFILE"
+  fi
+
+  # Patch mongo plugin if it ships with a broken default image
+  MONGO_DOCKERFILE="/var/lib/dokku/plugins/enabled/mongo/Dockerfile"
+  if [ -f "$MONGO_DOCKERFILE" ] && grep -q "mongo:8.2.7" "$MONGO_DOCKERFILE" 2>/dev/null; then
+    log_info "Patching mongo plugin Dockerfile (8.2.7 → 7.0)..."
+    echo 'FROM mongo:7.0' > "$MONGO_DOCKERFILE"
+  fi
+
+  log_ok "Dokku plugins ready"
+}
+
 generate_ssh_key() {
   mkdir -p "$SSH_KEY_DIR"
   chmod 700 "$SSH_KEY_DIR"
@@ -532,6 +570,8 @@ install_raildock() {
     fi
     log_warn "Continuing without local Dokku — you will need to add a server manually."
   fi
+
+  ensure_dokku_plugins
 
   log_step "Downloading configuration..."
   ensure_repo_files

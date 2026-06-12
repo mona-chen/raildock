@@ -60,7 +60,7 @@ module Api
           result = case service.subtype
           when "postgres" then engine.postgres_create(service.dokku_app_name)
           when "redis" then engine.redis_create(service.dokku_app_name)
-          when "mysql" then engine.mysql_create(service.dokku_app_name)
+          when "mysql", "mariadb" then engine.mysql_create(service.dokku_app_name)
           when "mongo" then engine.mongo_create(service.dokku_app_name)
           end
           service.update!(status: :running) if result && result[:success]
@@ -105,7 +105,7 @@ module Api
           case @service.subtype
           when "postgres" then engine.postgres_destroy(@service.dokku_app_name)
           when "redis" then engine.redis_destroy(@service.dokku_app_name)
-          when "mysql" then engine.mysql_destroy(@service.dokku_app_name)
+          when "mysql", "mariadb" then engine.mysql_destroy(@service.dokku_app_name)
           when "mongo" then engine.mongo_destroy(@service.dokku_app_name)
           end
         else
@@ -180,9 +180,22 @@ module Api
     def container_status
       with_dokku_engine(@service) do |engine|
         if engine
-          result = engine.container_status(@service.dokku_app_name)
-          if result[:success]
-            return render json: { status: "running", output: result[:output] }
+          if @service.service_type_database?
+            info_method = "#{@service.subtype}_info"
+            if engine.respond_to?(info_method)
+              info = engine.send(info_method, @service.dokku_app_name)
+              if info[:success]
+                db_status = info[:status].to_s.downcase == "running" ? "running" : "error"
+                return render json: { status: db_status, output: info }
+              end
+            end
+          else
+            result = engine.container_status(@service.dokku_app_name)
+            if result[:success]
+              running = result[:output].to_s.strip.downcase == "true"
+              status = running ? "running" : "error"
+              return render json: { status: status, output: result[:output] }
+            end
           end
         end
       end
@@ -311,7 +324,7 @@ module Api
           result = case @service.subtype
           when "postgres" then engine.postgres_logs(@service.dokku_app_name, lines: 100)
           when "redis" then engine.redis_logs(@service.dokku_app_name, lines: 100)
-          when "mysql" then engine.mysql_logs(@service.dokku_app_name, lines: 100)
+          when "mysql", "mariadb" then engine.mysql_logs(@service.dokku_app_name, lines: 100)
           when "mongo" then engine.mongo_logs(@service.dokku_app_name, lines: 100)
           else engine.logs(@service.dokku_app_name, lines: 100)
           end
@@ -347,7 +360,7 @@ module Api
             link_result = case target.subtype
             when "postgres" then engine.postgres_link(target.dokku_app_name, @service.dokku_app_name)
             when "redis" then engine.redis_link(target.dokku_app_name, @service.dokku_app_name)
-            when "mysql" then engine.mysql_link(target.dokku_app_name, @service.dokku_app_name)
+            when "mysql", "mariadb" then engine.mysql_link(target.dokku_app_name, @service.dokku_app_name)
             when "mongo" then engine.mongo_link(target.dokku_app_name, @service.dokku_app_name)
             end
 
@@ -416,7 +429,7 @@ module Api
           case db_service.subtype
           when "postgres" then engine.postgres_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
           when "redis" then engine.redis_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
-          when "mysql" then engine.mysql_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
+          when "mysql", "mariadb" then engine.mysql_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
           when "mongo" then engine.mongo_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
           end
 
@@ -452,7 +465,7 @@ module Api
         result = case @service.subtype
         when "postgres" then engine.postgres_info(@service.dokku_app_name)
         when "redis" then engine.redis_info(@service.dokku_app_name)
-        when "mysql" then engine.mysql_info(@service.dokku_app_name)
+        when "mysql", "mariadb" then engine.mysql_info(@service.dokku_app_name)
         when "mongo" then engine.mongo_info(@service.dokku_app_name)
         else { success: false, error: "Unsupported database type" }
         end
@@ -471,7 +484,7 @@ module Api
         result = case @service.subtype
         when "postgres" then engine.postgres_export(@service.dokku_app_name)
         when "redis" then engine.redis_export(@service.dokku_app_name)
-        when "mysql" then engine.mysql_export(@service.dokku_app_name)
+        when "mysql", "mariadb" then engine.mysql_export(@service.dokku_app_name)
         when "mongo" then engine.mongo_export(@service.dokku_app_name)
         else { success: false, output: "Unsupported database type for backup" }
         end
@@ -503,7 +516,7 @@ module Api
         result = case @service.subtype
         when "postgres" then engine.postgres_import(@service.dokku_app_name, data)
         when "redis" then engine.redis_import(@service.dokku_app_name, data)
-        when "mysql" then engine.mysql_import(@service.dokku_app_name, data)
+        when "mysql", "mariadb" then engine.mysql_import(@service.dokku_app_name, data)
         when "mongo" then engine.mongo_import(@service.dokku_app_name, data)
         else { success: false, output: "Unsupported database type for restore" }
         end

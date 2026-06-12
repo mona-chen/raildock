@@ -29,7 +29,7 @@ class Project < ApplicationRecord
         case service.subtype
         when "postgres" then engine.postgres_destroy(service.dokku_app_name)
         when "redis" then engine.redis_destroy(service.dokku_app_name)
-        when "mysql" then engine.mysql_destroy(service.dokku_app_name)
+        when "mysql", "mariadb" then engine.mysql_destroy(service.dokku_app_name)
         when "mongo" then engine.mongo_destroy(service.dokku_app_name)
         end
       else

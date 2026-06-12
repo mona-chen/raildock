@@ -46,6 +46,9 @@ class ProjectNetworkManager
         linked_container = host_engine.dokku_container_name(linked.dokku_app_name)
         linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
         connect_container_with_aliases(linked_container, [ linked_alias ])
+        unless wait_for_network_alias(linked_container, linked_alias)
+          Rails.logger.warn "Network alias #{linked_alias} did not propagate for #{linked_container}"
+        end
       end
     end
 
@@ -90,6 +93,9 @@ class ProjectNetworkManager
 
       alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
       connect_container_with_aliases(container, [ alias_name ])
+      unless wait_for_network_alias(container, alias_name)
+        Rails.logger.warn "Network alias #{alias_name} did not propagate for #{container}"
+      end
     end
   end
 

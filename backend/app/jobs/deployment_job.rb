@@ -13,6 +13,11 @@ class DeploymentJob < ApplicationJob
     engine = DokkuEngine.new(server)
 
     begin
+      # 0. Wait for linked database services to be ready and reachable.
+      #    Dokku datastore:create returns before the container accepts connections,
+      #    and docker network aliases need a moment to propagate via embedded DNS.
+      wait_for_linked_databases(service, engine)
+
       # 1. Ensure app exists
       unless engine.app_exists?(service.dokku_app_name)
         result = engine.app_create(service.dokku_app_name)
@@ -240,6 +245,61 @@ class DeploymentJob < ApplicationJob
   end
 
   private
+
+  # Wait for linked database containers to report running and for their network
+  # aliases to resolve. This prevents apps from booting before MySQL/Postgres/etc.
+  # is actually accepting connections.
+  def wait_for_linked_databases(service, engine)
+    linked_dbs = service.linked_services.select(&:service_type_database?)
+    return if linked_dbs.empty?
+
+    linked_dbs.each do |db|
+      wait_for_datastore_ready(engine, db)
+    end
+  end
+
+  def wait_for_datastore_ready(engine, db_service, timeout: 120)
+    app_name = db_service.dokku_app_name
+    subtype = db_service.subtype
+    return unless %w[postgres mysql mariadb redis mongo].include?(subtype)
+
+    start = Time.now
+    loop do
+      elapsed = Time.now - start
+      break if elapsed > timeout
+
+      info_method = "#{subtype}_info"
+      if engine.respond_to?(info_method)
+        info = engine.send(info_method, app_name)
+        if info[:success] && info[:status].to_s.downcase == "running"
+          Rails.logger.info "Datastore #{app_name} (#{subtype}) is running"
+          return true
+        end
+      end
+
+      # Fallback: check that the container is running
+      host_engine = HostEngine.new(db_service.project.server)
+      container = host_engine.dokku_container_name(app_name)
+      if container.present? && host_engine.container_running?(container)
+        # Additional port readiness check for mysql/postgres/mariadb
+        if %w[postgres mysql mariadb].include?(subtype)
+          port = { "postgres" => 5432, "mysql" => 3306, "mariadb" => 3306 }[subtype]
+          check = host_engine.run("docker exec #{container} sh -c 'timeout 2 bash -c \"</dev/tcp/localhost/#{port}\"'")
+          if check[:success]
+            Rails.logger.info "Datastore #{app_name} (#{subtype}) port #{port} is open"
+            return true
+          end
+        else
+          return true
+        end
+      end
+
+      sleep 2
+    end
+
+    Rails.logger.warn "Timeout waiting for datastore #{app_name} (#{subtype}) to become ready"
+    false
+  end
 
   def git_repo_for_deploy(service)
     github_source = github_source_for_service(service)

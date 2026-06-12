@@ -129,7 +129,7 @@ class RestartJob < ApplicationJob
       engine.run("postgres:restart #{service.dokku_app_name}")
     when "redis"
       engine.run("redis:restart #{service.dokku_app_name}")
-    when "mysql"
+    when "mysql", "mariadb"
       engine.run("mysql:restart #{service.dokku_app_name}")
     when "mongo"
       engine.run("mongo:restart #{service.dokku_app_name}")

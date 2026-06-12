@@ -79,7 +79,7 @@ module Api
             case service.subtype
             when "postgres" then engine.postgres_create(app_name)
             when "redis" then engine.redis_create(app_name)
-            when "mysql" then engine.mysql_create(app_name)
+            when "mysql", "mariadb" then engine.mysql_create(app_name)
             when "mongo" then engine.mongo_create(app_name)
             end
           else
@@ -208,6 +208,7 @@ module Api
             "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
             "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
             "mysql"    => [ "MYSQL_URL",    /\Amysql:\/\//i ],
+            "mariadb"  => [ "MYSQL_URL",    /\Amysql:\/\//i ],
             "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
           }.freeze
 
@@ -290,6 +291,7 @@ module Api
 
     def build_config(svc_def)
       config = {}
+      config["depends_on"] = svc_def[:depends_on] if svc_def[:depends_on].present?
       config["proxy"] = svc_def[:proxy] if svc_def[:proxy]
       config["checks"] = svc_def[:checks] if svc_def[:checks]
       config["cron"] = svc_def[:cron] if svc_def[:cron]
