@@ -1,3 +1,5 @@
+require "shellwords"
+
 module Api
   class TemplatesController < BaseController
     include Authorizable
@@ -338,7 +340,7 @@ module Api
     ].freeze
 
     def sync_docker_image_env_vars(engine, service)
-      host_engine = HostEngine.new(project.server)
+      host_engine = HostEngine.new(service.project.server)
       container_name = host_engine.dokku_container_name(service.dokku_app_name)
       return unless container_name.present?
 
@@ -367,7 +369,7 @@ module Api
 
     # Fetches the first non-localhost domain assigned by Dokku for an app.
     def fetch_app_domain(engine, app_name)
-      result = engine.run("domains:report #{engine.escape(app_name)} --domains-app-vhosts")
+      result = engine.run("domains:report #{Shellwords.escape(app_name)} --domains-app-vhosts")
       return nil unless result[:success]
 
       domains = result[:output].to_s.strip.split

@@ -762,11 +762,13 @@ class DokkuEngine
     DokkuTerminalSession.new(server, app_name, process_type: process_type, shell: shell, database: database)
   end
 
-  private
-
+  # Shell-escape a value. Exposed so callers that build raw Dokku command
+  # strings can reuse the same escaping logic as the engine.
   def escape(value)
     Shellwords.escape(value.to_s)
   end
+
+  private
 
   # Retry transient SSH failures. dokku commands are idempotent where it matters,
   # and bursts of connections during one-click deploys can hit sshd rate limits
