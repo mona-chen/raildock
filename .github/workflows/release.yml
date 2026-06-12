@@ -15,7 +15,6 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
-      changelog_body: ${{ steps.changelog.outputs.body }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,17 +26,6 @@ jobs:
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-      - name: Generate changelog
-        id: changelog
-        run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          PREV=$(git tag --sort=-version:refname | grep -A1 "^${TAG}$" | tail -1)
-          if [ -z "$PREV" ]; then
-            BODY=$(git log --oneline --format="* %s" HEAD)
-          else
-            BODY=$(git log --oneline --format="* %s" ${PREV}..${TAG})
-          fi
-          echo "body=${BODY:-No changes}" >> $GITHUB_OUTPUT
 
   release:
     name: Create GitHub Release
@@ -90,7 +78,7 @@ jobs:
 
             ### What's new
 
-            ${{ needs.metadata.outputs.changelog_body }}
+          generate_release_notes: true
           draft: false
           prerelease: ${{ contains(needs.metadata.outputs.tag, '-') }}
         env:
