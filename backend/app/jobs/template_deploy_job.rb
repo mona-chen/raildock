@@ -131,8 +131,8 @@ class TemplateDeployJob < ApplicationJob
       db_url_map = {
         "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
         "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
-        "mysql"    => [ "MYSQL_URL",    /\Amysql:\/\//i ],
-        "mariadb"  => [ "MYSQL_URL",    /\Amysql:\/\//i ],
+        "mysql"    => [ "DATABASE_URL", /\Amysql:\/\//i ],
+        "mariadb"  => [ "DATABASE_URL", /\Amysql:\/\//i ],
         "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
       }.freeze
 
@@ -219,7 +219,7 @@ class TemplateDeployJob < ApplicationJob
       key, _, value = line.partition("=")
       key = key.strip
       value = value.strip
-      next unless PASSWORD_VAR_NAMES.any? { |p| key.upcase.include?(p) }
+      next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL)/i)
       next if value.blank? || value.start_with?("$")
 
       existing = service.environment_variables.find_by(key: key)
