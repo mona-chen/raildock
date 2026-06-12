@@ -11,14 +11,15 @@ class DeploymentJob < ApplicationJob
     return mark_failed(deployment, service, "No SSH key configured") if server.ssh_key.blank?
 
     engine = DokkuEngine.new(server)
+    host_engine = HostEngine.new(server)
 
     begin
       # Reuse a single SSH session for the entire deploy. This avoids the
       # connection storm that causes sshd to drop connections during one-click
       # deploys, and keeps long streaming commands alive via keepalives.
       engine.with_session do
-        HostEngine.new(server).with_session do
-          perform_deployment(service, project, deployment, engine)
+        host_engine.with_session do
+          perform_deployment(service, project, deployment, engine, host_engine)
         end
       end
     rescue => e
@@ -83,7 +84,7 @@ class DeploymentJob < ApplicationJob
     false
   end
 
-  def perform_deployment(service, project, deployment, engine)
+  def perform_deployment(service, project, deployment, engine, host_engine)
     # 0. Wait for linked database services to be ready and reachable.
     #    Dokku datastore:create returns before the container accepts connections,
     #    and docker network aliases need a moment to propagate via embedded DNS.
@@ -160,7 +161,7 @@ class DeploymentJob < ApplicationJob
       # Docker image deploy: git:from-image builds and deploys synchronously
       # Pre-pull to warm the layer cache and avoid overlayfs extraction races
       # on large images (e.g. ActivePieces with huge node_modules layers)
-      pre_pull = engine.run("docker pull #{service.docker_image}")
+      pre_pull = host_engine.run("docker pull #{service.docker_image}")
       deploy_output += pre_pull[:output] if pre_pull[:output].present?
 
       deploy_command = "git:from-image #{service.dokku_app_name} #{service.docker_image}"
@@ -182,7 +183,7 @@ class DeploymentJob < ApplicationJob
         deploy_output += "\n\n--- Retrying deploy after forced pull ---\n"
 
         # Force re-pull
-        engine.run("docker pull #{service.docker_image}")
+        host_engine.run("docker pull #{service.docker_image}")
 
         result = engine.run_streaming(deploy_command) do |chunk|
           deploy_output += chunk

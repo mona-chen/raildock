@@ -665,7 +665,7 @@ module Api
       server = @service.project&.server
 
       return render json: { error: "No server configured" }, status: :unprocessable_entity unless server
-      return render json: { error: "No base domain configured" }, status: :unprocessable_entity unless server.base_domain.present?
+      return render json: { error: "No base domain configured. Set one in Settings → Server (e.g. sslip.io or yourdomain.com) to generate temporary domains." }, status: :unprocessable_entity unless server.base_domain.present?
 
       hostname = server.temporary_hostname(@service.dokku_app_name)
       return render json: { error: "Could not generate hostname" }, status: :unprocessable_entity unless hostname

@@ -17,8 +17,19 @@ class TemporaryDomainService
 
   # Ensures the service has one temporary domain. Returns the domain or nil.
   def ensure_for(service, engine: nil)
-    return nil unless @server&.base_domain.present?
+    return nil unless @server
     return nil unless @server.auto_domains?
+
+    if @server.base_domain.blank?
+      ActivityEvent.create!(
+        project: service.project,
+        service_name: service.name,
+        action: :warning,
+        message: "Auto-domains is enabled but the server has no base domain. Set one in Settings → Server to get temporary domains."
+      )
+      return nil
+    end
+
     return nil unless service.service_type_app?
     return nil if service.domains.any?
     return nil if service.config&.dig("proxy", "enabled") == false
