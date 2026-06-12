@@ -80,7 +80,7 @@ export default function OnboardingChecklist() {
       server: servers.some((s) => s.status === 'connected'),
       project: projects.length > 0,
       service: projects.some((p) => (p.serviceCounts?.total || p.serviceIds?.length || 0) > 0),
-      deploy: projects.some((p) => p.has_deployments),
+      deploy: projects.some((p) => p.hasDeployments),
     }),
     [servers, projects]
   )

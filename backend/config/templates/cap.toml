@@ -13,8 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DATABASE_URL = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@cap-db:3306/planetscale"
-    WEB_URL = "https://example.com"
-    NEXTAUTH_URL = "https://example.com"
+    WEB_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    NEXTAUTH_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DATABASE_ENCRYPTION_KEY = "${{ secret() }}"
     NEXTAUTH_SECRET = "${{ secret() }}"
     CAP_AWS_ACCESS_KEY = "${CAP_AWS_ACCESS_KEY:?}"
