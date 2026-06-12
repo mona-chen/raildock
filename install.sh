@@ -178,9 +178,11 @@ register_ssh_key_with_dokku() {
     return 1
   fi
 
+  # Remove any previously registered RailDock key so the current key is always
+  # the one Dokku accepts. This prevents fingerprint mismatches across reinstalls.
   if dokku ssh-keys:list 2>/dev/null | grep -q "raildock"; then
-    log_info "RailDock SSH key already registered with Dokku"
-    return 0
+    dokku ssh-keys:remove raildock 2>/dev/null || true
+    log_info "Removed previous RailDock SSH key from Dokku"
   fi
 
   dokku ssh-keys:add raildock "$pub_key"
