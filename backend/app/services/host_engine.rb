@@ -20,39 +20,35 @@ class HostEngine
   def run(command)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 
-    output = ""
-    exit_code = nil
+    with_ssh_retry do
+      output = ""
+      exit_code = nil
 
-    Net::SSH.start(
-      server.public_ip || server.host,
-      SSH_USER,
-      key_data: [ server.ssh_key ],
-      non_interactive: true,
-      timeout: SSH_TIMEOUT,
-      verify_host_key: :never,
-      host_key_alias: "#{server.host}-root"
-    ) do |ssh|
-      channel = ssh.open_channel do |ch|
-        ch.exec(command) do |_, success|
-          unless success
-            return { success: false, output: "Failed to execute command" }
+      Net::SSH.start(
+        server.public_ip || server.host,
+        SSH_USER,
+        key_data: [ server.ssh_key ],
+        non_interactive: true,
+        timeout: SSH_TIMEOUT,
+        verify_host_key: :never,
+        host_key_alias: "#{server.host}-root"
+      ) do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            unless success
+              return { success: false, output: "Failed to execute command" }
+            end
+
+            ch.on_data { |_, data| output += data }
+            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
-
-          ch.on_data { |_, data| output += data }
-          ch.on_extended_data { |_, type, data| output += data }
-          ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
         end
+        channel.wait
       end
-      channel.wait
-    end
 
-    { success: exit_code == 0, output: output }
-  rescue Net::SSH::AuthenticationFailed => e
-    { success: false, output: "Authentication failed: #{e.message}" }
-  rescue Net::SSH::ConnectionTimeout
-    { success: false, output: "SSH connection timed out" }
-  rescue => e
-    { success: false, output: "SSH error: #{e.message}" }
+      { success: exit_code == 0, output: output }
+    end
   end
 
   # ── Docker helpers ──────────────────────────
@@ -105,6 +101,36 @@ class HostEngine
     return false if container_name.blank?
     result = run("docker inspect -f '{{.State.Running}}' #{Shellwords.escape(container_name)} 2>/dev/null")
     result[:output]&.strip == "true"
+  end
+
+  private
+
+  # Retry transient SSH failures. Host commands (docker ps, network connect, etc.)
+  # are idempotent and can fail when dokku commands are hammering sshd in parallel.
+  def with_ssh_retry(max_retries: 3)
+    retries = 0
+    begin
+      yield
+    rescue Net::SSH::AuthenticationFailed, Net::SSH::ChannelOpenFailed => e
+      { success: false, output: "SSH error: #{e.message}" }
+    rescue Net::SSH::ConnectionTimeout
+      if retries < max_retries
+        retries += 1
+        sleep(retries * 2)
+        retry
+      end
+      { success: false, output: "SSH connection timed out" }
+    rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
+      if retries < max_retries
+        retries += 1
+        Rails.logger.warn "Host SSH transient error (#{retries}/#{max_retries}): #{e.message}"
+        sleep(retries * 2)
+        retry
+      end
+      { success: false, output: "SSH error: #{e.message}" }
+    rescue => e
+      { success: false, output: "SSH error: #{e.message}" }
+    end
   end
 
   # ── Dokku container helpers ─────────────────

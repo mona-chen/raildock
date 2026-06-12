@@ -38,18 +38,26 @@ class ProjectNetworkManager
 
     engine.run("network:set #{service.dokku_app_name} attach-post-create #{network_name}")
 
-    container = host_engine.dokku_container_name(service.dokku_app_name)
-    connect_container_with_aliases(container, [ service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-") ])
+    # Wait for the app container to exist before trying to connect it. After a
+    # fresh deploy the container can take a few seconds to appear in docker ps.
+    container = wait_for_linked_container(service.dokku_app_name)
+    if container.present?
+      connect_container_with_aliases(container, [ service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-") ])
+    else
+      Rails.logger.warn "App container #{service.dokku_app_name} not found for network connect"
+    end
 
     if service.linked_services.any?
       service.linked_services.each do |linked|
-        linked_container = host_engine.dokku_container_name(linked.dokku_app_name)
+        linked_container = wait_for_linked_container(linked.dokku_app_name)
         linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
-        connect_container_with_aliases(linked_container, [ linked_alias ])
         if linked_container.present?
+          connect_container_with_aliases(linked_container, [ linked_alias ])
           unless wait_for_network_alias(linked_container, linked_alias)
             Rails.logger.warn "Network alias #{linked_alias} did not propagate for #{linked_container}"
           end
+        else
+          Rails.logger.warn "Linked container #{linked.dokku_app_name} not found for alias #{linked_alias}"
         end
       end
     end

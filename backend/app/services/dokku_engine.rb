@@ -32,7 +32,7 @@ class DokkuEngine
       output = ""
       exit_code = nil
 
-      Net::SSH.start(*ssh_connection_options) do |ssh|
+      execute_on_session do |ssh|
         channel = ssh.open_channel do |ch|
           ch.exec(command) do |_, success|
             unless success
@@ -59,7 +59,7 @@ class DokkuEngine
       output = ""
       exit_code = nil
 
-      Net::SSH.start(*ssh_connection_options) do |ssh|
+      execute_on_session do |ssh|
         channel = ssh.open_channel do |ch|
           ch.exec(command) do |_, success|
             unless success
@@ -89,7 +89,7 @@ class DokkuEngine
       output = ""
       exit_code = nil
 
-      Net::SSH.start(*ssh_connection_options) do |ssh|
+      execute_on_session do |ssh|
         channel = ssh.open_channel do |ch|
           ch.exec(command) do |_, success|
             unless success
@@ -112,6 +112,16 @@ class DokkuEngine
 
       { success: exit_code == 0, output: output }
     end
+  end
+
+  # Open a reusable SSH session for the current thread. All run* calls made
+  # inside the block reuse this single connection, eliminating the connection
+  # storm that causes sshd rate-limiting during one-click deploys.
+  def with_session
+    open_session
+    yield
+  ensure
+    close_session
   end
 
   # ── Server Validation ────────────────────────
@@ -761,7 +771,7 @@ class DokkuEngine
   # Retry transient SSH failures. dokku commands are idempotent where it matters,
   # and bursts of connections during one-click deploys can hit sshd rate limits
   # or idle-timeouts on long, quiet builds.
-  def with_ssh_retry(max_retries: 2)
+  def with_ssh_retry(max_retries: 3)
     retries = 0
     begin
       yield
@@ -771,6 +781,7 @@ class DokkuEngine
     rescue Net::SSH::ConnectionTimeout => e
       if retries < max_retries
         retries += 1
+        close_session
         sleep(retries * 2)
         retry
       end
@@ -779,6 +790,7 @@ class DokkuEngine
       if retries < max_retries
         retries += 1
         Rails.logger.warn "SSH transient error (#{retries}/#{max_retries}): #{e.message}"
+        close_session
         sleep(retries * 2)
         retry
       end
@@ -786,6 +798,48 @@ class DokkuEngine
     rescue => e
       { success: false, output: "SSH error: #{e.message}" }
     end
+  end
+
+  # Run the given block on an SSH session, reusing the thread-local session
+  # when one has been opened via #with_session. Otherwise opens a one-off
+  # session and closes it immediately after the command finishes.
+  def execute_on_session
+    session = current_session
+    owns_session = session.nil?
+
+    if owns_session
+      session = Net::SSH.start(*ssh_connection_options)
+    end
+
+    yield session
+  ensure
+    session.close if owns_session && session && !session.closed?
+  end
+
+  def open_session
+    close_session
+    Thread.current[:dokku_engine_session] = Net::SSH.start(*ssh_connection_options)
+  end
+
+  def close_session
+    session = Thread.current[:dokku_engine_session]
+    return unless session
+
+    begin
+      session.close unless session.closed?
+    rescue => e
+      Rails.logger.warn "Failed to close DokkuEngine SSH session: #{e.message}"
+    end
+    Thread.current[:dokku_engine_session] = nil
+  end
+
+  def current_session
+    session = Thread.current[:dokku_engine_session]
+    return nil unless session
+    return session unless session.closed?
+
+    Thread.current[:dokku_engine_session] = nil
+    nil
   end
 
   # Build SSH connection options with timeouts and security settings
