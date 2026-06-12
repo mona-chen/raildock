@@ -16,6 +16,24 @@ module Api
       project = scoped_projects.find_by(id: params[:project_id])
       return render json: { error: "Project not found" }, status: :not_found unless project
 
+      if project.server&.ssh_key.present?
+        DokkuEngine.new(project.server).with_session do
+          HostEngine.new(project.server).with_session do
+            created = deploy_template_services(template, project)
+          end
+        end
+      else
+        created = deploy_template_services(template, project)
+      end
+
+      render json: {
+        created: created.map { |s| { id: s.id, name: s.name, type: s.service_type, subtype: s.subtype, status: s.status } }
+      }
+    end
+
+    private
+
+    def deploy_template_services(template, project)
       created = template.services.map do |svc_def|
         is_app = svc_def[:category] == "app"
 
@@ -255,9 +273,7 @@ module Api
         )
       end
 
-      render json: {
-        created: created.map { |s| { id: s.id, name: s.name, type: s.service_type, subtype: s.subtype, status: s.status } }
-      }
+      created
     end
 
     private

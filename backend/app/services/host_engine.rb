@@ -24,15 +24,7 @@ class HostEngine
       output = ""
       exit_code = nil
 
-      Net::SSH.start(
-        server.public_ip || server.host,
-        SSH_USER,
-        key_data: [ server.ssh_key ],
-        non_interactive: true,
-        timeout: SSH_TIMEOUT,
-        verify_host_key: :never,
-        host_key_alias: "#{server.host}-root"
-      ) do |ssh|
+      execute_on_session do |ssh|
         channel = ssh.open_channel do |ch|
           ch.exec(command) do |_, success|
             unless success
@@ -49,6 +41,16 @@ class HostEngine
 
       { success: exit_code == 0, output: output }
     end
+  end
+
+  # Open a reusable SSH session for the current thread. All run calls made
+  # inside the block reuse this single connection, eliminating the connection
+  # storm that causes sshd to drop connections during template deploys.
+  def with_session
+    open_session
+    yield
+  ensure
+    close_session
   end
 
   # ── Docker helpers ──────────────────────────
@@ -140,6 +142,7 @@ class HostEngine
     rescue Net::SSH::ConnectionTimeout
       if retries < max_retries
         retries += 1
+        close_session
         sleep(retries * 2)
         retry
       end
@@ -148,6 +151,7 @@ class HostEngine
       if retries < max_retries
         retries += 1
         Rails.logger.warn "Host SSH transient error (#{retries}/#{max_retries}): #{e.message}"
+        close_session
         sleep(retries * 2)
         retry
       end
@@ -155,5 +159,63 @@ class HostEngine
     rescue => e
       { success: false, output: "SSH error: #{e.message}" }
     end
+  end
+
+  # Run the given block on an SSH session, reusing the thread-local session
+  # when one has been opened via #with_session. Otherwise opens a one-off
+  # session and closes it immediately after the command finishes.
+  def execute_on_session
+    session = current_session
+    owns_session = session.nil?
+
+    if owns_session
+      session = Net::SSH.start(
+        server.public_ip || server.host,
+        SSH_USER,
+        key_data: [ server.ssh_key ],
+        non_interactive: true,
+        timeout: SSH_TIMEOUT,
+        verify_host_key: :never,
+        host_key_alias: "#{server.host}-root"
+      )
+    end
+
+    yield session
+  ensure
+    session.close if owns_session && session && !session.closed?
+  end
+
+  def open_session
+    close_session
+    Thread.current[:host_engine_session] = Net::SSH.start(
+      server.public_ip || server.host,
+      SSH_USER,
+      key_data: [ server.ssh_key ],
+      non_interactive: true,
+      timeout: SSH_TIMEOUT,
+      verify_host_key: :never,
+      host_key_alias: "#{server.host}-root"
+    )
+  end
+
+  def close_session
+    session = Thread.current[:host_engine_session]
+    return unless session
+
+    begin
+      session.close unless session.closed?
+    rescue => e
+      Rails.logger.warn "Failed to close HostEngine SSH session: #{e.message}"
+    end
+    Thread.current[:host_engine_session] = nil
+  end
+
+  def current_session
+    session = Thread.current[:host_engine_session]
+    return nil unless session
+    return session unless session.closed?
+
+    Thread.current[:host_engine_session] = nil
+    nil
   end
 end
