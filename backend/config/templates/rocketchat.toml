@@ -27,7 +27,13 @@ source = { type = "docker"  }
 name = "mongodb"
 category = "database"
 subtype = "mongo"
-start_command = "sh -c \"\n  mongod --replSet ${MONGODB_REPLICA_SET_NAME:-rs0} --bind_ip_all &\n  sleep 5 &&\n  mongosh --eval 'rs.initiate({_id:\\"${MONGODB_REPLICA_SET_NAME:-rs0}\\", members:[{_id:0, host:\\"mongodb:27017\\"}]})' ||\n  true &&\n  wait\n\"\n"
+start_command = """sh -c "
+mongod --replSet ${MONGODB_REPLICA_SET_NAME:-rs0} --bind_ip_all &
+sleep 5 &&
+mongosh --eval 'rs.initiate({_id:\"${MONGODB_REPLICA_SET_NAME:-rs0}\", members:[{_id:0, host:\"mongodb:27017\"}]})' ||
+true &&
+wait
+"""
 source = { type = "docker"  }
     [[services.storage]]
       host = "mongodb_data"

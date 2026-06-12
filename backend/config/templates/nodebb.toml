@@ -8,7 +8,7 @@ name = "nodebb"
 category = "app"
 subtype = "docker"
 docker_image = "ghcr.io/nodebb/nodebb:latest"
-start_command = "/bin/bash -c \" cat > /usr/src/app/setup.json <<EOL {\n    \\"defaults\\": {\n        \\"postgres\\": {\n            \\"host\\": \\"postgres\\",\n            \\"port\\": 5432,\n            \\"database\\": \\"nodebb\\",\n            \\"username\\": \\"${SERVICE_USER_POSTGRES}\\",\n            \\"password\\": \\"${SERVICE_PASSWORD_POSTGRES}\\"\n        }\n    }\n} EOL && tini -- entrypoint.sh \"\n"
+start_command = "bash -c \"cat > /usr/src/app/setup.json <<EOL\n{\"defaults\": {\"postgres\": {\"host\": \"postgres\",\"port\": 5432,\"database\": \"nodebb\",\"username\": \"${SERVICE_USER_POSTGRES}\",\"password\": \"${SERVICE_PASSWORD_POSTGRES}\"}}\n} EOL && tini -- entrypoint.sh \""
 source = { type = "docker"  }
   [services.scaling]
     web = 1
