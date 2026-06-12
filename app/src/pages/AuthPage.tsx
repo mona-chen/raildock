@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LogIn, UserPlus, Loader2, Zap, Eye, EyeOff, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
+import { LogIn, UserPlus, Loader2, Eye, EyeOff, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { authApi } from '@/lib/api'
+import Logo from '@/components/Logo'
 import { toast } from 'sonner'
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
@@ -123,10 +124,8 @@ export default function AuthPage() {
     <div className="min-h-screen bg-[#0B0B0D] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-[rgba(139,92,246,0.2)] flex items-center justify-center border border-[rgba(139,92,246,0.3)]">
-            <Zap size={16} className="text-rail-purple" />
-          </div>
+        <div className="flex items-center justify-center gap-2.5 mb-8">
+          <Logo className="h-9 w-9" />
           <span className="text-lg font-bold text-white">RailDock</span>
         </div>
 

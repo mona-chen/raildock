@@ -1,6 +1,7 @@
-import { Folder, Server, Settings, Boxes, LogOut, User, Activity, ChevronDown, Building2 } from 'lucide-react'
+import { Folder, Server, Settings, LogOut, User, Activity, ChevronDown, Building2 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
+import Logo from '@/components/Logo'
 import { useOrganizations } from '@/hooks/useOrganizations'
 import {
   DropdownMenu,
@@ -38,9 +39,7 @@ export default function IconRail() {
     <div className="w-14 bg-[#0B0B0D] border-r border-[rgba(255,255,255,0.06)] flex flex-col items-center py-3 flex-shrink-0 z-30">
       {/* Logo */}
       <Link to="/" className="mb-2">
-        <div className="w-8 h-8 rounded-lg bg-rail-purple flex items-center justify-center">
-          <Boxes size={18} className="text-white" />
-        </div>
+        <Logo className="h-8 w-8" />
       </Link>
 
       {/* Org Switcher */}

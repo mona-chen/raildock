@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download } from 'lucide-react'
 import {
   useScaleProcess,
   useRollbackService,
@@ -11,52 +11,147 @@ import { useCopy } from '@/hooks/useCopy'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import type { Service } from '@/types'
 import { toast } from 'sonner'
+import { copyToClipboard } from '@/lib/clipboard'
+
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B\[[0-9;]*m/g, '')
+}
 
 function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; liveLog?: string }) {
   const { data: deployment, isLoading } = useDeployment(deploymentId)
   const logRef = useRef<HTMLDivElement>(null)
+  const [wrapLines, setWrapLines] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [copiedAll, setCopiedAll] = useState(false)
 
   const logText = liveLog || deployment?.deployLog || deployment?.buildLog || ''
+  const cleanText = useMemo(() => stripAnsi(logText), [logText])
+  const lines = useMemo(() => cleanText.split('\n'), [cleanText])
 
   useEffect(() => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight
     }
-  }, [logText])
+  }, [cleanText])
+
+  const handleCopyAll = async () => {
+    const success = await copyToClipboard(cleanText)
+    if (success) {
+      setCopiedAll(true)
+      setTimeout(() => setCopiedAll(false), 1500)
+    }
+  }
+
+  const handleExport = () => {
+    const blob = new Blob([cleanText], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `deploy-${deploymentId}-${new Date().toISOString()}.log`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   if (isLoading && !liveLog) {
     return (
-      <div className="ml-6 bg-[#0a0a0c] border border-white/[0.06] rounded-lg p-4">
+      <div className="ml-6 bg-[#131318] border border-white/[0.06] rounded-xl p-4">
         <div className="text-[12px] text-white/30">Loading logs...</div>
       </div>
     )
   }
 
-  const lines = logText.split('\n').filter(Boolean)
-
-  return (
-    <div className="ml-6 bg-[#0a0a0c] border border-white/[0.06] rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
-        <Terminal size={12} className="text-white/30" />
-        <span className="text-[11px] text-white/40">Deployment Log</span>
-        {lines.length > 0 && (
-          <span className="text-[10px] text-white/20 ml-auto">{lines.length} lines</span>
-        )}
+  const logView = (
+    <div className={`flex flex-col bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : 'rounded-xl border border-white/[0.06] overflow-hidden'}`}>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Terminal size={12} className="text-white/30" />
+            <span className="text-[11px] text-white/40">Deployment Log</span>
+          </div>
+          <span className="text-[10px] text-white/20">{lines.length.toLocaleString()} lines</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {isExpanded && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] text-white/50 text-[11px] hover:bg-white/[0.1] transition-colors"
+                title="Minimize"
+              >
+                <Minimize2 size={11} />
+                Esc to close
+              </button>
+              <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+            </>
+          )}
+          <button
+            type="button"
+            onClick={handleCopyAll}
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            title="Copy all logs"
+          >
+            {copiedAll ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWrapLines((w) => !w)}
+            className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/30 hover:text-white/60'}`}
+            title="Wrap lines"
+          >
+            <WrapText size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            title="Export log"
+          >
+            <Download size={13} />
+          </button>
+          <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            title="Expand logs"
+          >
+            <Maximize2 size={13} />
+          </button>
+        </div>
       </div>
-      <div ref={logRef} className="max-h-64 overflow-y-auto p-3 font-mono text-[11px] space-y-0.5">
+
+      {/* Log lines */}
+      <div
+        ref={logRef}
+        className="flex-1 overflow-y-auto font-mono text-[12px] leading-relaxed p-2"
+      >
         {lines.length > 0 ? (
-          lines.map((line, i) => (
-            <div key={i} className="text-white/50">
-              <span className="text-white/20 mr-2 select-none">{String(i + 1).padStart(4, '0')}</span>
-              <span>{line}</span>
-            </div>
-          ))
+          <div className="space-y-0.5">
+            {lines.map((line, i) => (
+              <div key={i} className="group flex items-start gap-2 hover:bg-white/[0.03] px-2 py-0.5 rounded">
+                <span className="select-none w-10 text-right shrink-0 text-[11px] text-white/10 pt-0.5">
+                  {String(i + 1).padStart(4, '0')}
+                </span>
+                <span className={`text-white/60 ${wrapLines ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`}>
+                  {line}
+                </span>
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="text-white/20 text-center py-6">No log output captured for this deployment.</div>
+          <div className="flex flex-col items-center justify-center h-32 text-white/20">
+            <Terminal size={24} className="mb-2 opacity-30" />
+            <p className="text-xs">No log output captured for this deployment.</p>
+          </div>
         )}
       </div>
     </div>
   )
+
+  return logView
 }
 
 function RollbackConfirmDialog({
