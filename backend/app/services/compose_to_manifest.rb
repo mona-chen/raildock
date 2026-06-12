@@ -42,7 +42,7 @@ class ComposeToManifest
     /typesense/     => { category: "search",   subtype: "typesense" },
     /rabbitmq/      => { category: "queue",    subtype: "rabbitmq" },
     /kafka/         => { category: "queue",    subtype: "kafka" },
-    /minio/         => { category: "service",  subtype: "s3" },
+    /minio/         => { category: "service",  subtype: "s3" }
   }.freeze
 
   # Coolify metadata comment keys we care about

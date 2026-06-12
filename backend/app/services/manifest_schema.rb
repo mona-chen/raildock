@@ -28,7 +28,7 @@ class ManifestSchema
     errors = []
 
     unless hash.is_a?(Hash)
-      return ValidationResult.new(valid: false, errors: ["Manifest must be an object/hash"])
+      return ValidationResult.new(valid: false, errors: [ "Manifest must be an object/hash" ])
     end
 
     # app.json has a different top-level structure

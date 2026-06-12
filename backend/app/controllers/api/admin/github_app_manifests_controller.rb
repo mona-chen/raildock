@@ -1,13 +1,13 @@
 module Api
   module Admin
     class GithubAppManifestsController < BaseController
-      skip_before_action :authenticate_user!, only: [:callback, :setup]
-      before_action :authorize_admin!, only: [:manifest]
+      skip_before_action :authenticate_user!, only: [ :callback, :setup ]
+      before_action :authorize_admin!, only: [ :manifest ]
 
       MANIFEST_PERMISSIONS = {
         contents: "read",
         metadata: "read",
-        pull_requests: "write",
+        pull_requests: "write"
       }.freeze
 
       MANIFEST_EVENTS = %w[push pull_request].freeze
@@ -23,19 +23,19 @@ module Api
           description: "RailDock - Self-hosted deployment platform",
           hook_attributes: {
             url: "#{base_url}/api/github-apps/webhook",
-            active: true,
+            active: true
           },
           redirect_url: "#{base_url}/api/admin/github-app-manifest/callback",
           setup_url: "#{base_url}/api/admin/github-app-manifest/setup",
           setup_on_update: true,
           public: true,
           default_permissions: MANIFEST_PERMISSIONS,
-          default_events: MANIFEST_EVENTS,
+          default_events: MANIFEST_EVENTS
         }
 
         render json: {
           manifest: manifest,
-          form_url: "https://github.com/settings/apps/new?state=#{generate_state}",
+          form_url: "https://github.com/settings/apps/new?state=#{generate_state}"
         }
       end
 
@@ -87,7 +87,7 @@ module Api
         begin
           GithubAppService.delete_app
         rescue => e
-          if e.message.include?('404')
+          if e.message.include?("404")
             Rails.logger.info "GitHub App already deleted from GitHub"
           else
             raise
@@ -103,12 +103,12 @@ module Api
         end
 
         # Remove all GitHub git sources
-        GitSource.where(provider: 'github').destroy_all
+        GitSource.where(provider: "github").destroy_all
 
-        render json: { success: true, message: 'GitHub App deleted successfully' }
+        render json: { success: true, message: "GitHub App deleted successfully" }
       rescue => e
         Rails.logger.error "GitHub App destroy_app failed: #{e.message}"
-        render json: { error: 'Failed to delete GitHub App' }, status: :internal_server_error
+        render json: { error: "Failed to delete GitHub App" }, status: :internal_server_error
       end
 
       private
@@ -133,7 +133,7 @@ module Api
           "",
           {
             "Accept" => "application/vnd.github+json",
-            "X-GitHub-Api-Version" => "2022-11-28",
+            "X-GitHub-Api-Version" => "2022-11-28"
           }
         )
 
@@ -148,7 +148,7 @@ module Api
           client_secret: data["client_secret"],
           pem: data["pem"],
           webhook_secret: data["webhook_secret"],
-          html_url: data["html_url"],
+          html_url: data["html_url"]
         }
       rescue JSON::ParserError, Faraday::Error => e
         Rails.logger.error "GitHub App Manifest exchange failed: #{e.message}"

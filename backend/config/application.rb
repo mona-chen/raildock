@@ -43,7 +43,7 @@ module Backend
 
     # Add cookies/session middleware required by ActionCable
     config.middleware.use ActionDispatch::Cookies
-    config.middleware.use ActionDispatch::Session::CookieStore, key: '_raildock_session'
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_raildock_session"
 
     # Fallback secret_key_base from environment when credentials.yml.enc is missing.
     # Production must be configured explicitly; random boot keys invalidate sessions

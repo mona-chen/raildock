@@ -7,7 +7,7 @@ class BackupSchedule < ApplicationRecord
   FREQUENCY_INTERVALS = {
     "daily" => 1.day,
     "weekly" => 1.week,
-    "monthly" => 1.month,
+    "monthly" => 1.month
   }.freeze
 
   def calculate_next_run

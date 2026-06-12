@@ -5,15 +5,15 @@ module Api
     def index
       authorize_project!(nil, action: :read) # Check user has org access
       projects = scoped_projects.includes(:services)
-      render json: projects.as_json(methods: [:service_ids, :service_counts])
+      render json: projects.as_json(methods: [ :service_ids, :service_counts ])
     end
 
     def show
       project = scoped_projects.find(params[:id])
       authorize_project!(project)
       render json: project.as_json(
-        methods: [:service_ids, :service_counts],
-        include: { services: { only: [:id, :name, :service_type, :subtype, :status] } }
+        methods: [ :service_ids, :service_counts ],
+        include: { services: { only: [ :id, :name, :service_type, :subtype, :status ] } }
       )
     end
 
@@ -32,7 +32,7 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
       project.update!(project_params)
-      render json: project.as_json(methods: [:service_ids, :service_counts])
+      render json: project.as_json(methods: [ :service_ids, :service_counts ])
     end
 
     def destroy
@@ -133,7 +133,7 @@ module Api
     private
 
     def topo_sort_by_depends_on(services)
-      svc_map = services.map { |s| [s.name, s] }.to_h
+      svc_map = services.map { |s| [ s.name, s ] }.to_h
       in_degree = Hash.new(0)
       dependents = Hash.new { |h, k| h[k] = [] }
 

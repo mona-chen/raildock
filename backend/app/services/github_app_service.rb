@@ -1,5 +1,5 @@
-require 'openssl'
-require 'jwt'
+require "openssl"
+require "jwt"
 
 class GithubAppService
   # GitHub App JWT expires after 10 minutes; we use 9 to be safe.
@@ -34,7 +34,7 @@ class GithubAppService
     def app_slug
       SystemSetting.github_app_slug ||
         Rails.application.credentials.dig(:github_app, :app_slug) ||
-        ENV.fetch('GITHUB_APP_SLUG', nil)
+        ENV.fetch("GITHUB_APP_SLUG", nil)
     end
 
     def enabled?
@@ -51,7 +51,7 @@ class GithubAppService
         exp: Time.now.to_i + JWT_TTL,
         iss: app_id.to_i
       }
-      JWT.encode(payload, private_key, 'RS256')
+      JWT.encode(payload, private_key, "RS256")
     end
 
     # Get an installation access token (short-lived, 1 hour)
@@ -62,11 +62,11 @@ class GithubAppService
       jwt = generate_jwt
       response = Faraday.post(
         "https://api.github.com/app/installations/#{installation_id}/access_tokens",
-        '',
+        "",
         {
-          'Authorization' => "Bearer #{jwt}",
-          'Accept' => 'application/vnd.github+json',
-          'X-GitHub-Api-Version' => '2022-11-28'
+          "Authorization" => "Bearer #{jwt}",
+          "Accept" => "application/vnd.github+json",
+          "X-GitHub-Api-Version" => "2022-11-28"
         }
       )
 
@@ -75,7 +75,7 @@ class GithubAppService
         raise "Failed to generate installation token: #{response.status}"
       end
 
-      JSON.parse(response.body)['token']
+      JSON.parse(response.body)["token"]
     end
 
     # Create an Octokit client authenticated as the installation
@@ -94,9 +94,9 @@ class GithubAppService
         "https://api.github.com/app/installations/#{installation_id}",
         {},
         {
-          'Authorization' => "Bearer #{jwt}",
-          'Accept' => 'application/vnd.github+json',
-          'X-GitHub-Api-Version' => '2022-11-28'
+          "Authorization" => "Bearer #{jwt}",
+          "Accept" => "application/vnd.github+json",
+          "X-GitHub-Api-Version" => "2022-11-28"
         }
       )
 
@@ -123,9 +123,9 @@ class GithubAppService
           "https://api.github.com/installation/repositories",
           { per_page: 100, page: page },
           {
-            'Authorization' => "Bearer #{token}",
-            'Accept' => 'application/vnd.github+json',
-            'X-GitHub-Api-Version' => '2022-11-28'
+            "Authorization" => "Bearer #{token}",
+            "Accept" => "application/vnd.github+json",
+            "X-GitHub-Api-Version" => "2022-11-28"
           }
         )
 
@@ -135,18 +135,18 @@ class GithubAppService
         end
 
         data = JSON.parse(response.body)
-        repos = data['repositories'] || []
+        repos = data["repositories"] || []
         break if repos.empty?
 
         all_repos.concat(repos.map do |repo|
           {
-            id: repo['id'],
-            full_name: repo['full_name'],
-            default_branch: repo['default_branch'],
-            private: repo['private'],
-            clone_url: repo['clone_url'],
-            ssh_url: repo['ssh_url'],
-            html_url: repo['html_url']
+            id: repo["id"],
+            full_name: repo["full_name"],
+            default_branch: repo["default_branch"],
+            private: repo["private"],
+            clone_url: repo["clone_url"],
+            ssh_url: repo["ssh_url"],
+            html_url: repo["html_url"]
           }
         end)
 
@@ -170,9 +170,9 @@ class GithubAppService
         "https://api.github.com/app/installations/#{installation_id}",
         {},
         {
-          'Authorization' => "Bearer #{jwt}",
-          'Accept' => 'application/vnd.github+json',
-          'X-GitHub-Api-Version' => '2022-11-28'
+          "Authorization" => "Bearer #{jwt}",
+          "Accept" => "application/vnd.github+json",
+          "X-GitHub-Api-Version" => "2022-11-28"
         }
       )
 
@@ -196,9 +196,9 @@ class GithubAppService
         "https://api.github.com/app",
         {},
         {
-          'Authorization' => "Bearer #{jwt}",
-          'Accept' => 'application/vnd.github+json',
-          'X-GitHub-Api-Version' => '2022-11-28'
+          "Authorization" => "Bearer #{jwt}",
+          "Accept" => "application/vnd.github+json",
+          "X-GitHub-Api-Version" => "2022-11-28"
         }
       )
 

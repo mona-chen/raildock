@@ -89,7 +89,7 @@ class Service < ApplicationRecord
 
     normalized = raw.delete_suffix(".git")
     full_name = repo_full_name(normalized)
-    identifiers = [raw, normalized]
+    identifiers = [ raw, normalized ]
 
     if full_name.present?
       identifiers.concat([
@@ -162,13 +162,13 @@ class Service < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url],
+      methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url ],
       include: {
-        environment_variables: { only: [:id, :key, :value, :source, :is_dokku_internal] },
-        domains: { only: [:id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard] },
-        storage_mounts: { only: [:id, :host_path, :container_path] },
-        process_types: { only: [:id, :name, :quantity, :running, :command] },
-        backups: { only: [:id, :status, :size, :created_at] }
+        environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },
+        domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ] },
+        storage_mounts: { only: [ :id, :host_path, :container_path ] },
+        process_types: { only: [ :id, :name, :quantity, :running, :command ] },
+        backups: { only: [ :id, :status, :size, :created_at ] }
       }
     )).merge(
       "config" => config || {},

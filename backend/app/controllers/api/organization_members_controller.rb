@@ -1,13 +1,13 @@
 module Api
   class OrganizationMembersController < BaseController
     before_action :set_organization
-    before_action :set_membership, only: [:update, :destroy]
-    before_action :require_admin!, only: [:create, :update, :destroy]
+    before_action :set_membership, only: [ :update, :destroy ]
+    before_action :require_admin!, only: [ :create, :update, :destroy ]
 
     def index
       authorize_organization_access!(@organization)
       memberships = @organization.memberships.includes(:user).order(:created_at)
-      render json: memberships.as_json(include: { user: { only: [:id, :name, :email] } })
+      render json: memberships.as_json(include: { user: { only: [ :id, :name, :email ] } })
     end
 
     def create
@@ -23,10 +23,10 @@ module Api
       membership = OrganizationMembership.create!(
         user: user,
         organization: @organization,
-        role: params[:role] || 'member'
+        role: params[:role] || "member"
       )
 
-      render json: membership.as_json(include: { user: { only: [:id, :name, :email] } }), status: :created
+      render json: membership.as_json(include: { user: { only: [ :id, :name, :email ] } }), status: :created
     end
 
     def update
@@ -40,12 +40,12 @@ module Api
       end
 
       # Cannot promote someone to owner unless you're an owner
-      if params[:role] == 'owner' && !current_membership.owner?
+      if params[:role] == "owner" && !current_membership.owner?
         return render json: { error: "Only owners can promote to owner" }, status: :forbidden
       end
 
       if @membership.update(role: params[:role])
-        render json: @membership.as_json(include: { user: { only: [:id, :name, :email] } })
+        render json: @membership.as_json(include: { user: { only: [ :id, :name, :email ] } })
       else
         render json: { errors: @membership.errors.full_messages }, status: :unprocessable_entity
       end

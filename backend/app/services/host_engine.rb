@@ -26,7 +26,7 @@ class HostEngine
     Net::SSH.start(
       server.public_ip || server.host,
       SSH_USER,
-      key_data: [server.ssh_key],
+      key_data: [ server.ssh_key ],
       non_interactive: true,
       timeout: SSH_TIMEOUT,
       verify_host_key: :never,

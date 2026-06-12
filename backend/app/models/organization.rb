@@ -1,6 +1,6 @@
 class Organization < ApplicationRecord
-  belongs_to :owner, class_name: 'User'
-  has_many :memberships, class_name: 'OrganizationMembership', dependent: :destroy
+  belongs_to :owner, class_name: "User"
+  has_many :memberships, class_name: "OrganizationMembership", dependent: :destroy
   has_many :users, through: :memberships
   has_many :projects, dependent: :destroy
   has_many :git_sources, dependent: :destroy
@@ -14,7 +14,7 @@ class Organization < ApplicationRecord
   end
 
   def admins
-    users.where(organization_memberships: { role: [:admin, :owner] })
+    users.where(organization_memberships: { role: [ :admin, :owner ] })
   end
 
   def member_count

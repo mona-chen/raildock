@@ -25,7 +25,7 @@ RSpec.describe ManifestGenerator do
           git_repo: "https://github.com/test/app",
           branch: "main",
           config: {
-            "proxy" => { "enabled" => true, "proxyType" => "traefik", "portMappings" => [{ "hostPort" => 80, "containerPort" => 3000, "scheme" => "http" }] },
+            "proxy" => { "enabled" => true, "proxyType" => "traefik", "portMappings" => [ { "hostPort" => 80, "containerPort" => 3000, "scheme" => "http" } ] },
             "checks" => { "enabled" => true, "wait" => 5, "timeout" => 30, "skipList" => [] },
             "letsencrypt" => { "enabled" => true, "email" => "admin@example.com" }
           }

@@ -117,8 +117,8 @@ class RestartJob < ApplicationJob
       # Re-establish this service's network aliases
       container = HostEngine.new(linking_service.project.server).dokku_container_name(linking_service.dokku_app_name)
       if container.present?
-        alias_name = linking_service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-        network_manager.connect_container_with_aliases(container, [alias_name])
+        alias_name = linking_service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
+        network_manager.connect_container_with_aliases(container, [ alias_name ])
       end
     end
   end

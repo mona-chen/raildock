@@ -39,13 +39,13 @@ class ProjectNetworkManager
     engine.run("network:set #{service.dokku_app_name} attach-post-create #{network_name}")
 
     container = host_engine.dokku_container_name(service.dokku_app_name)
-    connect_container_with_aliases(container, [service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')])
+    connect_container_with_aliases(container, [ service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-") ])
 
     if service.linked_services.any?
       service.linked_services.each do |linked|
         linked_container = host_engine.dokku_container_name(linked.dokku_app_name)
-        linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-        connect_container_with_aliases(linked_container, [linked_alias])
+        linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
+        connect_container_with_aliases(linked_container, [ linked_alias ])
       end
     end
 
@@ -62,7 +62,7 @@ class ProjectNetworkManager
   end
 
   def build_internal_hostname(service)
-    service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+    service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
   end
 
   def inject_internal_hostnames(service)
@@ -88,8 +88,8 @@ class ProjectNetworkManager
         next
       end
 
-      alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-      connect_container_with_aliases(container, [alias_name])
+      alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
+      connect_container_with_aliases(container, [ alias_name ])
     end
   end
 

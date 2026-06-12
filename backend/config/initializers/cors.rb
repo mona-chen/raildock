@@ -12,10 +12,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
 
     resource "/api/*",
       headers: :any,
-      methods: [:get, :post, :put, :patch, :delete, :options, :head]
+      methods: [ :get, :post, :put, :patch, :delete, :options, :head ]
 
     resource "/cable",
       headers: :any,
-      methods: [:get, :post, :options]
+      methods: [ :get, :post, :options ]
   end
 end

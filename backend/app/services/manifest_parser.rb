@@ -135,7 +135,7 @@ class ManifestParser
       env: normalize_app_json_env(hash["env"]),
       domains: [],
       storage: [],
-      proxy: { enabled: true, type: "traefik", ports: [{ host: 80, container: 3000 }] },
+      proxy: { enabled: true, type: "traefik", ports: [ { host: 80, container: 3000 } ] },
       scaling: normalize_app_json_formation(hash["formation"]),
       limits: {},
       checks: normalize_app_json_healthchecks(hash["healthchecks"]),
@@ -315,7 +315,7 @@ class ManifestParser
   end
 
   def normalize_proxy(proxy)
-    defaults = { enabled: true, type: "traefik", ports: [{ host: 80, container: 3000 }] }
+    defaults = { enabled: true, type: "traefik", ports: [ { host: 80, container: 3000 } ] }
     return defaults unless proxy.is_a?(Hash)
 
     ports = (proxy["ports"] || proxy[:ports] || []).map do |p|
@@ -458,7 +458,7 @@ def normalize_env(env)
     # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex (cached per call site)
     result.gsub!(/\$\{\{\s*secret\(\s*(\d+)?\s*\)\s*\}\}/) do
       length = ($1 || "32").to_i
-      length = [1, [length, 128].min].max
+      length = [ 1, [ length, 128 ].min ].max
       cache_key = "secret_#{length}"
       @secret_cache[cache_key] ||= SecureRandom.hex(length / 2)
     end
@@ -467,8 +467,8 @@ def normalize_env(env)
     result.gsub!(/\$\{\{\s*randomInt\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\}\}/) do
       min = $1.to_i
       max = $2.to_i
-      min = [min, max].min
-      max = [min, max].max
+      min = [ min, max ].min
+      max = [ min, max ].max
       rand(min..max).to_s
     end
 
@@ -523,7 +523,7 @@ def normalize_env(env)
     # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex
     result.gsub!(/\$\{\{\s*secret\(\s*(\d+)?\s*\)\s*\}\}/) do
       length = ($1 || "32").to_i
-      length = [1, [length, 128].min].max
+      length = [ 1, [ length, 128 ].min ].max
       SecureRandom.hex(length / 2)
     end
 
@@ -531,8 +531,8 @@ def normalize_env(env)
     result.gsub!(/\$\{\{\s*randomInt\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\}\}/) do
       min = $1.to_i
       max = $2.to_i
-      min = [min, max].min
-      max = [min, max].max
+      min = [ min, max ].min
+      max = [ min, max ].max
       rand(min..max).to_s
     end
 

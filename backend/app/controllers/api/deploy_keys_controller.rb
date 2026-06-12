@@ -9,7 +9,7 @@ module Api
         keys = DeployKey.where(user_id: current_user.id)
                          .or(DeployKey.where(organization_id: current_user.organization_ids))
       end
-      render json: keys.as_json(except: [:private_key_ciphertext])
+      render json: keys.as_json(except: [ :private_key_ciphertext ])
     end
 
     def create
@@ -30,7 +30,7 @@ module Api
       end
 
       if key.save
-        render json: key.as_json(except: [:private_key_ciphertext]), status: :created
+        render json: key.as_json(except: [ :private_key_ciphertext ]), status: :created
       else
         render json: { errors: key.errors.full_messages }, status: :unprocessable_entity
       end

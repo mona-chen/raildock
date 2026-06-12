@@ -13,7 +13,7 @@ class CreateDeployKeys < ActiveRecord::Migration[8.1]
     end
 
     add_index :deploy_keys, :fingerprint
-    add_index :deploy_keys, [:organization_id, :name], unique: true, where: "organization_id IS NOT NULL"
-    add_index :deploy_keys, [:user_id, :name], unique: true, where: "user_id IS NOT NULL"
+    add_index :deploy_keys, [ :organization_id, :name ], unique: true, where: "organization_id IS NOT NULL"
+    add_index :deploy_keys, [ :user_id, :name ], unique: true, where: "user_id IS NOT NULL"
   end
 end

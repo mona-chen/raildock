@@ -30,7 +30,7 @@ RSpec.describe DokkuEngine, type: :service do
     allow(ssh).to receive(:loop)
 
     allow(Net::SSH).to receive(:start)
-      .with(server.host, "dokku", hash_including(key_data: [server.ssh_key], non_interactive: true))
+      .with(server.host, "dokku", hash_including(key_data: [ server.ssh_key ], non_interactive: true))
       .and_yield(ssh)
 
     channel

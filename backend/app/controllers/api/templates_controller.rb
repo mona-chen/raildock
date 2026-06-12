@@ -9,10 +9,10 @@ module Api
 
     def deploy
       template = TemplateLoader.find(params[:id])
-      return render json: { error: 'Template not found' }, status: :not_found unless template
+      return render json: { error: "Template not found" }, status: :not_found unless template
 
       project = scoped_projects.find_by(id: params[:project_id])
-      return render json: { error: 'Project not found' }, status: :not_found unless project
+      return render json: { error: "Project not found" }, status: :not_found unless project
 
       created = template.services.map do |svc_def|
         is_app = svc_def[:category] == "app"
@@ -260,7 +260,7 @@ module Api
     private
 
     def topo_sort_by_depends_on(services)
-      svc_map = services.map { |s| [s.name, s] }.to_h
+      svc_map = services.map { |s| [ s.name, s ] }.to_h
       in_degree = Hash.new(0)
       dependents = Hash.new { |h, k| h[k] = [] }
 

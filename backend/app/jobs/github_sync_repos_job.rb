@@ -8,8 +8,8 @@ class GithubSyncReposJob < ApplicationJob
     # Mark sync as in-progress
     git_source.update!(
       metadata: (git_source.metadata || {}).merge(
-        'sync_started_at' => Time.now.iso8601,
-        'sync_error' => nil
+        "sync_started_at" => Time.now.iso8601,
+        "sync_error" => nil
       )
     )
 
@@ -17,18 +17,18 @@ class GithubSyncReposJob < ApplicationJob
 
     git_source.update!(
       metadata: (git_source.metadata || {}).merge(
-        'repos' => repos,
-        'sync_completed_at' => Time.now.iso8601,
-        'sync_error' => nil,
-        'repo_count' => repos.length
+        "repos" => repos,
+        "sync_completed_at" => Time.now.iso8601,
+        "sync_error" => nil,
+        "repo_count" => repos.length
       )
     )
   rescue => e
     Rails.logger.error "GithubSyncReposJob failed for GitSource #{git_source_id}: #{e.message}"
     git_source&.update!(
       metadata: (git_source.metadata || {}).merge(
-        'sync_error' => e.message,
-        'sync_failed_at' => Time.now.iso8601
+        "sync_error" => e.message,
+        "sync_failed_at" => Time.now.iso8601
       )
     )
   end

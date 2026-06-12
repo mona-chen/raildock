@@ -23,6 +23,6 @@ class ActivityEvent < ApplicationRecord
   end
 
   def as_json(options = {})
-    super(options.merge(methods: [:timestamp]))
+    super(options.merge(methods: [ :timestamp ]))
   end
 end

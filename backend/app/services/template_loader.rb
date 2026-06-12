@@ -148,7 +148,7 @@ class TemplateLoader
         description: description || "",
         source: source,
         raw: raw,
-        errors: ["Failed to parse: #{e.message}"]
+        errors: [ "Failed to parse: #{e.message}" ]
       )
     end
 

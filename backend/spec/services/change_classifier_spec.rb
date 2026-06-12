@@ -23,17 +23,17 @@ RSpec.describe ChangeClassifier do
 
   describe '.aggregate' do
     it 'returns reload for reload-only changes' do
-      changes = [{ field: :env }, { field: :domains }]
+      changes = [ { field: :env }, { field: :domains } ]
       expect(described_class.aggregate(changes)).to eq(:reload)
     end
 
     it 'returns restart when restart is present' do
-      changes = [{ field: :env }, { field: :scaling }]
+      changes = [ { field: :env }, { field: :scaling } ]
       expect(described_class.aggregate(changes)).to eq(:restart)
     end
 
     it 'returns redeploy when redeploy is present' do
-      changes = [{ field: :env }, { field: :builder }]
+      changes = [ { field: :env }, { field: :builder } ]
       expect(described_class.aggregate(changes)).to eq(:redeploy)
     end
   end

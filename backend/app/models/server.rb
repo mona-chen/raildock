@@ -81,8 +81,8 @@ class Server < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains],
-      except: [:ssh_key_ciphertext]
+      methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains ],
+      except: [ :ssh_key_ciphertext ]
     ))
   end
 end

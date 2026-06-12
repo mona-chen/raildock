@@ -3,30 +3,30 @@ module Api
     # Skip auth for webhooks — they use token-based verification
     skip_before_action :authenticate_user!, raise: false
 
-    before_action :verify_webhook_signature!, only: [:deploy]
+    before_action :verify_webhook_signature!, only: [ :deploy ]
 
     def deploy
       # Extract repo info from webhook payload (GitHub/GitLab format)
       repository = params[:repository] || {}
       project = params[:project] || {}
-      repo_name = repository[:full_name] || repository['full_name'] || project[:path_with_namespace] || project['path_with_namespace']
+      repo_name = repository[:full_name] || repository["full_name"] || project[:path_with_namespace] || project["path_with_namespace"]
       ref = params[:ref].to_s
-      branch = ref.delete_prefix('refs/heads/').presence || params[:branch].presence || 'main'
+      branch = ref.delete_prefix("refs/heads/").presence || params[:branch].presence || "main"
 
       return head :bad_request unless repo_name
 
       # Find services linked to this repo that have auto_deploy enabled
       services = Service.matching_repo(
         repo_name,
-        repository[:clone_url] || repository['clone_url'],
-        repository[:ssh_url] || repository['ssh_url'],
-        repository[:html_url] || repository['html_url'],
-        project[:git_http_url] || project['git_http_url'],
-        project[:git_ssh_url] || project['git_ssh_url'],
+        repository[:clone_url] || repository["clone_url"],
+        repository[:ssh_url] || repository["ssh_url"],
+        repository[:html_url] || repository["html_url"],
+        project[:git_http_url] || project["git_http_url"],
+        project[:git_ssh_url] || project["git_ssh_url"],
       ).where(auto_deploy: true)
 
       services = services.select do |service|
-        expected_branch = service.branch.presence || repository[:default_branch] || repository['default_branch'] || project[:default_branch] || project['default_branch'] || branch
+        expected_branch = service.branch.presence || repository[:default_branch] || repository["default_branch"] || project[:default_branch] || project["default_branch"] || branch
         expected_branch == branch
       end
 
@@ -38,7 +38,7 @@ module Api
           started_at: Time.current,
           branch: branch,
           commit_sha: params[:after].presence || params[:checkout_sha].presence,
-          triggered_by: 'webhook'
+          triggered_by: "webhook"
         )
         DeploymentJob.perform_later(service.id, deployment.id)
         service.update!(status: :deploying)
@@ -51,13 +51,13 @@ module Api
       service = Service.find_by(id: params[:id], webhook_token: params[:token])
       return head :not_found unless service
 
-      branch = params[:branch] || service.branch || 'main'
+      branch = params[:branch] || service.branch || "main"
 
       deployment = service.deployments.create!(
         status: :pending,
         started_at: Time.current,
         branch: branch,
-        triggered_by: 'webhook'
+        triggered_by: "webhook"
       )
       DeploymentJob.perform_later(service.id, deployment.id)
       service.update!(status: :deploying)
@@ -80,9 +80,9 @@ module Api
       request.body.rewind
 
       # GitHub: X-Hub-Signature-256
-      github_sig = request.headers['X-Hub-Signature-256']
+      github_sig = request.headers["X-Hub-Signature-256"]
       if github_sig.present?
-        expected = 'sha256=' + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), secret, payload)
+        expected = "sha256=" + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha256"), secret, payload)
         unless ActiveSupport::SecurityUtils.secure_compare(expected, github_sig)
           render json: { error: "Invalid signature" }, status: :forbidden
           return
@@ -91,7 +91,7 @@ module Api
       end
 
       # GitLab: X-Gitlab-Token
-      gitlab_token = request.headers['X-Gitlab-Token']
+      gitlab_token = request.headers["X-Gitlab-Token"]
       if gitlab_token.present?
         unless ActiveSupport::SecurityUtils.secure_compare(secret, gitlab_token)
           render json: { error: "Invalid token" }, status: :forbidden
@@ -101,7 +101,7 @@ module Api
       end
 
       # Generic: X-Webhook-Secret or token query param
-      generic_token = request.headers['X-Webhook-Secret'] || params[:token]
+      generic_token = request.headers["X-Webhook-Secret"] || params[:token]
       if generic_token.present?
         unless ActiveSupport::SecurityUtils.secure_compare(secret, generic_token)
           render json: { error: "Invalid token" }, status: :forbidden

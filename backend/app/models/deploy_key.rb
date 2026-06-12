@@ -22,9 +22,9 @@ class DeployKey < ApplicationRecord
 
   def must_belong_to_org_or_user
     if organization_id.blank? && user_id.blank?
-      errors.add(:base, 'Must belong to an organization or a user')
+      errors.add(:base, "Must belong to an organization or a user")
     elsif organization_id.present? && user_id.present?
-      errors.add(:base, 'Cannot belong to both an organization and a user')
+      errors.add(:base, "Cannot belong to both an organization and a user")
     end
   end
 end

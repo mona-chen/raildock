@@ -7,7 +7,7 @@ module Api
         github_app: {
           enabled: GithubAppService.enabled?,
           app_slug: GithubAppService.app_slug,
-          client_id: GithubAppService.client_id,
+          client_id: GithubAppService.client_id
         }
       }
     end

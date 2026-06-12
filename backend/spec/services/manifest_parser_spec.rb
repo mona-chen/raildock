@@ -121,7 +121,7 @@ RSpec.describe ManifestParser do
         expect(result.format_detected).to eq("raildock.json")
         svc = result.find_service("api")
         expect(svc[:proxy][:type]).to eq("traefik")
-        expect(svc[:proxy][:ports]).to eq([{ host: 80, container: 3000, scheme: "http" }])
+        expect(svc[:proxy][:ports]).to eq([ { host: 80, container: 3000, scheme: "http" } ])
       end
     end
 
@@ -263,7 +263,7 @@ RSpec.describe ManifestParser do
 
     it 'resolves [RAILDOCK_PUBLIC_DOMAIN] to service domain' do
       domain = double(:domain, hostname: 'myapp.up.railway.app')
-      service = double(:service, domains: [domain])
+      service = double(:service, domains: [ domain ])
       result = resolve_runtime('[RAILDOCK_PUBLIC_DOMAIN]', service:)
       expect(result).to eq('myapp.up.railway.app')
     end
@@ -277,8 +277,8 @@ RSpec.describe ManifestParser do
     it 'resolves [LINKED:svc:VAR] to linked service env var' do
       linked_svc = double(:service, name: 'postgres')
       ev = double(:ev, key: 'DATABASE_URL', value: 'postgres://user:pass@host/db')
-      allow(linked_svc).to receive(:environment_variables).and_return([ev])
-      result = resolve_runtime('[LINKED:postgres:DATABASE_URL]', linked_services: [linked_svc])
+      allow(linked_svc).to receive(:environment_variables).and_return([ ev ])
+      result = resolve_runtime('[LINKED:postgres:DATABASE_URL]', linked_services: [ linked_svc ])
       expect(result).to eq('postgres://user:pass@host/db')
     end
 
@@ -289,7 +289,7 @@ RSpec.describe ManifestParser do
 
     it 'returns marker unchanged when variable not found on linked service' do
       linked_svc = double(:service, name: 'postgres', environment_variables: [])
-      result = resolve_runtime('[LINKED:postgres:MISSING_VAR]', linked_services: [linked_svc])
+      result = resolve_runtime('[LINKED:postgres:MISSING_VAR]', linked_services: [ linked_svc ])
       expect(result).to eq('[LINKED:postgres:MISSING_VAR]')
     end
 
@@ -300,16 +300,16 @@ RSpec.describe ManifestParser do
 
     it 'resolves multiple markers in one value' do
       svc_domain = double(:domain, hostname: 'app.example.com')
-      app_service = double(:service, domains: [svc_domain])
+      app_service = double(:service, domains: [ svc_domain ])
       linked_svc = double(:service, name: 'postgres')
       ev = double(:ev, key: 'DATABASE_URL', value: 'postgres://user:pass@host/db')
-      allow(linked_svc).to receive(:environment_variables).and_return([ev])
+      allow(linked_svc).to receive(:environment_variables).and_return([ ev ])
 
       # Use pre-parsed markers (normal flow after ManifestParser.parse)
       result = resolve_runtime(
         'postgres://[LINKED:postgres:DATABASE_URL]@[RAILDOCK_PUBLIC_DOMAIN]',
         service: app_service,
-        linked_services: [linked_svc]
+        linked_services: [ linked_svc ]
       )
       expect(result).to eq('postgres://postgres://user:pass@host/db@app.example.com')
     end

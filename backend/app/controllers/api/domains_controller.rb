@@ -4,7 +4,7 @@ module Api
     before_action :set_and_authorize_service!
 
     def create
-      is_wildcard = domain_params[:hostname].to_s.start_with?('*.')
+      is_wildcard = domain_params[:hostname].to_s.start_with?("*.")
       target = domain_params[:target_port].presence || @service.detected_port || 80
 
       domain = @service.domains.create!(

@@ -46,7 +46,7 @@ RSpec.describe ManifestSchema do
       let(:hash) do
         {
           "name" => "my-app",
-          "buildpacks" => ["heroku/ruby"],
+          "buildpacks" => [ "heroku/ruby" ],
           "formation" => { "web" => { "quantity" => 1 } }
         }
       end

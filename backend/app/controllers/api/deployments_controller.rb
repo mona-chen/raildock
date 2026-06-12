@@ -1,7 +1,7 @@
 module Api
   class DeploymentsController < BaseController
     include Authorizable
-    before_action :set_and_authorize_service!, only: [:index]
+    before_action :set_and_authorize_service!, only: [ :index ]
 
     def index
       @deployments = @service.deployments.order(created_at: :desc).limit(20)

@@ -41,7 +41,7 @@ class ManifestGenerator
     h = {
       name: svc.name,
       category: svc.service_type,
-      subtype: svc.subtype,
+      subtype: svc.subtype
     }
 
     h[:builder] = svc.builder if svc.builder.present?
@@ -63,7 +63,7 @@ class ManifestGenerator
     # Env vars (skip dokku-internal link vars)
     user_env = svc.environment_variables.reject(&:is_dokku_internal)
     if user_env.any?
-      h[:env] = user_env.map { |ev| [ev.key, ev.value] }.to_h
+      h[:env] = user_env.map { |ev| [ ev.key, ev.value ] }.to_h
     end
 
     # Domains
@@ -83,7 +83,7 @@ class ManifestGenerator
     if proxy.present?
       h[:proxy] = {
         enabled: proxy["enabled"] != false,
-        type: proxy["proxyType"] || proxy["type"] || "traefik",
+        type: proxy["proxyType"] || proxy["type"] || "traefik"
       }
       ports = proxy["portMappings"] || proxy["ports"] || []
       if ports.any?
@@ -95,7 +95,7 @@ class ManifestGenerator
 
     # Scaling
     if svc.process_types.any?
-      h[:scaling] = svc.process_types.map { |pt| [pt.name, pt.quantity] }.to_h
+      h[:scaling] = svc.process_types.map { |pt| [ pt.name, pt.quantity ] }.to_h
     end
 
     # Resource limits
@@ -121,7 +121,7 @@ class ManifestGenerator
         enabled: checks["enabled"] != false,
         wait: checks["wait"] || 5,
         timeout: checks["timeout"] || 30,
-        skip: checks["skipList"] || checks["skip"] || [],
+        skip: checks["skipList"] || checks["skip"] || []
       }
     end
 
@@ -154,7 +154,7 @@ class ManifestGenerator
         enabled: le["enabled"] == true,
         email: le["email"],
         staging: le["staging"] == true,
-        auto_renew: le["autoRenew"] != false,
+        auto_renew: le["autoRenew"] != false
       }.compact
     end
 

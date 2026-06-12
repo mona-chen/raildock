@@ -28,7 +28,7 @@ class AddManifestSupport < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :manifest_changes, [:project_id, :status]
-    add_index :manifest_changes, [:project_id, :service_name]
+    add_index :manifest_changes, [ :project_id, :status ]
+    add_index :manifest_changes, [ :project_id, :service_name ]
   end
 end

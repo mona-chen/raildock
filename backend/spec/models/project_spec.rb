@@ -39,8 +39,8 @@ RSpec.describe Project, type: :model do
 
   describe "#shared_vars" do
     it "returns the stored value when present" do
-      project = build(:project, shared_vars: ["DATABASE_URL"])
-      expect(project.shared_vars).to eq(["DATABASE_URL"])
+      project = build(:project, shared_vars: [ "DATABASE_URL" ])
+      expect(project.shared_vars).to eq([ "DATABASE_URL" ])
     end
 
     it "returns an empty array when nil" do

@@ -15,10 +15,10 @@ end
 # For hex keys, decode them. For raw keys, use them directly.
 if raw_key.match?(/\A[a-fA-F0-9]+\z/) && raw_key.length == 64
   # 64 hex chars = 32 bytes binary
-  Lockbox.master_key = [raw_key].pack('H*')
+  Lockbox.master_key = [ raw_key ].pack("H*")
 elsif raw_key.match?(/\A[a-fA-F0-9]+\z/) && raw_key.length == 32
   # 32 hex chars = 16 bytes. Double it for 32 bytes.
-  Lockbox.master_key = [raw_key + raw_key].pack('H*')
+  Lockbox.master_key = [ raw_key + raw_key ].pack("H*")
 elsif raw_key.length >= 32
   # Raw string - use first 32 bytes
   Lockbox.master_key = raw_key[0, 32].b

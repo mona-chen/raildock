@@ -6,7 +6,7 @@ module DokkuEngineConstants
   SSH_TIMEOUT = 30
   SSH_CONNECTION_TIMEOUT = 10
   SSH_USER = "dokku"
-  
+
   # Regex patterns for parsing Dokku output
   DOKKU_VERSION_REGEX = /dokku version (\S+)/
   DOCKER_VERSION_REGEX = /Docker version ([\d\.]+)/
@@ -438,7 +438,7 @@ class DokkuEngine
   # ── Resource Limits ──────────────────────────
   # Dokku resource commands require --process-type flag before the process type value
   def resource_limit(app_name, process_type, memory: nil, cpu: nil, nvidia_gpu: nil)
-    args = ["--process-type #{escape(process_type)}"]
+    args = [ "--process-type #{escape(process_type)}" ]
     args << "--memory #{escape(memory)}" if memory
     args << "--cpu #{escape(cpu)}" if cpu
     args << "--nvidia-gpu #{nvidia_gpu.to_i}" if nvidia_gpu
@@ -446,7 +446,7 @@ class DokkuEngine
   end
 
   def resource_reserve(app_name, process_type, memory: nil, cpu: nil)
-    args = ["--process-type #{escape(process_type)}"]
+    args = [ "--process-type #{escape(process_type)}" ]
     args << "--memory #{escape(memory)}" if memory
     args << "--cpu #{escape(cpu)}" if cpu
     run("resource:reserve #{escape(app_name)} #{args.join(" ")}")
@@ -755,10 +755,10 @@ class DokkuEngine
       server.host,
       server.ssh_user || DokkuEngineConstants::SSH_USER,
       {
-        key_data: [server.ssh_key],
+        key_data: [ server.ssh_key ],
         non_interactive: true,
         timeout: DokkuEngineConstants::SSH_TIMEOUT,
-        verify_host_key: :never,
+        verify_host_key: :never
       }
     ]
   end
@@ -831,10 +831,10 @@ class DokkuTerminalSession
     return false if @server.ssh_key.blank?
 
     opts = {
-      key_data: [@server.ssh_key],
+      key_data: [ @server.ssh_key ],
       non_interactive: true,
       timeout: DokkuEngineConstants::SSH_TIMEOUT,
-      verify_host_key: :never,
+      verify_host_key: :never
     }
 
     @ssh = Net::SSH.start(@server.host, @server.ssh_user || DokkuEngineConstants::SSH_USER, opts)

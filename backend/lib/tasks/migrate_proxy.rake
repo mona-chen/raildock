@@ -1,7 +1,7 @@
 namespace :raildock do
   desc "Migrate all existing Dokku apps from nginx to traefik proxy"
   task migrate_proxy_to_traefik: :environment do
-    servers = Server.where.not(ssh_key: [nil, ""])
+    servers = Server.where.not(ssh_key: [ nil, "" ])
 
     if servers.empty?
       puts "No connected servers found. Nothing to do."

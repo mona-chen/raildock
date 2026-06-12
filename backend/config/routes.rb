@@ -11,7 +11,7 @@ Rails.application.routes.draw do
     post "users", to: "users#create"
 
     resources :projects do
-      resource :manifest, only: [:show, :update] do
+      resource :manifest, only: [ :show, :update ] do
         post :preview, on: :collection
         post :apply, on: :collection
         get :status, on: :collection

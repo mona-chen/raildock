@@ -2,7 +2,7 @@ module Api
   class ServersController < BaseController
     include Authorizable
 
-    before_action :set_server, only: [:show, :update, :destroy, :validate, :metrics]
+    before_action :set_server, only: [ :show, :update, :destroy, :validate, :metrics ]
 
     def index
       authorize_server!(action: :read)

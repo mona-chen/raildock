@@ -122,14 +122,14 @@ RSpec.describe "Api::ProjectsController", type: :request do
   describe "PATCH /api/projects/:id/shared_vars" do
     context "when unauthenticated" do
       it "returns 401" do
-        patch "/api/projects/#{project.id}/shared_vars", params: { vars: ["KEY=value"] }
+        patch "/api/projects/#{project.id}/shared_vars", params: { vars: [ "KEY=value" ] }
         expect(response).to have_http_status(:unauthorized)
       end
     end
 
     context "when authenticated" do
       it "updates shared vars" do
-        patch "/api/projects/#{project.id}/shared_vars", params: { vars: ["KEY=value", "FOO=bar"] }, headers: auth_headers(user)
+        patch "/api/projects/#{project.id}/shared_vars", params: { vars: [ "KEY=value", "FOO=bar" ] }, headers: auth_headers(user)
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -145,7 +145,7 @@ RSpec.describe "Api::ProjectsController", type: :request do
       end
 
       it "returns 404 for non-existent project" do
-        patch "/api/projects/999999/shared_vars", params: { vars: ["KEY=value"] }, headers: auth_headers(user)
+        patch "/api/projects/999999/shared_vars", params: { vars: [ "KEY=value" ] }, headers: auth_headers(user)
 
         expect(response).to have_http_status(:not_found)
       end

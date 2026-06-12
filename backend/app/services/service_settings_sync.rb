@@ -49,8 +49,8 @@ class ServiceSettingsSync
   end
 
   def sync_port_mappings(old_mappings, new_mappings)
-    old_set = old_mappings.map { |m| [m["scheme"], m["hostPort"].to_s, m["containerPort"].to_s] }.to_set
-    new_set = new_mappings.map { |m| [m["scheme"], m["hostPort"].to_s, m["containerPort"].to_s] }.to_set
+    old_set = old_mappings.map { |m| [ m["scheme"], m["hostPort"].to_s, m["containerPort"].to_s ] }.to_set
+    new_set = new_mappings.map { |m| [ m["scheme"], m["hostPort"].to_s, m["containerPort"].to_s ] }.to_set
 
     (old_set - new_set).each do |scheme, host_port, container_port|
       @engine.ports_remove(@app_name, scheme, host_port, container_port)

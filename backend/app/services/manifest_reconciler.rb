@@ -191,11 +191,11 @@ class ManifestReconciler
         restart_policy: svc.restart_policy,
         restart_max_retries: svc.restart_max_retries,
         auto_deploy: svc.auto_deploy,
-        env: svc.environment_variables.map { |ev| [ev.key, ev.value] }.to_h,
+        env: svc.environment_variables.map { |ev| [ ev.key, ev.value ] }.to_h,
         domains: svc.domains.map(&:hostname),
         storage: svc.storage_mounts.map { |sm| { host: sm.host_path, container: sm.container_path } },
         proxy: svc.config&.dig("proxy") || {},
-        scaling: svc.process_types.map { |pt| [pt.name, pt.quantity] }.to_h,
+        scaling: svc.process_types.map { |pt| [ pt.name, pt.quantity ] }.to_h,
         limits: svc.config&.dig("resourceLimits") || {},
         reservations: svc.config&.dig("resourceReservations") || {},
         checks: svc.config&.dig("checks") || {},
@@ -248,12 +248,12 @@ class ManifestReconciler
   end
 
   def diff_links
-    desired_links = @desired.links.map { |l| [l[:from], l[:to]].sort.join("->") }.to_set
+    desired_links = @desired.links.map { |l| [ l[:from], l[:to] ].sort.join("->") }.to_set
     actual_links = Set.new
 
     @project.services.includes(:linked_services).find_each do |svc|
       svc.linked_services.each do |linked|
-        actual_links << [svc.name, linked.name].sort.join("->")
+        actual_links << [ svc.name, linked.name ].sort.join("->")
       end
     end
 
@@ -516,15 +516,15 @@ class ManifestReconciler
     # Wait for to_svc container to be running and set its alias
     to_container = wait_for_container(to_svc.dokku_app_name, host_engine)
     if to_container
-      to_alias = to_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-      network_manager.connect_container_with_aliases(to_container, [to_alias])
+      to_alias = to_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
+      network_manager.connect_container_with_aliases(to_container, [ to_alias ])
     end
 
     # Also ensure from_svc's container has the correct alias
     from_container = wait_for_container(from_svc.dokku_app_name, host_engine)
     if from_container
-      from_alias = from_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
-      network_manager.connect_container_with_aliases(from_container, [from_alias])
+      from_alias = from_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
+      network_manager.connect_container_with_aliases(from_container, [ from_alias ])
     end
   rescue => e
     Rails.logger.warn "Failed to ensure link aliases for #{from_svc.name} -> #{to_svc.name}: #{e.message}"
@@ -632,8 +632,8 @@ class ManifestReconciler
     desired = change.new_value || []
     actual = change.old_value || []
 
-    desired_map = desired.map { |d| [d[:host], d[:container]] }
-    actual_map = actual.map { |a| [a[:host], a[:container]] }
+    desired_map = desired.map { |d| [ d[:host], d[:container] ] }
+    actual_map = actual.map { |a| [ a[:host], a[:container] ] }
 
     (desired - actual).each do |mount|
       engine.storage_mount(service.dokku_app_name, mount[:host], mount[:container])

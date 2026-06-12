@@ -60,8 +60,8 @@ module Api
 
       metadata = source.metadata || {}
       has_repos = source.repos.present?
-      sync_error = metadata['sync_error']
-      sync_failed_at = metadata['sync_failed_at']
+      sync_error = metadata["sync_error"]
+      sync_failed_at = metadata["sync_failed_at"]
       recently_failed = sync_failed_at.present? && Time.parse(sync_failed_at) > 5.minutes.ago rescue false
 
       # Trigger async refresh only if we don't have repos AND haven't recently failed

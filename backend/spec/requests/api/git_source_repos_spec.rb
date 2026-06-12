@@ -4,7 +4,7 @@ RSpec.describe "Api::GitSourcesController#repos", type: :request do
   let(:user) { create(:user) }
   let(:git_source) { create(:git_source, user: user, provider: "github", metadata: { "repos" => [
     { "id" => 1, "full_name" => "acme/app", "default_branch" => "main", "private" => false },
-    { "id" => 2, "full_name" => "acme/api", "default_branch" => "master", "private" => true },
+    { "id" => 2, "full_name" => "acme/api", "default_branch" => "master", "private" => true }
   ] }) }
 
   describe "GET /api/git-sources/:id/repos" do

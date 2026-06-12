@@ -7,6 +7,6 @@ class CreateServiceLinks < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :service_links, [:from_service_id, :to_service_id], unique: true
+    add_index :service_links, [ :from_service_id, :to_service_id ], unique: true
   end
 end

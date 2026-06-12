@@ -16,7 +16,7 @@ class Project < ApplicationRecord
 
   def set_network_name
     return if network_name.present?
-    slug = name.to_s.downcase.gsub(/[^a-z0-9]+/, '-').gsub(/^-|-$/, '').presence || "project"
+    slug = name.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/^-|-$/, "").presence || "project"
     update_column(:network_name, "rd-#{slug}-#{id}")
   end
 
@@ -50,7 +50,7 @@ class Project < ApplicationRecord
   scope :personal_for, ->(user) { where(organization_id: nil, user_id: user.id) }
 
   def set_default_environment
-    self.environment ||= 'production'
+    self.environment ||= "production"
   end
 
   def set_default_server
@@ -68,7 +68,7 @@ class Project < ApplicationRecord
       total: services.count,
       app: grouped["app"] || 0,
       database: grouped["database"] || 0,
-      cache: grouped["cache"] || 0,
+      cache: grouped["cache"] || 0
     }
   end
 
@@ -87,7 +87,7 @@ class Project < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [:service_ids, :service_counts, :shared_vars, :manifest_synced?, :has_deployments?]
+      methods: [ :service_ids, :service_counts, :shared_vars, :manifest_synced?, :has_deployments? ]
     ))
   end
 end

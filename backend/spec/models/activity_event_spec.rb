@@ -34,7 +34,7 @@ RSpec.describe ActivityEvent, type: :model do
       project = create(:project)
       old_event = create(:activity_event, project: project, created_at: 2.days.ago)
       new_event = create(:activity_event, project: project, created_at: 1.hour.ago)
-      expect(described_class.all).to eq([new_event, old_event])
+      expect(described_class.all).to eq([ new_event, old_event ])
     end
   end
 end

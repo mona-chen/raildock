@@ -1,15 +1,15 @@
-require 'tmpdir'
-require 'fileutils'
-require 'shellwords'
+require "tmpdir"
+require "fileutils"
+require "shellwords"
 
 class SshKeyService
-  KEY_TYPE = 'ed25519'.freeze
+  KEY_TYPE = "ed25519".freeze
   KEY_BITS = 256
 
   class << self
     def generate(name: nil)
-      dir = Dir.mktmpdir('raildock_ssh')
-      key_path = File.join(dir, 'deploy_key')
+      dir = Dir.mktmpdir("raildock_ssh")
+      key_path = File.join(dir, "deploy_key")
       comment = name ? "raildock-deploy-#{name}" : "raildock-deploy"
 
       begin
@@ -40,7 +40,7 @@ class SshKeyService
 
     def extract_fingerprint(public_key)
       # ssh-keygen -lf can extract fingerprint from public key
-      Tempfile.create(['pubkey', '.pub']) do |f|
+      Tempfile.create([ "pubkey", ".pub" ]) do |f|
         f.write(public_key)
         f.flush
         output, status = Open3.capture2("ssh-keygen -lf #{f.path}")

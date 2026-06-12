@@ -1,16 +1,16 @@
 module Api
   class OrganizationsController < BaseController
-    before_action :set_organization, only: [:show, :update, :destroy]
+    before_action :set_organization, only: [ :show, :update, :destroy ]
 
     def index
       organizations = current_user.organizations.includes(:owner).order(:name)
-      render json: organizations.as_json(include: { owner: { only: [:id, :name, :email] } })
+      render json: organizations.as_json(include: { owner: { only: [ :id, :name, :email ] } })
     end
 
     def show
       authorize_organization_access!(@organization)
       return if performed?
-      render json: @organization.as_json(include: { owner: { only: [:id, :name, :email] } })
+      render json: @organization.as_json(include: { owner: { only: [ :id, :name, :email ] } })
     end
 
     def create

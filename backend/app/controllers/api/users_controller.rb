@@ -15,7 +15,7 @@ module Api
       user = User.new(user_params.merge(admin: true))
       if user.save
         ensure_local_dokku_server
-        render json: { token: user.generate_jwt, user: user.as_json(only: [:id, :email, :name]) }, status: :created
+        render json: { token: user.generate_jwt, user: user.as_json(only: [ :id, :email, :name ]) }, status: :created
       else
         render json: { error: user.errors.full_messages.join(", ") }, status: :unprocessable_entity
       end

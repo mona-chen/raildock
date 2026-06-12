@@ -20,29 +20,29 @@ class GitSource < ApplicationRecord
   end
 
   def repos
-    metadata&.[]('repos') || []
+    metadata&.[]("repos") || []
   end
 
   def repos=(value)
     self.metadata ||= {}
-    self.metadata['repos'] = value
+    self.metadata["repos"] = value
   end
 
   def github_app?
-    provider == 'github' && installation_id.present?
+    provider == "github" && installation_id.present?
   end
 
   def as_json(options = {})
-    super(options.merge(except: [:access_token_ciphertext, :refresh_token_ciphertext]))
+    super(options.merge(except: [ :access_token_ciphertext, :refresh_token_ciphertext ]))
   end
 
   private
 
   def must_belong_to_org_or_user
     if organization_id.blank? && user_id.blank?
-      errors.add(:base, 'Must belong to an organization or a user')
+      errors.add(:base, "Must belong to an organization or a user")
     elsif organization_id.present? && user_id.present?
-      errors.add(:base, 'Cannot belong to both an organization and a user')
+      errors.add(:base, "Cannot belong to both an organization and a user")
     end
   end
 
@@ -51,6 +51,6 @@ class GitSource < ApplicationRecord
     return if installation_id.present?
     return if access_token.present?
 
-    errors.add(:base, 'Must have an access token or installation ID')
+    errors.add(:base, "Must have an access token or installation ID")
   end
 end

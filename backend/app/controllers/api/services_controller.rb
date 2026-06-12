@@ -740,7 +740,7 @@ module Api
     # to use the linked service's alias hostname (e.g. redis, postgres) and sync
     # credentials from the linked service's env vars.
     def sync_linked_service_env_vars(engine, app_service, linked_service)
-      alias_name = linked_service.name.to_s.downcase.gsub(/[^a-z0-9-]/, '-')
+      alias_name = linked_service.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
 
       # Update any app env var that matches known host patterns for this service name
       app_service.environment_variables.where(is_dokku_internal: false).find_each do |ev|
@@ -861,14 +861,14 @@ module Api
     def config_permitted_params
       [
         :cron,
-        proxy: [:enabled, :proxyType, { portMappings: [:scheme, :hostPort, :containerPort] }],
-        dockerOptions: [:phase, :option],
-        resourceLimits: [:processType, :cpu, :memory, :memorySwap, :nvidiaGpu],
-        resourceReservations: [:processType, :cpu, :memory, :memorySwap, :nvidiaGpu],
-        checks: [:enabled, :wait, :timeout, { skipList: [] }],
-        letsencrypt: [:enabled, :email, :staging, :autoRenew],
-        git: [:deployBranch, :keepGitDir, :revEnvVar],
-        traefik: [:labels, :properties]
+        proxy: [ :enabled, :proxyType, { portMappings: [ :scheme, :hostPort, :containerPort ] } ],
+        dockerOptions: [ :phase, :option ],
+        resourceLimits: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
+        resourceReservations: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
+        checks: [ :enabled, :wait, :timeout, { skipList: [] } ],
+        letsencrypt: [ :enabled, :email, :staging, :autoRenew ],
+        git: [ :deployBranch, :keepGitDir, :revEnvVar ],
+        traefik: [ :labels, :properties ]
       ]
     end
 
