@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to deploy (e.g. v1.0.0 or latest)"
+        description: "Version to deploy (e.g. v1.0.0, edge, or latest)"
         required: false
         default: "latest"
         type: string
@@ -15,14 +15,14 @@ env:
 
 jobs:
   deploy:
-    name: Deploy to ${{ inputs.version || 'latest' }}
+    name: Deploy ${{ inputs.version || 'latest' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Validate version
         run: |
           VERSION="${{ inputs.version || 'latest' }}"
-          if [[ ! "$VERSION" =~ ^(latest|v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
+          if [[ ! "$VERSION" =~ ^(latest|edge|main-[a-zA-Z0-9.-]+|v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
             echo "Invalid version: $VERSION"
             exit 1
           fi
@@ -38,50 +38,45 @@ jobs:
             set -e
 
             VERSION="${{ inputs.version || 'latest' }}"
-            if [ "$VERSION" = "latest" ]; then
-              IMG="$IMAGE:latest"
-            else
-              IMG="$IMAGE:$VERSION"
-            fi
+            echo "==> Deploying RailDock $VERSION"
 
-            echo "==> Pulling $IMG"
-            docker pull "$IMG"
+            cd "$SERVER_DIR"
 
-            echo "==> Creating network if needed"
-            docker network inspect raildock-network >/dev/null 2>&1 || \
-              docker network create raildock-network
+            # Remember the currently running image for rollback
+            PREVIOUS_IMAGE=$(docker inspect --format='{{.Config.Image}}' raildock-raildock-1 2>/dev/null || echo "")
+            echo "Previous image: ${PREVIOUS_IMAGE:-<none>}"
 
-            echo "==> Stopping existing container"
-            docker stop raildock 2>/dev/null || true
-            docker rm raildock 2>/dev/null || true
+            echo "==> Pulling $IMAGE:$VERSION"
+            RAILDOCK_VERSION="$VERSION" docker compose pull raildock
 
-            # Read existing env vars so we don't lose secrets
-            ENV_FILE="${SERVER_DIR}/.env"
-
-            echo "==> Starting RailDock $VERSION"
-            docker run -d \
-              --name raildock \
-              --restart unless-stopped \
-              --network raildock-network \
-              -p 80:80 \
-              --env-file "$ENV_FILE" \
-              "$IMG"
+            echo "==> Starting new container"
+            RAILDOCK_VERSION="$VERSION" docker compose up -d raildock
 
             echo "==> Waiting for health check..."
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost/health > /dev/null 2>&1; then
+            HEALTHY=false
+            for i in $(seq 1 60); do
+              if curl -sf http://localhost/api/health >/dev/null 2>&1; then
                 echo "Ready after ${i}s"
+                HEALTHY=true
                 break
-              fi
-              if [ $i -eq 30 ]; then
-                echo "Health check failed after 30s"
-                docker logs raildock | tail -20
-                exit 1
               fi
               sleep 1
             done
 
+            if [ "$HEALTHY" != "true" ]; then
+              echo "❌ Health check failed after 60s"
+              docker compose logs --tail 50 raildock
+
+              if [ -n "$PREVIOUS_IMAGE" ]; then
+                echo "==> Rolling back to previous image: $PREVIOUS_IMAGE"
+                RAILDOCK_VERSION="$PREVIOUS_IMAGE" docker compose up -d raildock
+                echo "Rollback complete"
+              fi
+              exit 1
+            fi
+
             echo "==> Checking API..."
             curl -sf http://localhost/api/health
+            echo
 
             echo "==> Deploy complete: $VERSION"

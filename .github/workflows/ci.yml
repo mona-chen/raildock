@@ -30,6 +30,26 @@ jobs:
       - name: Lint with RuboCop
         run: bundle exec rubocop --format github
 
+  backend-security:
+    name: Backend Security Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install
+      - name: Run Brakeman
+        run: bundle exec brakeman -q -w2 --no-pager
+      - name: Run bundler-audit
+        run: bundle exec bundler-audit --update
+
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -97,6 +117,8 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
       - name: Build for production
         run: npm run build
       - name: Upload build artifact
