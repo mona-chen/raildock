@@ -95,6 +95,7 @@ class TemplateDeployJob < ApplicationJob
 
   def create_links(project, template, engine, services)
     services_by_name = services.index_by(&:name)
+    host_engine = HostEngine.new(project.server)
 
     template.links.each do |link|
       from_svc = services_by_name[link[:from]]
@@ -107,21 +108,16 @@ class TemplateDeployJob < ApplicationJob
         link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
         ensure_success!(link_result, "link #{link[:from]} to #{link[:to]}")
 
-        sync_dokku_env_vars(engine, from_svc)
-        set_canonical_db_url(engine, from_svc, to_svc)
-        if to_svc.subtype == "postgres"
-          ensure_success!(
-            engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable"),
-            "set PGSSLMODE for #{from_svc.dokku_app_name}"
-          )
-          from_svc.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
-        end
+        linker = ServiceLinkSetup.new(project, engine, host_engine: host_engine)
+        setup_result = linker.setup!(from_svc, to_svc)
+        raise "Link setup failed: #{setup_result[:error]}" unless setup_result[:success]
       end
     end
   end
 
   def connect_networks(project, engine, services)
     network_manager = ProjectNetworkManager.new(project, engine)
+
     services.each do |service|
       next if service.service_type_database?
       service.reload
@@ -300,71 +296,7 @@ class TemplateDeployJob < ApplicationJob
     sorted + services.reject { |s| sorted.include?(s) }
   end
 
-  def set_canonical_db_url(engine, app_service, db_service)
-    info_method = "#{db_service.subtype}_info"
-    raise "No datastore info command for #{db_service.subtype}" unless engine.respond_to?(info_method)
 
-    info = engine.send(info_method, db_service.dokku_app_name)
-    raise "Unable to read #{db_service.subtype} connection URL" unless info[:success] && info[:dsn].present?
-
-    dsn = info[:dsn]
-    target_key = case db_service.subtype
-    when "postgres" then "DATABASE_URL"
-    when "mysql", "mariadb" then "DATABASE_URL"
-    when "redis" then "REDIS_URL"
-    when "mongo" then "MONGO_URL"
-    else nil
-    end
-
-    raise "No canonical URL key for #{db_service.subtype}" unless target_key
-
-    ensure_success!(
-      engine.config_set(app_service.dokku_app_name, target_key, dsn),
-      "set #{target_key} for #{app_service.dokku_app_name}"
-    )
-    ev = app_service.environment_variables.find_or_initialize_by(key: target_key)
-    ev.update!(value: dsn, source: "dokku-link")
-    Rails.logger.info "Set #{target_key} on #{app_service.dokku_app_name} to linked #{db_service.subtype} DSN"
-
-    # Rewrite host-related env vars that reference the linked service by name.
-    # Templates commonly set DATABASE_HOST = "mysql" (the service name), but the
-    # actual Dokku container hostname includes a random suffix and differs from
-    # the service name. Parse the actual host from the DSN and rewrite any env
-    # var whose value equals the (old) service name.
-    host = URI.parse(dsn).host
-    return unless host
-
-    app_service.environment_variables.where(value: db_service.name).each do |ev|
-      ensure_success!(
-        engine.config_set(app_service.dokku_app_name, ev.key, host),
-        "rewrite #{ev.key} for #{app_service.dokku_app_name}"
-      )
-      ev.update!(value: host)
-      Rails.logger.info "Rewrote #{ev.key} on #{app_service.dokku_app_name} from '#{db_service.name}' to '#{host}'"
-    end
-  end
-
-  def sync_dokku_env_vars(engine, service)
-    result = engine.config_show(service.dokku_app_name)
-    ensure_success!(result, "read linked environment for #{service.dokku_app_name}")
-
-    result[:output].each_line do |line|
-      line = line.strip
-      next unless line.include?("=")
-      key, _, value = line.partition("=")
-      key = key.strip
-      value = value.strip
-      next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL|DOKKU_MYSQL|DOKKU_POSTGRES|DOKKU_REDIS|DOKKU_MONGO)/i)
-      next if value.blank? || value.start_with?("$")
-
-      existing = service.environment_variables.find_by(key: key)
-      if existing
-        existing.update!(value: value) if existing.value != value
-      else
-        service.environment_variables.create!(key: key, value: value, source: "dokku-link")
-      end
-    end
-  end
 
   def broadcast_error(project_id, message)
     ActionCable.server.broadcast("project_#{project_id}", {

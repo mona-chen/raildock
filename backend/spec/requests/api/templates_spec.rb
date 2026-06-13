@@ -100,7 +100,7 @@ RSpec.describe "Api::TemplatesController", type: :request do
           project.id,
           "pocketbase",
           [ created_service.id ],
-          { created_service.id => deployment.id }
+          { created_service.id.to_s => deployment.id }
         )
       end
     end

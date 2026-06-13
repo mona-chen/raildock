@@ -95,10 +95,10 @@ RSpec.describe Service, type: :model do
 
   describe "callbacks" do
     describe "#generate_dokku_app_name" do
-      it "generates a dokku_app_name before create" do
+      it "generates a dokku_app_name before create with a hex suffix" do
         project = create(:project, name: "My Project")
         service = create(:service, project: project, name: "Web App", dokku_app_name: nil)
-        expect(service.dokku_app_name).to eq("my-project-web-app")
+        expect(service.dokku_app_name).to match(/\Amy-project-web-app-[a-f0-9]{8}\z/)
       end
 
       it "does not override an existing dokku_app_name" do

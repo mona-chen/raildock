@@ -40,6 +40,14 @@ class DeploymentJob < ApplicationJob
     databases_ready = wait_for_linked_databases(service, engine, host_engine)
     return mark_failed(deployment, service, "Linked database did not become ready") unless databases_ready
 
+    # 0.5. Connect linked database containers to the project network with
+    #      their service name as a DNS alias (e.g. "mysql"). This must happen
+    #      BEFORE ps:rebuild starts the app container, so hostname references
+    #      like DATABASE_HOST=mysql resolve via Docker DNS on first boot.
+    #      For template deploys, connect_networks already handles this; this
+    #      covers manifest and git deploys where only DeploymentJob runs.
+    ensure_datastore_network_aliases(service, engine, host_engine)
+
     # 1. Ensure app exists
     unless engine.app_exists?(service.dokku_app_name)
       result = engine.app_create(service.dokku_app_name)
@@ -349,6 +357,14 @@ class DeploymentJob < ApplicationJob
 
     Rails.logger.warn "Timeout waiting for datastore #{app_name} (#{subtype}) to become ready"
     false
+  end
+
+  def ensure_datastore_network_aliases(service, engine, host_engine)
+    linked_dbs = service.linked_services.select(&:service_type_database?)
+    return if linked_dbs.empty?
+
+    ServiceLinkSetup.new(service.project, engine, host_engine: host_engine)
+      .ensure_db_network_aliases(linked_dbs)
   end
 
   def git_repo_for_deploy(service)

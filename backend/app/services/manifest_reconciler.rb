@@ -561,33 +561,23 @@ class ManifestReconciler
     return { success: false, error: "Service not found" } unless from_svc && to_svc
 
     if change.change_type == :added
+      linker = ServiceLinkSetup.new(@project, engine, host_engine: @host_engine)
+
       if to_svc.service_type_database?
-        # Dokku-managed DB (postgres:create, redis:create, etc.): call dokku link
         link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
         unless link_result[:success]
           Rails.logger.error "Dokku link failed for #{from_svc.name} -> #{to_svc.name}: #{link_result[:output]}"
           return { success: false, error: link_result[:output] }
         end
-        # Disable SSL cert validation for internal postgres connections
-        if to_svc.subtype == "postgres"
-          ssl_result = engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
-          return { success: false, error: ssl_result[:output] } unless ssl_result[:success]
-        end
-        # Sync injected env vars and rewrite placeholder connection URLs
-        rewrite_result = rewrite_linked_db_urls(engine, from_svc, to_svc)
-        return rewrite_result unless rewrite_result[:success]
+
+        setup_result = linker.setup!(from_svc, to_svc)
+        return setup_result unless setup_result[:success]
       elsif to_svc.docker_image_database?
-        # Docker-image DB: sync container password vars to linked app so
-        # ${{ linked.X.VAR }} resolution works when env vars are applied.
         sync_docker_image_passwords_to_linked_app(from_svc, to_svc)
       end
 
       ServiceLink.find_or_create_by!(from_service: from_svc, to_service: to_svc)
-
-      # Ensure network aliases are set for the linked services
-      # This is needed so the from_svc can reach the to_svc by name
-      ensure_link_aliases(from_svc, to_svc)
-
+      linker.ensure_network_aliases(from_svc, to_svc)
       { success: true }
     elsif change.change_type == :removed
       if to_svc.service_type_database?
@@ -600,31 +590,6 @@ class ManifestReconciler
   rescue => e
     Rails.logger.error "Link change failed: #{e.message}"
     { success: false, error: e.message }
-  end
-
-  def ensure_link_aliases(from_svc, to_svc)
-    host_engine = @host_engine || HostEngine.new(@project.server)
-    network_manager = ProjectNetworkManager.new(@project, engine_for_networks)
-
-    # New apps have no container until DeploymentJob runs, so link preparation
-    # must not block waiting for one. DeploymentJob applies aliases after boot.
-    to_container = host_engine.dokku_container_name(to_svc.dokku_app_name)
-    if to_container
-      to_alias = to_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
-      network_manager.connect_container_with_aliases(to_container, [ to_alias ], wait: false)
-    end
-
-    from_container = host_engine.dokku_container_name(from_svc.dokku_app_name)
-    if from_container
-      from_alias = from_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
-      network_manager.connect_container_with_aliases(from_container, [ from_alias ], wait: false)
-    end
-  rescue => e
-    Rails.logger.warn "Failed to ensure link aliases for #{from_svc.name} -> #{to_svc.name}: #{e.message}"
-  end
-
-  def engine_for_networks
-    @engine || DokkuEngine.new(@project.server)
   end
 
   def wait_for_container(app_name, host_engine, timeout: 60)
@@ -953,63 +918,4 @@ class ManifestReconciler
     config
   end
 
-  # After a database link, sync the injected DATABASE_URL / REDIS_URL etc. from
-  # Dokku into our DB, then rewrite any env vars on the app that look like
-  # connection URLs (e.g. CODER_PG_CONNECTION_URL) to use the real credentials.
-  def rewrite_linked_db_urls(engine, app_service, db_service)
-    db_url_map = {
-      "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
-      "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
-      "mysql"    => [ "DATABASE_URL", /\Amysql:\/\//i ],
-      "mariadb"  => [ "DATABASE_URL", /\Amysql:\/\//i ],
-      "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
-    }.freeze
-
-    mapping = db_url_map[db_service.subtype]
-    return { success: true } unless mapping
-
-    url_var, url_pattern = mapping
-
-    # Fetch current Dokku config for the app
-    result = engine.config_show(app_service.dokku_app_name)
-    return { success: false, error: result[:output] } unless result[:success]
-
-    # Find and store the injected URL
-    url_value = nil
-    result[:output].each_line do |line|
-      separator = line.include?("=") ? "=" : ":"
-      next unless line.include?(separator)
-      key, value = line.split(separator, 2)
-      next unless key && value
-      key = key.strip
-      value = value.strip
-      if key == url_var
-        url_value = value
-        break
-      end
-    end
-
-    return { success: false, error: "#{url_var} was not injected by the Dokku link" } if url_value.blank?
-
-    # Persist the injected URL in our DB
-    app_service.environment_variables.find_or_initialize_by(key: url_var).tap do |ev|
-      ev.value = url_value
-      ev.is_dokku_internal = true
-      ev.source = "dokku-link"
-      ev.save!
-    end
-
-    # Rewrite any other env var whose value looks like a connection URL
-    # for this database type to use the actual injected URL
-    app_service.environment_variables.where.not(key: url_var).each do |ev|
-      next unless ev.value.match?(url_pattern)
-
-      set_result = engine.config_set(app_service.dokku_app_name, ev.key, url_value)
-      return { success: false, error: set_result[:output] } unless set_result[:success]
-      ev.update!(value: url_value)
-      Rails.logger.info "Rewrote #{ev.key} on #{app_service.dokku_app_name} to use actual #{db_service.subtype} credentials from #{url_var}"
-    end
-
-    { success: true }
-  end
 end

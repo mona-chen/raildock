@@ -121,6 +121,7 @@ RSpec.describe ManifestReconciler do
 
       reconciler.instance_variable_set(:@host_engine, host_engine)
       reconciler.instance_variable_set(:@engine, engine)
+      allow(engine).to receive(:network_list).and_return(success: true, output: project.network_name)
       allow(engine).to receive(:postgres_link).and_return(success: true, output: "")
       allow(engine).to receive(:config_set).and_return(success: true, output: "")
       allow(engine).to receive(:config_show).and_return(
