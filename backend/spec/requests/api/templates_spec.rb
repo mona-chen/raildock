@@ -70,6 +70,19 @@ RSpec.describe "Api::TemplatesController", type: :request do
         expect(json["created"].length).to eq(1)
       end
 
+      it "configures Alexandrie RustFS to match Dokku storage ownership" do
+        post "/api/templates/alexandrie/deploy",
+          params: { project_id: project.id },
+          headers: auth_headers(user)
+
+        expect(response).to have_http_status(:ok)
+        rustfs = project.services.find_by!(name: "rustfs")
+        expect(rustfs.config.fetch("dockerOptions")).to include(
+          "phase" => "deploy",
+          "option" => "--user=1000:1000"
+        )
+      end
+
       it "returns 404 for unknown template" do
         post "/api/templates/unknown/deploy", params: { project_id: project.id }, headers: auth_headers(user)
 

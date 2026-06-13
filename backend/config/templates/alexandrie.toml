@@ -77,6 +77,9 @@ source = { type = "docker"  }
     RUSTFS_SECRET_KEY = "${{ secret() }}"
     RUSTFS_CONSOLE_ENABLE = "false"
     RUSTFS_LOG_LEVEL = "info"
+    [[services.docker_options]]
+      phase = "deploy"
+      option = "--user=1000:1000"
     [[services.storage]]
       host = "rustfs-data"
       container = "/data"
