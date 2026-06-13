@@ -325,6 +325,23 @@ class TemplateDeployJob < ApplicationJob
     ev = app_service.environment_variables.find_or_initialize_by(key: target_key)
     ev.update!(value: dsn, source: "dokku-link")
     Rails.logger.info "Set #{target_key} on #{app_service.dokku_app_name} to linked #{db_service.subtype} DSN"
+
+    # Rewrite host-related env vars that reference the linked service by name.
+    # Templates commonly set DATABASE_HOST = "mysql" (the service name), but the
+    # actual Dokku container hostname includes a random suffix and differs from
+    # the service name. Parse the actual host from the DSN and rewrite any env
+    # var whose value equals the (old) service name.
+    host = URI.parse(dsn).host
+    return unless host
+
+    app_service.environment_variables.where(value: db_service.name).each do |ev|
+      ensure_success!(
+        engine.config_set(app_service.dokku_app_name, ev.key, host),
+        "rewrite #{ev.key} for #{app_service.dokku_app_name}"
+      )
+      ev.update!(value: host)
+      Rails.logger.info "Rewrote #{ev.key} on #{app_service.dokku_app_name} from '#{db_service.name}' to '#{host}'"
+    end
   end
 
   def sync_dokku_env_vars(engine, service)
