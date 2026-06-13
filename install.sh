@@ -544,6 +544,7 @@ create_env() {
   ar_primary_key=$(generate_ar_encryption_key)
   ar_deterministic_key=$(generate_ar_encryption_key)
   ar_key_derivation_salt=$(generate_ar_encryption_key)
+  lockbox_key=$(generate_hex 64)
   public_url="${RAILDOCK_PUBLIC_URL:-$(get_public_url)}"
   public_host="${RAILDOCK_PUBLIC_HOST:-$(get_public_host "$public_url")}"
   dokku_host="${DOKKU_HOST:-$(detect_dokku_host)}"
@@ -570,6 +571,7 @@ CACHE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_ca
 CABLE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_cable
 RAILS_MASTER_KEY=${master_key}
 JWT_SECRET_KEY=${jwt_secret}
+LOCKBOX_MASTER_KEY=${lockbox_key}
 ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ar_primary_key}
 ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=${ar_deterministic_key}
 ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ar_key_derivation_salt}
@@ -686,12 +688,43 @@ install_raildock() {
   print_success "http://${public_ip}:${APP_PORT}"
 }
 
+fill_missing_env_vars() {
+  local added=0
+
+  if ! grep -q "^LOCKBOX_MASTER_KEY=" "$ENV_FILE" 2>/dev/null; then
+    echo "LOCKBOX_MASTER_KEY=$(generate_hex 64)" >> "$ENV_FILE"
+    added=1
+  fi
+
+  if ! grep -q "^ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=" "$ENV_FILE" 2>/dev/null; then
+    echo "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=$(generate_ar_encryption_key)" >> "$ENV_FILE"
+    echo "ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=$(generate_ar_encryption_key)" >> "$ENV_FILE"
+    echo "ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=$(generate_ar_encryption_key)" >> "$ENV_FILE"
+    added=1
+  fi
+
+  if ! grep -q "^QUEUE_DATABASE_URL=" "$ENV_FILE" 2>/dev/null; then
+    local pg_pass
+    pg_pass=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2-)
+    : "${pg_pass:=raildock}"
+    echo "QUEUE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_queue" >> "$ENV_FILE"
+    echo "CACHE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_cache" >> "$ENV_FILE"
+    echo "CABLE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_cable" >> "$ENV_FILE"
+    added=1
+  fi
+
+  if [ "$added" = "1" ]; then
+    log_ok "Added missing env vars to .env"
+  fi
+}
+
 update_raildock() {
   log_step "Updating RailDock ${RAILDOCK_VERSION}..."
   if [ ! -f "$COMPOSE_FILE" ]; then
     log_error "RailDock does not appear to be installed in $INSTALL_DIR"
     exit 1
   fi
+  fill_missing_env_vars
   if [ "$BUILD_FROM_SOURCE" = "1" ]; then
     docker compose -f "$COMPOSE_FILE" build --pull
   else
