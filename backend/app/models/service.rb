@@ -179,7 +179,7 @@ class Service < ApplicationRecord
   private
 
   def generate_dokku_app_name
-    self.dokku_app_name ||= "#{project.name.parameterize}-#{name.parameterize}"
+    self.dokku_app_name ||= "#{project.name.parameterize}-#{name.parameterize}-#{SecureRandom.hex(4)}"
   end
 
   def generate_webhook_token
