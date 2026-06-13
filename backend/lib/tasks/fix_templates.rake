@@ -21,19 +21,19 @@ namespace :templates do
       # For shared suffixes: keep original (will be handled by linked refs later)
       # For unique suffixes: replace with ${{ secret() }}
       content = content.gsub(/\$SERVICE_USER_([A-Z0-9_]+)/) do |m|
-        shared.include?($1) ? m : '${{ secret() }}'
+        shared.include?($1) ? m : "${{ secret() }}"
       end
       content = content.gsub(/\$SERVICE_PASSWORD(?:_64)?_([A-Z0-9_]+)/) do |m|
-        shared.include?($1) ? m : '${{ secret() }}'
+        shared.include?($1) ? m : "${{ secret() }}"
       end
-      content.gsub!(/\$SERVICE_USER(?!_)/, '${{ secret() }}')
-      content.gsub!(/\$SERVICE_PASSWORD(?!_)/, '${{ secret() }}')
-      content.gsub!(/\$SERVICE_URL(_[A-Z0-9_]+)?/, 'https://${{ RAILDOCK_PUBLIC_DOMAIN }}')
-      content.gsub!(/\$SERVICE_FQDN(_[A-Z0-9_]+)?/, '${{ RAILDOCK_PUBLIC_DOMAIN }}')
-      content.gsub!(/\$SERVICE_BASE64(_[A-Z0-9_]+)?/, '${{ secret() }}')
+      content.gsub!(/\$SERVICE_USER(?!_)/, "${{ secret() }}")
+      content.gsub!(/\$SERVICE_PASSWORD(?!_)/, "${{ secret() }}")
+      content.gsub!(/\$SERVICE_URL(_[A-Z0-9_]+)?/, "https://${{ RAILDOCK_PUBLIC_DOMAIN }}")
+      content.gsub!(/\$SERVICE_FQDN(_[A-Z0-9_]+)?/, "${{ RAILDOCK_PUBLIC_DOMAIN }}")
+      content.gsub!(/\$SERVICE_BASE64(_[A-Z0-9_]+)?/, "${{ secret() }}")
       content.gsub!(%r{"https?://(?:app\.)?example\.com[^"]*"}, '"https://${{ RAILDOCK_PUBLIC_DOMAIN }}"')
       content.gsub!(/\b(MYSQL_USER|POSTGRES_USER)\s*=\s*"user"\b/) { "#{$1} = \"${{ secret() }}\"" }
-      content.gsub!(/\bCHANGE_ME\b/, '${{ secret() }}')
+      content.gsub!(/\bCHANGE_ME\b/, "${{ secret() }}")
       content.gsub!(/\bMINIO_ACCESSKEY\s*=\s*"user"\b/, 'MINIO_ACCESSKEY = "${{ secret() }}"')
 
       if content != original
