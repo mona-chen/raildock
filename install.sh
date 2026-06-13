@@ -11,7 +11,10 @@ set -e
 
 # ── Config ────────────────────────────────────
 RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
-INSTALL_DIR="${1:-$(pwd)}"
+case "${1:-}" in
+  update|upgrade) INSTALL_DIR="$(pwd)" ;;
+  *)              INSTALL_DIR="${1:-$(pwd)}" ;;
+esac
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 ENV_FILE="$INSTALL_DIR/.env"
 DATA_DIR="$INSTALL_DIR/data"
