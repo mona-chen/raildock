@@ -252,9 +252,19 @@ class DokkuEngine
   # The host path can be a named volume or absolute host path.
   # For host paths with colons, use --container-dir to specify the container mount point.
   def storage_mount(app_name, host_path, container_path, process_type: nil)
+    # Named volumes (not starting with /) must exist before mounting.
+    # Dokku storage:create is idempotent — it's safe to call on existing entries.
+    if !host_path.start_with?("/")
+      storage_create(host_path)
+    end
+
     cmd = "storage:mount #{escape(app_name)} #{escape(host_path)} --container-dir #{escape(container_path)}"
     cmd += " --process-type #{escape(process_type)}" if process_type
     run(cmd)
+  end
+
+  def storage_create(name)
+    run("storage:create #{escape(name)}")
   end
 
   def storage_unmount(app_name, host_path, container_path: nil)
