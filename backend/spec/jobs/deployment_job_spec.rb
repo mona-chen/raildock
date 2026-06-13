@@ -35,6 +35,7 @@ RSpec.describe DeploymentJob, type: :job do
   end
 
   let(:engine) { instance_double(DokkuEngine) }
+  let(:host_engine) { instance_double(HostEngine) }
   let(:network_manager) { instance_double(ProjectNetworkManager, connect_service: true, ensure_linked_aliases: true, inject_internal_hostnames: true) }
 
   before do
@@ -45,9 +46,12 @@ RSpec.describe DeploymentJob, type: :job do
     create(:process_type, service: service, name: "worker", quantity: 1)
 
     allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+    allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
     allow(ProjectNetworkManager).to receive(:new).with(project, engine).and_return(network_manager)
     allow(DeploymentsChannel).to receive(:broadcast_to)
 
+    allow(engine).to receive(:with_session).and_yield
+    allow(host_engine).to receive(:with_session).and_yield
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
     allow(engine).to receive(:config_set).and_return({ success: true, output: "" })
