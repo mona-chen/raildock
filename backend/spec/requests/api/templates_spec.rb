@@ -77,9 +77,13 @@ RSpec.describe "Api::TemplatesController", type: :request do
 
         expect(response).to have_http_status(:ok)
         rustfs = project.services.find_by!(name: "rustfs")
+        backend = project.services.find_by!(name: "backend")
         expect(rustfs.config.fetch("dockerOptions")).to include(
           "phase" => "deploy",
           "option" => "--user=1000:1000"
+        )
+        expect(backend.environment_variables.find_by!(key: "MINIO_SECRETKEY").value).to eq(
+          "[LINKED:rustfs:RUSTFS_SECRET_KEY]"
         )
       end
 

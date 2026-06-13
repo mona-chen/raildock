@@ -44,7 +44,7 @@ source = { type = "docker"  }
     MINIO_PUBLIC_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     MINIO_SECURE = "false"
     MINIO_ACCESSKEY = "user"
-    MINIO_SECRETKEY = "${{ secret() }}"
+    MINIO_SECRETKEY = "${{ linked.rustfs.RUSTFS_SECRET_KEY }}"
     MINIO_BUCKET = "alexandrie"
 
 [[services]]
