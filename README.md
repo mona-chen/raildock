@@ -1,6 +1,6 @@
 # RailDock
 
-> A web UI for Dokku that tries to feel like Railway.
+> A declarative self-hosted PaaS control plane for Dokku.
 
 [![Stack](https://img.shields.io/badge/React_19-20232A?logo=react)](https://react.dev)
 [![Stack](https://img.shields.io/badge/Rails_8-CC0000?logo=ruby-on-rails)](https://rubyonrails.org)
@@ -11,13 +11,49 @@
 
 ## What this is
 
-I run most of my side projects and a few production workloads on self-hosted infrastructure. Over the years I have used Coolify, Dokploy, CapRover, and still do for some things. They are good tools. But I kept hitting moments where I needed something slightly custom and ended up reading docs for three hours to figure out how the platform wanted me to do it.
+RailDock is a control plane that turns Dokku from a collection of shell commands into a **declarative infrastructure platform with dependency-aware orchestration, config-drift reconciliation, and per-project network isolation** — all accessible through a web UI and API.
 
-Then I watched my co-founder at Ruut — who had just learned Rails — deploy a full-stack app by himself without asking me a single server question. When I asked how, he said he used Railway. I tried it and the experience was almost annoying in how simple it was. Connect repo, add env vars, deploy. Done.
+It is **not** a "Dokku UI." The engineering model is fundamentally different:
 
-I wanted that same calm, "it just works" feeling, but on a server I actually own and pay for directly. Dokku already provides the engine: git-push deploys, buildpacks, SSL plugins, database plugins, and over a decade of stability. What Dokku does not provide is the user experience layer that makes it accessible to someone who does not live in a terminal.
+| Dokku is... | RailDock adds... |
+|---|---|
+| A CLI tool that manages containers, databases, and SSL via plugins | A reconciliation engine that diffs desired state against actual state and applies only what changed |
+| Manual `postgres:link`, `config:set`, `ports:set` | Declarative manifests (`raildock.toml`) with topological dependency ordering and cross-service variable references |
+| A single bridge network for all apps | Per-project Docker networks with DNS-based service discovery |
+| Manual `git:sync` + `ps:rebuild` every time | A severity-tiered apply pipeline — env var changes are hot-pushed without a deploy, image changes trigger a full rebuild |
+| sshd directly — one connection per command, rate-limited under load | Thread-local SSH session pooling with automatic retry and keepalive |
+| Managed proxy only (nginx or bundled Traefik) | External Traefik mode with auto-generated router labels for existing reverse proxy infrastructure |
 
-So I started building RailDock. It is a web UI and API layer on top of Dokku. The goal is not to replace Dokku or to become the next Coolify. It is to make Dokku feel as approachable as Railway for small teams and solo developers.
+RailDock uses Dokku as its **container runtime**, not its management model. The architecture sits above Dokku, not beside it:
+
+```
+Your browser / API client
+        │
+        ▼
+┌───────────────────┐
+│  RailDock          │  Declarative orchestration layer
+│  ─ Manifest recon  │  Desired-state → actual-state reconciliation
+│  ─ Dep ordering    │  Topological sort, failure cascading
+│  ─ Secret lifecycle│  Cross-service credential resolution
+│  ─ Net isolation   │  Per-project networks + DNS aliases
+│  ─ External proxy  │  Existing Traefik integration
+└────────┬──────────┘
+         │ SSH (dokku user + root user)
+         ▼
+┌───────────────────┐
+│  Dokku             │  Container runtime (apps, databases,
+│                    │  buildpacks, plugins, SSL)
+└────────┬──────────┘
+         │ Docker
+         ▼
+┌───────────────────┐
+│  Server / VPS      │  Your hardware
+└───────────────────┘
+```
+
+Why Dokku? Because Dokku is boring in the best way — git-push deploys, buildpacks, database plugins, Let's Encrypt, and over a decade of stability. What Dokku does not provide is the orchestration layer that makes infrastructure declarative, dependency-aware, and accessible to someone who does not live in a terminal.
+
+The name "RailDock" is a double pun: it "rails" *on top of* Dokku (as in a guardrail), and it is built with Rails.
 
 ---
 
@@ -77,7 +113,6 @@ I am trying to keep this honest so nobody is surprised.
 - **No password reset flow.** If you forget your password, you reset it from the Rails console for now.
 - **No multi-server orchestration.** You can add multiple servers, but each project lives on one server. Dokku is single-server by design.
 - **No preview environments.** This is on the roadmap but not implemented.
-- **Home and pricing landing pages exist in the repo but are not routed.** The app redirects straight to the dashboard.
 - **The integrations "modules" list in settings is a stub.** It returns an empty array.
 
 ---
@@ -88,18 +123,22 @@ I am trying to keep this honest so nobody is surprised.
 |---|---|---|---|---|---|
 | Engine | Dokku | Dokku | Docker/Traefik | Docker/Traefik | Proprietary |
 | Hosting | Your server | Your server | Your server | Your server | Managed |
-| Interface | Web UI | CLI only | Web UI | Web UI | Web UI |
-| Server overhead | Low | Very low | Medium | Medium | N/A |
+| Deploy model | Declarative + imperative | CLI only | Imperative UI | Imperative UI | Imperative UI |
+| Manifest reconciliation | Full diff/apply (3 severity tiers) | `app.json` only | Limited | Limited | No |
+| Dep-aware deployment orchestration | Yes (topological sort + fail cascade) | Manual | No | No | No |
+| Cross-service secret resolution | Yes (`${{ linked.SERVICE.XXX }}`) | Manual | Manual | Manual | No |
+| Per-project network isolation | Yes (DNS aliases, auto-inject) | No | Docker networks | Docker networks | No |
+| External reverse proxy integration | Yes (auto Traefik labels) | No | Manual | Manual | No |
+| Dual SSH engine (dokku + root) | Yes | N/A | No | No | No |
 | Git-push deploys | Yes | Yes | Yes | Yes | Yes |
 | Database plugins | Yes | Yes | Yes | Yes | Yes |
-| Manifest reconciliation | Yes | `app.json` only | Limited | Limited | No |
-| Real-time logs / terminal | Yes | CLI | Yes | Yes | Yes |
+| Real-time logs / terminal | Yes (WebSocket SSH) | CLI | Yes | Yes | Yes |
 | Multi-server | No | No | Yes | Yes | Yes |
 | Preview environments | No | Manual/plugin | Yes | Yes | Yes |
 
-**Use RailDock if:** you like Dokku but want a web UI, or you want Railway-level simplicity on your own VPS.
+**Use RailDock if:** you want declarative infrastructure-as-code on your own VPS without the complexity of Kubernetes. You want to define your stack in a manifest, change env vars without redeploying, have the system resolve database URLs and cross-service credentials automatically, and integrate with an existing reverse proxy — all on top of Dokku's proven runtime.
 
-**Do not use RailDock if:** you need multi-server orchestration today, you never want a UI anyway, or you want fully managed hosting.
+**Do not use RailDock if:** you need multi-server orchestration today, you want fully managed hosting, or you prefer imperative click-to-deploy workflows over a reconciliation model.
 
 ---
 
@@ -120,9 +159,13 @@ RailDock ships as a single Docker image that runs nginx, Puma, and background wo
 
 Key backend pieces, all real code:
 
-- `DokkuEngine` — SSH wrapper that translates UI actions into Dokku commands.
-- `DeploymentJob` — handles git-sync and image deploys with streamed output.
-- `ManifestReconciler` / `ManifestDiff` — preview and apply config changes without blind redeploys.
+- `DokkuEngine` + `HostEngine` — dual SSH connection pool (restricted `dokku` user + `root` user) with thread-local session reuse, automatic retry, and keepalive.
+- `ManifestReconciler` — desired-state vs. actual-state diff-and-apply loop in 6 ordered phases, using 3 severity tiers (reload/restart/redeploy) and topological dependency ordering.
+- `ManifestParser` / `ManifestGenerator` — two-phase variable resolution (parse-time secrets + runtime infrastructure references) with round-trip export support for `raildock.toml`.
+- `DeploymentSequenceJob` — orchestrates multi-service deploys by dependency order, cancelling dependents of failed deployments.
+- `DeploymentJob` — full lifecycle with port auto-detection, external proxy label injection, post-deploy credential propagation across linked services, and real-time log streaming.
+- `ProjectNetworkManager` — per-project Docker networks with DNS alias-based service discovery and automatic env var injection.
+- `ExternalProxyConfigurator` + `TraefikLabelBuilder` — disables Dokku proxy and generates Traefik HTTP/HTTPS router labels with configurable entrypoints and cert resolvers.
 - `LogsChannel`, `DeploymentsChannel`, `TerminalChannel` — real-time SSH streaming over ActionCable.
 
 ---
@@ -268,15 +311,15 @@ Restore:
 
 ## Why not just use X?
 
-**Dokku alone** is great if you are comfortable in a terminal. I am not trying to replace it.
+**Dokku alone** is great if you are comfortable in a terminal. RailDock is not competing with it — it layers on top. If you never need a UI, manifest reconciliation, or dependency ordering, stick with Dokku.
 
-**Coolify** is the most complete self-hosted PaaS I have used. It is also heavier and has a steeper learning curve when you step off the paved path.
+**Coolify** is the most complete self-hosted PaaS. Its Docker/Traefik stack is heavier than Dokku, and its reconciliation model is imperative — it applies what you click, not what you declare. If you want a mature all-in-one platform with multi-server support, use Coolify.
 
-**Dokploy** has a clean, modern UI and good Docker-native workflows. It is younger and the template library is smaller.
+**Dokploy** has a polished UI and Docker-native workflows. It is younger and its template library is smaller. It does not have a manifest reconciliation engine or dependency-aware deployment orchestration.
 
-**Railway** is the best deploy experience I have seen. I want that experience, but on a server I control and pay for directly.
+**Railway** has the best deploy experience in the world — if you do not mind managed hosting. RailDock aims for a similar UX, but on your own hardware, with a declarative control plane that Railway does not offer.
 
-RailDock sits in the gap: Dokku's reliability and simplicity, with a UI that does not require explaining SSH to your teammate.
+RailDock sits in a different gap: Dokku's runtime reliability + Kubernetes-style reconciliation + Railway-caliber UX, on a server you own.
 
 ---
 
