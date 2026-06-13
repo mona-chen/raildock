@@ -23,7 +23,7 @@ module Api
           project.id,
           template.id,
           created.map(&:id),
-          deployments.index_by(&:service_id).transform_values(&:id)
+          deployments.index_by { |d| d.service_id.to_s }.transform_values(&:id)
         )
       end
 
