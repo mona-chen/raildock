@@ -241,6 +241,13 @@ export interface Server {
   memoryUsage: { used: number; total: number }
   projectIds: string[]
   defaultProxy: string
+  proxyMode: 'managed' | 'external'
+  externalProxyNetwork?: string
+  externalProxyHttpEntrypoint: string
+  externalProxyHttpsEntrypoint: string
+  externalProxyCertResolver?: string
+  externalProxyRedirectMiddleware?: string
+  externalProxyDefaultLabels: Record<string, string>
   baseDomain?: string
   autoDomains?: boolean
   publicIp?: string

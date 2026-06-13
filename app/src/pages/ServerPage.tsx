@@ -1,12 +1,17 @@
-import { Server, HardDrive, Activity, Plus, Trash2 } from 'lucide-react'
+import { Server, HardDrive, Activity, Plus, Trash2, Settings } from 'lucide-react'
 import { useState } from 'react'
-import { useServers, useCreateServer, useDestroyServer, useValidateServer } from '@/hooks/useServers'
+import { toast } from 'sonner'
+import type { Server as ServerRecord } from '@/types'
+import { useServers, useCreateServer, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
+import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 
 export default function ServerPage() {
   const { data: servers = [], isLoading } = useServers()
   const createServer = useCreateServer()
   const destroyServer = useDestroyServer()
   const validateServer = useValidateServer()
+  const updateServer = useUpdateServer()
+  const validateNetwork = useValidateNetwork()
 
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState('')
@@ -14,6 +19,15 @@ export default function ServerPage() {
   const [newSshKey, setNewSshKey] = useState('')
   const [newBaseDomain, setNewBaseDomain] = useState('')
   const [newAutoDomains, setNewAutoDomains] = useState(true)
+  const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
+  const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
+  const [proxyNetwork, setProxyNetwork] = useState('')
+  const [httpEntrypoint, setHttpEntrypoint] = useState('web')
+  const [httpsEntrypoint, setHttpsEntrypoint] = useState('websecure')
+  const [certResolver, setCertResolver] = useState('')
+  const [redirectMiddleware, setRedirectMiddleware] = useState('')
+  const [defaultLabels, setDefaultLabels] = useState('{}')
+  const { data: networks = [], isLoading: networksLoading } = useNetworks(settingsServer?.id)
 
   const handleAdd = () => {
     if (!newName.trim() || !newHost.trim()) return
@@ -32,6 +46,44 @@ export default function ServerPage() {
         setNewAutoDomains(true)
         setShowAdd(false)
       },
+    })
+  }
+
+  const openSettings = (server: ServerRecord) => {
+    setSettingsServer(server)
+    setProxyMode(server.proxyMode || 'managed')
+    setProxyNetwork(server.externalProxyNetwork || '')
+    setHttpEntrypoint(server.externalProxyHttpEntrypoint || 'web')
+    setHttpsEntrypoint(server.externalProxyHttpsEntrypoint || 'websecure')
+    setCertResolver(server.externalProxyCertResolver || '')
+    setRedirectMiddleware(server.externalProxyRedirectMiddleware || '')
+    setDefaultLabels(JSON.stringify(server.externalProxyDefaultLabels || {}, null, 2))
+  }
+
+  const saveSettings = () => {
+    if (!settingsServer) return
+
+    let labels: Record<string, string>
+    try {
+      labels = JSON.parse(defaultLabels)
+    } catch {
+      toast.error('Default labels must be valid JSON')
+      return
+    }
+
+    updateServer.mutate({
+      id: settingsServer.id,
+      data: {
+        proxyMode,
+        externalProxyNetwork: proxyMode === 'external' ? proxyNetwork : undefined,
+        externalProxyHttpEntrypoint: httpEntrypoint,
+        externalProxyHttpsEntrypoint: httpsEntrypoint,
+        externalProxyCertResolver: certResolver || undefined,
+        externalProxyRedirectMiddleware: redirectMiddleware || undefined,
+        externalProxyDefaultLabels: labels,
+      },
+    }, {
+      onSuccess: () => setSettingsServer(null),
     })
   }
 
@@ -88,6 +140,13 @@ export default function ServerPage() {
                           {validateServer.isPending ? 'Validating...' : 'Validate'}
                         </button>
                       )}
+                      <button
+                        onClick={() => openSettings(srv)}
+                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        title="Proxy settings"
+                      >
+                        <Settings size={14} />
+                      </button>
                     </div>
                   </div>
 
@@ -215,6 +274,89 @@ export default function ServerPage() {
           </div>
         </div>
       )}
+
+      {settingsServer && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setSettingsServer(null)}>
+          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[560px] max-h-[90vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white">Proxy Settings</h3>
+            <p className="text-xs text-[#6B6B7B] mt-1 mb-5">{settingsServer.name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="proxy-mode" className="text-[11px] text-[#6B6B7B] block mb-1.5">Proxy Mode</label>
+                <select id="proxy-mode" value={proxyMode} onChange={(event) => setProxyMode(event.target.value as 'managed' | 'external')} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white">
+                  <option value="managed">RailDock managed</option>
+                  <option value="external">Existing Traefik</option>
+                </select>
+              </div>
+
+              {proxyMode === 'external' && (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="proxy-network" className="text-[11px] text-[#6B6B7B]">Traefik Docker Network</label>
+                      <button
+                        type="button"
+                        disabled={!proxyNetwork || validateNetwork.isPending}
+                        onClick={() => validateNetwork.mutate({ serverId: settingsServer.id, network: proxyNetwork })}
+                        className="text-[10px] text-rail-purple disabled:opacity-40"
+                      >
+                        {validateNetwork.isPending ? 'Checking...' : 'Verify network'}
+                      </button>
+                    </div>
+                    <select id="proxy-network" value={proxyNetwork} onChange={(event) => setProxyNetwork(event.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white">
+                      <option value="">{networksLoading ? 'Discovering networks...' : 'Select a network'}</option>
+                      {networks.filter((network) => network.selectable).map((network) => (
+                        <option key={network.name} value={network.name}>
+                          {network.name}{network.recommended ? ' (Traefik detected)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <ProxyInput id="http-entrypoint" label="HTTP entrypoint" value={httpEntrypoint} onChange={setHttpEntrypoint} />
+                    <ProxyInput id="https-entrypoint" label="HTTPS entrypoint" value={httpsEntrypoint} onChange={setHttpsEntrypoint} />
+                    <ProxyInput id="cert-resolver" label="Certificate resolver" value={certResolver} onChange={setCertResolver} placeholder="letsencrypt" />
+                    <ProxyInput id="redirect-middleware" label="Redirect middleware" value={redirectMiddleware} onChange={setRedirectMiddleware} placeholder="redirect-to-https" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="default-labels" className="text-[11px] text-[#6B6B7B] block mb-1.5">Default Traefik labels (JSON)</label>
+                    <textarea id="default-labels" value={defaultLabels} onChange={(event) => setDefaultLabels(event.target.value)} rows={5} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-xs text-white font-mono" />
+                  </div>
+
+                  <p className="text-[10px] text-[#6B6B7B]">
+                    RailDock will not start, stop, or reconfigure the existing Traefik container. Services attach to this network when redeployed.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setSettingsServer(null)} className="flex-1 py-2.5 border border-white/10 text-[#A0A0B0] text-xs rounded-lg">Cancel</button>
+              <button onClick={saveSettings} disabled={updateServer.isPending || (proxyMode === 'external' && !proxyNetwork)} className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                {updateServer.isPending ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProxyInput({ id, label, value, onChange, placeholder }: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="text-[11px] text-[#6B6B7B] block mb-1.5">{label}</label>
+      <input id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white" />
     </div>
   )
 }

@@ -97,6 +97,46 @@ RSpec.describe "Api::GithubAppsController", type: :request do
       expect(Deployment.count).to eq(1)
     end
 
+    it "deduplicates repeated GitHub deliveries" do
+      payload = {
+        ref: "refs/heads/main",
+        after: "abc1234",
+        installation: { id: "12345" },
+        repository: { full_name: "acme/app", clone_url: "https://github.com/acme/app.git", default_branch: "main" }
+      }.to_json
+      headers = {
+        "CONTENT_TYPE" => "application/json",
+        "X-GitHub-Event" => "push",
+        "X-GitHub-Delivery" => "delivery-123",
+        "X-Hub-Signature-256" => "sha256=invalid"
+      }
+
+      expect {
+        2.times { post "/api/github-apps/webhook", params: payload, headers: headers }
+      }.to change(Deployment, :count).by(1)
+    end
+
+    it "creates separate deployments for different commits" do
+      headers = {
+        "CONTENT_TYPE" => "application/json",
+        "X-GitHub-Event" => "push",
+        "X-Hub-Signature-256" => "sha256=invalid"
+      }
+
+      expect {
+        %w[abc1234 def5678].each do |commit|
+          post "/api/github-apps/webhook",
+            params: {
+              ref: "refs/heads/main",
+              after: commit,
+              installation: { id: "12345" },
+              repository: { full_name: "acme/app", clone_url: "https://github.com/acme/app.git", default_branch: "main" }
+            }.to_json,
+            headers: headers
+        end
+      }.to change(Deployment, :count).by(2)
+    end
+
     it "returns 403 for invalid signature when secret is configured" do
       allow(GithubAppService).to receive(:webhook_secret).and_return("secret")
 

@@ -66,7 +66,11 @@ module Api
           service.update!(status: :running) if result && result[:success]
         else
           engine.app_create(service.dokku_app_name)
-          engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType])
+          if server.external_proxy?
+            engine.proxy_disable(service.dokku_app_name)
+          else
+            engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType])
+          end
           TemporaryDomainService.new(server).ensure_for(service, engine: engine)
         end
       end
@@ -156,6 +160,11 @@ module Api
       authorize_service!(@service, action: :deploy)
 
       target = @service.deployments.find(params[:deployment_id])
+      if @service.git_repo.present? && target.commit_sha.blank?
+        return render json: {
+          error: "This deployment has no commit SHA and cannot be rolled back precisely"
+        }, status: :unprocessable_entity
+      end
 
       # Create a new deployment with the previous commit
       deployment = @service.deployments.create!(

@@ -3,13 +3,13 @@ require 'rails_helper'
 RSpec.describe ChangeClassifier do
   describe '.classify' do
     it 'classifies reload fields' do
-      %i[env domains storage proxy traefik_labels letsencrypt maintenance].each do |field|
+      %i[env domains storage proxy traefik_labels letsencrypt maintenance_mode].each do |field|
         expect(described_class.classify(field)).to eq(:reload)
       end
     end
 
     it 'classifies restart fields' do
-      %i[resource_limits resource_reservations checks cron scaling restart_policy restart_max_retries].each do |field|
+      %i[limits reservations checks cron scaling restart_policy restart_max_retries auto_deploy depends_on].each do |field|
         expect(described_class.classify(field)).to eq(:restart)
       end
     end

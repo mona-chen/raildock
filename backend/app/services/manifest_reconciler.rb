@@ -35,6 +35,7 @@ class ManifestReconciler
     @desired = desired_state
     @actual = build_actual_state
     @changes = []
+    @diff_computed = false
   end
 
   # Compute the full diff between desired and actual state
@@ -78,45 +79,73 @@ class ManifestReconciler
     # Links diff
     diff_links
 
+    @diff_computed = true
     @changes
   end
 
   # Apply all computed changes via DokkuEngine
-  def apply!(engine = nil)
-    raise "No changes computed. Call diff first." if @changes.empty? && @changes != []
+  def apply!(engine = nil, host_engine: nil)
+    raise "No changes computed. Call diff first." unless @diff_computed
 
     engine ||= build_engine
     return { success: false, error: "No Dokku engine available" } unless engine
+    @engine = engine
+    @host_engine = host_engine || HostEngine.new(@project.server)
 
     results = []
+    deploy_service_ids = Set.new
     grouped = ChangeClassifier.group_by_severity(@changes)
 
     # Phase 1: Create new services in depends_on order (deps before dependents)
     create_services = @changes.select { |c| c.change_type == :added && c.field == :service }
     topo_sort(create_services).each do |change|
-      results << apply_create_service(engine, change)
+      result = apply_create_service(engine, change)
+      results << result
+      deploy_service_ids << result[:service_id] if result[:success] && result[:deploy]
     end
 
     # Phase 2: Reload changes (parallel-friendly)
-    (grouped[:reload] || []).each do |change|
+    phase_changes(grouped[:reload]).each do |change|
       results << apply_reload_change(engine, change)
     end
 
     # Phase 3: Restart changes
-    (grouped[:restart] || []).each do |change|
+    phase_changes(grouped[:restart]).each do |change|
       results << apply_restart_change(engine, change)
     end
 
     # Phase 4: Redeploy changes in depends_on order
-    redeploy_changes = (grouped[:redeploy] || [])
+    redeploy_changes = phase_changes(grouped[:redeploy])
     topo_sort(redeploy_changes).each do |change|
-      results << apply_redeploy_change(engine, change)
+      result = apply_redeploy_change(engine, change)
+      results << result
+      deploy_service_ids << result[:service_id] if result[:success] && result[:deploy]
     end
 
     # Phase 5: Links
     link_changes = @changes.select { |c| c.field == :link }
     link_changes.each do |change|
       results << apply_link_change(engine, change)
+    end
+
+    # Deploy only after every synchronous preparation phase has succeeded.
+    # This ensures new apps cannot boot before links, credentials, and runtime
+    # values are available.
+    if results.all? { |result| result[:success] }
+      deployments_by_service = {}
+      ordered_services_for_deploy(deploy_service_ids).each do |service|
+        result = prepare_service_deployment(engine, service)
+        results << result
+        deployments_by_service[service.id] = Deployment.find(result[:deployment_id]) if result[:success]
+      end
+
+      if results.all? { |result| result[:success] } && deployments_by_service.any?
+        DeploymentSequenceJob.perform_later(deployment_sequence_entries(deployments_by_service))
+      elsif deployments_by_service.any?
+        fail_prepared_deployments(deployments_by_service.values, "Manifest deployment preparation failed")
+      end
+    else
+      @project.services.where(id: deploy_service_ids.to_a).update_all(status: "error", updated_at: Time.current)
     end
 
     # Phase 6: Destroy services
@@ -132,7 +161,7 @@ class ManifestReconciler
   # (or only satisfied dependencies) come first. Breaks cycles by omitting
   # services that would create a circular dependency.
   def topo_sort(changes)
-    return changes unless changes.any? { |c| c.new_value&.dig(:depends_on)&.present? }
+    return changes unless changes.any? { |change| desired_dependencies(change.service_name).present? }
 
     svc_map = {}
     changes.each { |c| svc_map[c.service_name] = c }
@@ -141,7 +170,7 @@ class ManifestReconciler
     dependents = Hash.new { |h, k| h[k] = [] }
 
     changes.each do |change|
-      deps = change.new_value&.dig(:depends_on) || []
+      deps = desired_dependencies(change.service_name)
       in_degree[change.service_name] += 0 # ensure key exists
       deps.each do |dep|
         next unless svc_map.key?(dep)
@@ -203,6 +232,7 @@ class ManifestReconciler
         docker_options: svc.config&.dig("dockerOptions") || [],
         traefik_labels: svc.config&.dig("traefik") || {},
         letsencrypt: svc.config&.dig("letsencrypt") || {},
+        depends_on: svc.config&.dig("depends_on") || [],
         links: svc.linked_services.map(&:name)
       }
     end
@@ -221,7 +251,7 @@ class ManifestReconciler
     # Skip UI-managed services unless explicitly included
     return if actual_svc[:managed_by] == "ui"
 
-    fields = %w[
+    fields = %i[
       category subtype builder git_repo branch docker_image version
       root_directory start_command exposed port maintenance_mode
       restart_policy restart_max_retries auto_deploy env domains
@@ -231,7 +261,8 @@ class ManifestReconciler
 
     fields.each do |field|
       old_val = actual_svc[field]
-      new_val = desired_svc[field]
+      new_val = desired_service_value(desired_svc, field)
+      next if app_json_source_unspecified?(desired_svc, field)
 
       next if values_equal?(old_val, new_val)
 
@@ -248,18 +279,17 @@ class ManifestReconciler
   end
 
   def diff_links
-    desired_links = @desired.links.map { |l| [ l[:from], l[:to] ].sort.join("->") }.to_set
+    desired_links = @desired.links.map { |l| [ l[:from], l[:to] ] }.to_set
     actual_links = Set.new
 
     @project.services.includes(:linked_services).find_each do |svc|
       svc.linked_services.each do |linked|
-        actual_links << [ svc.name, linked.name ].sort.join("->")
+        actual_links << [ svc.name, linked.name ]
       end
     end
 
     # Links to add
-    (desired_links - actual_links).each do |link_key|
-      from, to = link_key.split("->")
+    (desired_links - actual_links).each do |from, to|
       @changes << Change.new(
         service_name: "#{from}->#{to}",
         field: :link,
@@ -270,8 +300,7 @@ class ManifestReconciler
     end
 
     # Links to remove (only for manifest-managed services)
-    (actual_links - desired_links).each do |link_key|
-      from, to = link_key.split("->")
+    (actual_links - desired_links).each do |from, to|
       from_svc = @project.services.find_by(name: from)
       next unless from_svc&.managed_by_manifest?
 
@@ -299,6 +328,35 @@ class ManifestReconciler
     end
   end
 
+  def desired_service_value(service, field)
+    case field
+    when :git_repo
+      service.dig(:source, :repo)
+    when :branch
+      service.dig(:source, :branch)
+    when :maintenance_mode
+      service[:maintenance]
+    when :auto_deploy
+      service.key?(:auto_deploy) && !service[:auto_deploy].nil? ? service[:auto_deploy] : true
+    else
+      service[field]
+    end
+  end
+
+  def app_json_source_unspecified?(service, field)
+    @desired.format_detected == "app.json" &&
+      %i[ git_repo branch ].include?(field) &&
+      service.dig(:source, :repo).blank?
+  end
+
+  def phase_changes(changes)
+    Array(changes).reject { |change| %i[service link].include?(change.field) }
+  end
+
+  def desired_dependencies(service_name)
+    @desired.find_service(service_name)&.dig(:depends_on) || []
+  end
+
   # ── Application ─────────────────────────────────────────────
 
   def apply_create_service(engine, change)
@@ -313,11 +371,19 @@ class ManifestReconciler
 
     # Persist to DB
     if result[:success]
+      initial_status = if svc[:category] == "database"
+        "running"
+      elsif @project.server&.ssh_key.present?
+        "deploying"
+      else
+        "stopped"
+      end
+
       service = @project.services.create!(
         name: svc[:name],
         service_type: svc[:category],
         subtype: svc[:subtype],
-        status: svc[:category] == "database" ? "running" : "stopped",
+        status: initial_status,
         builder: svc[:builder],
         git_repo: svc[:source]&.dig(:repo),
         branch: svc[:source]&.dig(:branch),
@@ -328,6 +394,9 @@ class ManifestReconciler
         exposed: svc[:exposed],
         port: svc[:port],
         maintenance_mode: svc[:maintenance] || false,
+        restart_policy: svc[:restart_policy],
+        restart_max_retries: svc[:restart_max_retries],
+        auto_deploy: svc[:auto_deploy].nil? ? true : svc[:auto_deploy],
         dokku_app_name: app_name,
         managed_by: "manifest",
         config: build_config_from_desired(svc)
@@ -356,6 +425,8 @@ class ManifestReconciler
       (svc[:scaling] || {}).each do |pt_name, qty|
         service.process_types.create!(name: pt_name, quantity: qty, running: 0, command: "")
       end
+
+      result = result.merge(service_id: service.id, deploy: svc[:category] == "app")
     end
 
     result
@@ -377,10 +448,17 @@ class ManifestReconciler
   end
 
   def create_app_service(engine, svc, app_name)
-    engine.app_create(app_name)
+    if svc.dig(:source, :repo).blank? && svc[:docker_image].blank?
+      return { success: false, error: "A Git repository or Docker image is required for #{svc[:name]}" }
+    end
+
+    app_result = engine.app_create(app_name)
+    return app_result unless app_result[:success]
+
+    return engine.proxy_disable(app_name) if @project.server.external_proxy?
+
     proxy_type = svc.dig(:proxy, :type) || "traefik"
     engine.proxy_set(app_name, proxy_type)
-    { success: true }
   end
 
   def apply_destroy_service(engine, change)
@@ -445,6 +523,19 @@ class ManifestReconciler
       apply_cron_change(engine, service, change)
     when :limits, :reservations
       apply_resource_change(engine, service, change)
+    when :restart_policy
+      service.update!(restart_policy: change.new_value)
+      { success: true }
+    when :restart_max_retries
+      service.update!(restart_max_retries: change.new_value)
+      { success: true }
+    when :auto_deploy
+      service.update!(auto_deploy: change.new_value)
+      { success: true }
+    when :depends_on
+      config = (service.config || {}).merge("depends_on" => Array(change.new_value))
+      service.update!(config: config)
+      { success: true }
     else
       { success: true, note: "No-op for field #{change.field}" }
     end
@@ -457,10 +548,8 @@ class ManifestReconciler
     # Update DB record
     update_service_from_change(service, change)
 
-    # Trigger deployment if it's an app
     if service.service_type_app?
-      DeploymentJob.perform_later(service.id, nil)
-      { success: true, note: "Deployment queued" }
+      { success: true, note: "Updated; deployment will be queued after preparation", service_id: service.id, deploy: true }
     else
       { success: true, note: "Updated (no deploy for non-app)" }
     end
@@ -472,14 +561,7 @@ class ManifestReconciler
     return { success: false, error: "Service not found" } unless from_svc && to_svc
 
     if change.change_type == :added
-      # Create DB link
-      ServiceLink.create!(from_service: from_svc, to_service: to_svc)
-
-      if to_svc.docker_image_database?
-        # Docker-image DB: sync container password vars to linked app so
-        # ${{ linked.X.VAR }} resolution works when env vars are applied.
-        sync_docker_image_passwords_to_linked_app(from_svc, to_svc)
-      elsif to_svc.service_type_database?
+      if to_svc.service_type_database?
         # Dokku-managed DB (postgres:create, redis:create, etc.): call dokku link
         link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
         unless link_result[:success]
@@ -488,11 +570,19 @@ class ManifestReconciler
         end
         # Disable SSL cert validation for internal postgres connections
         if to_svc.subtype == "postgres"
-          engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
+          ssl_result = engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
+          return { success: false, error: ssl_result[:output] } unless ssl_result[:success]
         end
         # Sync injected env vars and rewrite placeholder connection URLs
-        rewrite_linked_db_urls(engine, from_svc, to_svc)
+        rewrite_result = rewrite_linked_db_urls(engine, from_svc, to_svc)
+        return rewrite_result unless rewrite_result[:success]
+      elsif to_svc.docker_image_database?
+        # Docker-image DB: sync container password vars to linked app so
+        # ${{ linked.X.VAR }} resolution works when env vars are applied.
+        sync_docker_image_passwords_to_linked_app(from_svc, to_svc)
       end
+
+      ServiceLink.find_or_create_by!(from_service: from_svc, to_service: to_svc)
 
       # Ensure network aliases are set for the linked services
       # This is needed so the from_svc can reach the to_svc by name
@@ -500,12 +590,11 @@ class ManifestReconciler
 
       { success: true }
     elsif change.change_type == :removed
-      # Remove DB link
-      ServiceLink.find_by(from_service: from_svc, to_service: to_svc)&.destroy!
-      # Dokku unlink
       if to_svc.service_type_database?
-        engine.send("#{to_svc.subtype}_unlink", to_svc.dokku_app_name, from_svc.dokku_app_name) rescue nil
+        unlink_result = engine.send("#{to_svc.subtype}_unlink", to_svc.dokku_app_name, from_svc.dokku_app_name)
+        return { success: false, error: unlink_result[:output] } unless unlink_result[:success]
       end
+      ServiceLink.find_by(from_service: from_svc, to_service: to_svc)&.destroy!
       { success: true }
     end
   rescue => e
@@ -514,24 +603,28 @@ class ManifestReconciler
   end
 
   def ensure_link_aliases(from_svc, to_svc)
-    host_engine = HostEngine.new(@project.server)
-    network_manager = ProjectNetworkManager.new(@project, DokkuEngine.new(@project.server))
+    host_engine = @host_engine || HostEngine.new(@project.server)
+    network_manager = ProjectNetworkManager.new(@project, engine_for_networks)
 
-    # Wait for to_svc container to be running and set its alias
-    to_container = wait_for_container(to_svc.dokku_app_name, host_engine)
+    # New apps have no container until DeploymentJob runs, so link preparation
+    # must not block waiting for one. DeploymentJob applies aliases after boot.
+    to_container = host_engine.dokku_container_name(to_svc.dokku_app_name)
     if to_container
       to_alias = to_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
-      network_manager.connect_container_with_aliases(to_container, [ to_alias ])
+      network_manager.connect_container_with_aliases(to_container, [ to_alias ], wait: false)
     end
 
-    # Also ensure from_svc's container has the correct alias
-    from_container = wait_for_container(from_svc.dokku_app_name, host_engine)
+    from_container = host_engine.dokku_container_name(from_svc.dokku_app_name)
     if from_container
       from_alias = from_svc.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
-      network_manager.connect_container_with_aliases(from_container, [ from_alias ])
+      network_manager.connect_container_with_aliases(from_container, [ from_alias ], wait: false)
     end
   rescue => e
     Rails.logger.warn "Failed to ensure link aliases for #{from_svc.name} -> #{to_svc.name}: #{e.message}"
+  end
+
+  def engine_for_networks
+    @engine || DokkuEngine.new(@project.server)
   end
 
   def wait_for_container(app_name, host_engine, timeout: 60)
@@ -559,7 +652,7 @@ class ManifestReconciler
   # container's env vars and copy password-type vars to the linked app so
   # ${{ linked.SERVICE.VAR }} resolution works.
   def sync_docker_image_passwords_to_linked_app(app_svc, db_svc)
-    host_engine = HostEngine.new(@project.server)
+    host_engine = @host_engine || HostEngine.new(@project.server)
     container_name = host_engine.dokku_container_name(db_svc.dokku_app_name)
     return unless container_name.present?
 
@@ -767,6 +860,85 @@ class ManifestReconciler
     end
   end
 
+  def prepare_service_deployment(engine, service)
+    resolve_runtime_values(engine, service)
+
+    deployment = service.deployments.create!(
+      status: :pending,
+      started_at: Time.current,
+      branch: service.branch || "main"
+    )
+    service.update!(status: :deploying)
+
+    { success: true, note: "Deployment prepared", service_id: service.id, deployment_id: deployment.id }
+  rescue => e
+    Rails.logger.error "Failed to prepare deployment for service #{service.id}: #{e.message}"
+    { success: false, error: e.message, service_id: service.id }
+  end
+
+  def ordered_services_for_deploy(service_ids)
+    services = @project.services.where(id: service_ids.to_a).to_a
+    changes = services.map do |service|
+      Change.new(
+        service_name: service.name,
+        field: :service,
+        change_type: :modified,
+        old_value: nil,
+        new_value: @desired.find_service(service.name)
+      )
+    end
+
+    names = topo_sort(changes).map(&:service_name)
+    services.index_by(&:name).values_at(*names).compact
+  end
+
+  def deployment_sequence_entries(deployments_by_service)
+    services = @project.services.where(id: deployments_by_service.keys).index_by(&:name)
+
+    ordered_services_for_deploy(deployments_by_service.keys).map do |service|
+      dependencies = desired_dependencies(service.name).filter_map do |name|
+        dependency = services[name]
+        deployments_by_service[dependency&.id]&.id
+      end
+
+      {
+        service_id: service.id,
+        deployment_id: deployments_by_service.fetch(service.id).id,
+        depends_on_deployment_ids: dependencies
+      }
+    end
+  end
+
+  def fail_prepared_deployments(deployments, message)
+    deployments.each do |deployment|
+      deployment.update!(
+        status: :failed,
+        deploy_log: message,
+        completed_at: Time.current
+      )
+      deployment.service.update!(status: :error)
+    end
+  end
+
+  def resolve_runtime_values(engine, service)
+    service.reload
+    linked_services = service.linked_services.to_a
+
+    service.environment_variables.each do |environment_variable|
+      resolved = ManifestParser.resolve_runtime(
+        environment_variable.value,
+        @project,
+        service,
+        linked_services
+      )
+      next if resolved == environment_variable.value
+
+      result = engine.config_set(service.dokku_app_name, environment_variable.key, resolved)
+      raise "Failed to resolve #{environment_variable.key}: #{result[:output]}" unless result[:success]
+      environment_variable.update!(value: resolved)
+    end
+  end
+
   def build_config_from_desired(svc)
     config = {}
     config["proxy"] = svc[:proxy] if svc[:proxy]
@@ -777,6 +949,7 @@ class ManifestReconciler
     config["resourceReservations"] = svc[:reservations] if svc[:reservations]
     config["traefik"] = svc[:traefik_labels] if svc[:traefik_labels]
     config["letsencrypt"] = svc[:letsencrypt] if svc[:letsencrypt]
+    config["depends_on"] = svc[:depends_on] if svc[:depends_on].present?
     config
   end
 
@@ -787,24 +960,26 @@ class ManifestReconciler
     db_url_map = {
       "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
       "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
-      "mysql"    => [ "MYSQL_URL",    /\Amysql:\/\//i ],
+      "mysql"    => [ "DATABASE_URL", /\Amysql:\/\//i ],
+      "mariadb"  => [ "DATABASE_URL", /\Amysql:\/\//i ],
       "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
     }.freeze
 
     mapping = db_url_map[db_service.subtype]
-    return unless mapping
+    return { success: true } unless mapping
 
     url_var, url_pattern = mapping
 
     # Fetch current Dokku config for the app
     result = engine.config_show(app_service.dokku_app_name)
-    return unless result[:success]
+    return { success: false, error: result[:output] } unless result[:success]
 
     # Find and store the injected URL
     url_value = nil
     result[:output].each_line do |line|
-      next unless line.include?(":")
-      key, value = line.split(":", 2)
+      separator = line.include?("=") ? "=" : ":"
+      next unless line.include?(separator)
+      key, value = line.split(separator, 2)
       next unless key && value
       key = key.strip
       value = value.strip
@@ -814,7 +989,7 @@ class ManifestReconciler
       end
     end
 
-    return if url_value.blank?
+    return { success: false, error: "#{url_var} was not injected by the Dokku link" } if url_value.blank?
 
     # Persist the injected URL in our DB
     app_service.environment_variables.find_or_initialize_by(key: url_var).tap do |ev|
@@ -829,9 +1004,12 @@ class ManifestReconciler
     app_service.environment_variables.where.not(key: url_var).each do |ev|
       next unless ev.value.match?(url_pattern)
 
-      engine.config_set(app_service.dokku_app_name, ev.key, url_value)
+      set_result = engine.config_set(app_service.dokku_app_name, ev.key, url_value)
+      return { success: false, error: set_result[:output] } unless set_result[:success]
       ev.update!(value: url_value)
       Rails.logger.info "Rewrote #{ev.key} on #{app_service.dokku_app_name} to use actual #{db_service.subtype} credentials from #{url_var}"
     end
+
+    { success: true }
   end
 end

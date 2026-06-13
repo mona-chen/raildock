@@ -580,8 +580,28 @@ export const modulesApi = {
 // ── Networks API ─────────────────────────────
 
 export const networksApi = {
-  list: async (): Promise<{ name: string; apps: string[] }[]> => {
-    return fetchJson('/api/networks')
+  list: async (serverId: string): Promise<{
+    name: string
+    driver: string
+    scope: string
+    internal: boolean
+    containers: string[]
+    traefikContainers: string[]
+    recommended: boolean
+    selectable: boolean
+  }[]> => {
+    return fetchJson(`/api/servers/${serverId}/networks`)
+  },
+
+  validate: async (serverId: string, network: string): Promise<{
+    success: boolean
+    network: string
+    traefikContainers: string[]
+  }> => {
+    return fetchJson(`/api/servers/${serverId}/networks/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ network }),
+    })
   },
 }
 

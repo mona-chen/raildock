@@ -1,3 +1,5 @@
+require "digest"
+
 module Api
   class WebhooksController < ActionController::API
     # Skip auth for webhooks — they use token-based verification
@@ -26,20 +28,30 @@ module Api
       ).where(auto_deploy: true)
 
       services = services.select do |service|
-        expected_branch = service.branch.presence || repository[:default_branch] || repository["default_branch"] || project[:default_branch] || project["default_branch"] || branch
+        expected_branch = service.branch.presence ||
+          repository[:default_branch] || repository["default_branch"] ||
+          project[:default_branch] || project["default_branch"] ||
+          "main"
         expected_branch == branch
       end
 
       return head :not_found if services.empty?
 
       services.each do |service|
-        deployment = service.deployments.create!(
-          status: :pending,
-          started_at: Time.current,
-          branch: branch,
-          commit_sha: params[:after].presence || params[:checkout_sha].presence,
-          triggered_by: "webhook"
+        commit_sha = params[:after].presence || params[:checkout_sha].presence
+        deployment, created = Deployment.create_idempotently!(
+          service: service,
+          key: webhook_idempotency_key(service, repo_name, branch, commit_sha),
+          attributes: {
+            status: :pending,
+            started_at: Time.current,
+            branch: branch,
+            commit_sha: commit_sha,
+            triggered_by: "webhook"
+          }
         )
+        next unless created
+
         DeploymentJob.perform_later(service.id, deployment.id)
         service.update!(status: :deploying)
       end
@@ -50,6 +62,7 @@ module Api
     def service_deploy
       service = Service.find_by(id: params[:id], webhook_token: params[:token])
       return head :not_found unless service
+      return render json: { error: "Database services cannot be deployed" }, status: :unprocessable_entity if service.service_type_database?
 
       branch = params[:branch] || service.branch || "main"
 
@@ -116,6 +129,14 @@ module Api
 
     def webhook_secret
       ENV["WEBHOOK_SECRET"].presence || Rails.application.credentials.dig(:webhook_secret)
+    end
+
+    def webhook_idempotency_key(service, repo_name, branch, commit_sha)
+      delivery_id = request.headers["X-GitHub-Delivery"].presence ||
+        request.headers["X-Gitlab-Event-UUID"].presence
+      identity = delivery_id || [ repo_name, branch, commit_sha.presence || "unknown" ].join(":")
+
+      Digest::SHA256.hexdigest("generic-webhook:#{service.id}:#{identity}")
     end
   end
 end

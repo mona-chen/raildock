@@ -27,6 +27,19 @@ export function useValidateServer() {
   })
 }
 
+export function useUpdateServer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.servers.update>[1] }) =>
+      api.servers.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] })
+      toast.success('Server settings saved')
+    },
+    onError: (err) => toast.error(`Failed to save server: ${err.message}`),
+  })
+}
+
 export function useDestroyServer() {
   const queryClient = useQueryClient()
   return useMutation({

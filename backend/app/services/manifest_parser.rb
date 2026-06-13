@@ -131,7 +131,11 @@ class ManifestParser
       category: "app",
       subtype: detect_subtype_from_buildpacks(hash["buildpacks"]),
       builder: nil,
-      source: { type: "git" },
+      source: {
+        type: "git",
+        repo: app_json_repository(hash),
+        branch: hash["branch"] || "main"
+      },
       env: normalize_app_json_env(hash["env"]),
       domains: [],
       storage: [],
@@ -154,6 +158,7 @@ class ManifestParser
 
     warnings << "app.json does not support domains, storage, or proxy config. Use raildock.toml for full feature coverage."
     warnings << "app.json does not support service links. Use raildock.toml for multi-service stacks."
+    warnings << "app.json needs a repository URL to create a new service." if svc.dig(:source, :repo).blank?
 
     ManifestDesiredState.new(
       services: services,
@@ -180,6 +185,11 @@ class ManifestParser
       end
     end
     result
+  end
+
+  def app_json_repository(hash)
+    repository = hash["repository"]
+    repository.is_a?(Hash) ? repository["url"] : repository
   end
 
   def normalize_app_json_formation(formation)
@@ -271,6 +281,7 @@ class ManifestParser
     proxy = normalize_proxy(svc_hash["proxy"] || svc_hash[:proxy])
     scaling = normalize_scaling(svc_hash["scaling"] || svc_hash[:scaling])
     limits = normalize_limits(svc_hash["limits"] || svc_hash[:limits])
+    reservations = normalize_limits(svc_hash["reservations"] || svc_hash[:reservations])
     checks = normalize_checks(svc_hash["checks"] || svc_hash[:checks])
     cron = normalize_cron(svc_hash["cron"] || svc_hash[:cron])
     storage = normalize_storage(svc_hash["storage"] || svc_hash[:storage])
@@ -291,6 +302,7 @@ class ManifestParser
       proxy: proxy,
       scaling: scaling,
       limits: limits,
+      reservations: reservations,
       checks: checks,
       cron: cron,
       docker_options: docker_options,
@@ -299,10 +311,21 @@ class ManifestParser
       maintenance: svc_hash["maintenance"] || svc_hash[:maintenance] || false,
       version: svc_hash["version"] || svc_hash[:version],
       docker_image: svc_hash["docker_image"] || svc_hash[:docker_image],
+      root_directory: svc_hash["root_directory"] || svc_hash[:root_directory],
       start_command: svc_hash["start_command"] || svc_hash[:start_command],
-      exposed: svc_hash["exposed"] || svc_hash[:exposed],
+      exposed: value_for(svc_hash, "exposed"),
+      port: svc_hash["port"] || svc_hash[:port],
+      restart_policy: svc_hash["restart_policy"] || svc_hash[:restart_policy],
+      restart_max_retries: svc_hash["restart_max_retries"] || svc_hash[:restart_max_retries],
+      auto_deploy: value_for(svc_hash, "auto_deploy").nil? ? true : value_for(svc_hash, "auto_deploy"),
       depends_on: normalize_depends_on(svc_hash["depends_on"] || svc_hash[:depends_on])
     }
+  end
+
+  def value_for(hash, key)
+    return hash[key] if hash.key?(key)
+
+    hash[key.to_sym]
   end
 
   def normalize_source(source)

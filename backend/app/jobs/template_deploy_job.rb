@@ -21,49 +21,58 @@ class TemplateDeployJob < ApplicationJob
     AUTH_SECRET AUTH_TOKEN API_SECRET API_KEY
   ].freeze
 
-  def perform(project_id, template_id)
+  def perform(project_id, template_id, service_ids = nil, deployment_ids_by_service = nil)
     project = Project.find_by(id: project_id)
     return unless project
 
     template = TemplateLoader.find(template_id)
-    return unless template
+    return fail_pending_deployments(project, service_ids, deployment_ids_by_service, "Template not found") unless template
 
     server = project.server
-    return unless server&.ssh_key.present?
+    return fail_pending_deployments(project, service_ids, deployment_ids_by_service, "No server SSH key configured") unless server&.ssh_key.present?
 
     engine = DokkuEngine.new(server)
+    services = scoped_services(project, service_ids)
 
     engine.with_session do
       HostEngine.new(server).with_session do
-        apply_dokku_resources(project, template, engine)
-        create_links(project, template, engine)
-        connect_networks(project, engine)
-        resolve_runtime_values(project, engine)
-        enqueue_app_deployments(project)
+        apply_dokku_resources(project, template, engine, services)
+        create_links(project, template, engine, services)
+        connect_networks(project, engine, services)
+        resolve_runtime_values(project, engine, services)
+        enqueue_app_deployments(project, services, deployment_ids_by_service)
       end
     end
   rescue => e
     Rails.logger.error "TemplateDeployJob failed for project #{project_id}: #{e.message}\n#{e.backtrace.first(8).join("\n")}"
+    fail_pending_deployments(project, service_ids, deployment_ids_by_service, e.message) if project
     broadcast_error(project_id, e.message)
   end
 
   private
 
-  def apply_dokku_resources(project, template, engine)
-    project.services.each do |service|
+  def apply_dokku_resources(project, template, engine, services)
+    services.each do |service|
       app_name = service.dokku_app_name
 
       if service.service_type_database?
-        case service.subtype
+        result = case service.subtype
         when "postgres" then engine.postgres_create(app_name)
         when "redis" then engine.redis_create(app_name)
         when "mysql", "mariadb" then engine.mysql_create(app_name)
         when "mongo" then engine.mongo_create(app_name)
+        else { success: false, output: "Unsupported database subtype: #{service.subtype}" }
         end
+        ensure_success!(result, "create database #{app_name}")
       else
-        engine.app_create(app_name)
-        proxy_type = service.config&.dig("proxy", "type") || "traefik"
-        engine.proxy_set(app_name, proxy_type)
+        ensure_success!(engine.app_create(app_name), "create app #{app_name}")
+        proxy_result = if project.server.external_proxy?
+          engine.proxy_disable(app_name)
+        else
+          proxy_type = service.config&.dig("proxy", "type") || "traefik"
+          engine.proxy_set(app_name, proxy_type)
+        end
+        ensure_success!(proxy_result, "configure proxy for #{app_name}")
 
         # Auto-provision a temporary domain for web services when the server
         # has auto_domains enabled. This must happen before runtime env vars
@@ -73,48 +82,54 @@ class TemplateDeployJob < ApplicationJob
 
       # Sync storage mounts
       service.storage_mounts.each do |mount|
-        engine.storage_mount(app_name, mount.host_path, mount.container_path)
+        ensure_success!(
+          engine.storage_mount(app_name, mount.host_path, mount.container_path),
+          "mount storage for #{app_name}"
+        )
       end
     end
   end
 
-  def create_links(project, template, engine)
+  def create_links(project, template, engine, services)
+    services_by_name = services.index_by(&:name)
+
     template.links.each do |link|
-      from_svc = project.services.find_by(name: link[:from])
-      to_svc = project.services.find_by(name: link[:to])
+      from_svc = services_by_name[link[:from]]
+      to_svc = services_by_name[link[:to]]
       next unless from_svc && to_svc
 
       ServiceLink.find_or_create_by!(from_service: from_svc, to_service: to_svc)
 
       if to_svc.docker_image_database?
         link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
-        unless link_result[:success]
-          Rails.logger.error "Dokku link failed for #{link[:from]} -> #{link[:to]}: #{link_result[:output]}"
-          next
-        end
+        ensure_success!(link_result, "link #{link[:from]} to #{link[:to]}")
 
         sync_dokku_env_vars(engine, from_svc)
         set_canonical_db_url(engine, from_svc, to_svc)
         if to_svc.subtype == "postgres"
-          engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable")
+          ensure_success!(
+            engine.config_set(from_svc.dokku_app_name, "PGSSLMODE", "disable"),
+            "set PGSSLMODE for #{from_svc.dokku_app_name}"
+          )
           from_svc.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
         end
       end
     end
   end
 
-  def connect_networks(project, engine)
+  def connect_networks(project, engine, services)
     network_manager = ProjectNetworkManager.new(project, engine)
-    project.services.each do |service|
+    services.each do |service|
       service.reload
-      network_manager.connect_service(service)
-    rescue => e
-      Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
+      ensure_success!(
+        network_manager.configure_attach_networks(service),
+        "configure networks for #{service.dokku_app_name}"
+      )
     end
   end
 
-  def resolve_runtime_values(project, engine)
-    app_services = project.services.select(&:service_type_app?)
+  def resolve_runtime_values(project, engine, services)
+    app_services = services.select(&:service_type_app?)
 
     # Resolve runtime variable markers
     app_services.each do |service|
@@ -123,7 +138,10 @@ class TemplateDeployJob < ApplicationJob
         resolved = ManifestParser.resolve_runtime(ev.value, project, service, service.linked_services)
         next if resolved == ev.value
 
-        engine.config_set(service.dokku_app_name, ev.key, resolved)
+        ensure_success!(
+          engine.config_set(service.dokku_app_name, ev.key, resolved),
+          "resolve #{ev.key} for #{service.dokku_app_name}"
+        )
         ev.update!(value: resolved)
         Rails.logger.info "Resolved runtime markers in #{ev.key} on #{service.dokku_app_name}"
       end
@@ -156,7 +174,10 @@ class TemplateDeployJob < ApplicationJob
         service.environment_variables.where.not(key: url_var).each do |ev|
           next unless ev.value.match?(url_pattern)
 
-          engine.config_set(service.dokku_app_name, ev.key, actual_url)
+          ensure_success!(
+            engine.config_set(service.dokku_app_name, ev.key, actual_url),
+            "rewrite #{ev.key} for #{service.dokku_app_name}"
+          )
           ev.update!(value: actual_url)
           Rails.logger.info "Rewrote #{ev.key} on #{service.dokku_app_name} to use actual #{db.subtype} credentials from #{url_var}"
         end
@@ -164,17 +185,21 @@ class TemplateDeployJob < ApplicationJob
     end
   end
 
-  def enqueue_app_deployments(project)
-    app_services = project.services.select(&:service_type_app?)
+  def enqueue_app_deployments(project, services, deployment_ids_by_service)
+    app_services = services.select(&:service_type_app?)
     sorted = topo_sort_by_depends_on(app_services)
+    deployments_by_service = {}
 
     sorted.each do |service|
-      deployment = service.deployments.create!(
+      deployment_id = deployment_ids_by_service&.fetch(service.id.to_s, nil) ||
+        deployment_ids_by_service&.fetch(service.id, nil)
+      deployment = service.deployments.pending.find_by(id: deployment_id)
+      deployment ||= service.deployments.create!(
         status: :pending,
         started_at: Time.current,
         branch: service.branch || "main"
       )
-      DeploymentJob.perform_later(service.id, deployment.id)
+      deployments_by_service[service.id] = deployment
       service.update!(status: :deploying)
 
       ActivityEvent.create!(
@@ -184,6 +209,62 @@ class TemplateDeployJob < ApplicationJob
         message: "Template deploy triggered for #{service.name}"
       )
     end
+
+    DeploymentSequenceJob.perform_later(deployment_sequence_entries(sorted, deployments_by_service)) if deployments_by_service.any?
+  end
+
+  def deployment_sequence_entries(services, deployments_by_service)
+    ids_by_name = services.index_by(&:name).transform_values(&:id)
+
+    services.map do |service|
+      dependency_ids = Array(service.config&.dig("depends_on")).filter_map do |name|
+        deployments_by_service[ids_by_name[name]]&.id
+      end
+
+      {
+        service_id: service.id,
+        deployment_id: deployments_by_service.fetch(service.id).id,
+        depends_on_deployment_ids: dependency_ids
+      }
+    end
+  end
+
+  def scoped_services(project, service_ids)
+    return project.services.to_a if service_ids.blank?
+
+    services = project.services.where(id: service_ids).to_a
+    missing_ids = Array(service_ids).map(&:to_i) - services.map(&:id)
+    raise "Template services not found: #{missing_ids.join(', ')}" if missing_ids.any?
+
+    services
+  end
+
+  def ensure_success!(result, action)
+    return result if result&.fetch(:success, false)
+
+    output = result&.fetch(:output, nil) || result&.fetch(:error, nil) || "unknown error"
+    raise "Failed to #{action}: #{output}"
+  end
+
+  def fail_pending_deployments(project, service_ids, deployment_ids_by_service, message)
+    deployment_ids = deployment_ids_by_service.to_h.values
+    deployments = if deployment_ids.any?
+      Deployment.where(id: deployment_ids, status: :pending)
+    else
+      Deployment.joins(:service).where(
+        services: { project_id: project.id, id: Array(service_ids) },
+        status: :pending
+      )
+    end
+
+    service_ids = deployments.pluck(:service_id)
+    deployments.update_all(
+      status: "failed",
+      deploy_log: "Template setup failed: #{message}",
+      completed_at: Time.current,
+      updated_at: Time.current
+    )
+    project.services.where(id: service_ids).update_all(status: "error", updated_at: Time.current)
   end
 
   def topo_sort_by_depends_on(services)
@@ -217,10 +298,10 @@ class TemplateDeployJob < ApplicationJob
 
   def set_canonical_db_url(engine, app_service, db_service)
     info_method = "#{db_service.subtype}_info"
-    return unless engine.respond_to?(info_method)
+    raise "No datastore info command for #{db_service.subtype}" unless engine.respond_to?(info_method)
 
     info = engine.send(info_method, db_service.dokku_app_name)
-    return unless info[:success] && info[:dsn].present?
+    raise "Unable to read #{db_service.subtype} connection URL" unless info[:success] && info[:dsn].present?
 
     dsn = info[:dsn]
     target_key = case db_service.subtype
@@ -231,19 +312,20 @@ class TemplateDeployJob < ApplicationJob
     else nil
     end
 
-    return unless target_key
+    raise "No canonical URL key for #{db_service.subtype}" unless target_key
 
-    engine.config_set(app_service.dokku_app_name, target_key, dsn)
+    ensure_success!(
+      engine.config_set(app_service.dokku_app_name, target_key, dsn),
+      "set #{target_key} for #{app_service.dokku_app_name}"
+    )
     ev = app_service.environment_variables.find_or_initialize_by(key: target_key)
     ev.update!(value: dsn, source: "dokku-link")
     Rails.logger.info "Set #{target_key} on #{app_service.dokku_app_name} to linked #{db_service.subtype} DSN"
-  rescue => e
-    Rails.logger.warn "Failed to set canonical DB URL for #{app_service.dokku_app_name}: #{e.message}"
   end
 
   def sync_dokku_env_vars(engine, service)
     result = engine.config_show(service.dokku_app_name)
-    return unless result[:success]
+    ensure_success!(result, "read linked environment for #{service.dokku_app_name}")
 
     result[:output].each_line do |line|
       line = line.strip
@@ -261,8 +343,6 @@ class TemplateDeployJob < ApplicationJob
         service.environment_variables.create!(key: key, value: value, source: "dokku-link")
       end
     end
-  rescue => e
-    Rails.logger.warn "Failed to sync Dokku env vars for #{service.dokku_app_name}: #{e.message}"
   end
 
   def broadcast_error(project_id, message)

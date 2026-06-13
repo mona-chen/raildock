@@ -1,6 +1,20 @@
 require 'rails_helper'
 
 RSpec.describe Server, type: :model do
+  describe "external proxy settings" do
+    it "requires a network in external mode" do
+      server = build(:server, proxy_mode: "external", external_proxy_network: nil)
+
+      expect(server).not_to be_valid
+      expect(server.errors[:external_proxy_network]).to be_present
+    end
+
+    it "does not require an external network in managed mode" do
+      server = build(:server, proxy_mode: "managed", external_proxy_network: nil)
+
+      expect(server).to be_valid
+    end
+  end
   describe "validations" do
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_presence_of(:host) }

@@ -74,6 +74,8 @@ Rails.application.routes.draw do
       member do
         post :validate
         get :metrics
+        get :networks, to: "networks#index"
+        post "networks/validate", to: "networks#validate", as: :validate_network
       end
     end
 
@@ -102,8 +104,6 @@ Rails.application.routes.draw do
     get "activity", to: "activity_events#global"
 
     resources :builders, only: [ :index ]
-    resources :networks, only: [ :index ]
-
     get "config", to: "config#index"
 
     namespace :admin do

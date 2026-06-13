@@ -17,16 +17,18 @@ class ChangeClassifier
     proxy: :reload,
     traefik_labels: :reload,
     letsencrypt: :reload,
-    maintenance: :reload,
+    maintenance_mode: :reload,
 
     # Restart: process needs restart but no rebuild
-    resource_limits: :restart,
-    resource_reservations: :restart,
+    limits: :restart,
+    reservations: :restart,
     checks: :restart,
     cron: :restart,
     scaling: :restart,
     restart_policy: :restart,
     restart_max_retries: :restart,
+    auto_deploy: :restart,
+    depends_on: :restart,
 
     # Redeploy: full rebuild + deploy required
     builder: :redeploy,

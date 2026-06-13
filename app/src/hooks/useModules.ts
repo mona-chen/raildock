@@ -23,10 +23,20 @@ export function useBuilders() {
   return { data: BUILDERS, isLoading: false }
 }
 
-export function useNetworks() {
+export function useNetworks(serverId?: string) {
   return useQuery({
-    queryKey: ['networks'],
-    queryFn: () => api.networks.list(),
+    queryKey: ['networks', serverId],
+    queryFn: () => api.networks.list(serverId!),
+    enabled: Boolean(serverId),
+  })
+}
+
+export function useValidateNetwork() {
+  return useMutation({
+    mutationFn: ({ serverId, network }: { serverId: string; network: string }) =>
+      api.networks.validate(serverId, network),
+    onSuccess: ({ network }) => toast.success(`Traefik network ${network} verified`),
+    onError: (err) => toast.error(`Network validation failed: ${err.message}`),
   })
 }
 

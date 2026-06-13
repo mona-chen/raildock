@@ -1,3 +1,5 @@
+require "digest"
+
 module Api
   class GithubAppsController < BaseController
     skip_before_action :authenticate_user!, only: [ :callback, :webhook ]
@@ -277,14 +279,19 @@ module Api
     def handle_push_event(data)
       installation_id = data.dig("installation", "id")
       git_source = GitSource.find_by(installation_id: installation_id.to_s, provider: "github") if installation_id
-      trigger_deployments_for_push(data, git_source: git_source, triggered_by: "github_app")
+      trigger_deployments_for_push(
+        data,
+        git_source: git_source,
+        triggered_by: "github_app",
+        delivery_id: request.headers["X-GitHub-Delivery"]
+      )
     end
 
     def handle_pull_request_event(data)
       # Future: preview deployments for PRs
     end
 
-    def trigger_deployments_for_push(data, git_source:, triggered_by:)
+    def trigger_deployments_for_push(data, git_source:, triggered_by:, delivery_id: nil)
       repo = data["repository"] || {}
       branch = data["ref"].to_s.delete_prefix("refs/heads/")
       commit_sha = data["after"].to_s
@@ -305,13 +312,20 @@ module Api
       services.each do |service|
         next unless auto_deploy_branch_matches?(service, branch, repo["default_branch"])
 
-        deployment = service.deployments.create!(
-          status: :pending,
-          started_at: Time.current,
-          branch: branch,
-          commit_sha: commit_sha,
-          triggered_by: triggered_by
+        identity = delivery_id.presence || [ repo["full_name"], branch, commit_sha ].join(":")
+        deployment, created = Deployment.create_idempotently!(
+          service: service,
+          key: Digest::SHA256.hexdigest("github-app:#{service.id}:#{identity}"),
+          attributes: {
+            status: :pending,
+            started_at: Time.current,
+            branch: branch,
+            commit_sha: commit_sha,
+            triggered_by: triggered_by
+          }
         )
+        next unless created
+
         DeploymentJob.perform_later(service.id, deployment.id)
         service.update!(status: :deploying)
       end

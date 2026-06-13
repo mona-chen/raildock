@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_13_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -75,11 +75,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_000000) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.text "deploy_log"
+    t.string "idempotency_key"
     t.bigint "service_id", null: false
     t.datetime "started_at"
     t.string "status"
     t.string "triggered_by", default: "manual"
     t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_deployments_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["service_id"], name: "index_deployments_on_service_id"
   end
 
@@ -209,11 +211,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_000000) do
     t.integer "disk_used"
     t.string "docker_version"
     t.string "dokku_version"
+    t.string "external_proxy_cert_resolver"
+    t.jsonb "external_proxy_default_labels", default: {}, null: false
+    t.string "external_proxy_http_entrypoint", default: "web", null: false
+    t.string "external_proxy_https_entrypoint", default: "websecure", null: false
+    t.string "external_proxy_network"
+    t.string "external_proxy_redirect_middleware"
     t.string "host"
     t.integer "memory_total"
     t.integer "memory_used"
     t.string "name"
     t.string "os"
+    t.string "proxy_mode", default: "managed", null: false
     t.string "public_ip"
     t.text "ssh_key_ciphertext"
     t.string "ssh_user", default: "dokku"

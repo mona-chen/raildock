@@ -14,7 +14,7 @@ RSpec.describe DeploymentJob, type: :job do
     )
   end
   let!(:deployment) do
-    create(:deployment, service: service, status: :pending, branch: "feature")
+    create(:deployment, service: service, status: :pending, branch: "feature", commit_sha: nil)
   end
 
   let(:config) do
@@ -36,7 +36,15 @@ RSpec.describe DeploymentJob, type: :job do
 
   let(:engine) { instance_double(DokkuEngine) }
   let(:host_engine) { instance_double(HostEngine) }
-  let(:network_manager) { instance_double(ProjectNetworkManager, connect_service: true, ensure_linked_aliases: true, inject_internal_hostnames: true) }
+  let(:network_manager) do
+    instance_double(
+      ProjectNetworkManager,
+      configure_attach_networks: { success: true, output: "" },
+      connect_service: { success: true, output: "" },
+      ensure_linked_aliases: { success: true, output: "" },
+      inject_internal_hostnames: { success: true, output: "" }
+    )
+  end
 
   before do
     create_list(:environment_variable, 2, service: service)
@@ -56,6 +64,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
     allow(engine).to receive(:config_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:domain_add).and_return({ success: true, output: "" })
+    allow(engine).to receive(:domain_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:storage_mount).and_return({ success: true, output: "" })
     allow(engine).to receive(:nginx_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:proxy_set).and_return({ success: true, output: "" })
@@ -64,6 +73,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:docker_option_add).and_return({ success: true, output: "" })
     allow(engine).to receive(:resource_limit).and_return({ success: true, output: "" })
     allow(engine).to receive(:ports_set).and_return({ success: true, output: "" })
+    allow(engine).to receive(:ports_clear).and_return({ success: true, output: "" })
     allow(engine).to receive(:git_set_deploy_branch).and_return({ success: true, output: "" })
     allow(engine).to receive(:run).and_return({ success: true, output: "synced" })
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
@@ -98,9 +108,10 @@ RSpec.describe DeploymentJob, type: :job do
           expect(engine).to have_received(:config_set).with(service.dokku_app_name, ev.key, ev.value)
         end
 
-        service.domains.each do |domain|
-          expect(engine).to have_received(:domain_add).with(service.dokku_app_name, domain.hostname)
-        end
+        expect(engine).to have_received(:domain_set).with(
+          service.dokku_app_name,
+          *service.domains.map(&:hostname)
+        )
 
         service.storage_mounts.each do |mount|
           expect(engine).to have_received(:storage_mount).with(service.dokku_app_name, mount.host_path, mount.container_path)
@@ -115,7 +126,7 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:resource_limit).with(
           service.dokku_app_name, "web", memory: "512", cpu: "1", nvidia_gpu: "1"
         )
-        expect(engine).to have_received(:git_set_deploy_branch).with(service.dokku_app_name, "main")
+        expect(engine).to have_received(:git_set_deploy_branch).with(service.dokku_app_name, "feature")
         expect(engine).to have_received(:run).with("git:sync #{service.dokku_app_name} #{service.git_repo} feature")
         expect(engine).to have_received(:run_streaming).with("ps:rebuild #{service.dokku_app_name}")
 
@@ -124,16 +135,38 @@ RSpec.describe DeploymentJob, type: :job do
         end
       end
 
+      it "uses the requested commit SHA as the git sync reference" do
+        deployment.update!(commit_sha: "abc1234")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:run).with(
+          "git:sync #{service.dokku_app_name} #{service.git_repo} abc1234"
+        )
+      end
+
+      it "keeps the service deploying when another deployment is pending" do
+        create(:deployment, service: service, status: :pending, branch: "main")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(service.reload.status).to eq("deploying")
+      end
+
       it "broadcasts deploying and succeeded events" do
         DeploymentJob.perform_now(service.id, deployment.id)
 
         expect(DeploymentsChannel).to have_received(:broadcast_to).with(
           service,
-          hash_including(deployment_id: deployment.id, status: "deploying", message: "Deployment started")
+          hash_including(deployment_id: deployment.id, status: "building", message: "Build started")
         ).once
         expect(DeploymentsChannel).to have_received(:broadcast_to).with(
           service,
-          hash_including(deployment_id: deployment.id, status: "deploying", log_chunk: "deployed")
+          hash_including(deployment_id: deployment.id, status: "building", log_chunk: "deployed")
+        ).once
+        expect(DeploymentsChannel).to have_received(:broadcast_to).with(
+          service,
+          hash_including(deployment_id: deployment.id, status: "deploying", message: "Release configuration started")
         ).once
         expect(DeploymentsChannel).to have_received(:broadcast_to).with(
           service,
@@ -166,7 +199,7 @@ RSpec.describe DeploymentJob, type: :job do
           .and change(ActivityEvent, :count).by(1)
 
         expect(deployment.deploy_log).to match(/name already taken/)
-        expect(ActivityEvent.last.action).to eq("created")
+        expect(ActivityEvent.last.action).to eq("warning")
 
         expect(DeploymentsChannel).to have_received(:broadcast_to).with(
           service,
@@ -247,11 +280,26 @@ RSpec.describe DeploymentJob, type: :job do
         allow(engine).to receive(:ps_scale).and_return({ success: false, output: "scale failed" })
       end
 
-      it "still marks deployment as succeeded (scaling errors are not checked)" do
+      it "marks deployment as failed" do
         DeploymentJob.perform_now(service.id, deployment.id)
 
-        expect(deployment.reload.status).to eq("succeeded")
-        expect(service.reload.status).to eq("running")
+        expect(deployment.reload.status).to eq("failed")
+        expect(service.reload.status).to eq("error")
+        expect(deployment.deploy_log).to include("Scaling failed")
+      end
+    end
+
+    context "when environment sync fails" do
+      before do
+        allow(engine).to receive(:config_set).and_return({ success: false, output: "config failed" })
+      end
+
+      it "marks deployment as failed before building" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("failed")
+        expect(service.reload.status).to eq("error")
+        expect(engine).not_to have_received(:run_streaming)
       end
     end
 

@@ -45,6 +45,12 @@ vi.mock('@/hooks/useServers', () => ({
   useCreateServer: () => ({ mutate: vi.fn(), isPending: false }),
   useDestroyServer: () => ({ mutate: vi.fn() }),
   useValidateServer: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateServer: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/useModules', () => ({
+  useNetworks: () => ({ data: [], isLoading: false }),
+  useValidateNetwork: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/stores/useAuthStore', () => ({
@@ -249,6 +255,41 @@ describe('ServerPage', () => {
     expect(screen.getByText('Connect a Dokku host via SSH')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('dokku-prod-01')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('192.168.1.100')).toBeInTheDocument()
+  })
+
+  it('shows external Traefik settings for a server', () => {
+    ;(useServers as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [
+        {
+          id: 'srv-1',
+          name: 'Production',
+          host: '1.2.3.4',
+          status: 'connected',
+          dokkuVersion: '0.35.13',
+          dockerVersion: '26.1.0',
+          os: 'Ubuntu 22.04',
+          uptime: '10d',
+          diskUsage: { used: 20, total: 100 },
+          memoryUsage: { used: 4, total: 16 },
+          projectIds: [],
+          defaultProxy: 'traefik',
+          proxyMode: 'managed',
+          externalProxyHttpEntrypoint: 'web',
+          externalProxyHttpsEntrypoint: 'websecure',
+          externalProxyDefaultLabels: {},
+        },
+      ],
+      isLoading: false,
+    })
+
+    render(<ServerPage />)
+    fireEvent.click(screen.getByTitle('Proxy settings'))
+    fireEvent.change(screen.getByLabelText('Proxy Mode'), { target: { value: 'external' } })
+
+    expect(screen.getByText('Existing Traefik')).toBeInTheDocument()
+    expect(screen.getByLabelText('Traefik Docker Network')).toBeInTheDocument()
+    expect(screen.getByLabelText('HTTP entrypoint')).toHaveValue('web')
+    expect(screen.getByLabelText('HTTPS entrypoint')).toHaveValue('websecure')
   })
 })
 

@@ -45,6 +45,32 @@ RSpec.describe "Api::WebhooksController", type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+
+      it "deduplicates repeated deliveries" do
+        payload = {
+          repository: { full_name: "acme/app" },
+          ref: "refs/heads/main",
+          after: "abc1234"
+        }
+        headers = { "X-GitHub-Delivery" => "delivery-123" }
+
+        expect {
+          2.times { post "/api/webhooks/deploy", params: payload, headers: headers }
+        }.to change(Deployment, :count).by(1)
+      end
+
+      it "does not let an unset service branch match arbitrary branches" do
+        service.update!(branch: nil)
+
+        expect {
+          post "/api/webhooks/deploy", params: {
+            repository: { full_name: "acme/app" },
+            ref: "refs/heads/feature"
+          }
+        }.not_to change(Deployment, :count)
+
+        expect(response).to have_http_status(:not_found)
+      end
     end
 
     context "with webhook secret configured" do
@@ -137,6 +163,16 @@ RSpec.describe "Api::WebhooksController", type: :request do
 
       deployment = Deployment.last
       expect(deployment.branch).to eq("develop")
+    end
+
+    it "rejects database services" do
+      database = create(:service, :database, project: project, webhook_token: "database-token")
+
+      expect {
+        post "/api/services/#{database.id}/webhooks/database-token/deploy"
+      }.not_to change(Deployment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
     end
   end
 end

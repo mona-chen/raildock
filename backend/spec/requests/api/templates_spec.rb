@@ -83,6 +83,26 @@ RSpec.describe "Api::TemplatesController", type: :request do
         expect(response).to have_http_status(:not_found)
         expect(JSON.parse(response.body)["error"]).to eq("Project not found")
       end
+
+      it "creates pending deployments and passes exact invocation records to the job" do
+        project.update!(server: create(:server))
+        allow(TemplateDeployJob).to receive(:perform_later)
+
+        post "/api/templates/pocketbase/deploy",
+          params: { project_id: project.id },
+          headers: auth_headers(user)
+
+        created_service = project.services.find_by!(name: "pocketbase")
+        deployment = created_service.deployments.find_by!(status: :pending)
+
+        expect(created_service.status).to eq("deploying")
+        expect(TemplateDeployJob).to have_received(:perform_later).with(
+          project.id,
+          "pocketbase",
+          [ created_service.id ],
+          { created_service.id => deployment.id }
+        )
+      end
     end
   end
 end

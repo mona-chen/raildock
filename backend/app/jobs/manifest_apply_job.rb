@@ -25,9 +25,14 @@ class ManifestApplyJob < ApplicationJob
     end
 
     engine = DokkuEngine.new(server)
+    host_engine = HostEngine.new(server)
     broadcast(project_id, "started", "Applying manifest changes...")
 
-    result = reconciler.apply!(engine)
+    result = engine.with_session do
+      host_engine.with_session do
+        reconciler.apply!(engine, host_engine: host_engine)
+      end
+    end
 
     if result[:success]
       project.update!(

@@ -72,6 +72,14 @@ class HostEngine
     run("docker network inspect #{Shellwords.escape(network)} --format '{{json .Containers}}'")
   end
 
+  def docker_network_inventory
+    run("docker network inspect $(docker network ls -q) --format '{{json .}}'")
+  end
+
+  def docker_container_inventory
+    run("docker ps --format '{{json .}}'")
+  end
+
   def docker_inspect(container, format: nil)
     fmt = format ? "--format='#{format}' " : ""
     run("docker inspect #{fmt}#{Shellwords.escape(container)}")

@@ -107,9 +107,21 @@ module Api
     end
 
     def server_params
-      params.require(:server).permit(:name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains)
+      params.require(:server).permit(
+        :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
+        :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
+        :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
+        :external_proxy_redirect_middleware,
+        external_proxy_default_labels: {}
+      )
     rescue ActionController::ParameterMissing
-      params.permit(:name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains)
+      params.permit(
+        :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
+        :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
+        :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
+        :external_proxy_redirect_middleware,
+        external_proxy_default_labels: {}
+      )
     end
 
     def authorize_server_record!(server, action:)

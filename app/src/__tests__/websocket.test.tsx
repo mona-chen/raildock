@@ -16,7 +16,7 @@ let logHandlers: {
 let deploymentHandlers: {
   received?: (data: {
     deployment_id: string
-    status: 'pending' | 'deploying' | 'succeeded' | 'failed'
+    status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
     message: string
   }) => void
   connected?: () => void

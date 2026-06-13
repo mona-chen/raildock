@@ -253,6 +253,16 @@ configure_dokku_proxy() {
     return 0
   fi
 
+  local proxy_mode="${PROXY_MODE:-managed}"
+  if [ "$proxy_mode" = "external" ]; then
+    if [ -z "${EXTERNAL_PROXY_NETWORK:-}" ]; then
+      log_error "PROXY_MODE=external requires EXTERNAL_PROXY_NETWORK"
+      exit 1
+    fi
+    log_info "External proxy mode — leaving existing host proxy services untouched"
+    return 0
+  fi
+
   # Allow users to force nginx if they don't want Traefik.
   local proxy_type="${PROXY_TYPE:-traefik}"
   if [ "$proxy_type" != "traefik" ]; then
@@ -343,7 +353,13 @@ create_local_server_record() {
         name: 'Local Dokku',
         ssh_key: privkey,
         status: :disconnected,
-        default_proxy: 'traefik'
+        default_proxy: 'traefik',
+        proxy_mode: '${PROXY_MODE:-managed}',
+        external_proxy_network: '${EXTERNAL_PROXY_NETWORK:-}',
+        external_proxy_http_entrypoint: '${EXTERNAL_PROXY_HTTP_ENTRYPOINT:-web}',
+        external_proxy_https_entrypoint: '${EXTERNAL_PROXY_HTTPS_ENTRYPOINT:-websecure}',
+        external_proxy_cert_resolver: '${EXTERNAL_PROXY_CERT_RESOLVER:-}',
+        external_proxy_redirect_middleware: '${EXTERNAL_PROXY_REDIRECT_MIDDLEWARE:-}'
       )
       puts \"Updated server: #{server.name}\"
     else
@@ -352,7 +368,13 @@ create_local_server_record() {
         host: '$dokku_host',
         ssh_key: privkey,
         status: :disconnected,
-        default_proxy: 'traefik'
+        default_proxy: 'traefik',
+        proxy_mode: '${PROXY_MODE:-managed}',
+        external_proxy_network: '${EXTERNAL_PROXY_NETWORK:-}',
+        external_proxy_http_entrypoint: '${EXTERNAL_PROXY_HTTP_ENTRYPOINT:-web}',
+        external_proxy_https_entrypoint: '${EXTERNAL_PROXY_HTTPS_ENTRYPOINT:-websecure}',
+        external_proxy_cert_resolver: '${EXTERNAL_PROXY_CERT_RESOLVER:-}',
+        external_proxy_redirect_middleware: '${EXTERNAL_PROXY_REDIRECT_MIDDLEWARE:-}'
       )
       puts \"Created server: #{server.name}\"
     end
@@ -532,6 +554,12 @@ RAILDOCK_PUBLIC_URL=${public_url}
 RAILDOCK_PUBLIC_HOST=${public_host}
 DOKKU_HOST=${dokku_host}
 TRAEFIK_ENABLE=${TRAEFIK_ENABLE:-false}
+PROXY_MODE=${PROXY_MODE:-managed}
+EXTERNAL_PROXY_NETWORK=${EXTERNAL_PROXY_NETWORK:-}
+EXTERNAL_PROXY_HTTP_ENTRYPOINT=${EXTERNAL_PROXY_HTTP_ENTRYPOINT:-web}
+EXTERNAL_PROXY_HTTPS_ENTRYPOINT=${EXTERNAL_PROXY_HTTPS_ENTRYPOINT:-websecure}
+EXTERNAL_PROXY_CERT_RESOLVER=${EXTERNAL_PROXY_CERT_RESOLVER:-}
+EXTERNAL_PROXY_REDIRECT_MIDDLEWARE=${EXTERNAL_PROXY_REDIRECT_MIDDLEWARE:-}
 POSTGRES_PASSWORD=${pg_pass}
 DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production
 QUEUE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_queue

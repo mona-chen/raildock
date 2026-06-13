@@ -40,6 +40,14 @@ The installer:
 
 Use `BUILD_FROM_SOURCE=1` or `INSTALL_DOKKU=0` (to skip Dokku install) as needed.
 
+To use an existing Traefik instance on the Dokku host instead of Dokku's
+managed proxy, install with `PROXY_MODE=external` and set
+`EXTERNAL_PROXY_NETWORK` to the existing Traefik Docker network. Optional
+entrypoint, certificate resolver, and redirect middleware names can be set via
+`EXTERNAL_PROXY_HTTP_ENTRYPOINT`, `EXTERNAL_PROXY_HTTPS_ENTRYPOINT`,
+`EXTERNAL_PROXY_CERT_RESOLVER`, and `EXTERNAL_PROXY_REDIRECT_MIDDLEWARE`.
+External mode must not start, stop, or reconfigure the existing proxy.
+
 ## Credentials & secrets
 
 - `backend/config/credentials.yml.enc` is **not committed**. It is generated per install.

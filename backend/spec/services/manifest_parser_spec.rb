@@ -93,6 +93,19 @@ RSpec.describe ManifestParser do
         expect(svc[:env]).to eq({ "RAILS_ENV" => "production", "SECRET" => "SECRET_GENERATED" })
         expect(svc[:cron].length).to eq(1)
       end
+
+      it "uses the standard repository field as the deploy source" do
+        result = described_class.parse(
+          {
+            name: "example",
+            repository: "https://github.com/acme/example",
+            env: {}
+          }.to_json,
+          filename: "app.json"
+        )
+
+        expect(result.services.first.dig(:source, :repo)).to eq("https://github.com/acme/example")
+      end
     end
 
     context 'with raildock.json' do

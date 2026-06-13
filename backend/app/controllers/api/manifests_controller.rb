@@ -94,11 +94,6 @@ module Api
       # Queue background job
       job = ManifestApplyJob.perform_later(@project.id, content)
 
-      @project.update!(
-        manifest_last_applied_at: Time.current,
-        manifest_drift_detected: false
-      )
-
       render json: {
         job_id: job.job_id,
         status: "queued",

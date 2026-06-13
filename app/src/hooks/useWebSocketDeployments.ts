@@ -5,7 +5,7 @@ import { debugLog, debugWarn } from '@/lib/debug'
 
 interface DeploymentUpdate {
   deployment_id: string
-  status: 'pending' | 'deploying' | 'succeeded' | 'failed'
+  status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
   message: string
   log_chunk?: string
   started_at?: string

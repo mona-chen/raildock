@@ -12,6 +12,10 @@ class Server < ApplicationRecord
   }, default: "disconnected"
 
   PROXY_TYPES = %w[nginx traefik caddy haproxy openresty].freeze
+  PROXY_MODES = %w[managed external].freeze
+
+  validates :proxy_mode, inclusion: { in: PROXY_MODES }
+  validates :external_proxy_network, presence: true, if: :external_proxy?
 
   # Shared Lockbox instance for encryption/decryption (class-level for efficiency)
   LOCKBOX = Lockbox.new(key: Lockbox.master_key, encode: true)
@@ -40,6 +44,10 @@ class Server < ApplicationRecord
 
   def default_proxy
     self[:default_proxy].presence || "traefik"
+  end
+
+  def external_proxy?
+    proxy_mode == "external"
   end
 
   def disk_usage

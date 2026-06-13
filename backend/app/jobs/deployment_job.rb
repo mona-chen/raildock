@@ -1,6 +1,8 @@
 class DeploymentJob < ApplicationJob
   queue_as :default
 
+  limits_concurrency to: 1, key: ->(service_id, deployment_id) { "deploy:#{service_id}" }
+
   def perform(service_id, deployment_id)
     service = Service.find(service_id)
     project = service.project
@@ -29,66 +31,14 @@ class DeploymentJob < ApplicationJob
 
   private
 
-  # Wait for linked database containers to report running and for their network
-  # aliases to resolve. This prevents apps from booting before MySQL/Postgres/etc.
-  # is actually accepting connections.
-  def wait_for_linked_databases(service, engine)
-    linked_dbs = service.linked_services.select(&:service_type_database?)
-    return if linked_dbs.empty?
-
-    linked_dbs.each do |db|
-      wait_for_datastore_ready(engine, db)
-    end
-  end
-
-  def wait_for_datastore_ready(engine, db_service, timeout: 120)
-    app_name = db_service.dokku_app_name
-    subtype = db_service.subtype
-    return unless %w[postgres mysql mariadb redis mongo].include?(subtype)
-
-    start = Time.now
-    loop do
-      elapsed = Time.now - start
-      break if elapsed > timeout
-
-      info_method = "#{subtype}_info"
-      if engine.respond_to?(info_method)
-        info = engine.send(info_method, app_name)
-        if info[:success] && info[:status].to_s.downcase == "running"
-          Rails.logger.info "Datastore #{app_name} (#{subtype}) is running"
-          return true
-        end
-      end
-
-      # Fallback: check that the container is running
-      host_engine = HostEngine.new(db_service.project.server)
-      container = host_engine.dokku_container_name(app_name)
-      if container.present? && host_engine.container_running?(container)
-        # Additional port readiness check for mysql/postgres/mariadb
-        if %w[postgres mysql mariadb].include?(subtype)
-          port = { "postgres" => 5432, "mysql" => 3306, "mariadb" => 3306 }[subtype]
-          check = host_engine.run("docker exec #{container} sh -c 'timeout 2 bash -c \"</dev/tcp/localhost/#{port}\"'")
-          if check[:success]
-            Rails.logger.info "Datastore #{app_name} (#{subtype}) port #{port} is open"
-            return true
-          end
-        else
-          return true
-        end
-      end
-
-      sleep 2
-    end
-
-    Rails.logger.warn "Timeout waiting for datastore #{app_name} (#{subtype}) to become ready"
-    false
-  end
-
   def perform_deployment(service, project, deployment, engine, host_engine)
+    server = project.server
+
     # 0. Wait for linked database services to be ready and reachable.
     #    Dokku datastore:create returns before the container accepts connections,
     #    and docker network aliases need a moment to propagate via embedded DNS.
-    wait_for_linked_databases(service, engine)
+    databases_ready = wait_for_linked_databases(service, engine, host_engine)
+    return mark_failed(deployment, service, "Linked database did not become ready") unless databases_ready
 
     # 1. Ensure app exists
     unless engine.app_exists?(service.dokku_app_name)
@@ -96,62 +46,83 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "App creation failed", result[:output]) unless result[:success]
     end
 
+    network_manager = ProjectNetworkManager.new(project, engine)
+    network_result = network_manager.configure_attach_networks(service)
+    return mark_failed(deployment, service, "Network configuration failed", network_result[:output]) unless network_result[:success]
+
     # 2. Sync environment variables
     service.environment_variables.each do |ev|
-      engine.config_set(service.dokku_app_name, ev.key, ev.value)
+      result = engine.config_set(service.dokku_app_name, ev.key, ev.value)
+      return mark_failed(deployment, service, "Environment sync failed for #{ev.key}", result[:output]) unless result[:success]
     end
 
     # 3. Sync domains
-    service.domains.each do |domain|
-      engine.domain_add(service.dokku_app_name, domain.hostname)
+    if service.domains.any?
+      result = engine.domain_set(service.dokku_app_name, *service.domains.map(&:hostname))
+      return mark_failed(deployment, service, "Domain sync failed", result[:output]) unless result[:success]
     end
 
     # 4. Sync storage mounts
     service.storage_mounts.each do |mount|
-      engine.storage_mount(service.dokku_app_name, mount.host_path, mount.container_path)
+      result = engine.storage_mount(service.dokku_app_name, mount.host_path, mount.container_path)
+      return mark_failed(deployment, service, "Storage sync failed for #{mount.container_path}", result[:output]) unless result[:success]
     end
 
     # 5. Apply proxy settings
-    if service.config&.dig("proxy", "enabled") == false
-      engine.proxy_disable(service.dokku_app_name)
+    if server.external_proxy?
+      proxy_result = ExternalProxyConfigurator.new(service, engine, host_engine).apply!
+      return mark_failed(deployment, service, "External proxy configuration failed", proxy_result[:output]) unless proxy_result[:success]
+    elsif service.config&.dig("proxy", "enabled") == false
+      result = engine.proxy_disable(service.dokku_app_name)
+      return mark_failed(deployment, service, "Proxy disable failed", result[:output]) unless result[:success]
     else
       if (proxy_type = service.config&.dig("proxy", "proxyType")).present?
-        engine.proxy_set(service.dokku_app_name, proxy_type)
+        result = engine.proxy_set(service.dokku_app_name, proxy_type)
+        return mark_failed(deployment, service, "Proxy selection failed", result[:output]) unless result[:success]
       end
 
-      apply_nginx_settings(engine, service)
-      engine.proxy_enable(service.dokku_app_name)
+      nginx_result = apply_nginx_settings(engine, service)
+      return mark_failed(deployment, service, "Proxy settings failed", nginx_result[:output]) unless nginx_result[:success]
+
+      result = engine.proxy_enable(service.dokku_app_name)
+      return mark_failed(deployment, service, "Proxy enable failed", result[:output]) unless result[:success]
     end
 
     # 6. Apply docker options
     if service.config&.dig("dockerOptions")
       service.config["dockerOptions"].each do |opt|
-        engine.docker_option_add(service.dokku_app_name, opt["phase"], opt["option"]) if opt["phase"] && opt["option"]
+        next unless opt["phase"] && opt["option"]
+
+        result = engine.docker_option_add(service.dokku_app_name, opt["phase"], opt["option"])
+        return mark_failed(deployment, service, "Docker option sync failed", result[:output]) unless result[:success]
       end
     end
 
     # 7. Apply resource limits
     if service.config&.dig("resourceLimits")
-      service.config["resourceLimits"].each do |res|
-        engine.resource_limit(
+      each_resource_limit(service.config["resourceLimits"]) do |process_type, limits|
+        result = engine.resource_limit(
           service.dokku_app_name,
-          res["processType"],
-          memory: res["memory"],
-          cpu: res["cpu"],
-          nvidia_gpu: res["nvidiaGpu"]
+          process_type,
+          memory: limits["memory"],
+          cpu: limits["cpu"],
+          nvidia_gpu: limits["nvidiaGpu"] || limits["nvidia_gpu"]
         )
+        return mark_failed(deployment, service, "Resource limit sync failed for #{process_type}", result[:output]) unless result[:success]
       end
     end
 
     # 8. Set git deploy branch
-    engine.git_set_deploy_branch(service.dokku_app_name, service.branch || "main")
+    branch_result = engine.git_set_deploy_branch(service.dokku_app_name, deployment.branch || service.branch || "main")
+    return mark_failed(deployment, service, "Git deploy branch configuration failed", branch_result[:output]) unless branch_result[:success]
 
     # 9. Deploy (with real-time log streaming)
-    deployment.update!(status: :deploying)
+    deployment.update!(status: :building)
+    service.update!(status: :building)
     DeploymentsChannel.broadcast_to(service, {
       deployment_id: deployment.id,
-      status: "deploying",
-      message: "Deployment started",
+      status: "building",
+      message: "Build started",
       started_at: Time.current.iso8601
     })
 
@@ -171,7 +142,7 @@ class DeploymentJob < ApplicationJob
         deployment.update!(deploy_log: deploy_output)
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
-          status: "deploying",
+          status: "building",
           log_chunk: chunk,
           started_at: deployment.started_at.iso8601
         })
@@ -190,7 +161,7 @@ class DeploymentJob < ApplicationJob
           deployment.update!(deploy_log: deploy_output)
           DeploymentsChannel.broadcast_to(service, {
             deployment_id: deployment.id,
-            status: "deploying",
+            status: "building",
             log_chunk: chunk,
             started_at: deployment.started_at.iso8601
           })
@@ -200,7 +171,8 @@ class DeploymentJob < ApplicationJob
       # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
       # Run git:sync first (non-streaming, usually short)
       git_repo = git_repo_for_deploy(service)
-      sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{deployment.branch || service.branch || 'main'}")
+      git_ref = deployment.commit_sha.presence || deployment.branch.presence || service.branch.presence || "main"
+      sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}")
       deploy_output += sync_result[:output]
       deployment.update!(deploy_log: deploy_output) if deploy_output.present?
 
@@ -214,7 +186,7 @@ class DeploymentJob < ApplicationJob
         deployment.update!(deploy_log: deploy_output)
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
-          status: "deploying",
+          status: "building",
           log_chunk: chunk,
           started_at: deployment.started_at.iso8601
         })
@@ -232,6 +204,15 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end
 
+    deployment.update!(status: :deploying)
+    service.update!(status: :deploying)
+    DeploymentsChannel.broadcast_to(service, {
+      deployment_id: deployment.id,
+      status: "deploying",
+      message: "Release configuration started",
+      started_at: deployment.started_at.iso8601
+    })
+
     # 10. Detect the app's listening port from the running container/image
     begin
       port_detector = PortDetector.new(engine)
@@ -244,50 +225,51 @@ class DeploymentJob < ApplicationJob
       Rails.logger.warn "Port detection failed for #{service.dokku_app_name}: #{e.message}"
     end
 
+    if server.external_proxy?
+      proxy_result = ExternalProxyConfigurator.new(service.reload, engine, host_engine).apply!
+      return mark_failed(deployment, service, "External proxy refresh failed", proxy_result[:output]) unless proxy_result[:success]
+    end
+
     # 11. Sync port mappings for all domains (routes public 80/443 → container target_port)
-    begin
-      target = service.detected_port || 5000
-      if service.domains.any?
-        service.domains.each do |domain|
-          domain_target = domain.target_port || target
-          engine.ports_set(service.dokku_app_name, "http", 80, domain_target)
-          engine.ports_set(service.dokku_app_name, "https", 443, domain_target)
+    target = service.detected_port || 5000
+    unless server.external_proxy?
+      port_targets = service.domains.any? ? service.domains.map { |domain| domain.target_port || target }.uniq : [ target ]
+      port_targets.each do |domain_target|
+        %w[http https].zip([ 80, 443 ]).each do |scheme, host_port|
+          result = engine.ports_set(service.dokku_app_name, scheme, host_port, domain_target)
+          return mark_failed(deployment, service, "Port mapping failed for #{scheme}", result[:output]) unless result[:success]
         end
-      else
-        # No domains yet — still set a default port mapping so the app is accessible
-        engine.ports_set(service.dokku_app_name, "http", 80, target)
-        engine.ports_set(service.dokku_app_name, "https", 443, target)
       end
-    rescue => e
-      Rails.logger.warn "Port mapping sync failed for #{service.dokku_app_name}: #{e.message}"
     end
 
     # 12. Scale processes (Dokku deploy already started the app)
     service.process_types.each do |pt|
-      engine.ps_scale(service.dokku_app_name, pt.name, pt.quantity)
+      result = engine.ps_scale(service.dokku_app_name, pt.name, pt.quantity)
+      return mark_failed(deployment, service, "Scaling failed for #{pt.name}", result[:output]) unless result[:success]
     end
 
     # 13. Ensure service is connected to project's private network
     #    and re-add aliases for all linked services (Dokku doesn't persist aliases)
-    begin
-      network_manager = ProjectNetworkManager.new(project, engine)
-      network_manager.connect_service(service)
-      network_manager.ensure_linked_aliases(service)
-      network_manager.inject_internal_hostnames(service)
-    rescue => e
-      Rails.logger.warn "Network connect failed for #{service.dokku_app_name}: #{e.message}"
-    end
+    network_result = network_manager.connect_service(service)
+    return mark_failed(deployment, service, "Network connection failed", network_result[:output]) unless network_result[:success]
+
+    alias_result = network_manager.ensure_linked_aliases(service)
+    return mark_failed(deployment, service, "Linked network alias failed", alias_result[:output]) unless alias_result[:success]
+
+    hostname_result = network_manager.inject_internal_hostnames(service)
+    return mark_failed(deployment, service, "Internal hostname sync failed", hostname_result[:output]) unless hostname_result[:success]
 
     # 14. For docker-image services, read container env vars and sync password-type
     #     vars to the Service record so linked services can reference them via
     #     ${{ linked.SERVICE.VAR }} at deploy time.
     if service.docker_image.present?
-      sync_docker_image_env_vars(service, project)
+      sync_docker_image_env_vars(service, host_engine)
 
       # Also update linked apps that have env vars referencing this service's
       # password vars via ${{ linked.SERVICE.VAR }} — they need the resolved
       # password value (not a new random one from a fresh secret() call).
-      update_linked_app_password_refs(service, project)
+      linked_result = update_linked_app_password_refs(service, project, engine, host_engine)
+      return mark_failed(deployment, service, "Linked password propagation failed", linked_result[:output]) unless linked_result[:success]
     end
 
     # 15. Mark success
@@ -296,7 +278,7 @@ class DeploymentJob < ApplicationJob
       deploy_log: deploy_output,
       completed_at: Time.current
     )
-    service.update!(status: :running)
+    update_service_status_after(deployment, service, success: true)
 
     ActivityEvent.create!(
       project: project,
@@ -318,16 +300,16 @@ class DeploymentJob < ApplicationJob
   # Wait for linked database containers to report running and for their network
   # aliases to resolve. This prevents apps from booting before MySQL/Postgres/etc.
   # is actually accepting connections.
-  def wait_for_linked_databases(service, engine)
+  def wait_for_linked_databases(service, engine, host_engine)
     linked_dbs = service.linked_services.select(&:service_type_database?)
-    return if linked_dbs.empty?
+    return true if linked_dbs.empty?
 
-    linked_dbs.each do |db|
-      wait_for_datastore_ready(engine, db)
+    linked_dbs.all? do |db|
+      wait_for_datastore_ready(engine, host_engine, db)
     end
   end
 
-  def wait_for_datastore_ready(engine, db_service, timeout: 120)
+  def wait_for_datastore_ready(engine, host_engine, db_service, timeout: 120)
     app_name = db_service.dokku_app_name
     subtype = db_service.subtype
     return unless %w[postgres mysql mariadb redis mongo].include?(subtype)
@@ -347,7 +329,6 @@ class DeploymentJob < ApplicationJob
       end
 
       # Fallback: check that the container is running
-      host_engine = HostEngine.new(db_service.project.server)
       container = host_engine.dokku_container_name(app_name)
       if container.present? && host_engine.container_running?(container)
         # Additional port readiness check for mysql/postgres/mariadb
@@ -403,7 +384,7 @@ class DeploymentJob < ApplicationJob
 
   def apply_nginx_settings(engine, service)
     nginx_config = service.config&.dig("nginx")
-    return if nginx_config.blank?
+    return { success: true } if nginx_config.blank?
 
     nginx_settings = {
       "clientMaxBodySize" => "client-max-body-size",
@@ -413,7 +394,22 @@ class DeploymentJob < ApplicationJob
 
     nginx_settings.each do |source_key, dokku_key|
       value = nginx_config[source_key]
-      engine.nginx_set(service.dokku_app_name, dokku_key, value) if value.present?
+      next if value.blank?
+
+      result = engine.nginx_set(service.dokku_app_name, dokku_key, value)
+      return result unless result[:success]
+    end
+
+    { success: true }
+  end
+
+  def each_resource_limit(resource_limits)
+    if resource_limits.is_a?(Hash)
+      resource_limits.each { |process_type, limits| yield(process_type, limits.stringify_keys) }
+    else
+      Array(resource_limits).each do |limits|
+        yield(limits["processType"], limits)
+      end
     end
   end
 
@@ -433,12 +429,12 @@ class DeploymentJob < ApplicationJob
       deploy_log: deploy_log,
       completed_at: Time.current
     )
-    service.update!(status: :error)
+    update_service_status_after(deployment, service, success: false)
 
     ActivityEvent.create!(
       project: service.project,
       service_name: service.name,
-      action: :created,
+      action: :warning,
       message: "Deployment failed for #{service.name}: #{message}"
     )
 
@@ -448,6 +444,15 @@ class DeploymentJob < ApplicationJob
       message: message,
       completed_at: Time.current.iso8601
     })
+  end
+
+  def update_service_status_after(deployment, service, success:)
+    has_queued_deployment = service.deployments
+      .where(status: %i[pending building deploying])
+      .where.not(id: deployment.id)
+      .exists?
+
+    service.update!(status: has_queued_deployment ? :deploying : (success ? :running : :error))
   end
 
   PASSWORD_VAR_NAMES = %w[
@@ -461,11 +466,11 @@ class DeploymentJob < ApplicationJob
     AUTH_SECRET AUTH_TOKEN API_SECRET API_KEY
   ].freeze
 
-  def sync_docker_image_env_vars(service, project)
-    container_name = HostEngine.new(project.server).dokku_container_name(service.dokku_app_name)
+  def sync_docker_image_env_vars(service, host_engine)
+    container_name = host_engine.dokku_container_name(service.dokku_app_name)
     return unless container_name.present?
 
-    result = HostEngine.new(project.server).docker_inspect(container_name, format: "{{range .Config.Env}}{{.}}\\n{{end}}")
+    result = host_engine.docker_inspect(container_name, format: "{{range .Config.Env}}{{.}}\\n{{end}}")
     return unless result[:success] && result[:output].present?
 
     result[:output].each_line do |line|
@@ -492,7 +497,7 @@ class DeploymentJob < ApplicationJob
   # apps that have [LINKED:SERVICE:VAR] markers in their env vars pointing to
   # those password vars, and update the linked app's env var with the resolved
   # (not re-randomized) password value so the container gets the right credential.
-  def update_linked_app_password_refs(service, project)
+  def update_linked_app_password_refs(service, project, engine, host_engine)
     service.reload
 
     # Find all services that link TO this service (i.e., services that have
@@ -502,8 +507,6 @@ class DeploymentJob < ApplicationJob
     linking_services = Service.where.not(id: service.id).select do |s|
       s.linked_services.any? { |linked| linked.id == service.id }
     end
-
-    host_engine = HostEngine.new(project.server)
 
     linking_services.each do |linked_app|
       had_updates = false
@@ -519,8 +522,8 @@ class DeploymentJob < ApplicationJob
           resolved = ManifestParser.resolve_runtime(ev.value, project, linked_app, linked_app.linked_services)
           next if resolved == ev.value || resolved.include?("[")
 
-          engine = DokkuEngine.new(project.server)
-          engine.config_set(linked_app.dokku_app_name, ev.key, resolved)
+          set_result = engine.config_set(linked_app.dokku_app_name, ev.key, resolved)
+          return set_result unless set_result[:success]
           ev.update!(value: resolved)
           had_updates = true
           Rails.logger.info "Updated #{ev.key} on #{linked_app.dokku_app_name} via linked ref to #{service.name}.#{var_name}"
@@ -531,12 +534,15 @@ class DeploymentJob < ApplicationJob
       if had_updates
         container = host_engine.dokku_container_name(linked_app.dokku_app_name)
         if container.present? && host_engine.container_running?(container)
-          host_engine.run("docker restart #{container}")
+          restart_result = host_engine.run("docker restart #{container}")
+          return restart_result unless restart_result[:success]
           Rails.logger.info "Restarted #{container} to pick up resolved linked password"
         end
       end
     end
+    { success: true }
   rescue => e
     Rails.logger.warn "Failed to update linked app password refs for #{service.dokku_app_name}: #{e.message}"
+    { success: false, output: e.message }
   end
 end

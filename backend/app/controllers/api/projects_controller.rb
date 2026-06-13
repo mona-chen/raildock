@@ -63,6 +63,7 @@ module Api
       services = project.services.where.not(service_type: "database").to_a
       sorted = topo_sort_by_depends_on(services)
       results = []
+      deployments_by_service = {}
 
       sorted.each do |service|
         deployment = service.deployments.create!(
@@ -70,10 +71,23 @@ module Api
           started_at: Time.current,
           branch: service.branch || "main"
         )
-        DeploymentJob.perform_later(service.id, deployment.id)
+        deployments_by_service[service.id] = deployment
         service.update!(status: :deploying)
         results << service.name
       end
+
+      ids_by_name = sorted.index_by(&:name).transform_values(&:id)
+      entries = sorted.map do |service|
+        dependency_ids = Array(service.config&.dig("depends_on")).filter_map do |name|
+          deployments_by_service[ids_by_name[name]]&.id
+        end
+        {
+          service_id: service.id,
+          deployment_id: deployments_by_service.fetch(service.id).id,
+          depends_on_deployment_ids: dependency_ids
+        }
+      end
+      DeploymentSequenceJob.perform_later(entries)
 
       ActivityEvent.create!(
         project: project, service_name: "-", action: :deployed,

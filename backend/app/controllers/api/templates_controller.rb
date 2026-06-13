@@ -16,10 +16,15 @@ module Api
       project = scoped_projects.find_by(id: params[:project_id])
       return render json: { error: "Project not found" }, status: :not_found unless project
 
-      created = deploy_template_services(template, project)
+      created, deployments = deploy_template_services(template, project)
 
       if project.server&.ssh_key.present?
-        TemplateDeployJob.perform_later(project.id, template.id)
+        TemplateDeployJob.perform_later(
+          project.id,
+          template.id,
+          created.map(&:id),
+          deployments.index_by(&:service_id).transform_values(&:id)
+        )
       end
 
       render json: {
@@ -43,11 +48,19 @@ module Api
           docker_image = Service::DEFAULT_DOCKER_IMAGES[svc_def[:subtype]]
         end
 
+        initial_status = if svc_def[:category] == "database"
+          "running"
+        elsif project.server&.ssh_key.present?
+          "deploying"
+        else
+          "stopped"
+        end
+
         service = project.services.create!(
           name: svc_def[:name],
           service_type: svc_def[:category],
           subtype: svc_def[:subtype],
-          status: svc_def[:category] == "database" ? "running" : "stopped",
+          status: initial_status,
           builder: builder,
           git_repo: svc_def.dig(:source, :repo),
           branch: svc_def.dig(:source, :branch),
@@ -83,19 +96,34 @@ module Api
         service
       end
 
+      # Create pending Deployment records for app services immediately so the
+      # user sees "deploying" state and a pending deployment instead of "stopped"
+      # with no indicator. TemplateDeployJob#enqueue_app_deployments will pick
+      # these up and enqueue the actual DeploymentJob.
+      deployments = []
+      if project.server&.ssh_key.present?
+        app_services = created.select(&:service_type_app?)
+        app_services.each do |svc|
+          deployments << svc.deployments.create!(
+            status: :pending,
+            started_at: Time.current,
+            branch: svc.branch || "main"
+          )
+        end
+      end
+
       # Create DB-only service links so the background job can resolve them
+      created_by_name = created.index_by(&:name)
       template.links.each do |link|
-        from_svc = project.services.find_by(name: link[:from])
-        to_svc = project.services.find_by(name: link[:to])
+        from_svc = created_by_name[link[:from]]
+        to_svc = created_by_name[link[:to]]
         next unless from_svc && to_svc
 
         ServiceLink.find_or_create_by!(from_service: from_svc, to_service: to_svc)
       end
 
-      created
+      [ created, deployments ]
     end
-
-    private
 
     def build_config(svc_def)
       config = {}

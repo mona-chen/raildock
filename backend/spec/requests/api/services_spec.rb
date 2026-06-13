@@ -253,6 +253,20 @@ RSpec.describe "Api::ServicesController", type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+
+      it "rejects a git rollback without a precise commit SHA" do
+        service.update!(git_repo: "https://github.com/acme/app.git")
+        target_deployment.update!(commit_sha: nil)
+
+        expect {
+          post "/api/services/#{service.id}/rollback",
+            params: { deployment_id: target_deployment.id },
+            headers: auth_headers(user)
+        }.not_to change(Deployment, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(JSON.parse(response.body)["error"]).to match(/no commit SHA/)
+      end
     end
   end
 
