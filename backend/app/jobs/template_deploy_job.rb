@@ -80,12 +80,15 @@ class TemplateDeployJob < ApplicationJob
         TemporaryDomainService.new(project.server).ensure_for(service, engine: engine)
       end
 
-      # Sync storage mounts
-      service.storage_mounts.each do |mount|
-        ensure_success!(
-          engine.storage_mount(app_name, mount.host_path, mount.container_path),
-          "mount storage for #{app_name}"
-        )
+      # Sync storage mounts (only for app services — datastores handle
+      # their own internal storage and don't support dokku storage:mount)
+      unless service.service_type_database?
+        service.storage_mounts.each do |mount|
+          ensure_success!(
+            engine.storage_mount(app_name, mount.host_path, mount.container_path),
+            "mount storage for #{app_name}"
+          )
+        end
       end
     end
   end
