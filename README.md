@@ -2,6 +2,12 @@
 
 > A declarative self-hosted PaaS control plane for Dokku.
 
+<p align="center">
+  <video controls src="./media/dashboard-demo.mp4" width="800">
+    <a href="./media/dashboard-demo.mp4">Download demo video</a>
+  </video>
+</p>
+
 [![Stack](https://img.shields.io/badge/React_19-20232A?logo=react)](https://react.dev)
 [![Stack](https://img.shields.io/badge/Rails_8-CC0000?logo=ruby-on-rails)](https://rubyonrails.org)
 [![Stack](https://img.shields.io/badge/Dokku-0.38.1-5c9e6b?logo=docker)](https://dokku.com)
