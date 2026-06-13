@@ -18,7 +18,8 @@ module Authenticatable
     begin
       jwt_secret = ENV["JWT_SECRET_KEY"].presence ||
         Rails.application.credentials.jwt_secret_key ||
-        Rails.application.credentials.secret_key_base
+        Rails.application.credentials.secret_key_base ||
+        Rails.application.secret_key_base
       raise "JWT_SECRET_KEY must be set in production" if Rails.env.production? && jwt_secret.blank?
 
       decoded = JWT.decode(token, jwt_secret, true, { algorithm: "HS256" })

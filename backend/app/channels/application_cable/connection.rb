@@ -12,7 +12,7 @@ module ApplicationCable
       token = request.params[:token] || request.headers["Authorization"]&.split(" ")&.last
 
       if token
-        jwt_secret = ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base }
+        jwt_secret = ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base || Rails.application.secret_key_base }
         decoded = JWT.decode(token, jwt_secret, true, { algorithm: "HS256" })
         user = User.find_by(id: decoded[0]["user_id"])
         Rails.logger.info "[ActionCable] Connection authenticated for user #{user.id}" if user
