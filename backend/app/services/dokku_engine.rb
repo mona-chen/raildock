@@ -260,7 +260,21 @@ class DokkuEngine
 
     cmd = "storage:mount #{escape(app_name)} #{escape(host_path)} --container-dir #{escape(container_path)}"
     cmd += " --process-type #{escape(process_type)}" if process_type
-    run(cmd)
+    result = run(cmd)
+
+    # Both TemplateDeployJob and DeploymentJob sync storage mounts
+    # independently, so a duplicate mount is expected on retry — treat
+    # "already mounted" as success rather than failing the deploy.
+    if !result[:success] && duplicate_mount_error?(result[:output])
+      { success: true, output: "mount already exists" }
+    else
+      result
+    end
+  end
+
+  def duplicate_mount_error?(output)
+    return false if output.blank?
+    output.match?(/is already mounted/i)
   end
 
   def storage_create(name)
