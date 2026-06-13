@@ -17,7 +17,7 @@ source = { type = "docker"  }
     CP_ANALYTICS_SALT = "${{ secret() }}"
     CP_CACHE_HANDLER = "redis"
     CP_REDIS_HOST = "redis"
-    CP_REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
+    CP_REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "castopod-media"
       container = "/var/www/castopod/public/media"
@@ -48,7 +48,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7.2-alpine"
-start_command = "--requirepass ${{ secret() }}"
+start_command = ""
 source = { type = "docker"  }
     [[services.storage]]
       host = "castopod-cache"

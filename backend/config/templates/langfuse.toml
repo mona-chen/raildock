@@ -157,7 +157,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:8"
-start_command = "sh -c redis-server --requirepass \"${{ secret() }}""
+start_command = "sh -c redis-server \"${{ secret() }}""
 source = { type = "docker"  }
   [services.env]
     REDIS_PASSWORD = "${{ secret() }}"

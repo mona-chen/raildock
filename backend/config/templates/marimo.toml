@@ -8,7 +8,7 @@ name = "marimo"
 category = "app"
 subtype = "docker"
 docker_image = "ghcr.io/marimo-team/marimo:latest-sql"
-start_command = "marimo edit --token-password ${{ secret() }} --port 8080 --host 0.0.0.0"
+start_command = "marimo edit --token-password $TOKEN_PASSWORD --port 8080 --host 0.0.0.0"
 source = { type = "docker"  }
   [services.scaling]
     web = 1

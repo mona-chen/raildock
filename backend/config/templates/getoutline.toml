@@ -76,7 +76,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:alpine"
-start_command = "redis-server --requirepass ${{ secret() }}"
+start_command = "redis-server"
 source = { type = "docker"  }
   [services.env]
     REDIS_PASSWORD = "${{ secret() }}"

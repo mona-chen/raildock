@@ -92,7 +92,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7.4-alpine"
-start_command = "redis-server --requirepass ${{ secret() }} --maxmemory-policy noeviction"
+start_command = "redis-server --maxmemory-policy noeviction"
 source = { type = "docker"  }
   [services.env]
     REDIS_PASSWORD = "${{ secret() }}"

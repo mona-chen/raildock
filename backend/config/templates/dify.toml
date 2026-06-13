@@ -41,7 +41,7 @@ source = { type = "docker"  }
     POSTGRES_EFFECTIVE_CACHE_SIZE = "4096MB"
     REDIS_HOST = "redis"
     REDIS_PORT = "6379"
-    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
+    REDIS_PASSWORD = "${{ secret() }}"
     REDIS_USE_SSL = "false"
     REDIS_DB = "0"
     CELERY_BROKER_URL = "redis://:${{ linked.redis.REDIS_PASSWORD }}@redis:6379/1"
@@ -258,10 +258,10 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:6-alpine"
-start_command = "redis-server --requirepass \"${{ secret() }}""
+start_command = "redis-server"
 source = { type = "docker"  }
   [services.env]
-    REDIS_PASSWORD = "${{ secret() }}"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
     [[services.storage]]
       host = "dify-redis-data"
       container = "/data"

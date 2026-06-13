@@ -13,8 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     WEBAPP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
-    DATABASE_URL = "postgres://${{ secret() }}:${{ secret() }}@postgresql:5432/formbricks"
-    POSTGRES_PASSWORD = "${{ secret() }}"
+    DATABASE_URL = "postgres://${{ linked.postgresql.POSTGRES_USER }}:${{ linked.postgresql.POSTGRES_PASSWORD }}@postgresql:5432/formbricks"
     NEXTAUTH_SECRET = "${{ secret() }}"
     NEXTAUTH_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     ENCRYPTION_KEY = "${{ secret() }}"
@@ -63,7 +62,7 @@ source = { type = "docker"  }
     DEFAULT_ORGANIZATION_ID = "DEFAULT_ORGANIZATION_ID_VALUE"
     DEFAULT_ORGANIZATION_ROLE = "owner"
     S3_ACCESS_KEY = "${{ linked.minio.MINIO_ROOT_USER }}"
-    S3_SECRET_KEY = "${{ secret() }}"
+    S3_SECRET_KEY = "${{ linked.minio.MINIO_ROOT_PASSWORD }}"
     S3_REGION = "us-east-1"
     S3_BUCKET_NAME = "formbricks"
     S3_ENDPOINT_URL = "$MINIO_SERVER_URL"

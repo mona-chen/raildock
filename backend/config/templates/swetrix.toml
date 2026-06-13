@@ -37,7 +37,7 @@ source = { type = "docker"  }
     REDIS_HOST = "redis"
     CLICKHOUSE_HOST = "http://clickhouse"
     CLICKHOUSE_PASSWORD = "${{ secret() }}"
-    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
+    REDIS_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -52,7 +52,7 @@ source = { type = "docker"  }
   [services.env]
     REDIS_PORT = "6379"
     REDIS_USER = "default"
-    REDIS_PASSWORD = "${{ secret() }}"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
   [services.checks]
     enabled = true
     wait = 30

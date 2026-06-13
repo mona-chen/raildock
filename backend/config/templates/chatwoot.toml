@@ -19,7 +19,7 @@ source = { type = "docker"  }
     FORCE_SSL = "false"
     ENABLE_ACCOUNT_SIGNUP = "false"
     REDIS_URL = "redis://default@redis:6379"
-    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
+    REDIS_PASSWORD = "${{ secret() }}"
     REDIS_OPENSSL_VERIFY_MODE = "none"
     POSTGRES_DATABASE = "chatwoot"
     POSTGRES_HOST = "postgres"
@@ -114,7 +114,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:alpine"
-start_command = "sh -c redis-server --requirepass \"${{ secret() }}""
+start_command = "sh -c redis-server \"${{ secret() }}""
 source = { type = "docker"  }
     [[services.storage]]
       host = "redis-data"

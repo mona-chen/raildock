@@ -63,7 +63,7 @@ name = "valkey"
 category = "app"
 subtype = "docker"
 docker_image = "valkey/valkey:8-alpine"
-start_command = "valkey-server --requirepass ${{ secret() }}"
+start_command = "valkey-server"
 source = { type = "docker"  }
   [services.scaling]
     web = 1

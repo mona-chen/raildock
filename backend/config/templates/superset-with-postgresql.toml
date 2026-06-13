@@ -41,7 +41,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:8"
-start_command = "redis-server --requirepass ${{ secret() }}"
+start_command = "redis-server"
 source = { type = "docker"  }
     [[services.storage]]
       host = "superset_redis_data"

@@ -8,14 +8,14 @@ name = "denokv"
 category = "app"
 subtype = "docker"
 docker_image = "ghcr.io/denoland/denokv:latest"
-start_command = "--sqlite-path /data/denokv.sqlite serve --access-token ${{ secret() }}"
+start_command = "--sqlite-path /data/denokv.sqlite serve --access-token $ACCESS_TOKEN"
 source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
     ACCESS_TOKEN = "${{ secret() }}"
     [[services.storage]]
-      host = "${COOLIFY_VOLUME_APP}"
+      host = "denokv-data"
       container = "/data"
   [services.checks]
     enabled = true

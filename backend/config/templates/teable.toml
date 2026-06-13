@@ -71,12 +71,12 @@ name = "teable-cache"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7.2.4"
-start_command = "redis-server --appendonly yes --requirepass ${{ secret() }}"
+start_command = "redis-server --appendonly yes"
 source = { type = "docker"  }
   [services.env]
     REDIS_PORT = "6379"
     REDIS_DB = "0"
-    REDIS_PASSWORD = "${{ secret() }}"
+    REDIS_PASSWORD = "${{ linked.teable-cache.REDIS_PASSWORD }}"
     [[services.storage]]
       host = "teable_cache_data"
       container = "/data"

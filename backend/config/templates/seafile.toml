@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SEAFILE_SERVER_HOSTNAME = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
-    DB_ROOT_PASSWD = "${{ secret() }}"
+    DB_ROOT_PASSWD = "${{ linked.mariadb.MYSQL_ROOT_PASSWORD }}"
     SEAFILE_MYSQL_DB_CCNET_DB_NAME = "ccnet_db"
     SEAFILE_MYSQL_DB_SEAFILE_DB_NAME = "seafile_db"
     SEAFILE_MYSQL_DB_SEAHUB_DB_NAME = "seahub_db"
