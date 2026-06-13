@@ -123,6 +123,7 @@ class TemplateDeployJob < ApplicationJob
   def connect_networks(project, engine, services)
     network_manager = ProjectNetworkManager.new(project, engine)
     services.each do |service|
+      next if service.service_type_database?
       service.reload
       ensure_success!(
         network_manager.configure_attach_networks(service),
