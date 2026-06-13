@@ -12,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_URL = "https://example.com"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     TRUST_PROXY = "true"
     MAXMIND_LICENSE_KEY = "${{ secret() }}"
-    SMTP_HOST = "https://example.com"
+    SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SMTP_PORT = "587"
     SMTP_FROM = "SMTP_FROM_VALUE"
     SMTP_USER = "SMTP_USER_VALUE"

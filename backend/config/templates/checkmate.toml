@@ -12,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    UPTIME_APP_API_BASE_URL = "https://example.com/api/v1"
-    UPTIME_APP_CLIENT_HOST = "https://example.com"
+    UPTIME_APP_API_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    UPTIME_APP_CLIENT_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_CONNECTION_STRING = "mongodb://mongodb:27017/uptime_db"
-    CLIENT_HOST = "https://example.com"
+    CLIENT_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     JWT_SECRET = "${{ secret() }}"
   [services.checks]
     enabled = true

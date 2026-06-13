@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    FORGEJO__server__ROOT_URL = "https://example.com"
+    FORGEJO__server__ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     FORGEJO__migrations__ALLOWED_DOMAINS = "${FORGEJO__migrations__ALLOWED_DOMAINS}"
     FORGEJO__migrations__ALLOW_LOCALNETWORKS = "${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}"
     USER_UID = "1000"

@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DOMAIN = "https://example.com"
+    DOMAIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DATABASE_URL = "data/db.sqlite3"
     SIGNUPS_ALLOWED = "true"
     ADMIN_TOKEN = "${{ secret() }}"

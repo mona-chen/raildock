@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    WG_HOST = "app.example.com"
+    WG_HOST = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     LANG = "en"
     WG_PORT = "51820"
     _PASSWORD = "${{ secret() }}"

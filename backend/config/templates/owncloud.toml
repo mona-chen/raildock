@@ -12,13 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    OWNCLOUD_DOMAIN = "https://example.com"
-    OWNCLOUD_TRUSTED_DOMAINS = "https://example.com"
+    OWNCLOUD_DOMAIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    OWNCLOUD_TRUSTED_DOMAINS = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     OWNCLOUD_DB_TYPE = "mysql"
     OWNCLOUD_DB_HOST = "mariadb"
     OWNCLOUD_DB_NAME = "owncloud"
-    OWNCLOUD_DB_USERNAME = "user"
-    OWNCLOUD_DB_PASSWORD = "${{ secret() }}"
+    OWNCLOUD_DB_USERNAME = "${{ linked.mariadb.MYSQL_USER }}"
+    OWNCLOUD_DB_PASSWORD = "${{ linked.mariadb.MYSQL_PASSWORD }}"
     OWNCLOUD_ADMIN_USERNAME = "user"
     OWNCLOUD_ADMIN_PASSWORD = "${{ secret() }}"
     OWNCLOUD_MYSQL_UTF8MB4 = "true"
@@ -40,7 +40,7 @@ start_command = "--character-set-server=utf8mb4 --collation-server=utf8mb4_bin -
 source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "owncloud"
     TZ = "auto"

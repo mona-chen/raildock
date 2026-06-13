@@ -12,8 +12,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SONAR_JDBC_URL = "jdbc:postgresql://postgresql:5432/sonar"
-    SONAR_JDBC_USERNAME = "$SERVICE_USER_POSTGRES"
-    SONAR_JDBC_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    SONAR_JDBC_USERNAME = "${{ linked.postgresql.POSTGRES_USER }}"
+    SONAR_JDBC_PASSWORD = "${{ linked.postgresql.POSTGRES_PASSWORD }}"
     SONAR_ES_BOOTSTRAP_CHECKS_DISABLE = "true"
     [[services.storage]]
       host = "sonarqube-data"
@@ -40,8 +40,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sonar"
     [[services.storage]]
       host = "postgresql-data"

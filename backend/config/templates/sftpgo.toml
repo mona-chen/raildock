@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SFTPGO_DATA_PROVIDER__DRIVER = "postgresql"
-    SFTPGO_DATA_PROVIDER__CONNECTION_STRING = "postgresql://user:CHANGE_ME@postgresql:5432/sftpgo-db"
+    SFTPGO_DATA_PROVIDER__CONNECTION_STRING = "postgresql://user:${{ secret() }}@postgresql:5432/sftpgo-db"
     SFTPGO_SFTPD__BINDINGS__0__PORT = "2222"
     SFTPGO_LOG_LEVEL = "info"
   [services.proxy]
@@ -38,7 +38,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sftpgo-db"
     [[services.storage]]

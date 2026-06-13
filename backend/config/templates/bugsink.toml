@@ -10,7 +10,7 @@ subtype = "mysql"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "bugsink"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "my-datavolume"
@@ -29,10 +29,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY = "$SERVICE_PASSWORD_64_BUGSINK"
-    CREATE_SUPERUSER = "admin:$SERVICE_PASSWORD_BUGSINK"
-    BASE_URL = "$SERVICE_URL_BUGSINK"
-    DATABASE_URL = "mysql://user:$SERVICE_PASSWORD_BUGSINK@mysql:3306/bugsink"
+    SECRET_KEY = "${{ secret() }}"
+    CREATE_SUPERUSER = "admin:${{ secret() }}"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     BEHIND_HTTPS_PROXY = "True"
   [services.checks]
     enabled = true

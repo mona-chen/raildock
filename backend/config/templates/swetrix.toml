@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    API_URL = "$SERVICE_URL_SWETRIXAPI"
+    API_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -27,7 +27,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY_BASE = "$SERVICE_BASE64_64_SECRETKEYBASE"
+    SECRET_KEY_BASE = "${{ secret() }}"
     DISABLE_REGISTRATION = "false"
     DEBUG_MODE = "false"
     CLOUDFLARE_PROXY_ENABLED = "false"
@@ -36,8 +36,8 @@ source = { type = "docker"  }
     OIDC_ONLY_AUTH = "false"
     REDIS_HOST = "redis"
     CLICKHOUSE_HOST = "http://clickhouse"
-    CLICKHOUSE_PASSWORD = "$SERVICE_PASSWORD_CLICKHOUSE"
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -52,7 +52,7 @@ source = { type = "docker"  }
   [services.env]
     REDIS_PORT = "6379"
     REDIS_USER = "default"
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -70,7 +70,7 @@ source = { type = "docker"  }
     CLICKHOUSE_DATABASE = "analytics"
     CLICKHOUSE_USER = "default"
     CLICKHOUSE_PORT = "8123"
-    CLICKHOUSE_PASSWORD = "$SERVICE_PASSWORD_CLICKHOUSE"
+    CLICKHOUSE_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "swetrix-events-data"
       container = "/var/lib/clickhouse"

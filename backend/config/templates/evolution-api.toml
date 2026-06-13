@@ -12,16 +12,15 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVER_URL = "https://example.com"
+    SERVER_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_TYPE = "postgresdb"
     DB_POSTGRESDB_DATABASE = "postgres"
     DB_POSTGRESDB_HOST = "postgres"
     DB_POSTGRESDB_PORT = "5432"
     DB_POSTGRESDB_USER = "user"
-    DB_POSTGRESDB_PASSWORD = "${{ secret() }}"
+    DB_POSTGRESDB_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     DATABASE_PROVIDER = "postgresql"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgres:5432/postgres"
-    DATABASE_CONNECTION_URI = "postgresql://user:CHANGE_ME@postgres:5432/postgres"
+    DATABASE_CONNECTION_URI = "postgresql://user:${{ secret() }}@postgres:5432/postgres"
     DEL_INSTANCE = "false"
     DATABASE_SAVE_DATA_INSTANCE = "true"
     DATABASE_SAVE_DATA_NEW_MESSAGE = "true"
@@ -108,7 +107,7 @@ source = { type = "docker"  }
     CHATWOOT_ENABLED = "true"
     CHATWOOT_MESSAGE_READ = "true"
     CHATWOOT_MESSAGE_DELETE = "true"
-    CHATWOOT_IMPORT_DATABASE_CONNECTION_URI = "postgresql://user:CHANGE_ME@postgres:5432/chatwoot"
+    CHATWOOT_IMPORT_DATABASE_CONNECTION_URI = "postgresql://user:${{ secret() }}@postgres:5432/chatwoot"
     CHATWOOT_IMPORT_PLACEHOLDER_MEDIA_MESSAGE = "true"
     CACHE_REDIS_ENABLED = "true"
     CACHE_REDIS_URI = "redis://redis:6379/6"
@@ -154,7 +153,7 @@ subtype = "postgres"
 start_command = "postgres -c max_connections=1000"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "postgres"
     AUTHENTICATION_API_KEY = "${{ secret() }}"

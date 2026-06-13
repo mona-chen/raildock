@@ -15,8 +15,8 @@ source = { type = "docker"  }
     LISTMONK_app__address = "0.0.0.0:9000"
     LISTMONK_db__host = "postgres"
     LISTMONK_db__database = "listmonk"
-    LISTMONK_db__user = "$SERVICE_USER_POSTGRES"
-    LISTMONK_db__password = "$SERVICE_PASSWORD_POSTGRES"
+    LISTMONK_db__user = "${{ linked.postgres.POSTGRES_USER }}"
+    LISTMONK_db__password = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     LISTMONK_db__port = "5432"
     TZ = "Etc/UTC"
     [[services.storage]]
@@ -33,8 +33,8 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_DB = "listmonk"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_PASSWORD = "${{ secret() }}"
+    POSTGRES_USER = "${{ secret() }}"
     [[services.storage]]
       host = "postgres-data"
       container = "/var/lib/postgresql"

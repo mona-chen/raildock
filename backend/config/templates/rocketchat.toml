@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     MONGO_URL = "mongodb://mongodb:27017/rocketchat?replicaSet=rs0"
     MONGO_OPLOG_URL = "mongodb://mongodb:27017/local?replicaSet=rs0"
-    ROOT_URL = "$SERVICE_URL_ROCKETCHAT"
+    ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DEPLOY_METHOD = "docker"
     REG_TOKEN = "$REG_TOKEN"
     MAIL_URL = "test@example.com"

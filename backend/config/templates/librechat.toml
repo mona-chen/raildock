@@ -12,8 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DOMAIN_CLIENT = "https://example.com"
-    DOMAIN_SERVER = "https://example.com"
+    DOMAIN_CLIENT = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    DOMAIN_SERVER = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     HOST = "0.0.0.0"
     PORT = "3080"
     MONGO_URI = "mongodb:${{ secret() }}@mongodb:27017/librechat?authSource=admin"
@@ -98,7 +98,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     POSTGRES_DB = "rag"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_HOST_AUTH_METHOD = "trust"
     [[services.storage]]
@@ -119,7 +119,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     POSTGRES_DB = "rag"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     DB_HOST = "vectordb"
     DB_USER = "user"

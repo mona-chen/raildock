@@ -9,7 +9,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "azimutt"
     [[services.storage]]
       host = "azimutt-postgres-data"
@@ -29,8 +29,8 @@ source = { type = "docker"  }
   [services.env]
     MINIO_SERVER_URL = "$MINIO_SERVER_URL"
     MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
-    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
-    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    MINIO_ROOT_USER = "${{ secret() }}"
+    MINIO_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "azimutt-minio-data"
       container = "/data"
@@ -55,10 +55,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    RELAY_HOST = "$SERVICE_URL_SMTP"
+    RELAY_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     RELAY_PORT = "587"
-    RELAY_USERNAME = "$SERVICE_EMAIL_SMTP"
-    RELAY_PASSWORD = "$SERVICE_PASSWORD_SMTP"
+    RELAY_USERNAME = "${{ secret() }}"
+    RELAY_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -75,9 +75,8 @@ source = { type = "docker"  }
   [services.env]
     SENTRY = "false"
     PHX_SERVER = "true"
-    PHX_HOST = "$SERVICE_URL_AZIMUTT"
+    PHX_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PORT = "4000"
-    DATABASE_URL = "ecto://user:CHANGE_ME@postgres/azimutt"
     SECRET_KEY_BASE = "BASE64_GENERATED"
     FILE_STORAGE_ADAPTER = "s3"
     AUTH_PASSWORD = "true"
@@ -85,13 +84,13 @@ source = { type = "docker"  }
     SKIP_EMAIL_CONFIRMATION = "true"
     PUBLIC_SITE = "false"
     S3_BUCKET = "S3_BUCKET_VALUE"
-    S3_HOST = "https://example.com"
+    S3_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     S3_KEY_ID = "${{ secret() }}"
     S3_KEY_SECRET = "${{ secret() }}"
     EMAIL_ADAPTER = "smtp"
-    SMTP_RELAY = "$SERVICE_URL_SMTP"
-    SMTP_USERNAME = "$SERVICE_EMAIL_SMTP"
-    SMTP_PASSWORD = "$SERVICE_PASSWORD_SMTP"
+    SMTP_RELAY = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    SMTP_USERNAME = "${{ secret() }}"
+    SMTP_PASSWORD = "${{ secret() }}"
     SMTP_PORT = "587"
   [services.checks]
     enabled = true

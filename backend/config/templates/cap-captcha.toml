@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ADMIN_KEY = "$SERVICE_PASSWORD_ADMIN"
+    ADMIN_KEY = "${{ secret() }}"
     REDIS_URL = "redis://valkey:6379"
   [services.checks]
     enabled = true

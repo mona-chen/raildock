@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PBW_ENCRYPTION_KEY = "${{ secret() }}"
-    PBW_POSTGRES_CONN_STRING = "postgresql://user:CHANGE_ME@postgres:5432/pgbackweb-db?sslmode=disable"
+    PBW_POSTGRES_CONN_STRING = "postgresql://user:${{ secret() }}@postgres:5432/pgbackweb-db?sslmode=disable"
     TZ = "UTC"
     [[services.storage]]
       host = "pgbackweb_backups"
@@ -24,7 +24,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "pgbackweb-db"
     [[services.storage]]

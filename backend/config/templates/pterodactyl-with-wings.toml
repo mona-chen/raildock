@@ -8,10 +8,10 @@ name = "mariadb"
 category = "database"
 subtype = "mariadb"
   [services.env]
-    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQLROOT"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "pterodactyl-db"
-    MYSQL_USER = "$SERVICE_USER_MYSQL"
-    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MYSQL_USER = "${{ secret() }}"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "pterodactyl-db"
       container = "/var/lib/mysql"
@@ -41,7 +41,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    HASHIDS_SALT = "$SERVICE_PASSWORD_HASHIDS"
+    HASHIDS_SALT = "${{ secret() }}"
     HASHIDS_LENGTH = "8"
     ADMIN_EMAIL = "admin@example.com"
     ADMIN_USERNAME = "user"
@@ -51,7 +51,7 @@ source = { type = "docker"  }
     PTERODACTYL_HTTPS = "false"
     APP_ENV = "production"
     APP_ENVIRONMENT_ONLY = "false"
-    APP_URL = "$SERVICE_URL_PTERODACTYL"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APP_TIMEZONE = "UTC"
     APP_SERVICE_AUTHOR = "author@example.com"
     LOG_LEVEL = "debug"
@@ -60,10 +60,7 @@ source = { type = "docker"  }
     QUEUE_DRIVER = "redis"
     REDIS_HOST = "redis"
     DB_DATABASE = "pterodactyl-db"
-    DB_USERNAME = "$SERVICE_USER_MYSQL"
-    DB_HOST = "mariadb"
-    DB_PORT = "3306"
-    DB_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    DB_USERNAME = "${{ linked.mariadb.MYSQL_USER }}"
     MAIL_FROM = "$MAIL_FROM"
     MAIL_DRIVER = "$MAIL_DRIVER"
     MAIL_HOST = "$MAIL_HOST"

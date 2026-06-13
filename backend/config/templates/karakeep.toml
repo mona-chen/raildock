@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    NEXTAUTH_URL = "https://example.com"
+    NEXTAUTH_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     NEXTAUTH_SECRET = "${{ secret() }}"
     MEILI_MASTER_KEY = "${{ secret() }}"
     MEILI_ADDR = "http://meilisearch:7700"
@@ -44,7 +44,7 @@ source = { type = "docker"  }
     MEILI_NO_ANALYTICS = "true"
     NEXTAUTH_SECRET = "${{ secret() }}"
     MEILI_MASTER_KEY = "${{ secret() }}"
-    NEXTAUTH_URL = "https://example.com"
+    NEXTAUTH_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "karakeep-meilisearch"
       container = "/meili_data"

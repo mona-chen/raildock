@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_BASIC_AUTH = "user:CHANGE_ME"
+    APP_BASIC_AUTH = "user:${{ secret() }}"
     APP_PORT = "3000"
     APP_DEBUG = "false"
     APP_ACCOUNT_VALIDATION = "false"

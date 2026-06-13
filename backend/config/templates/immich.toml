@@ -14,8 +14,7 @@ source = { type = "docker"  }
   [services.env]
     UPLOAD_LOCATION = "./library"
     DB_DATA_LOCATION = "./postgres"
-    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    DB_USERNAME = "$SERVICE_USER_POSTGRES"
+    DB_USERNAME = "${{ linked.database.POSTGRES_USER }}"
     DB_DATABASE_NAME = "immich"
     TZ = "Etc/UTC"
     [[services.storage]]
@@ -33,8 +32,7 @@ source = { type = "docker"  }
   [services.env]
     UPLOAD_LOCATION = "./library"
     DB_DATA_LOCATION = "./postgres"
-    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    DB_USERNAME = "$SERVICE_USER_POSTGRES"
+    DB_USERNAME = "${{ linked.database.POSTGRES_USER }}"
     DB_DATABASE_NAME = "immich"
     TZ = "Etc/UTC"
     [[services.storage]]
@@ -58,7 +56,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "immich"
     POSTGRES_INITDB_ARGS = "--data-checksums"
     DB_STORAGE_TYPE = "SSD"

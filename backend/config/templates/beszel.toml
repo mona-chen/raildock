@@ -35,7 +35,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     LISTEN = "/beszel_socket/beszel.sock"
-    HUB_URL = "$SERVICE_URL_BESZEL"
+    HUB_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     TOKEN = "${{ secret() }}"
     KEY = "${{ secret() }}"
     DISABLE_SSH = "false"

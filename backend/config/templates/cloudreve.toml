@@ -15,11 +15,11 @@ source = { type = "docker"  }
     CR_CONF_Database.Type = "postgres"
     CR_CONF_Database.Host = "postgres"
     CR_CONF_Database.User = "user"
-    CR_CONF_Database.Password = "CHANGE_ME"
+    CR_CONF_Database.Password = "${{ secret() }}"
     CR_CONF_Database.Name = "cloudreve-db"
     CR_CONF_Database.Port = "5432"
     CR_CONF_Redis.Server = "redis:6379"
-    CR_CONF_Redis.Password = "CHANGE_ME"
+    CR_CONF_Redis.Password = "${{ secret() }}"
     [[services.storage]]
       host = "cloudreve-data"
       container = "/cloudreve/data"
@@ -33,7 +33,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "cloudreve-db"
     [[services.storage]]
@@ -49,7 +49,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7-alpine"
-start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS}"
+start_command = "redis-server --requirepass ${{ secret() }}"
 source = { type = "docker"  }
     [[services.storage]]
       host = "redis-data"

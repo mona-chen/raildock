@@ -13,8 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     CLASSICPRESS_DB_HOST = "mariadb"
-    CLASSICPRESS_DB_USER = "$SERVICE_USER_CLASSICPRESS"
-    CLASSICPRESS_DB_PASSWORD = "$SERVICE_PASSWORD_CLASSICPRESS"
+    CLASSICPRESS_DB_USER = "${{ linked.mariadb.MYSQL_USER }}"
+    CLASSICPRESS_DB_PASSWORD = "${{ linked.mariadb.MYSQL_PASSWORD }}"
     CLASSICPRESS_DB_NAME = "classicpress"
     [[services.storage]]
       host = "classicpress-files"
@@ -29,10 +29,10 @@ name = "mariadb"
 category = "database"
 subtype = "mariadb"
   [services.env]
-    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_ROOT"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "classicpress"
-    MYSQL_USER = "$SERVICE_USER_CLASSICPRESS"
-    MYSQL_PASSWORD = "$SERVICE_PASSWORD_CLASSICPRESS"
+    MYSQL_USER = "${{ secret() }}"
+    MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mariadb-data"
       container = "/var/lib/mysql"

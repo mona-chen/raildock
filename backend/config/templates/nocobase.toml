@@ -14,11 +14,8 @@ source = { type = "docker"  }
   [services.env]
     APP_KEY = "BASE64_GENERATED"
     DB_DIALECT = "postgres"
-    DB_HOST = "postgres"
-    DB_PORT = "5432"
     DB_DATABASE = "nocobase-db"
-    DB_USER = "$SERVICE_USER_POSTGRES"
-    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    DB_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     [[services.storage]]
       host = "nocobase-storage"
       container = "/app/nocobase/storage"
@@ -28,7 +25,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "nocobase-db"
     [[services.storage]]

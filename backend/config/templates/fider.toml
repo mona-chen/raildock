@@ -12,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    BASE_URL = "$SERVICE_URL_FIDER_3000"
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@database:5432/fider?sslmode=disable"
-    JWT_SECRET = "$SERVICE_PASSWORD_64_FIDER"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    JWT_SECRET = "${{ secret() }}"
     EMAIL_NOREPLY = "noreply@example.com"
     EMAIL_MAILGUN_API = "$EMAIL_MAILGUN_API"
     EMAIL_MAILGUN_DOMAIN = "$EMAIL_MAILGUN_DOMAIN"
@@ -37,8 +36,8 @@ name = "database"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "fider"
     [[services.storage]]
       host = "pg_data"

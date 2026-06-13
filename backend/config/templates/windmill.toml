@@ -9,7 +9,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "windmill-db"
     [[services.storage]]
       host = "db-data"
@@ -28,9 +28,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "server"
-    BASE_URL = "https://example.com"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "worker-logs"
       container = "/tmp/windmill/logs"
@@ -48,7 +47,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -71,7 +69,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -94,7 +91,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "default"
     [[services.storage]]
@@ -117,7 +113,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@db/windmill-db"
     MODE = "worker"
     WORKER_GROUP = "native"
     NUM_WORKERS = "8"

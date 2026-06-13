@@ -8,7 +8,7 @@ name = "bitcoin-core"
 category = "app"
 subtype = "docker"
 docker_image = "ruimarinho/bitcoin-core:latest"
-start_command = "-datadir=/home/bitcoin/.bitcoin -rpcbind=127.0.0.1 -rpcallowip=127.0.0.1 -rpcuser=${BITCOIN_RPCUSER} -rpcpassword=${SERVICE_PASSWORD_PASSWORD64} -printtoconsole=${BITCOIN_PRINTTOCONSOLE} -txindex=${BITCOIN_TXINDEX} -server=${BITCOIN_SERVER}"
+start_command = "-datadir=/home/bitcoin/.bitcoin -rpcbind=127.0.0.1 -rpcallowip=127.0.0.1 -rpcuser=${BITCOIN_RPCUSER} -rpcpassword=${{ secret() }} -printtoconsole=${BITCOIN_PRINTTOCONSOLE} -txindex=${BITCOIN_TXINDEX} -server=${BITCOIN_SERVER}"
 source = { type = "docker"  }
   [services.scaling]
     web = 1

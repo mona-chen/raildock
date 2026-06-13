@@ -12,19 +12,16 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    WEBLATE_SITE_DOMAIN = "$SERVICE_FQDN_WEBLATE"
+    WEBLATE_SITE_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     WEBLATE_ADMIN_NAME = "Admin"
     WEBLATE_ADMIN_EMAIL = "admin@example.com"
-    WEBLATE_ADMIN_PASSWORD = "$SERVICE_PASSWORD_WEBLATE"
+    WEBLATE_ADMIN_PASSWORD = "${{ secret() }}"
     DEFAULT_FROM_EMAIL = "admin@example.com"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
     POSTGRES_DATABASE = "weblate"
     POSTGRES_HOST = "postgresql"
-    POSTGRES_PORT = "5432"
     REDIS_HOST = "redis"
     REDIS_PORT = "6379"
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
     [[services.storage]]
       host = "weblate-data"
       container = "/app/data"
@@ -41,8 +38,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "weblate"
     [[services.storage]]
       host = "postgresql-data"
@@ -57,10 +54,10 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7-alpine"
-start_command = "--appendonly yes --requirepass ${SERVICE_PASSWORD_REDIS}\n"
+start_command = "--appendonly yes --requirepass ${{ secret() }}\n"
 source = { type = "docker"  }
   [services.env]
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "weblate-redis-data"
       container = "/data"

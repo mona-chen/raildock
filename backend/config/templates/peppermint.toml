@@ -8,7 +8,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "peppermint-db"
     [[services.storage]]
@@ -28,12 +28,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DB_USERNAME = "user"
-    DB_PASSWORD = "${{ secret() }}"
-    DB_HOST = "postgres"
-    DB_NAME = "peppermint-db"
+    DB_USERNAME = "${{ linked.postgres.POSTGRES_USER }}"
     SECRET = "${{ secret() }}"
-    API_URL = "https://example.com"
+    API_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 2

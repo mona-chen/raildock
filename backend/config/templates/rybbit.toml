@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     NODE_ENV = "production"
-    NEXT_PUBLIC_BACKEND_URL = "https://example.com"
+    NEXT_PUBLIC_BACKEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     NEXT_PUBLIC_DISABLE_SIGNUP = "false"
   [services.checks]
     enabled = true
@@ -31,9 +31,8 @@ source = { type = "docker"  }
   [services.env]
     NODE_ENV = "production"
     TRUST_PROXY = "true"
-    BASE_URL = "https://example.com"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     CLICKHOUSE_PASSWORD = "${{ secret() }}"
-    POSTGRES_PASSWORD = "${{ secret() }}"
     BETTER_AUTH_SECRET = "BASE64_GENERATED"
     DISABLE_SIGNUP = "false"
     DISABLE_TELEMETRY = "true"
@@ -41,8 +40,6 @@ source = { type = "docker"  }
     CLICKHOUSE_USER = "default"
     CLICKHOUSE_DB = "analytics"
     POSTGRES_HOST = "rybbit_postgres"
-    POSTGRES_PORT = "5432"
-    POSTGRES_DB = "analytics"
     POSTGRES_USER = "frog"
   [services.checks]
     enabled = true

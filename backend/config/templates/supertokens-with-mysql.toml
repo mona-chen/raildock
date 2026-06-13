@@ -8,7 +8,7 @@ name = "supertokens"
 category = "database"
 subtype = "mysql"
   [services.env]
-    MYSQL_CONNECTION_URI = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@mysql:3306/supertokens"
+    MYSQL_CONNECTION_URI = "mysql://${{ linked.mysql.MYSQL_USER }}:${{ linked.mysql.MYSQL_PASSWORD }}@mysql:3306/supertokens"
   [services.checks]
     enabled = true
     wait = 10
@@ -19,9 +19,9 @@ name = "mysql"
 category = "database"
 subtype = "mysql"
   [services.env]
-    MYSQL_ROOT_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
-    MYSQL_USER = "$SERVICE_USER_MYSQL"
-    MYSQL_PASSWORD = "$SERVICE_PASSWORD_MYSQL"
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
+    MYSQL_USER = "${{ secret() }}"
+    MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "supertokens"
     [[services.storage]]
       host = "supertokens-mysql-data"

@@ -13,7 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_FULL_BASE_URL = "https://example.com"
+    APP_FULL_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DATASOURCES_DEFAULT_HOST = "mariadb"
     DATASOURCES_DEFAULT_USERNAME = "user"
     DATASOURCES_DEFAULT_PASSWORD = "${{ secret() }}"
@@ -36,7 +36,7 @@ subtype = "mariadb"
   [services.env]
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "passbolt-db"
-    MARIADB_USER = "user"
+    MARIADB_USER = "${{ secret() }}"
     MARIADB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "passbolt_mariadb_data"

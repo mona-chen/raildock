@@ -13,7 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
+    DATABASE_URL = "postgres://${{ linked.postgres.POSTGRES_USER }}:${{ linked.postgres.POSTGRES_PASSWORD }}@postgres:5432/$POSTGRES_DB"
     [[services.storage]]
       host = "hatchet-certs"
       container = "/hatchet/certs"
@@ -31,7 +31,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
     SERVER_GRPC_BIND_ADDRESS = "0.0.0.0"
     SERVER_GRPC_INSECURE = "t"
     [[services.storage]]
@@ -46,8 +45,8 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "hatchet"
     [[services.storage]]
       host = "postgresql-data"
@@ -64,8 +63,8 @@ subtype = "rabbitmq"
 docker_image = "rabbitmq:3-management"
 source = { type = "docker"  }
   [services.env]
-    RABBITMQ_DEFAULT_USER = "$SERVICE_USER_RABBITMQ"
-    RABBITMQ_DEFAULT_PASS = "$SERVICE_PASSWORD_RABBITMQ"
+    RABBITMQ_DEFAULT_USER = "${{ secret() }}"
+    RABBITMQ_DEFAULT_PASS = "${{ secret() }}"
     PORT = "5672"
     [[services.storage]]
       host = "rabbitmq-data"
@@ -85,7 +84,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
 
 [[services]]
 name = "setup-config"
@@ -97,8 +95,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/$POSTGRES_DB"
-    SERVER_TASKQUEUE_RABBITMQ_URL = "amqp://$SERVICE_USER_RABBITMQ:$SERVICE_PASSWORD_RABBITMQ@rabbitmq:5672/"
+    SERVER_TASKQUEUE_RABBITMQ_URL = "amqp://${{ linked.rabbitmq.RABBITMQ_DEFAULT_USER }}:${{ linked.rabbitmq.RABBITMQ_DEFAULT_PASS }}@rabbitmq:5672/"
     SERVER_AUTH_COOKIE_DOMAIN = "localhost:8080"
     SERVER_AUTH_COOKIE_INSECURE = "t"
     SERVER_GRPC_BIND_ADDRESS = "0.0.0.0"

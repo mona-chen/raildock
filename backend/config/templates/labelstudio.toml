@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    CSRF_TRUSTED_ORIGINS = "https://example.com"
+    CSRF_TRUSTED_ORIGINS = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     EXPERIMENTAL_FEATURES = "false"
     DJANGO_DB = "default"
     POSTGRE_NAME = "labelstudio"
@@ -20,7 +20,7 @@ source = { type = "docker"  }
     POSTGRE_PASSWORD = "${{ secret() }}"
     POSTGRE_PORT = "5432"
     POSTGRE_HOST = "postgres"
-    LABEL_STUDIO_HOST = "https://example.com"
+    LABEL_STUDIO_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SSRF_PROTECTION_ENABLED = "true"
     LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK = "true"
     DATA_UPLOAD_MAX_NUMBER_FILES = "10000"
@@ -39,7 +39,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "labelstudio"
     [[services.storage]]

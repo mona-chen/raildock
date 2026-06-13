@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    FORGEJO__server__ROOT_URL = "https://example.com"
+    FORGEJO__server__ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     FORGEJO__migrations__ALLOWED_DOMAINS = "${FORGEJO__migrations__ALLOWED_DOMAINS}"
     FORGEJO__migrations__ALLOW_LOCALNETWORKS = "${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}"
     USER_UID = "1000"
@@ -20,8 +20,8 @@ source = { type = "docker"  }
     FORGEJO__database__DB_TYPE = "mysql"
     FORGEJO__database__HOST = "mariadb"
     FORGEJO__database__NAME = "${MYSQL_DATABASE-forgejo}"
-    FORGEJO__database__USER = "$SERVICE_USER_MYSQL"
-    FORGEJO__database__PASSWD = "$SERVICE_PASSWORD_MYSQL"
+    FORGEJO__database__USER = "${{ linked.mariadb.MYSQL_USER }}"
+    FORGEJO__database__PASSWD = "${{ linked.mariadb.MYSQL_PASSWORD }}"
   [services.proxy]
     enabled = true
     type = "traefik"
@@ -47,7 +47,7 @@ name = "mariadb"
 category = "database"
 subtype = "mariadb"
   [services.env]
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "MYSQL_DATABASE_VALUE"
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"

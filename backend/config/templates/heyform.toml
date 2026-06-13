@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_HOMEPAGE_URL = "https://example.com"
+    APP_HOMEPAGE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SESSION_KEY = "BASE64_GENERATED"
     FORM_ENCRYPTION_KEY = "BASE64_GENERATED"
     MONGO_URI = "mongodb://mongo:27017/heyform"

@@ -13,16 +13,15 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     VITE_ALLOWED_AUTH_PROVIDERS = "GOOGLE,GITHUB,MICROSOFT,EMAIL"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@hoppscotch-db:5432/POSTGRES_DB_VALUE"
     DATA_ENCRYPTION_KEY = "BASE64_GENERATED"
-    WHITELISTED_ORIGINS = "https://example.com/backend,https://example.com,https://example.com/admin"
+    WHITELISTED_ORIGINS = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     MAILER_USE_CUSTOM_CONFIGS = "true"
-    VITE_BASE_URL = "https://example.com"
-    VITE_SHORTCODE_BASE_URL = "https://example.com"
-    VITE_ADMIN_URL = "https://example.com/admin"
-    VITE_BACKEND_GQL_URL = "https://example.com/backend/graphql"
-    VITE_BACKEND_WS_URL = "wss://app.example.com/backend/graphql"
-    VITE_BACKEND_API_URL = "https://example.com/backend/v1"
+    VITE_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    VITE_SHORTCODE_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    VITE_ADMIN_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    VITE_BACKEND_GQL_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    VITE_BACKEND_WS_URL = "wss://${{ RAILDOCK_PUBLIC_DOMAIN }}/backend/graphql"
+    VITE_BACKEND_API_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     VITE_APP_TOS_LINK = "https://docs.hoppscotch.io/support/terms"
     VITE_APP_PRIVACY_POLICY_LINK = "https://docs.hoppscotch.io/support/privacy"
     ENABLE_SUBPATH_BASED_ACCESS = "true"
@@ -36,7 +35,7 @@ name = "hoppscotch-db"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "hoppscotch"
     [[services.storage]]
@@ -57,9 +56,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "hoppscotch"
     DATABASE_URL = "postgres:${{ secret() }}@hoppscotch-db:5432/hoppscotch"
 
 [[links]]

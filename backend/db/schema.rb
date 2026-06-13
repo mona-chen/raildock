@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_04_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -202,7 +202,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_04_000001) do
 
   create_table "servers", force: :cascade do |t|
     t.boolean "auto_domains", default: true, null: false
-    t.string "base_domain"
+    t.string "base_domain", default: "sslip.io"
     t.datetime "created_at", null: false
     t.string "default_proxy"
     t.integer "disk_total"

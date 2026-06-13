@@ -13,9 +13,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     LANGFLOW_AUTO_LOGIN = "false"
-    LANGFLOW_SUPERUSER = "$SERVICE_USER_LANGFLOW"
-    LANGFLOW_SUPERUSER_PASSWORD = "$SERVICE_PASSWORD_LANGFLOW"
-    LANGFLOW_DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/langflow-db"
+    LANGFLOW_SUPERUSER = "${{ secret() }}"
+    LANGFLOW_SUPERUSER_PASSWORD = "${{ secret() }}"
+    LANGFLOW_DATABASE_URL = "postgresql://${{ linked.postgres.POSTGRES_USER }}:${{ linked.postgres.POSTGRES_PASSWORD }}@postgres:5432/langflow-db"
     LANGFLOW_CONFIG_DIR = "app/langflow"
     LANGFLOW_HOST = "0.0.0.0"
     PORT = "7860"
@@ -32,8 +32,8 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "langflow-db"
     [[services.storage]]
       host = "langflow-postgres"

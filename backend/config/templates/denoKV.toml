@@ -8,7 +8,7 @@ name = "denokv"
 category = "app"
 subtype = "docker"
 docker_image = "ghcr.io/denoland/denokv:latest"
-start_command = "--sqlite-path /data/denokv.sqlite serve --access-token ${SERVICE_PASSWORD_DENOKV}"
+start_command = "--sqlite-path /data/denokv.sqlite serve --access-token ${{ secret() }}"
 source = { type = "docker"  }
   [services.scaling]
     web = 1

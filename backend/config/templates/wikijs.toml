@@ -13,10 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DB_TYPE = "postgres"
-    DB_HOST = "postgres"
-    DB_PORT = "5432"
-    DB_USER = "user"
-    DB_PASS = "${{ secret() }}"
+    DB_PASS = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     DB_NAME = "wiki-db"
   [services.checks]
     enabled = true
@@ -30,7 +27,7 @@ subtype = "postgres"
   [services.env]
     POSTGRES_DB = "wiki-db"
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     [[services.storage]]
       host = "wikijs-postgresql-data"
       container = "/var/lib/postgresql/data"

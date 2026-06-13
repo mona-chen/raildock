@@ -9,7 +9,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "faraday"
     [[services.storage]]
       host = "faraday-db"
@@ -45,7 +45,7 @@ source = { type = "docker"  }
   [services.env]
     AUTHENTIK_POSTGRESQL__PASSWORD = "${{ secret() }}"
     PGSQL_USER = "user"
-    PGSQL_PASSWD = "${{ secret() }}"
+    PGSQL_PASSWD = "${{ linked.postgresql.POSTGRES_PASSWORD }}"
     PGSQL_DBNAME = "POSTGRES_DB_VALUE"
     PGSQL_HOST = "postgresql"
     REDIS_SERVER = "redis"

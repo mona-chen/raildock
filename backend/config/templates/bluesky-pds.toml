@@ -13,7 +13,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PDS_HOSTNAME = "app.example.com"
+    PDS_HOSTNAME = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PDS_JWT_SECRET = "${{ secret() }}"
     PDS_ADMIN_PASSWORD = "${{ secret() }}"
     PDS_ADMIN_EMAIL = "admin@example.com"
@@ -23,7 +23,7 @@ source = { type = "docker"  }
     PDS_BLOB_UPLOAD_LIMIT = "104857600"
     PDS_DID_PLC_URL = "https://plc.directory"
     PDS_EMAIL_FROM_ADDRESS = "admin@example.com"
-    PDS_EMAIL_SMTP_URL = "https://example.com"
+    PDS_EMAIL_SMTP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PDS_BSKY_APP_VIEW_URL = "https://api.bsky.app"
     PDS_BSKY_APP_VIEW_DID = "did:web:api.bsky.app"
     PDS_REPORT_SERVICE_URL = "https://mod.bsky.app/xrpc/com.atproto.moderation.createReport"

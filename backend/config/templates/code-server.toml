@@ -15,8 +15,8 @@ source = { type = "docker"  }
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"
-    PASSWORD = "$SERVICE_PASSWORD_64_PASSWORDCODESERVER"
-    SUDO_PASSWORD = "$SERVICE_PASSWORD_SUDOCODESERVER"
+    PASSWORD = "${{ secret() }}"
+    SUDO_PASSWORD = "${{ secret() }}"
     DEFAULT_WORKSPACE = "/config/workspace"
     [[services.storage]]
       host = "code-server-config"

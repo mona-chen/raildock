@@ -26,7 +26,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PAPERLESS_URL = "$SERVICE_URL_PAPERLESS"
+    PAPERLESS_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PAPERLESS_ADMIN_PASSWORD = "${{ secret() }}"
     PAPERLESS_ADMIN_USER = "user"
     PAPERLESS_REDIS = "redis://redis:6379"

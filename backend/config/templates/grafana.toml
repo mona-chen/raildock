@@ -12,8 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    GF_SERVER_ROOT_URL = "https://example.com"
-    GF_SERVER_DOMAIN = "app.example.com"
+    GF_SERVER_ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    GF_SERVER_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     GF_SECURITY_ADMIN_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "grafana-data"

@@ -9,7 +9,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "joplin"
     [[services.storage]]
       host = "joplin-postgresql-data"
@@ -28,12 +28,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_BASE_URL = "https://example.com"
+    APP_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_CLIENT = "pg"
-    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DATABASE = "joplin"
-    POSTGRES_USER = "user"
-    POSTGRES_PORT = "5432"
     POSTGRES_HOST = "postgres"
   [services.checks]
     enabled = true

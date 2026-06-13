@@ -12,13 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_OBSERVIUM = "https://example.com"
+    SERVICE_URL_OBSERVIUM = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     OBSERVIUM_ADMIN_PASS = "${{ secret() }}"
     OBSERVIUM_ADMIN_USER = "user"
     OBSERVIUM_DB_HOST = "mariadb"
     OBSERVIUM_DB_NAME = "observium-db"
-    OBSERVIUM_DB_PASS = "${{ secret() }}"
-    OBSERVIUM_DB_USER = "user"
+    OBSERVIUM_DB_PASS = "${{ linked.mariadb.MYSQL_PASSWORD }}"
+    OBSERVIUM_DB_USER = "${{ linked.mariadb.MYSQL_USER }}"
     [[services.storage]]
       host = "observium_logs"
       container = "/opt/observium/logs"
@@ -36,7 +36,7 @@ category = "database"
 subtype = "mariadb"
   [services.env]
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
-    MARIADB_USER = "user"
+    MARIADB_USER = "${{ secret() }}"
     MARIADB_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "observium-db"
     [[services.storage]]

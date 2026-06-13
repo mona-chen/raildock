@@ -12,13 +12,13 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    GF_SERVER_ROOT_URL = "https://example.com"
-    GF_SERVER_DOMAIN = "app.example.com"
+    GF_SERVER_ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    GF_SERVER_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     GF_SECURITY_ADMIN_PASSWORD = "${{ secret() }}"
     GF_DATABASE_TYPE = "postgres"
     GF_DATABASE_HOST = "postgresql"
-    GF_DATABASE_USER = "$SERVICE_USER_POSTGRES"
-    GF_DATABASE_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    GF_DATABASE_USER = "${{ linked.postgresql.POSTGRES_USER }}"
+    GF_DATABASE_PASSWORD = "${{ linked.postgresql.POSTGRES_PASSWORD }}"
     GF_DATABASE_NAME = "grafana"
     [[services.storage]]
       host = "grafana-data"
@@ -33,8 +33,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "grafana"
     [[services.storage]]
       host = "postgresql-data"

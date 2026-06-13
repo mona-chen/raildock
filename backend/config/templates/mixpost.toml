@@ -15,11 +15,10 @@ source = { type = "docker"  }
     APP_NAME = "Mixpost"
     APP_KEY = "BASE64_GENERATED"
     APP_DEBUG = "false"
-    APP_DOMAIN = "https://example.com"
-    APP_URL = "https://example.com"
+    APP_DOMAIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_DATABASE = "mixpost_db"
-    DB_USERNAME = "user"
-    DB_PASSWORD = "${{ secret() }}"
+    DB_USERNAME = "${{ linked.mysql.MYSQL_USER }}"
     SSL_EMAIL = "user@example.com"
     [[services.storage]]
       host = "mixpost-storage"
@@ -34,7 +33,7 @@ category = "database"
 subtype = "mysql"
   [services.env]
     MYSQL_DATABASE = "mixpost_db"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]

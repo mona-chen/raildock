@@ -12,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    LEAN_APP_URL = "https://example.com"
+    LEAN_APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     LEAN_DB_HOST = "mysql"
-    LEAN_DB_USER = "user"
-    LEAN_DB_PASSWORD = "${{ secret() }}"
+    LEAN_DB_USER = "${{ linked.mysql.MYSQL_USER }}"
+    LEAN_DB_PASSWORD = "${{ linked.mysql.MYSQL_PASSWORD }}"
     LEAN_DB_DATABASE = "leantime-db"
     LEAN_SESSION_PASSWORD = "${{ secret() }}"
     LEAN_SESSION_EXPIRATION = "28800"
@@ -45,7 +45,7 @@ start_command = "--character-set-server=UTF8MB4 --collation-server=UTF8MB4_unico
 source = { type = "docker"  }
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "leantime-db"
     [[services.storage]]

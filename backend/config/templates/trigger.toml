@@ -13,9 +13,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_ORIGIN = "https://example.com"
-    LOGIN_ORIGIN = "https://example.com"
-    API_ORIGIN = "https://example.com"
+    APP_ORIGIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    LOGIN_ORIGIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    API_ORIGIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SESSION_SECRET = "${{ secret() }}"
     MAGIC_LINK_SECRET = "${{ secret() }}"
     ENCRYPTION_KEY = "${{ secret() }}"
@@ -23,8 +23,7 @@ source = { type = "docker"  }
     TRIGGER_WORKER_TOKEN = "${{ secret() }}"
     NODE_ENV = "production"
     APP_LOG_LEVEL = "info"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/trigger-db?schema=public&sslmode=disable"
-    DIRECT_URL = "postgresql://user:CHANGE_ME@postgresql:5432/trigger-db?schema=public&sslmode=disable"
+    DIRECT_URL = "postgresql://user:${{ secret() }}@postgresql:5432/trigger-db?schema=public&sslmode=disable"
     REDIS_HOST = "redis"
     REDIS_PORT = "6379"
     REDIS_TLS_DISABLED = "true"
@@ -33,13 +32,13 @@ source = { type = "docker"  }
     DEPLOY_REGISTRY_PROTOCOL = "https"
     DEPLOY_REGISTRY_NAMESPACE = "trigger"
     V4_DEPLOY_REGISTRY_NAMESPACE = "trigger"
-    OBJECT_STORE_BASE_URL = "https://example.com"
+    OBJECT_STORE_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     OBJECT_STORE_ACCESS_KEY_ID = "${{ secret() }}"
     OBJECT_STORE_SECRET_ACCESS_KEY = "${{ secret() }}"
-    CLICKHOUSE_URL = "http://user:CHANGE_ME@clickhouse:8123?secure=false"
+    CLICKHOUSE_URL = "http://user:${{ secret() }}@clickhouse:8123?secure=false"
     CLICKHOUSE_LOG_LEVEL = "info"
     RUN_REPLICATION_ENABLED = "1"
-    RUN_REPLICATION_CLICKHOUSE_URL = "http://user:CHANGE_ME@clickhouse:8123"
+    RUN_REPLICATION_CLICKHOUSE_URL = "http://user:${{ secret() }}@clickhouse:8123"
     RUN_REPLICATION_LOG_LEVEL = "info"
     TRIGGER_BOOTSTRAP_ENABLED = "1"
     TRIGGER_BOOTSTRAP_WORKER_GROUP_NAME = "bootstrap"
@@ -48,7 +47,7 @@ source = { type = "docker"  }
     DEFAULT_ENV_EXECUTION_CONCURRENCY_LIMIT = "100"
     EMAIL_TRANSPORT = "smtp"
     RESEND_API_KEY = "${{ secret() }}"
-    SMTP_HOST = "https://example.com"
+    SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SMTP_PORT = "3000"
     SMTP_USER = "SMTP_USER_VALUE"
     SMTP_PASSWORD = "${{ secret() }}"
@@ -130,7 +129,7 @@ subtype = "postgres"
 start_command = "-c wal_level=logical"
 source = { type = "docker"  }
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "trigger-db"
     [[services.storage]]
@@ -164,7 +163,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/trigger-db?sslmode=disable"
     ELECTRIC_SECRET = "${{ secret() }}"
     ELECTRIC_USAGE_REPORTING = "false"
   [services.checks]

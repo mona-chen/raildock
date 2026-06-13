@@ -13,9 +13,6 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     DB_ENGINE = "mysqli"
-    DB_HOST = "mariadb"
-    DB_USER = "user"
-    DB_PASSWORD = "${{ secret() }}"
     DB_NAME = "vvveb"
     [[services.storage]]
       host = "vvveb-data"
@@ -32,7 +29,7 @@ subtype = "mariadb"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "vvveb"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "vvveb-mariadb-data"

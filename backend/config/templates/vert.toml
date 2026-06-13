@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PUB_VERT_URL = "https://example.com"
-    PUB_HOSTNAME = "https://example.com"
+    PUB_VERT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    PUB_HOSTNAME = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PUB_PORT = "80"
     PUB_ENV = "production"

@@ -20,7 +20,7 @@ source = { type = "docker"  }
     initial_user = "user"
     initial_password = "${{ secret() }}"
     initial_email = "mail@example.com"
-    initial_server_url = "https://example.com"
+    initial_server_url = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     initial_ssh_root_url = "ssh://changeme:22"
     [[services.storage]]
       host = "onedev-docker-sock"
@@ -38,7 +38,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "onedev"
     [[services.storage]]

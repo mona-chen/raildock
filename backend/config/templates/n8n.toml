@@ -12,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    N8N_EDITOR_BASE_URL = "https://example.com"
-    WEBHOOK_URL = "https://example.com"
-    N8N_HOST = "app.example.com"
+    N8N_EDITOR_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    WEBHOOK_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    N8N_HOST = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     N8N_PROTOCOL = "https"
     GENERIC_TIMEZONE = "UTC"
     TZ = "UTC"

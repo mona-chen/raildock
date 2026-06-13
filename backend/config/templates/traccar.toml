@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     CONFIG_USE_ENVIRONMENT_VARIABLES = "true"
     DATABASE_USER = "user"
-    DATABASE_PASSWORD = "${{ secret() }}"
+    DATABASE_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
   [services.checks]
     enabled = true
     wait = 30
@@ -25,7 +25,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "traccar"
     [[services.storage]]

@@ -13,8 +13,8 @@ source = { type = "docker"  }
   [services.env]
     MINIO_SERVER_URL = "$MINIO_SERVER_URL"
     MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
-    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
-    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    MINIO_ROOT_USER = "${{ secret() }}"
+    MINIO_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "minio-data"
       container = "/data"

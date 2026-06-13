@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    CELLS_SITE_EXTERNAL = "https://example.com"
+    CELLS_SITE_EXTERNAL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     CELLS_SITE_NO_TLS = "1"
     [[services.storage]]
       host = "cells_data"
@@ -25,7 +25,7 @@ subtype = "mariadb"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "cells"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mysql_data"

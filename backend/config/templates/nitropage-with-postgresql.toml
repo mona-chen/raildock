@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     NP_AUTH_SALT = "BASE64_GENERATED"
     NP_AUTH_PASSWORD = "${{ secret() }}"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/nitropage"
+    DATABASE_URL = "postgresql://user:${{ secret() }}@postgresql:5432/nitropage"
     [[services.storage]]
       host = "nitropage-data"
       container = "/app/.data"
@@ -28,7 +28,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "nitropage"
     [[services.storage]]

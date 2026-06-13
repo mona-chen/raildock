@@ -12,11 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DB_HOST = "mariadb"
-    DB_NAME = "freescout"
-    DB_USER = "user"
-    DB_PASS = "${{ secret() }}"
-    SITE_URL = "https://example.com"
+    DB_PASS = "${{ linked.mariadb.MYSQL_PASSWORD }}"
+    SITE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     ADMIN_EMAIL = "admin@example.com"
     ADMIN_PASS = "${{ secret() }}"
     DISPLAY_ERRORS = "FALSE"
@@ -39,7 +36,7 @@ subtype = "mariadb"
   [services.env]
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "MARIADB_DATABASE_VALUE"
-    MARIADB_USER = "user"
+    MARIADB_USER = "${{ secret() }}"
     MARIADB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mariadb-data"

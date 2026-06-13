@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     ARGILLA_HOME_PATH = "/var/lib/argilla"
     ARGILLA_ELASTICSEARCH = "http://elasticsearch:9200"
-    ARGILLA_DATABASE_URL = "postgresql+asyncpg://user:CHANGE_ME@postgres:5432/POSTGRES_DB_VALUE"
+    ARGILLA_DATABASE_URL = "postgresql+asyncpg://user:${{ secret() }}@postgres:5432/POSTGRES_DB_VALUE"
     ARGILLA_REDIS_URL = "redis://redis:6379/0"
     ARGILLA_AUTH_SECRET_KEY = "${{ secret() }}"
     ARGILLA_ENABLE_TELEMETRY = "0"
@@ -47,7 +47,7 @@ source = { type = "docker"  }
   [services.env]
     ARGILLA_HOME_PATH = "/var/lib/argilla"
     ARGILLA_ELASTICSEARCH = "http://elasticsearch:9200"
-    ARGILLA_DATABASE_URL = "postgresql+asyncpg://user:CHANGE_ME@postgres:5432/POSTGRES_DB_VALUE"
+    ARGILLA_DATABASE_URL = "postgresql+asyncpg://user:${{ secret() }}@postgres:5432/POSTGRES_DB_VALUE"
     ARGILLA_REDIS_URL = "redis://redis:6379/0"
     ARGILLA_AUTH_SECRET_KEY = "${{ secret() }}"
     ARGILLA_ENABLE_TELEMETRY = "0"
@@ -74,7 +74,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "argilla"
     [[services.storage]]

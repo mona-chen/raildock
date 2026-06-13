@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    _APP_URL = "$SERVICE_URL_SONARR"
+    _APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PUID = "1000"
     PGID = "1000"
     TZ = "America/Toronto"

@@ -12,12 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_URL = "https://example.com"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     CRON_INTERVAL = "10"
-    DB_HOST = "mariadb"
-    DB_NAME = "osticket-db"
-    DB_USER = "user"
-    DB_PASS = "${{ secret() }}"
+    DB_PASS = "${{ linked.mariadb.MYSQL_PASSWORD }}"
     INSTALL_SECRET = "${{ secret() }}"
     ADMIN_FIRSTNAME = "Admin"
     ADMIN_LASTNAME = "istrator"
@@ -39,7 +36,7 @@ subtype = "mariadb"
   [services.env]
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     MARIADB_DATABASE = "osticket-db"
-    MARIADB_USER = "user"
+    MARIADB_USER = "${{ secret() }}"
     MARIADB_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "osticket-mariadb-data"

@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    REPO_URL = "https://example.com"
+    REPO_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     RUNNER_NAME_PREFIX = "coolify-runner"
     RUNNER_NAME_SUFFIX = "false"
     ACCESS_TOKEN = "${{ secret() }}"

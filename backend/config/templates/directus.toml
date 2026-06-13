@@ -12,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    KEY = "$SERVICE_BASE64_64_KEY"
-    SECRET = "$SERVICE_BASE64_64_SECRET"
+    KEY = "${{ secret() }}"
+    SECRET = "${{ secret() }}"
     ADMIN_EMAIL = "admin@example.com"
-    ADMIN_PASSWORD = "$SERVICE_PASSWORD_ADMIN"
+    ADMIN_PASSWORD = "${{ secret() }}"
     DB_CLIENT = "sqlite3"
     DB_FILENAME = "/directus/database/data.db"
     WEBSOCKETS_ENABLED = "true"

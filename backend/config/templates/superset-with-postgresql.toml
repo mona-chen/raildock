@@ -14,9 +14,6 @@ source = { type = "docker"  }
   [services.env]
     SECRET_KEY = "BASE64_GENERATED"
     MAPBOX_API_KEY = "${{ secret() }}"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "superset-db"
     REDIS_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
@@ -28,7 +25,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "superset-db"
     [[services.storage]]
@@ -44,7 +41,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:8"
-start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS}"
+start_command = "redis-server --requirepass ${{ secret() }}"
 source = { type = "docker"  }
     [[services.storage]]
       host = "superset_redis_data"

@@ -9,7 +9,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "rallly"
     [[services.storage]]
       host = "rallly_db_data"
@@ -28,12 +28,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@rallly_db:5432/rallly"
     SECRET_PASSWORD = "${{ secret() }}"
-    NEXT_PUBLIC_BASE_URL = "https://example.com"
+    NEXT_PUBLIC_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     ALLOWED_EMAILS = "admin@example.com"
     SUPPORT_EMAIL = "support@example.com"
-    SMTP_HOST = "https://example.com"
+    SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SMTP_PORT = "3000"
     SMTP_SECURE = "false"
     SMTP_USER = "SMTP_USER_VALUE"

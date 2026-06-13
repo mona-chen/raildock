@@ -16,7 +16,7 @@ source = { type = "docker"  }
     HBOX_LOG_LEVEL = "info"
     HBOX_LOG_FORMAT = "text"
     HBOX_WEB_MAX_UPLOAD_SIZE = "10"
-    HBOX_MAILER_HOST = "https://example.com"
+    HBOX_MAILER_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     HBOX_MAILER_PORT = "587"
     HBOX_MAILER_USERNAME = "HBOX_MAILER_USERNAME_VALUE"
     HBOX_MAILER_PASSWORD = "${{ secret() }}"

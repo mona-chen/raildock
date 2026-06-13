@@ -12,12 +12,12 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVER_HOST = "app.example.com"
+    SERVER_HOST = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PG_HOSTNAME = "postgres"
     PG_DATABASE = "sequin-db"
     PG_PORT = "5432"
     PG_USERNAME = "user"
-    PG_PASSWORD = "${{ secret() }}"
+    PG_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     PG_POOL_SIZE = "20"
     SECRET_KEY_BASE = "${{ secret() }}"
     VAULT_KEY = "${{ secret() }}"
@@ -39,7 +39,7 @@ start_command = "postgres -c wal_level=logical"
 source = { type = "docker"  }
   [services.env]
     POSTGRES_DB = "sequin-db"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres_data"

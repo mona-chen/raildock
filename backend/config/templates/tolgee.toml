@@ -13,9 +13,9 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     TOLGEE_AUTHENTICATION_ENABLED = "true"
-    TOLGEE_AUTHENTICATION_INITIAL_PASSWORD = "$SERVICE_PASSWORD_TOLGEE"
+    TOLGEE_AUTHENTICATION_INITIAL_PASSWORD = "${{ secret() }}"
     TOLGEE_AUTHENTICATION_INITIAL_USERNAME = "admin"
-    TOLGEE_AUTHENTICATION_JWT_SECRET = "$SERVICE_PASSWORD_JWT"
+    TOLGEE_AUTHENTICATION_JWT_SECRET = "${{ secret() }}"
     TOLGEE_POSTGRES_AUTOSTART_ENABLED = "false"
     SPRING_DATASOURCE_URL = "jdbc:postgresql://postgresql:5432/tolgee"
     SPRING_DATASOURCE_USERNAME = "user"
@@ -33,7 +33,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "tolgee"
     [[services.storage]]

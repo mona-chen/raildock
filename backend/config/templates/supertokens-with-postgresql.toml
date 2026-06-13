@@ -8,7 +8,7 @@ name = "supertokens"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRESQL_CONNECTION_URI = "\"postgresql://$SERVICE_USER_POSTGRESQL:$SERVICE_PASSWORD_POSTGRESQL@postgres:5432/supertokens\""
+    POSTGRESQL_CONNECTION_URI = "\"postgresql://${{ linked.postgres.POSTGRES_USER }}:${{ linked.postgres.POSTGRES_PASSWORD }}@postgres:5432/supertokens\""
   [services.checks]
     enabled = true
     wait = 10
@@ -19,8 +19,8 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRESQL"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRESQL"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "supertokens"
     [[services.storage]]
       host = "supertokens-postgres-data"

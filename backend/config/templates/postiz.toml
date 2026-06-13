@@ -12,18 +12,17 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    MAIN_URL = "https://example.com"
-    FRONTEND_URL = "https://example.com"
-    NEXT_PUBLIC_BACKEND_URL = "https://example.com/api"
+    MAIN_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    FRONTEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    NEXT_PUBLIC_BACKEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     JWT_SECRET = "${{ secret() }}"
-    DATABASE_URL = "postgresql://postgres:CHANGE_ME@postgres:5432/postiz-db"
     REDIS_URL = "redis:${{ secret() }}@redis:6379"
     BACKEND_INTERNAL_URL = "http://localhost:3000"
     CLOUDFLARE_ACCOUNT_ID = "CLOUDFLARE_ACCOUNT_ID_VALUE"
     CLOUDFLARE_ACCESS_KEY = "${{ secret() }}"
     CLOUDFLARE_SECRET_ACCESS_KEY = "${{ secret() }}"
     CLOUDFLARE_BUCKETNAME = "CLOUDFLARE_BUCKETNAME_VALUE"
-    CLOUDFLARE_BUCKET_URL = "https://example.com"
+    CLOUDFLARE_BUCKET_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     CLOUDFLARE_REGION = "CLOUDFLARE_REGION_VALUE"
     STORAGE_PROVIDER = "local"
     UPLOAD_DIRECTORY = "/uploads"
@@ -108,7 +107,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:7.2"
-start_command = "redis-server --requirepass ${SERVICE_PASSWORD_REDIS}"
+start_command = "redis-server --requirepass ${{ secret() }}"
 source = { type = "docker"  }
   [services.env]
     REDIS_PASSWORD = "${{ secret() }}"

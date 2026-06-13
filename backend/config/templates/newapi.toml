@@ -12,10 +12,10 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SQL_DSN = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/newapi?sslmode=disable&TimeZone=Asia/Shanghai"
+    SQL_DSN = "postgres://${{ linked.postgresql.POSTGRES_USER }}:${{ linked.postgresql.POSTGRES_PASSWORD }}@postgresql:5432/newapi?sslmode=disable&TimeZone=Asia/Shanghai"
     REDIS_CONN_STRING = "redis://redis:6379"
     TZ = "Asia/Shanghai"
-    SESSION_SECRET = "$SERVICE_BASE64_64_SESSION_SECRET"
+    SESSION_SECRET = "${{ secret() }}"
     ERROR_LOG_ENABLED = "true"
   [services.checks]
     enabled = true
@@ -27,8 +27,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "newapi"
     [[services.storage]]
       host = "postgresql-data"

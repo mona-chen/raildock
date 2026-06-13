@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     TZ = "UTC"
-    WINGS_USERNAME = "$SERVICE_USER_WINGS"
+    WINGS_USERNAME = "${{ secret() }}"
   [services.proxy]
     enabled = true
     type = "traefik"

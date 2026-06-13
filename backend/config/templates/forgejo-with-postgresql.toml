@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    FORGEJO__server__ROOT_URL = "https://example.com"
+    FORGEJO__server__ROOT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     FORGEJO__migrations__ALLOWED_DOMAINS = "${FORGEJO__migrations__ALLOWED_DOMAINS}"
     FORGEJO__migrations__ALLOW_LOCALNETWORKS = "${FORGEJO__migrations__ALLOW_LOCALNETWORKS-false}"
     USER_UID = "1000"
@@ -20,8 +20,8 @@ source = { type = "docker"  }
     FORGEJO__database__DB_TYPE = "postgres"
     FORGEJO__database__HOST = "postgresql"
     FORGEJO__database__NAME = "${POSTGRESQL_DATABASE-forgejo}"
-    FORGEJO__database__USER = "$SERVICE_USER_POSTGRESQL"
-    FORGEJO__database__PASSWD = "$SERVICE_PASSWORD_POSTGRESQL"
+    FORGEJO__database__USER = "${{ linked.postgresql.POSTGRES_USER }}"
+    FORGEJO__database__PASSWD = "${{ linked.postgresql.POSTGRES_PASSWORD }}"
   [services.proxy]
     enabled = true
     type = "traefik"
@@ -47,7 +47,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "POSTGRESQL_DATABASE_VALUE"
     [[services.storage]]

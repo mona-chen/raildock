@@ -12,14 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_DOMAIN = "$SERVICE_FQDN_SURE"
-    SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "sure"
+    APP_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    SECRET_KEY_BASE = "${{ secret() }}"
     REDIS_URL = "redis://valkey:6379"
-    DB_HOST = "postgresql"
-    DB_PORT = "5432"
     SELF_HOSTED = "true"
     RAILS_FORCE_SSL = "false"
     RAILS_ASSUME_SSL = "false"
@@ -42,14 +37,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_DOMAIN = "$SERVICE_FQDN_SURE"
-    SECRET_KEY_BASE = "$SERVICE_BASE64_BASE"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "sure"
+    APP_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    SECRET_KEY_BASE = "${{ secret() }}"
     REDIS_URL = "redis://valkey:6379"
-    DB_HOST = "postgresql"
-    DB_PORT = "5432"
     SELF_HOSTED = "true"
     RAILS_FORCE_SSL = "false"
     RAILS_ASSUME_SSL = "false"
@@ -67,7 +57,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "sure"
     [[services.storage]]

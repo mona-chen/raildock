@@ -17,11 +17,6 @@ source = { type = "docker"  }
     RAILS_ASSUME_SSL = "false"
     GOOD_JOB_EXECUTION_MODE = "async"
     SECRET_KEY_BASE = "BASE64_GENERATED"
-    DB_HOST = "postgres"
-    POSTGRES_DB = "maybe-db"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    DB_PORT = "5432"
     REDIS_URL = "redis:${{ secret() }}@redis:6379/1"
     OPENAI_ACCESS_TOKEN = "${{ secret() }}"
     [[services.storage]]
@@ -42,16 +37,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "maybe-db"
     SECRET_KEY_BASE = "BASE64_GENERATED"
     SELF_HOSTED = "true"
     RAILS_FORCE_SSL = "false"
     RAILS_ASSUME_SSL = "false"
     GOOD_JOB_EXECUTION_MODE = "async"
-    DB_HOST = "postgres"
-    DB_PORT = "5432"
     REDIS_URL = "redis:${{ secret() }}@redis:6379/1"
     OPENAI_ACCESS_TOKEN = "${{ secret() }}"
 
@@ -60,7 +50,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "maybe-db"
     [[services.storage]]
@@ -76,7 +66,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:8-alpine"
-start_command = "redis-server --appendonly yes --requirepass ${SERVICE_PASSWORD_REDIS}"
+start_command = "redis-server --appendonly yes --requirepass ${{ secret() }}"
 source = { type = "docker"  }
   [services.env]
     REDIS_PASSWORD = "${{ secret() }}"

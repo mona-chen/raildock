@@ -16,8 +16,8 @@ source = { type = "docker"  }
     MB_DB_HOST = "postgresql"
     MB_DB_PORT = "5432"
     MB_DB_DBNAME = "metabase"
-    MB_DB_USER = "$SERVICE_USER_POSTGRESQL"
-    MB_DB_PASS = "$SERVICE_PASSWORD_POSTGRESQL"
+    MB_DB_USER = "${{ linked.postgresql.POSTGRES_USER }}"
+    MB_DB_PASS = "${{ linked.postgresql.POSTGRES_PASSWORD }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -28,7 +28,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "metabase"
     [[services.storage]]

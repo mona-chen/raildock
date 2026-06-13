@@ -12,12 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SEAFILE_SERVER_HOSTNAME = "app.example.com"
-    DB_HOST = "mariadb"
-    DB_PORT = "3306"
+    SEAFILE_SERVER_HOSTNAME = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_ROOT_PASSWD = "${{ secret() }}"
-    DB_USER = "user"
-    DB_PASSWORD = "${{ secret() }}"
     SEAFILE_MYSQL_DB_CCNET_DB_NAME = "ccnet_db"
     SEAFILE_MYSQL_DB_SEAFILE_DB_NAME = "seafile_db"
     SEAFILE_MYSQL_DB_SEAHUB_DB_NAME = "seahub_db"
@@ -29,7 +25,7 @@ source = { type = "docker"  }
     NON_ROOT = "false"
     JWT_PRIVATE_KEY = "${{ secret() }}"
     SEAFILE_LOG_TO_STDOUT = "true"
-    FILE_SERVER_ROOT = "https://example.com/seafhttp"
+    FILE_SERVER_ROOT = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "seafile-data"
       container = "/shared"
@@ -44,7 +40,7 @@ category = "database"
 subtype = "mariadb"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "seafile-db"
     [[services.storage]]

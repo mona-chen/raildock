@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    TOKEN = "$SERVICE_PASSWORD_BROWSERLESS"
+    TOKEN = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 2

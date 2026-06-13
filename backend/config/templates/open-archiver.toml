@@ -18,10 +18,6 @@ source = { type = "docker"  }
     PORT_FRONTEND = "3000"
     NODE_ENV = "production"
     SYNC_FREQUENCY = "* * * * *"
-    POSTGRES_DB = "open_archive"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgres:5432/open-archiver-db"
     MEILI_MASTER_KEY = "${{ secret() }}"
     MEILI_HOST = "http://meilisearch:7700"
     REDIS_HOST = "valkey"
@@ -51,7 +47,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_DB = "open-archiver-db"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     LC_ALL = "C"
     [[services.storage]]
@@ -67,7 +63,7 @@ name = "valkey"
 category = "app"
 subtype = "docker"
 docker_image = "valkey/valkey:8-alpine"
-start_command = "valkey-server --requirepass ${SERVICE_PASSWORD_VALKEY}"
+start_command = "valkey-server --requirepass ${{ secret() }}"
 source = { type = "docker"  }
   [services.scaling]
     web = 1

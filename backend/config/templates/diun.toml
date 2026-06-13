@@ -21,7 +21,7 @@ source = { type = "docker"  }
     DIUN_WATCH_JITTER = "30s"
     DIUN_PROVIDERS_DOCKER = "true"
     DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT = "true"
-    DIUN_NOTIF_SLACK_WEBHOOKURL = "https://example.com"
+    DIUN_NOTIF_SLACK_WEBHOOKURL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "diun_data"
       container = "/data"

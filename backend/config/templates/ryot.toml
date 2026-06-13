@@ -12,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres:${{ secret() }}@postgresql:5432/POSTGRES_DB_VALUE"
     SERVER_ADMIN_ACCESS_TOKEN = "${{ secret() }}"
     TZ = "Europe/Amsterdam"
   [services.checks]
@@ -25,7 +24,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "ryot-db"
     TZ = "Europe/Amsterdam"

@@ -12,4 +12,4 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    HOMEPAGE_VAR_BASE = "https://example.com"
+    HOMEPAGE_VAR_BASE = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"

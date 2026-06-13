@@ -12,12 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APP_SECRET = "$SERVICE_BASE64_APPKEY"
-    APP_URL = "$SERVICE_URL_DOCMOST_3000"
-    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql/docmost?schema=public"
+    APP_SECRET = "${{ secret() }}"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     REDIS_URL = "redis://redis:6379"
     MAIL_DRIVER = "${MAIL_DRIVER:?}"
-    SMTP_HOST = "https://example.com"
+    SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SMTP_PORT = "3000"
     SMTP_USERNAME = "SMTP_USERNAME_VALUE"
     SMTP_PASSWORD = "${{ secret() }}"
@@ -38,8 +37,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "docmost"
     [[services.storage]]
       host = "postgresql-data"

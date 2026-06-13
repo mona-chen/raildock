@@ -13,13 +13,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     POSTGRES_HOST = "postgres"
-    POSTGRES_PORT = "5432"
-    POSTGRES_USER = "user"
-    POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_DB = "metamcp_db"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgres:5432/metamcp_db"
-    APP_URL = "https://example.com"
-    NEXT_PUBLIC_APP_URL = "https://example.com"
+    APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    NEXT_PUBLIC_APP_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     BETTER_AUTH_SECRET = "${{ secret() }}"
     TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL = "true"
   [services.checks]
@@ -33,7 +28,7 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_DB = "metamcp_db"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres_data"

@@ -39,7 +39,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     PORT = "8080"
-    QBIT_BASE = "https://example.com"
+    QBIT_BASE = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     RELEASE_TYPE = "stable"
     UPDATE_VT_CRON = "\"0 * * * *\""
     [[services.storage]]

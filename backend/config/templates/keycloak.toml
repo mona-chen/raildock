@@ -16,7 +16,7 @@ source = { type = "docker"  }
     TZ = "UTC"
     KC_BOOTSTRAP_ADMIN_USERNAME = "user"
     KC_BOOTSTRAP_ADMIN_PASSWORD = "${{ secret() }}"
-    KC_HOSTNAME = "https://example.com"
+    KC_HOSTNAME = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     KC_HTTP_ENABLED = "true"
     KC_HEALTH_ENABLED = "true"
     KC_PROXY_HEADERS = "xforwarded"

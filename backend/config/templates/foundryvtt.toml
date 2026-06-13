@@ -14,10 +14,10 @@ source = { type = "docker"  }
   [services.env]
     FOUNDRY_USERNAME = "FOUNDRY_USERNAME_VALUE"
     FOUNDRY_PASSWORD = "${{ secret() }}"
-    FOUNDRY_RELEASE_URL = "https://example.com"
+    FOUNDRY_RELEASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     FOUNDRY_LICENSE_KEY = "${{ secret() }}"
     FOUNDRY_ADMIN_KEY = "atropos"
-    FOUNDRY_HOSTNAME = "https://example.com"
+    FOUNDRY_HOSTNAME = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     FOUNDRY_ROUTE_PREFIX = "FOUNDRY_ROUTE_PREFIX_VALUE"
     FOUNDRY_PROXY_PORT = "80"
     FOUNDRY_PROXY_SSL = "true"

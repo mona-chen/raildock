@@ -13,8 +13,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PREFECT_API_URL = "https://example.com/api"
-    PREFECT_API_DATABASE_CONNECTION_URL = "postgresql+asyncpg://user:CHANGE_ME@postgresql:5432/prefect"
+    PREFECT_API_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    PREFECT_API_DATABASE_CONNECTION_URL = "postgresql+asyncpg://user:${{ secret() }}@postgresql:5432/prefect"
     PREFECT_API_KEY = "${{ secret() }}"
     PREFECT_EXPERIMENTAL_WARN = "false"
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = "false"
@@ -30,8 +30,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "prefect"
     [[services.storage]]
       host = "pg-data"

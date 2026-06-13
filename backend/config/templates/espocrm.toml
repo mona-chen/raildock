@@ -18,8 +18,8 @@ source = { type = "docker"  }
     ESPOCRM_DATABASE_HOST = "espocrm-db"
     ESPOCRM_DATABASE_NAME = "espocrm"
     ESPOCRM_DATABASE_USER = "user"
-    ESPOCRM_DATABASE_PASSWORD = "${{ secret() }}"
-    ESPOCRM_SITE_URL = "https://example.com"
+    ESPOCRM_DATABASE_PASSWORD = "${{ linked.espocrm-db.MYSQL_PASSWORD }}"
+    ESPOCRM_SITE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "espocrm"
       container = "/var/www/html"
@@ -50,7 +50,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     ESPOCRM_CONFIG_USE_WEB_SOCKET = "true"
-    ESPOCRM_CONFIG_WEB_SOCKET_URL = "$SERVICE_URL_ESPOCRM_WEBSOCKET"
+    ESPOCRM_CONFIG_WEB_SOCKET_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN = "tcp://*:7777"
     ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN = "tcp://espocrm-websocket:7777"
     [[services.storage]]
@@ -63,7 +63,7 @@ category = "database"
 subtype = "mariadb"
   [services.env]
     MARIADB_DATABASE = "espocrm"
-    MARIADB_USER = "user"
+    MARIADB_USER = "${{ secret() }}"
     MARIADB_PASSWORD = "${{ secret() }}"
     MARIADB_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]

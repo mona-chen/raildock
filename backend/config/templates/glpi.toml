@@ -15,8 +15,8 @@ source = { type = "docker"  }
     GLPI_DB_HOST = "glpi-db"
     GLPI_DB_PORT = "3306"
     GLPI_DB_NAME = "glpi-db"
-    GLPI_DB_USER = "user"
-    GLPI_DB_PASSWORD = "${{ secret() }}"
+    GLPI_DB_USER = "${{ linked.glpi-db.MYSQL_USER }}"
+    GLPI_DB_PASSWORD = "${{ linked.glpi-db.MYSQL_PASSWORD }}"
     [[services.storage]]
       host = "glpi-data"
       container = "/var/glpi"
@@ -32,7 +32,7 @@ subtype = "mysql"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "glpi-db"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "mysql-data"

@@ -13,18 +13,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY_BASE = "$SERVICE_PASSWORD_CHATWOOT"
-    FRONTEND_URL = "https://example.com"
+    SECRET_KEY_BASE = "${{ secret() }}"
+    FRONTEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DEFAULT_LOCALE = "CHATWOOT_DEFAULT_LOCALE_VALUE"
     FORCE_SSL = "false"
     ENABLE_ACCOUNT_SIGNUP = "false"
     REDIS_URL = "redis://default@redis:6379"
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
     REDIS_OPENSSL_VERIFY_MODE = "none"
     POSTGRES_DATABASE = "chatwoot"
     POSTGRES_HOST = "postgres"
-    POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USERNAME = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     RAILS_MAX_THREADS = "5"
     NODE_ENV = "production"
     RAILS_ENV = "production"
@@ -56,18 +56,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY_BASE = "$SERVICE_PASSWORD_CHATWOOT"
-    FRONTEND_URL = "https://example.com"
+    SECRET_KEY_BASE = "${{ secret() }}"
+    FRONTEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DEFAULT_LOCALE = "CHATWOOT_DEFAULT_LOCALE_VALUE"
     FORCE_SSL = "false"
     ENABLE_ACCOUNT_SIGNUP = "false"
     REDIS_URL = "redis://default@redis:6379"
-    REDIS_PASSWORD = "$SERVICE_PASSWORD_REDIS"
+    REDIS_PASSWORD = "${{ linked.redis.REDIS_PASSWORD }}"
     REDIS_OPENSSL_VERIFY_MODE = "none"
     POSTGRES_DATABASE = "chatwoot"
     POSTGRES_HOST = "postgres"
-    POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USERNAME = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     RAILS_MAX_THREADS = "5"
     NODE_ENV = "production"
     RAILS_ENV = "production"
@@ -99,8 +99,8 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     POSTGRES_DB = "chatwoot"
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres-data"
       container = "/var/lib/postgresql/data"
@@ -114,7 +114,7 @@ name = "redis"
 category = "cache"
 subtype = "redis"
 docker_image = "redis:alpine"
-start_command = "sh -c redis-server --requirepass \"$SERVICE_PASSWORD_REDIS\""
+start_command = "sh -c redis-server --requirepass \"${{ secret() }}""
 source = { type = "docker"  }
     [[services.storage]]
       host = "redis-data"

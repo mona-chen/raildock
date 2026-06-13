@@ -55,7 +55,11 @@ class Server < ApplicationRecord
   end
 
   def auto_domains?
-    base_domain.present? && (respond_to?(:auto_domains) ? auto_domains : true)
+    base_domain.present?
+  end
+
+  def base_domain
+    self[:base_domain].presence || "sslip.io"
   end
 
   # Magic DNS services that resolve wildcards to embedded IPs

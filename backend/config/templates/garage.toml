@@ -16,8 +16,8 @@ source = { type = "docker"  }
     GARAGE_WEB_URL = "$GARAGE_WEB_URL"
     GARAGE_ADMIN_URL = "$GARAGE_ADMIN_URL"
     GARAGE_RPC_SECRET = "${{ secret() }}"
-    GARAGE_ADMIN_TOKEN = "$SERVICE_PASSWORD_GARAGE"
-    GARAGE_METRICS_TOKEN = "$SERVICE_PASSWORD_GARAGEMETRICS"
+    GARAGE_ADMIN_TOKEN = "${{ secret() }}"
+    GARAGE_METRICS_TOKEN = "${{ secret() }}"
     GARAGE_ALLOW_WORLD_READABLE_SECRETS = "true"
     RUST_LOG = "garage=info"
     [[services.storage]]

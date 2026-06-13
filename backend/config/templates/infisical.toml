@@ -12,11 +12,11 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SITE_URL = "https://example.com"
+    SITE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     NODE_ENV = "production"
     ENCRYPTION_KEY = "${{ secret() }}"
     AUTH_SECRET = "${{ secret() }}"
-    SMTP_HOST = "https://example.com"
+    SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     SMTP_USERNAME = "SMTP_USERNAME_VALUE"
     SMTP_PASSWORD = "${{ secret() }}"
     SMTP_PORT = "3000"
@@ -55,7 +55,7 @@ name = "db"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "infisical"
     [[services.storage]]

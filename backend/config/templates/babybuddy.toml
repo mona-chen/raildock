@@ -15,7 +15,7 @@ source = { type = "docker"  }
     PUID = "1000"
     PGID = "1000"
     TZ = "Europe/Madrid"
-    CSRF_TRUSTED_ORIGINS = "$SERVICE_URL_BABYBUDDY"
+    CSRF_TRUSTED_ORIGINS = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "babybuddy-config"
       container = "/config"

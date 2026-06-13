@@ -12,18 +12,18 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    AP_API_KEY = "$SERVICE_PASSWORD_64_APIKEY"
-    AP_ENCRYPTION_KEY = "$SERVICE_PASSWORD_ENCRYPTIONKEY"
+    AP_API_KEY = "${{ secret() }}"
+    AP_ENCRYPTION_KEY = "${{ secret() }}"
     AP_ENGINE_EXECUTABLE_PATH = "dist/packages/engine/main.js"
     AP_ENVIRONMENT = "prod"
     AP_EXECUTION_MODE = "UNSANDBOXED"
-    AP_FRONTEND_URL = "https://example.com"
-    AP_JWT_SECRET = "$SERVICE_PASSWORD_64_JWT"
+    AP_FRONTEND_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    AP_JWT_SECRET = "${{ secret() }}"
     AP_POSTGRES_DATABASE = "activepieces"
     AP_POSTGRES_HOST = "postgres"
-    AP_POSTGRES_PASSWORD = "${{ secret() }}"
+    AP_POSTGRES_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     AP_POSTGRES_PORT = "5432"
-    AP_POSTGRES_USERNAME = "$SERVICE_USER_POSTGRES"
+    AP_POSTGRES_USERNAME = "${{ linked.postgres.POSTGRES_USER }}"
     AP_REDIS_HOST = "redis"
     AP_REDIS_PORT = "6379"
     AP_SANDBOX_RUN_TIME_SECONDS = "600"
@@ -44,7 +44,7 @@ subtype = "postgres"
   [services.env]
     POSTGRES_DB = "activepieces"
     POSTGRES_PASSWORD = "${{ secret() }}"
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PORT = "5432"
     [[services.storage]]
       host = "pg-data"

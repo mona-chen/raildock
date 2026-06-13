@@ -12,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    AUTH_USERNAME = "$SERVICE_USER_OPENCLAW"
-    AUTH_PASSWORD = "$SERVICE_PASSWORD_OPENCLAW"
-    OPENCLAW_GATEWAY_TOKEN = "$SERVICE_PASSWORD_64_GATEWAYTOKEN"
+    AUTH_USERNAME = "${{ secret() }}"
+    AUTH_PASSWORD = "${{ secret() }}"
+    OPENCLAW_GATEWAY_TOKEN = "${{ secret() }}"
     ANTHROPIC_API_KEY = "${{ secret() }}"
     OPENAI_API_KEY = "${{ secret() }}"
     OPENROUTER_API_KEY = "${{ secret() }}"
@@ -40,7 +40,7 @@ source = { type = "docker"  }
     AWS_REGION = "us-east-1"
     AWS_SESSION_TOKEN = "${{ secret() }}"
     BEDROCK_PROVIDER_FILTER = "anthropic"
-    OLLAMA_BASE_URL = "https://example.com"
+    OLLAMA_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PORT = "8080"
     OPENCLAW_GATEWAY_PORT = "18789"
     OPENCLAW_GATEWAY_BIND = "loopback"

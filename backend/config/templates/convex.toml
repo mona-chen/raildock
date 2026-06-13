@@ -14,8 +14,8 @@ source = { type = "docker"  }
   [services.env]
     INSTANCE_NAME = "self-hosted-convex"
     INSTANCE_SECRET = "${{ secret() }}"
-    CONVEX_CLOUD_ORIGIN = "https://example.com"
-    CONVEX_SITE_ORIGIN = "https://example.com"
+    CONVEX_CLOUD_ORIGIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    CONVEX_SITE_ORIGIN = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DISABLE_BEACON = "${DISABLE_BEACON:?false}"
     REDACT_LOGS_TO_CLIENT = "${REDACT_LOGS_TO_CLIENT:?false}"
     DO_NOT_REQUIRE_SSL = "${DO_NOT_REQUIRE_SSL:?true}"
@@ -37,7 +37,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    NEXT_PUBLIC_DEPLOYMENT_URL = "https://example.com"
+    NEXT_PUBLIC_DEPLOYMENT_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 5

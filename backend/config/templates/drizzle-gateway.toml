@@ -13,7 +13,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     STORE_PATH = "/app"
-    MASTERPASS = "$SERVICE_PASSWORD_DRIZZLE"
+    MASTERPASS = "${{ secret() }}"
     [[services.storage]]
       host = "drizzle-gateway-data"
       container = "/app"

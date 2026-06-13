@@ -13,15 +13,14 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     REDIS_URL = "redis://redis:6379"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql/plunk-db?schema=public"
     JWT_SECRET = "${{ secret() }}"
     AWS_REGION = "${AWS_REGION:?}"
     AWS_ACCESS_KEY_ID = "${AWS_ACCESS_KEY_ID:?}"
     AWS_SECRET_ACCESS_KEY = "${AWS_SECRET_ACCESS_KEY:?}"
     AWS_SES_CONFIGURATION_SET = "${AWS_SES_CONFIGURATION_SET:?}"
-    NEXT_PUBLIC_API_URI = "https://example.com/api"
-    APP_URI = "https://example.com"
-    API_URI = "https://example.com/api"
+    NEXT_PUBLIC_API_URI = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    APP_URI = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    API_URI = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DISABLE_SIGNUPS = "False"
     NODE_OPTIONS = "--no-network-family-autoselection"
   [services.checks]
@@ -34,7 +33,7 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "plunk-db"
     [[services.storage]]

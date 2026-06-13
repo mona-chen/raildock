@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    BASE_URL = "https://example.com"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     PORT = "8080"
     RUN_MIGRATIONS = "1"
     CREATE_ADMIN = "1"
@@ -29,7 +29,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "miniflux-db"
     [[services.storage]]

@@ -16,7 +16,7 @@ source = { type = "docker"  }
     PGID = "1000"
     TZ = "Europe/Madrid"
     PMA_ARBITRARY = "1"
-    PMA_ABSOLUTE_URI = "$SERVICE_URL_PHPMYADMIN"
+    PMA_ABSOLUTE_URI = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "phpmyadmin-config"
       container = "/config"

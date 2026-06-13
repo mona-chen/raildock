@@ -12,8 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    HOST = "https://example.com"
-    DATABASE_URL = "postgresql://user:CHANGE_ME@postgresql:5432/martin-db"
+    HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    DATABASE_URL = "postgresql://user:${{ secret() }}@postgresql:5432/martin-db"
   [services.checks]
     enabled = true
     wait = 5
@@ -28,8 +28,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "martin-db"
     [[services.storage]]
       host = "martin-postgresql-data"

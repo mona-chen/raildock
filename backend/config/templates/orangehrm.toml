@@ -14,7 +14,7 @@ source = { type = "docker"  }
   [services.env]
     ORANGEHRM_DATABASE_HOST = "mariadb"
     ORANGEHRM_DATABASE_USER = "user"
-    ORANGEHRM_DATABASE_PASSWORD = "${{ secret() }}"
+    ORANGEHRM_DATABASE_PASSWORD = "${{ linked.mariadb.MYSQL_PASSWORD }}"
     ORANGEHRM_DATABASE_NAME = "orangehrm-db"
     [[services.storage]]
       host = "orangehrm-data"
@@ -31,7 +31,7 @@ subtype = "mariadb"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "orangehrm-db"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "orangehrm_mariadb_data"

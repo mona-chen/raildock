@@ -12,7 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    ND_BASEURL = "https://example.com"
+    ND_BASEURL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     ND_SCANSCHEDULE = "1h"
     ND_LOGLEVEL = "info"
     ND_SESSIONTIMEOUT = "24h"

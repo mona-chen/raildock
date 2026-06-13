@@ -10,8 +10,8 @@ subtype = "rabbitmq"
 docker_image = "rabbitmq:3-management"
 source = { type = "docker"  }
   [services.env]
-    RABBITMQ_DEFAULT_USER = "$SERVICE_USER_RABBITMQ"
-    RABBITMQ_DEFAULT_PASS = "$SERVICE_PASSWORD_RABBITMQ"
+    RABBITMQ_DEFAULT_USER = "${{ secret() }}"
+    RABBITMQ_DEFAULT_PASS = "${{ secret() }}"
     PORT = "5672"
   [services.proxy]
     enabled = true

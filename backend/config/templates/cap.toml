@@ -12,7 +12,6 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "mysql://$SERVICE_USER_MYSQL:$SERVICE_PASSWORD_MYSQL@cap-db:3306/planetscale"
     WEB_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     NEXTAUTH_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DATABASE_ENCRYPTION_KEY = "${{ secret() }}"
@@ -34,7 +33,7 @@ subtype = "mysql"
 start_command = "--max_connections=1000 --default-authentication-plugin=mysql_native_password"
 source = { type = "docker"  }
   [services.env]
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "planetscale"
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"

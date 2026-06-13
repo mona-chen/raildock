@@ -11,7 +11,7 @@ start_command = "--default-storage-engine innodb"
 source = { type = "docker"  }
   [services.env]
     MYSQL_DATABASE = "kimai"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
@@ -36,8 +36,7 @@ source = { type = "docker"  }
     MAILER_URL = "null://null"
     ADMINMAIL = "admin@kimai.local"
     ADMINPASS = "${{ secret() }}"
-    DATABASE_URL = "mysql:${{ secret() }}@mysql/MYSQL_DATABASE_VALUE?charset=utf8mb4&serverVersion=8.3.0"
-    TRUSTED_HOSTS = "https://example.com|localhost|127.0.0.1"
+    TRUSTED_HOSTS = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     [[services.storage]]
       host = "kimai-data"
       container = "/opt/kimai/var/data"

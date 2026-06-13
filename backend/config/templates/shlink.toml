@@ -11,7 +11,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DEFAULT_DOMAIN = "app.example.com"
+    DEFAULT_DOMAIN = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     IS_HTTPS_ENABLED = "false"
     INITIAL_API_KEY = "BASE64_GENERATED"
     [[services.storage]]
@@ -32,7 +32,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     SHLINK_SERVER_API_KEY = "BASE64_GENERATED"
-    SHLINK_SERVER_URL = "https://example.com"
+    SHLINK_SERVER_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 2

@@ -12,10 +12,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DB_HOST = "postgres"
-    DB_NAME = "postgres"
-    DB_USER = "postgres"
-    DB_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    DB_PASSWORD = "${{ linked.postgres.POSTGRES_PASSWORD }}"
     [[services.storage]]
       host = "drupal_modules"
       container = "/var/www/html/modules"
@@ -40,7 +37,7 @@ subtype = "postgres"
   [services.env]
     POSTGRES_DB = "postgres"
     POSTGRES_USER = "postgres"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_PASSWORD = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5

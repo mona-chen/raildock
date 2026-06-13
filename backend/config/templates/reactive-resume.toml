@@ -12,20 +12,19 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    PUBLIC_URL = "$SERVICE_URL_REACTIVERESUME"
-    STORAGE_URL = "https://example.com/default"
-    DATABASE_URL = "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/postgres"
-    ACCESS_TOKEN_SECRET = "$SERVICE_PASSWORD_ACCESSTOKEN"
-    REFRESH_TOKEN_SECRET = "$SERVICE_PASSWORD_REFRESHTOKEN"
-    CHROME_TOKEN = "$SERVICE_PASSWORD_CHROMETOKEN"
+    PUBLIC_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    STORAGE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    ACCESS_TOKEN_SECRET = "${{ secret() }}"
+    REFRESH_TOKEN_SECRET = "${{ secret() }}"
+    CHROME_TOKEN = "${{ secret() }}"
     CHROME_URL = "ws://chrome:3000/chrome"
     REDIS_URL = "redis://redis:6379"
     STORAGE_ENDPOINT = "minio"
     STORAGE_PORT = "9000"
     STORAGE_REGION = "us-east-1"
     STORAGE_BUCKET = "default"
-    STORAGE_ACCESS_KEY = "$SERVICE_USER_MINIO"
-    STORAGE_SECRET_KEY = "$SERVICE_PASSWORD_MINIO"
+    STORAGE_ACCESS_KEY = "${{ linked.minio.MINIO_ROOT_USER }}"
+    STORAGE_SECRET_KEY = "${{ linked.minio.MINIO_ROOT_PASSWORD }}"
     STORAGE_USE_SSL = "false"
     DISABLE_SIGNUPS = "false"
     DISABLE_EMAIL_AUTH = "false"
@@ -40,8 +39,8 @@ category = "database"
 subtype = "postgres"
   [services.env]
     POSTGRES_DB = "postgres"
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "postgres-data"
       container = "/var/lib/postgresql/data"
@@ -60,8 +59,8 @@ source = { type = "docker"  }
   [services.env]
     MINIO_SERVER_URL = "$MINIO_SERVER_URL"
     MINIO_BROWSER_REDIRECT_URL = "$MINIO_BROWSER_REDIRECT_URL"
-    MINIO_ROOT_USER = "$SERVICE_USER_MINIO"
-    MINIO_ROOT_PASSWORD = "$SERVICE_PASSWORD_MINIO"
+    MINIO_ROOT_USER = "${{ secret() }}"
+    MINIO_ROOT_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "minio-data"
       container = "/data"
@@ -82,7 +81,7 @@ source = { type = "docker"  }
     HEALTH = "true"
     TIMEOUT = "10000"
     CONCURRENT = "10"
-    TOKEN = "$SERVICE_PASSWORD_CHROMETOKEN"
+    TOKEN = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 10

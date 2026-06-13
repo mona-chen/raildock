@@ -25,9 +25,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APPFLOWY_BASE_URL = "https://example.com"
-    APPFLOWY_GOTRUE_BASE_URL = "https://example.com/gotrue"
-    APPFLOWY_WS_BASE_URL = "https://example.com/ws/v2"
+    APPFLOWY_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    APPFLOWY_GOTRUE_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    APPFLOWY_WS_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
 
 [[services]]
 name = "appflowy_cloud"
@@ -39,7 +39,7 @@ source = { type = "docker"  }
     web = 1
   [services.env]
     RUST_LOG = "info"
-    APPFLOWY_BASE_URL = "https://example.com"
+    APPFLOWY_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APPFLOWY_ENVIRONMENT = "production"
     APPFLOWY_DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/appflowy"
     APPFLOWY_REDIS_URI = "redis://redis:6379"
@@ -62,7 +62,7 @@ source = { type = "docker"  }
     APPFLOWY_DATABASE_MAX_CONNECTIONS = "40"
     AI_SERVER_HOST = "ai"
     AI_SERVER_PORT = "5001"
-    APPFLOWY_WEB_URL = "https://example.com"
+    APPFLOWY_WEB_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -88,9 +88,9 @@ source = { type = "docker"  }
     GOTRUE_JWT_SECRET = "${{ secret() }}"
     GOTRUE_JWT_EXP = "7200"
     GOTRUE_DB_DRIVER = "postgres"
-    API_EXTERNAL_URL = "https://example.com/gotrue"
+    API_EXTERNAL_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DATABASE_URL = "postgres:${{ secret() }}@postgres:5432/appflowy?search_path=auth"
-    GOTRUE_SMTP_HOST = "https://example.com"
+    GOTRUE_SMTP_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     GOTRUE_SMTP_PORT = "587"
     GOTRUE_SMTP_USER = "GOTRUE_SMTP_USER_VALUE"
     GOTRUE_SMTP_PASS = "GOTRUE_SMTP_PASS_VALUE"
@@ -116,8 +116,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    APPFLOWY_GOTRUE_BASE_URL = "https://example.com/gotrue"
-    APPFLOWY_BASE_URL = "https://example.com"
+    APPFLOWY_GOTRUE_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    APPFLOWY_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
 
 [[services]]
 name = "ai"
@@ -131,7 +131,7 @@ source = { type = "docker"  }
     AI_SERVER_PORT = "5001"
     DEFAULT_AI_MODEL = "gpt-4.1-mini"
     DEFAULT_AI_COMPLETION_MODEL = "gpt-4.1-mini"
-    AI_APPFLOWY_HOST = "https://example.com"
+    AI_APPFLOWY_HOST = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APPFLOWY_GOTRUE_JWT_SECRET = "${{ secret() }}"
     AZURE_OPENAI_API_KEY = "${{ secret() }}"
     AZURE_OPENAI_ENDPOINT = "AZURE_OPENAI_ENDPOINT_VALUE"
@@ -201,7 +201,7 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_DB = "appflowy"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_HOST = "postgres"

@@ -12,11 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    BASE_URL = "https://example.com"
-    DB_HOST = "mysql"
-    DB_NAME = "easyappointments"
+    BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_USERNAME = "root"
-    DB_PASSWORD = "${{ secret() }}"
+    DB_PASSWORD = "${{ linked.mysql.MYSQL_PASSWORD }}"
   [services.checks]
     enabled = true
     wait = 2

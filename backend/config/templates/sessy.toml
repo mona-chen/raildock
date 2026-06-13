@@ -12,9 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SECRET_KEY_BASE = "$SERVICE_HEX_64_SESSYSECRET"
-    HTTP_AUTH_USERNAME = "$SERVICE_USER_SESSY"
-    HTTP_AUTH_PASSWORD = "$SERVICE_PASSWORD_SESSY"
+    SECRET_KEY_BASE = "${{ secret() }}"
+    HTTP_AUTH_USERNAME = "${{ secret() }}"
+    HTTP_AUTH_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "sessy-data"
       container = "/rails/storage"

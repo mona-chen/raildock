@@ -12,10 +12,9 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVICE_URL_PAYMENTER = "https://example.com"
+    SERVICE_URL_PAYMENTER = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     DB_DATABASE = "paymenter-db"
-    DB_PASSWORD = "${{ secret() }}"
-    DB_USERNAME = "user"
+    DB_USERNAME = "${{ linked.mariadb.MYSQL_USER }}"
     APP_ENV = "production"
     CACHE_STORE = "redis"
     SESSION_DRIVER = "redis"
@@ -24,8 +23,6 @@ source = { type = "docker"  }
     REDIS_USERNAME = "default"
     REDIS_PASSWORD = "${{ secret() }}"
     DB_CONNECTION = "mariadb"
-    DB_HOST = "mariadb"
-    DB_PORT = "3306"
     APP_KEY = "BASE64_GENERATED"
     [[services.storage]]
       host = "app_logs"
@@ -54,7 +51,7 @@ subtype = "mariadb"
   [services.env]
     MYSQL_ROOT_PASSWORD = "${{ secret() }}"
     MYSQL_DATABASE = "paymenter-db"
-    MYSQL_USER = "user"
+    MYSQL_USER = "${{ secret() }}"
     MYSQL_PASSWORD = "${{ secret() }}"
     [[services.storage]]
       host = "paymenter_mariadb_data"

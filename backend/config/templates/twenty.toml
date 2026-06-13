@@ -12,8 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVER_URL = "https://example.com"
-    FRONT_BASE_URL = "https://example.com"
+    SERVER_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    FRONT_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APP_SECRET = "BASE64_GENERATED"
     ENABLE_DB_MIGRATIONS = "true"
     CACHE_STORAGE_TYPE = "redis"
@@ -62,8 +62,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    SERVER_URL = "https://example.com"
-    FRONT_BASE_URL = "https://example.com"
+    SERVER_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
+    FRONT_BASE_URL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APP_SECRET = "BASE64_GENERATED"
     ENABLE_DB_MIGRATIONS = "true"
     CACHE_STORAGE_TYPE = "redis"
@@ -109,7 +109,7 @@ name = "postgres"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "user"
+    POSTGRES_USER = "${{ secret() }}"
     POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "twenty-db"
     [[services.storage]]

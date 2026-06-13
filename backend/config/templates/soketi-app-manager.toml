@@ -15,7 +15,7 @@ source = { type = "docker"  }
     AUTORUN_ENABLED = "true"
     AUTORUN_LARAVEL_MIGRATION = "true"
     APP_DEBUG = "false"
-    APP_URL = "$SERVICE_FQDN_SOKETIAPPMANAGER"
+    APP_URL = "${{ RAILDOCK_PUBLIC_DOMAIN }}"
     APP_KEY = "$APP_KEY"
     DB_CONNECTION = "$DB_CONNECTION"
     DB_HOST = "$DB_HOST"

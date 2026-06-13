@@ -12,9 +12,8 @@ source = { type = "docker"  }
   [services.scaling]
     web = 1
   [services.env]
-    DATABASE_URL = "postgres://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgresql:5432/$POSTGRES_DB"
     DATABASE_TYPE = "postgres"
-    APP_SECRET = "$SERVICE_PASSWORD_64_UMAMI"
+    APP_SECRET = "${{ secret() }}"
   [services.checks]
     enabled = true
     wait = 5
@@ -25,8 +24,8 @@ name = "postgresql"
 category = "database"
 subtype = "postgres"
   [services.env]
-    POSTGRES_USER = "$SERVICE_USER_POSTGRES"
-    POSTGRES_PASSWORD = "$SERVICE_PASSWORD_POSTGRES"
+    POSTGRES_USER = "${{ secret() }}"
+    POSTGRES_PASSWORD = "${{ secret() }}"
     POSTGRES_DB = "umami"
     [[services.storage]]
       host = "postgresql-data"
