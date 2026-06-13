@@ -109,16 +109,7 @@ check_dokku() {
     return 0
   fi
 
-  if [ "${INSTALL_DOKKU:-0}" = "1" ]; then
-    install_dokku
-    return 0
-  fi
-
-  log_warn "Dokku is not installed on this server"
-  log_info "RailDock needs a Dokku host to manage. Install Dokku first:"
-  log_info "  curl -fsSL https://raw.githubusercontent.com/dokku/dokku/v0.38.1/bootstrap.sh | sudo DOKKU_TAG=v0.38.1 bash"
-  log_info "Or re-run this installer with INSTALL_DOKKU=1 to install it automatically."
-  return 1
+  install_dokku
 }
 
 install_dokku() {
@@ -439,11 +430,24 @@ check_os() {
   fi
 }
 
+install_docker() {
+  log_step "Installing Docker..."
+  if [ "$(uname)" != "Linux" ]; then
+    log_error "Automatic Docker installation is only supported on Linux"
+    log_info "Install Docker manually: https://docs.docker.com/get-docker/"
+    exit 1
+  fi
+
+  curl -fsSL https://get.docker.com | bash
+  systemctl enable docker 2>/dev/null || true
+  systemctl start docker 2>/dev/null || true
+  log_ok "Docker installed"
+}
+
 check_docker() {
   if ! command -v docker >/dev/null 2>&1; then
-    log_error "Docker is not installed"
-    log_info "Install: https://docs.docker.com/get-docker/"
-    exit 1
+    log_warn "Docker is not installed — installing automatically..."
+    install_docker
   fi
   if ! docker info >/dev/null 2>&1; then
     log_error "Docker daemon is not running"
@@ -593,13 +597,7 @@ install_raildock() {
   check_ports
 
   log_step "Checking Dokku..."
-  if ! check_dokku; then
-    if [ "${SKIP_DOKKU_CHECK:-0}" != "1" ]; then
-      log_info "Set SKIP_DOKKU_CHECK=1 to install RailDock without a local Dokku server."
-      exit 1
-    fi
-    log_warn "Continuing without local Dokku — you will need to add a server manually."
-  fi
+  check_dokku
 
   ensure_dokku_plugins
   configure_sshd_for_raildock
