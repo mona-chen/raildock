@@ -110,6 +110,5 @@ module Api
       config["letsencrypt"] = svc_def[:letsencrypt] if svc_def[:letsencrypt]
       config
     end
-
   end
 end
