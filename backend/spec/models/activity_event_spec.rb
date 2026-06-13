@@ -23,7 +23,7 @@ RSpec.describe ActivityEvent, type: :model do
 
   describe "enums" do
     it "defines action enum with prefix" do
-      expect(described_class.actions.keys).to contain_exactly("deployed", "stopped", "started", "restarted", "scaled", "linked", "unlinked", "created", "destroyed")
+      expect(described_class.actions.keys).to contain_exactly("deployed", "stopped", "started", "restarted", "scaled", "linked", "unlinked", "created", "destroyed", "warning")
       event = create(:activity_event, action: :deployed)
       expect(event.action_deployed?).to be true
     end

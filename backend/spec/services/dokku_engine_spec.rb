@@ -28,10 +28,12 @@ RSpec.describe DokkuEngine, type: :service do
     ssh = double("ssh_session")
     allow(ssh).to receive(:open_channel).and_yield(channel).and_return(channel)
     allow(ssh).to receive(:loop)
+    allow(ssh).to receive(:closed?).and_return(false)
+    allow(ssh).to receive(:close)
 
     allow(Net::SSH).to receive(:start)
       .with(server.host, "dokku", hash_including(key_data: [ server.ssh_key ], non_interactive: true))
-      .and_yield(ssh)
+      .and_return(ssh)
 
     channel
   end
@@ -89,7 +91,7 @@ RSpec.describe DokkuEngine, type: :service do
 
         result = engine.run("version")
         expect(result[:success]).to be false
-        expect(result[:output]).to match(/Authentication failed/)
+        expect(result[:output]).to match(/SSH error/)
       end
     end
 
@@ -452,7 +454,7 @@ RSpec.describe DokkuEngine, type: :service do
     end
 
     it "#container_status generates the correct command" do
-      expect(engine).to receive(:run).with("ps:report myapp --process-status").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("ps:report myapp --running").and_return({ success: true, output: "" })
       engine.container_status("myapp")
     end
 

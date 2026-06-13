@@ -408,7 +408,7 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key present" do
         it "returns running status from DokkuEngine" do
           allow_any_instance_of(DokkuEngine).to receive(:container_status).and_return(
-            { success: true, output: "web=running" }
+            { success: true, output: "true" }
           )
 
           get "/api/services/#{service.id}/container_status", headers: auth_headers(user)
@@ -416,7 +416,7 @@ RSpec.describe "Api::ServicesController", type: :request do
           expect(response).to have_http_status(:ok)
           json = JSON.parse(response.body)
           expect(json["status"]).to eq("running")
-          expect(json["output"]).to eq("web=running")
+          expect(json["output"]).to eq("true")
         end
 
         it "falls back to service status on failed engine call" do
