@@ -217,7 +217,7 @@ class TemplateDeployJob < ApplicationJob
     ids_by_name = services.index_by(&:name).transform_values(&:id)
 
     services.map do |service|
-      dependency_ids = Array(service.config&.dig("depends_on")).filter_map do |name|
+      dependency_ids = deployment_dependency_names(service, ids_by_name.keys).filter_map do |name|
         deployments_by_service[ids_by_name[name]]&.id
       end
 
@@ -273,13 +273,11 @@ class TemplateDeployJob < ApplicationJob
     dependents = Hash.new { |h, k| h[k] = [] }
 
     services.each do |svc|
-      deps = svc.config&.dig("depends_on") || []
+      deps = deployment_dependency_names(svc, svc_map.keys)
       in_degree[svc.name] += 0
       deps.each do |dep|
-        if svc_map.key?(dep)
-          dependents[dep] << svc.name
-          in_degree[svc.name] += 1
-        end
+        dependents[dep] << svc.name
+        in_degree[svc.name] += 1
       end
     end
 
@@ -294,6 +292,13 @@ class TemplateDeployJob < ApplicationJob
       end
     end
     sorted + services.reject { |s| sorted.include?(s) }
+  end
+
+  def deployment_dependency_names(service, available_names)
+    configured = Array(service.config&.dig("depends_on"))
+    linked_apps = service.linked_services.where(service_type: "app").pluck(:name)
+
+    (configured + linked_apps).uniq.select { |name| available_names.include?(name) }
   end
 
 

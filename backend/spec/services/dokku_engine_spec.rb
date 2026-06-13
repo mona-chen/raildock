@@ -241,6 +241,25 @@ RSpec.describe DokkuEngine, type: :service do
       engine.storage_mount("myapp", "/host", "/container", process_type: "web")
     end
 
+    it "#storage_mount treats an existing identical mount as success" do
+      allow(engine).to receive(:run).with("storage:create app-data").and_return({ success: true, output: "" })
+      allow(engine).to receive(:run).with("storage:mount myapp app-data --container-dir /data").and_return(
+        { success: false, output: 'storage entry "app-data" is already mounted at "/data"' }
+      )
+
+      expect(engine.storage_mount("myapp", "app-data", "/data")).to eq(
+        success: true,
+        output: "mount already exists"
+      )
+    end
+
+    it "#storage_mount preserves unrelated Dokku failures" do
+      failure = { success: false, output: "permission denied" }
+      expect(engine).to receive(:run).with("storage:mount myapp /host --container-dir /container").and_return(failure)
+
+      expect(engine.storage_mount("myapp", "/host", "/container")).to eq(failure)
+    end
+
     it "#storage_unmount generates the correct command" do
       expect(engine).to receive(:run).with("storage:unmount myapp /host --container-dir /container").and_return({ success: true, output: "" })
       engine.storage_unmount("myapp", "/host", container_path: "/container")
