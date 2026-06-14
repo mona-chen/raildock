@@ -102,6 +102,26 @@ RSpec.describe ManifestReconciler do
 
       expect(link_change.new_value).to eq(from: "web", to: "postgres")
     end
+
+    it "does not report drift when shared variables resolve to the current value" do
+      project.update!(shared_vars: [ { key: "API_KEY", value: "secret" } ])
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      service.environment_variables.create!(key: "API_KEY", value: "secret")
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:env] = { "API_KEY" => "[SHARED:API_KEY]" }
+
+      changes = described_class.new(project, desired_state(services: [ definition ])).diff
+
+      expect(changes).not_to include(have_attributes(field: :env))
+    end
   end
 
   describe "#apply!" do

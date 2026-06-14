@@ -264,7 +264,8 @@ class ManifestReconciler
       new_val = desired_service_value(desired_svc, field)
       next if app_json_source_unspecified?(desired_svc, field)
 
-      next if values_equal?(old_val, new_val)
+      comparison_val = field == :env ? resolved_env_for(name, new_val) : new_val
+      next if values_equal?(old_val, comparison_val)
 
       change_type = old_val.nil? ? :added : (new_val.nil? ? :removed : :modified)
 
@@ -275,6 +276,16 @@ class ManifestReconciler
         old_value: old_val,
         new_value: new_val
       )
+    end
+  end
+
+  def resolved_env_for(service_name, env)
+    service = @project.services.find_by(name: service_name)
+    return env unless service && env.is_a?(Hash)
+
+    linked_services = service.linked_services.to_a
+    env.transform_values do |value|
+      ManifestParser.resolve_runtime(value, @project, service, linked_services)
     end
   end
 
