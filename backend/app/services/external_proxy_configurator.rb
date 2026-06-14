@@ -68,6 +68,9 @@ class ExternalProxyConfigurator
   # Write labels directly to Dokku's docker-options config files.
   # This bypasses dokku docker-options:add whose Go shell parser cannot
   # handle parentheses and backticks in Traefik rule values like Host(\`domain\`).
+  # TODO: Verify whether this is a Dokku bug and file an upstream issue.
+  # The Go shell parser rejects `(` and backticks in option values, which
+  # breaks standard Traefik Host() rules passed via docker-options:add.
   def add_label(key, value)
     %w[deploy run].all? do |phase|
       label_line = "--label=#{key}=#{value}"
