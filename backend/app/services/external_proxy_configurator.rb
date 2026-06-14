@@ -65,18 +65,26 @@ class ExternalProxyConfigurator
     server.external_proxy_default_labels.to_h.merge(generated).merge(configured).transform_values(&:to_s)
   end
 
-  # Single-quote the option to protect Traefik backtick rules (e.g. Host(\`domain\`))
-  # through both SSH transport and Dokku's option parser.
+  # Write labels directly to Dokku's docker-options config files.
+  # This bypasses dokku docker-options:add whose Go shell parser cannot
+  # handle parentheses and backticks in Traefik rule values like Host(\`domain\`).
   def add_label(key, value)
     %w[deploy run].all? do |phase|
-      engine.run("docker-options:add #{Shellwords.escape(service.dokku_app_name)} #{Shellwords.escape(phase)} '--label=#{key}=#{value}'")[:success]
+      label_line = "--label=#{key}=#{value}"
+      engine.run("echo #{Shellwords.escape(label_line)} >> #{options_file(phase)}")[:success]
     end
   end
 
   def remove_label(key, value)
+    label_line = "--label=#{key}=#{value}"
     %w[deploy run].all? do |phase|
-      engine.run("docker-options:remove #{Shellwords.escape(service.dokku_app_name)} #{Shellwords.escape(phase)} '--label=#{key}=#{value}'")[:success]
+      # Use grep -v to remove matching lines; write back only if file exists
+      engine.run("test -f #{options_file(phase)} && grep -vF #{Shellwords.escape(label_line)} #{options_file(phase)} > #{options_file(phase)}.tmp && mv #{options_file(phase)}.tmp #{options_file(phase)} || true")[:success]
     end
+  end
+
+  def options_file(phase)
+    "/var/lib/dokku/config/docker-options/#{service.dokku_app_name}/_default_.#{phase}"
   end
 
   def failure(action)

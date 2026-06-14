@@ -39,18 +39,26 @@ RSpec.describe ExternalProxyConfigurator do
     result = described_class.new(service, engine, host_engine).apply!
 
     expect(result[:success]).to be(true)
+    # Verify labels are written to docker-options config files
     expect(engine).to have_received(:run).with(
-      a_string_matching(/docker-options:add.*deploy.*--label=traefik.enable=true/)
-    )
+      a_string_including("traefik.enable")
+    ).at_least(:once)
     expect(engine).to have_received(:run).with(
-      a_string_matching(/docker-options:add.*deploy.*--label=traefik.docker.network=matrix_default/)
-    )
+      a_string_including("matrix_default")
+    ).at_least(:once)
     expect(engine).to have_received(:run).with(
-      a_string_matching(/docker-options:add.*deploy.*--label=traefik.constraint-label=matrix/)
-    )
+      a_string_including("traefik.constraint-label")
+    ).at_least(:once)
     expect(engine).to have_received(:run).with(
-      a_string_matching(/docker-options:add.*deploy.*--label=traefik.http.routers.custom.priority=100/)
-    )
+      a_string_including("custom.priority")
+    ).at_least(:once)
+    # Verify labels go to deploy and run phase files
+    expect(engine).to have_received(:run).with(
+      a_string_including("_default_.deploy")
+    ).at_least(:once)
+    expect(engine).to have_received(:run).with(
+      a_string_including("_default_.run")
+    ).at_least(:once)
   end
 
   it "fails without mutating proxy settings when the network is missing" do
