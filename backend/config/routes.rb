@@ -49,7 +49,11 @@ Rails.application.routes.draw do
           get :traefik_config
           get :storage_list
         end
-        resources :deployments, only: [ :index, :show ]
+        resources :deployments, only: [ :index, :show ] do
+          member do
+            post :cancel
+          end
+        end
         resources :environment_variables, path: "env-vars", only: [ :create ]
         resources :domains, only: [ :create ]
         resources :storage_mounts, path: "storage", only: [ :create ]
@@ -58,6 +62,7 @@ Rails.application.routes.draw do
       get :activity, on: :member
       patch :shared_vars, on: :member
       post :deploy_all, on: :member
+      post :cancel_deployments, on: :member
       post :restart_all, on: :member
       post :stop_all, on: :member
     end

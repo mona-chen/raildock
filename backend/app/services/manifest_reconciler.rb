@@ -91,6 +91,7 @@ class ManifestReconciler
     return { success: false, error: "No Dokku engine available" } unless engine
     @engine = engine
     @host_engine = host_engine || HostEngine.new(@project.server)
+    adopt_explicit_services!
 
     results = []
     deploy_service_ids = Set.new
@@ -127,6 +128,12 @@ class ManifestReconciler
     link_changes.each do |change|
       results << apply_link_change(engine, change)
     end
+
+    never_deployed_apps = @project.services
+      .where(name: @desired.services.select { |service| service[:category] == "app" }.map { |service| service[:name] })
+      .where.not(id: Deployment.succeeded.select(:service_id))
+      .pluck(:id)
+    deploy_service_ids.merge(never_deployed_apps)
 
     # Deploy only after every synchronous preparation phase has succeeded.
     # This ensures new apps cannot boot before links, credentials, and runtime
@@ -196,6 +203,12 @@ class ManifestReconciler
 
   private
 
+  def adopt_explicit_services!
+    @project.services
+      .where(name: @desired.service_names, managed_by: %w[ui hybrid])
+      .update_all(managed_by: "manifest", updated_at: Time.current)
+  end
+
   # ── Build actual state from DB ──────────────────────────────
 
   def build_actual_state
@@ -248,9 +261,6 @@ class ManifestReconciler
   # ── Service diff ────────────────────────────────────────────
 
   def diff_service(name, desired_svc, actual_svc)
-    # Skip UI-managed services unless explicitly included
-    return if actual_svc[:managed_by] == "ui"
-
     fields = %i[
       category subtype builder git_repo branch docker_image version
       root_directory start_command exposed port maintenance_mode
@@ -332,13 +342,19 @@ class ManifestReconciler
     return true if a.nil? && b.nil?
     return false if a.nil? || b.nil?
 
-    if a.is_a?(Hash) && b.is_a?(Hash)
-      a.stringify_keys == b.stringify_keys
-    elsif a.is_a?(Array) && b.is_a?(Array)
-      a.map { |x| x.is_a?(Hash) ? x.stringify_keys : x } ==
-        b.map { |x| x.is_a?(Hash) ? x.stringify_keys : x }
+    canonical_value(a) == canonical_value(b)
+  end
+
+  def canonical_value(value)
+    case value
+    when Hash
+      value.each_with_object({}) do |(key, nested), result|
+        result[key.to_s] = canonical_value(nested)
+      end
+    when Array
+      value.map { |nested| canonical_value(nested) }
     else
-      a == b
+      value
     end
   end
 

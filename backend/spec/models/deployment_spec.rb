@@ -48,4 +48,27 @@ RSpec.describe Deployment, type: :model do
       expect(deployment.duration).to be_within(1).of(300)
     end
   end
+
+  describe "#cancel!" do
+    before do
+      allow(DeploymentsChannel).to receive(:broadcast_to)
+    end
+
+    it "atomically cancels an active deployment and restores a previously running service" do
+      service = create(:service, status: :deploying)
+      create(:deployment, service: service, status: :succeeded)
+      deployment = create(:deployment, service: service, status: :pending, started_at: nil)
+
+      expect(deployment.cancel!).to be(true)
+
+      expect(deployment.reload).to be_cancelled
+      expect(service.reload).to be_running
+    end
+
+    it "returns false when another caller already completed the deployment" do
+      deployment = create(:deployment, status: :succeeded)
+
+      expect(deployment.cancel!).to be(false)
+    end
+  end
 end

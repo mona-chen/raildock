@@ -17,30 +17,10 @@ class DeploymentSequenceJob < ApplicationJob
       end.first
 
       if failed_dependency
-        cancel(deployment, "Dependency deployment #{failed_dependency.id} did not succeed")
+        deployment.cancel!(message: "Dependency deployment #{failed_dependency.id} did not succeed")
       else
         DeploymentJob.perform_now(deployment.service_id, deployment.id)
       end
     end
   end
-
-  private
-    def cancel(deployment, message)
-      deployment.update!(
-        status: :cancelled,
-        deploy_log: message,
-        completed_at: Time.current
-      )
-
-      service = deployment.service
-      active = service.deployments.where(status: %i[ pending building deploying ]).exists?
-      service.update!(status: active ? :deploying : :error)
-
-      DeploymentsChannel.broadcast_to(service, {
-        deployment_id: deployment.id,
-        status: "cancelled",
-        message: message,
-        completed_at: deployment.completed_at.iso8601
-      })
-    end
 end

@@ -80,6 +80,19 @@ export function useDeployAllServices() {
   })
 }
 
+export function useCancelProjectDeployments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: string) => api.projects.cancelDeployments(projectId),
+    onSuccess: (data, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      queryClient.invalidateQueries({ queryKey: ['deployments'] })
+      toast.success(data.cancelled > 0 ? `Cancelled ${data.cancelled} deployments` : 'No active deployments')
+    },
+    onError: (err) => toast.error(`Cancel deployments failed: ${err.message}`),
+  })
+}
+
 export function useRestartAllServices() {
   const queryClient = useQueryClient()
   return useMutation({

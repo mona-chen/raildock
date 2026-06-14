@@ -37,6 +37,24 @@ RSpec.describe ManifestReconciler do
   end
 
   describe "#diff" do
+    it "includes explicitly listed UI-managed services" do
+      create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :ui,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:port] = 3000
+
+      changes = described_class.new(project, desired_state(services: [ definition ])).diff
+
+      expect(changes).to include(have_attributes(service_name: "web", field: :port, new_value: 3000))
+    end
+
     it "detects changes using the normalized symbol-keyed desired state" do
       create(
         :service,
@@ -185,6 +203,53 @@ RSpec.describe ManifestReconciler do
   end
 
   describe "#apply!" do
+    it "adopts explicitly listed UI-managed services into manifest management" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :ui,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      reconciler = described_class.new(
+        project,
+        desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ])
+      )
+      reconciler.diff
+
+      result = reconciler.apply!(instance_double(DokkuEngine), host_engine: instance_double(HostEngine))
+
+      expect(result[:success]).to be(true)
+      expect(service.reload).to be_managed_by_manifest
+    end
+
+    it "queues an app that was created previously but has never deployed successfully" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks",
+        status: :error
+      )
+      reconciler = described_class.new(
+        project,
+        desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ])
+      )
+      reconciler.diff
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(instance_double(DokkuEngine), host_engine: instance_double(HostEngine))
+
+      expect(result[:success]).to be(true)
+      expect(service.deployments.pending.count).to eq(1)
+      expect(DeploymentSequenceJob).to have_received(:perform_later).once
+    end
+
     it "creates manifest domains with valid proxy ports" do
       definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
       definition[:port] = 3000

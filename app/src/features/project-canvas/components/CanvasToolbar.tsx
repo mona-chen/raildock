@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, ChevronDown, Rocket, RotateCcw, Square, Loader2 } from 'lucide-react'
+import { Ban, Box, ChevronDown, Rocket, RotateCcw, Square, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +8,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDeployAllServices, useRestartAllServices, useStopAllServices } from '@/hooks/useProjects'
+import {
+  useCancelProjectDeployments,
+  useDeployAllServices,
+  useRestartAllServices,
+  useStopAllServices,
+} from '@/hooks/useProjects'
 
 interface CanvasToolbarProps {
   projectId: string
@@ -21,10 +26,11 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
   const [open, setOpen] = useState(false)
 
   const deployAll = useDeployAllServices()
+  const cancelDeployments = useCancelProjectDeployments()
   const restartAll = useRestartAllServices()
   const stopAll = useStopAllServices()
 
-  const isLoading = deployAll.isPending || restartAll.isPending || stopAll.isPending
+  const isLoading = deployAll.isPending || cancelDeployments.isPending || restartAll.isPending || stopAll.isPending
 
   return (
     <div className="h-11 border-b border-white/[0.06] flex items-center justify-between px-3 flex-shrink-0 z-40">
@@ -85,6 +91,13 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
             >
               <RotateCcw size={13} className="text-white/50" />
               Restart All
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => { cancelDeployments.mutate(projectId); setOpen(false) }}
+              className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
+            >
+              <Ban size={13} className="text-amber-400" />
+              Cancel All Deployments
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem

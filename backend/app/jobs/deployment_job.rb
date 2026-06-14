@@ -132,6 +132,9 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "Builder configuration failed", builder_result[:output]) unless builder_result[:success]
     end
 
+    # Check if cancelled before starting the build
+    return if abort_if_cancelled(deployment)
+
     # 9. Deploy (with real-time log streaming)
     deployment.update!(status: :building)
     service.update!(status: :building)
@@ -153,7 +156,10 @@ class DeploymentJob < ApplicationJob
 
       deploy_command = "git:from-image #{service.dokku_app_name} #{service.docker_image}"
 
-      result = engine.run_streaming(deploy_command) do |chunk|
+      result = engine.run_streaming(
+        deploy_command,
+        cancelled: -> { deployment.reload.cancelled? }
+      ) do |chunk|
         deploy_output += chunk
         deployment.update!(deploy_log: deploy_output)
         DeploymentsChannel.broadcast_to(service, {
@@ -163,6 +169,7 @@ class DeploymentJob < ApplicationJob
           started_at: deployment.started_at.iso8601
         })
       end
+      return if result[:cancelled] || abort_if_cancelled(deployment)
 
       # Retry once on pull/extraction failures (transient overlayfs races)
       if !result[:success] && deploy_output.match?(/failed to pull image|failed to extract layer|UtimesNanoAt|overlayfs/i)
@@ -172,7 +179,10 @@ class DeploymentJob < ApplicationJob
         # Force re-pull
         host_engine.run("docker pull #{service.docker_image}")
 
-        result = engine.run_streaming(deploy_command) do |chunk|
+        result = engine.run_streaming(
+          deploy_command,
+          cancelled: -> { deployment.reload.cancelled? }
+        ) do |chunk|
           deploy_output += chunk
           deployment.update!(deploy_log: deploy_output)
           DeploymentsChannel.broadcast_to(service, {
@@ -182,6 +192,7 @@ class DeploymentJob < ApplicationJob
             started_at: deployment.started_at.iso8601
           })
         end
+        return if result[:cancelled] || abort_if_cancelled(deployment)
       end
     elsif service.git_repo.present?
       # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
@@ -196,8 +207,13 @@ class DeploymentJob < ApplicationJob
         return mark_failed(deployment, service, "Git sync failed", sync_result[:output])
       end
 
+      return if abort_if_cancelled(deployment)
+
       # Stream the actual build output from ps:rebuild
-      result = engine.run_streaming("ps:rebuild #{service.dokku_app_name}") do |chunk|
+      result = engine.run_streaming(
+        "ps:rebuild #{service.dokku_app_name}",
+        cancelled: -> { deployment.reload.cancelled? }
+      ) do |chunk|
         deploy_output += chunk
         deployment.update!(deploy_log: deploy_output)
         DeploymentsChannel.broadcast_to(service, {
@@ -207,9 +223,12 @@ class DeploymentJob < ApplicationJob
           started_at: deployment.started_at.iso8601
         })
       end
+      return if result[:cancelled] || abort_if_cancelled(deployment)
     else
       return mark_failed(deployment, service, "No Git repository or Docker image configured for this service")
     end
+
+    return if abort_if_cancelled(deployment)
 
     # Dokku returns exit code 1 when image hasn't changed; treat as success
     if !result[:success] && deploy_output.include?("No changes detected")
@@ -232,6 +251,8 @@ class DeploymentJob < ApplicationJob
     unless result[:success]
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end
+
+    return if abort_if_cancelled(deployment)
 
     deployment.update!(status: :deploying)
     service.update!(status: :deploying)
@@ -330,6 +351,14 @@ class DeploymentJob < ApplicationJob
   end
 
   private
+
+  def abort_if_cancelled(deployment)
+    deployment.reload
+    return false unless deployment.cancelled?
+
+    Rails.logger.info "Deployment #{deployment.id} cancelled, aborting"
+    true
+  end
 
   # Wait for linked database containers to report running and for their network
   # aliases to resolve. This prevents apps from booting before MySQL/Postgres/etc.

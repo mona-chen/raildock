@@ -14,6 +14,7 @@ export interface Project {
   serviceIds: string[]       // references to services in this project
   serviceCounts: { total: number; app: number; database: number; cache: number }
   sharedVars: SharedVar[]    // project-level env vars (Railway shared variables)
+  serverId?: string
   hasDeployments?: boolean
   createdAt: string
 }

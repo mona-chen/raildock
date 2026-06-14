@@ -5,7 +5,11 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
   RUNNING_TIMEOUT = 2.hours
 
   def perform(now: Time.current)
-    fail_stale(Deployment.pending.where("started_at < ?", now - PENDING_TIMEOUT), now, "Deployment timed out waiting for a worker")
+    fail_stale(
+      Deployment.pending.where("COALESCE(started_at, created_at) < ?", now - PENDING_TIMEOUT),
+      now,
+      "Deployment timed out waiting for a worker"
+    )
     fail_stale(
       Deployment.where(status: %i[building deploying]).where("started_at < ?", now - RUNNING_TIMEOUT),
       now,

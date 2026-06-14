@@ -415,6 +415,19 @@ export function useDeployment(deploymentId: string | null) {
   })
 }
 
+export function useCancelDeployment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (deploymentId: string) => api.services.cancelDeployment(deploymentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] })
+      queryClient.invalidateQueries({ queryKey: ['services'] })
+      toast.success('Deployment cancelled')
+    },
+    onError: (err) => toast.error(`Cancel failed: ${err.message}`),
+  })
+}
+
 export function useContainerStatus(id: string) {
   return useQuery({
     queryKey: ['services', id, 'container-status'],

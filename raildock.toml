@@ -1,0 +1,226 @@
+# RailDock Manifest for tween
+
+# ── Databases ──────────────────────────────────────────────────
+
+[[services]]
+name = "jean-postgres"
+category = "database"
+subtype = "postgres"
+version = "16"
+
+[[services]]
+name = "jean-redis"
+category = "database"
+subtype = "redis"
+version = "7"
+
+[[services]]
+name = "tween-pay-postgres"
+category = "database"
+subtype = "postgres"
+version = "16"
+
+[[services]]
+name = "tween-pay-redis"
+category = "database"
+subtype = "redis"
+version = "7"
+
+# ── jean (TMCP Server) ────────────────────────────────────────
+
+[[services]]
+name = "jean"
+category = "app"
+subtype = "rails"
+source = { type = "git", repo = "https://github.com/Tween-IM/jean.git", branch = "main" }
+depends_on = ["jean-postgres", "jean-redis"]
+port = 3000
+
+domains = ["tmcp.tween.im"]
+
+[services.scaling]
+web = 1
+
+[services.proxy]
+enabled = true
+type = "traefik"
+
+[services.env]
+RAILS_ENV = "production"
+SECRET_KEY_BASE = "${{ shared.JEAN_SECRET_KEY_BASE }}"
+FORCE_SSL = "true"
+ALLOWED_HOSTS = "tmcp.tween.im"
+ALLOWED_ORIGINS = "https://tween.im,https://core.tween.im,https://tmcp.tween.im"
+SERVICE_FQDN_RAILS = "tmcp.tween.im"
+SERVICE_URL_RAILS = "https://tmcp.tween.im"
+
+# Matrix
+MATRIX_API_URL = "https://core.tween.im"
+MATRIX_HS_TOKEN = "${{ shared.MATRIX_HS_TOKEN }}"
+MATRIX_AS_TOKEN = "${{ shared.MATRIX_AS_TOKEN }}"
+MATRIX_ACCESS_TOKEN = "${{ shared.MATRIX_ACCESS_TOKEN }}"
+
+# MAS (Matrix Auth Service)
+MAS_URL = "https://auth.tween.im"
+MAS_CLIENT_ID = "${{ shared.MAS_CLIENT_ID }}"
+MAS_CLIENT_SECRET = "${{ shared.MAS_CLIENT_SECRET }}"
+MAS_TOKEN_URL = "https://auth.tween.im/oauth2/token"
+MAS_INTROSPECTION_URL = "https://auth.tween.im/oauth2/introspect"
+MAS_REVOCATION_URL = "https://auth.tween.im/oauth2/revoke"
+
+# S3 / R2
+ACTIVE_STORAGE_SERVICE = "amazon"
+ACTIVE_STORAGE_PUBLIC_HOST = "https://r2.tween.im"
+AWS_S3_BUCKET = "tween"
+AWS_REGION = "auto"
+AWS_S3_ENDPOINT = "https://189c95cea5bf6f2ab2a3db6ba2b4da5b.r2.cloudflarestorage.com"
+AWS_ACCESS_KEY_ID = "${{ shared.AWS_ACCESS_KEY_ID }}"
+AWS_SECRET_ACCESS_KEY = "${{ shared.AWS_SECRET_ACCESS_KEY }}"
+HLS_STORAGE_BACKEND = "s3"
+
+# TMCP JWT
+TMCP_JWT_ISSUER = "https://tmcp.tween.im"
+TMCP_JWT_KEY_ID = "tmcp-2026-01"
+
+# Wallet (points to tween-pay — resolved via Docker DNS or link)
+WALLET_API_BASE_URL = "http://tween-pay:3000"
+
+# Admin
+ADMIN_ACCESS_TOKEN = "${{ shared.JEAN_ADMIN_ACCESS_TOKEN }}"
+
+# Linked database URL and Redis URL are auto-injected via [[links]] below.
+# Remove the hardcoded DATABASE_URL / REDIS_URL from previous manifest.
+
+# ── tween-pay (Wallet & Banking Engine) ───────────────────────
+
+[[services]]
+name = "tween-pay"
+category = "app"
+subtype = "rails"
+source = { type = "git", repo = "https://github.com/Tween-IM/tween-pay.git", branch = "main" }
+depends_on = ["tween-pay-postgres", "tween-pay-redis"]
+port = 3000
+
+domains = ["wallet.tween.im"]
+
+[services.scaling]
+web = 1
+worker = 1
+
+[services.proxy]
+enabled = true
+type = "traefik"
+
+[services.env]
+RAILS_ENV = "production"
+SECRET_KEY_BASE = "${{ shared.TWEEN_PAY_SECRET_KEY_BASE }}"
+JWT_SECRET = "${{ shared.TWEEN_PAY_JWT_SECRET }}"
+CORS_ORIGINS = "https://tween.im,https://wallet.tween.im,https://tmcp.tween.im"
+RAILS_SERVE_STATIC_FILES = "true"
+RAILS_LOG_TO_STDOUT = "true"
+RAILS_MAX_THREADS = "5"
+WEB_CONCURRENCY = "2"
+FRONTEND_URL = "https://tween.im"
+PGSSLMODE = "disable"
+
+# TMCP (points to jean)
+TMCP_BASE_URL = "http://jean:3000"
+TMCP_INTROSPECT_URL = "http://jean:3000/api/v1/oauth2/introspect"
+TMCP_ISSUERS = "https://tmcp.tween.im"
+TMCP_AUDIENCE = "tweenpay-api"
+TEP_AUTO_CREATE_USERS = "true"
+
+# Face verification
+FACE_SERVICE_URL = "http://face-verification:5001"
+
+# KYC
+SKIP_LIVENESS_CHECK = "false"
+MIN_LIVENESS_SCORE = "70"
+INTERNAL_API_KEY = "${{ shared.TWEEN_PAY_INTERNAL_API_KEY }}"
+
+# Optional: uncomment and set if using banking providers
+# BRAILS_API_KEY = ""
+# BRAILS_SECRET_KEY = ""
+# BRAILS_ENVIRONMENT = "sandbox"
+# RAVEN_SECRET_KEY = ""
+# RAVEN_ENVIRONMENT = "production"
+# TWILIO_ACCOUNT_SID = ""
+# TWILIO_AUTH_TOKEN = ""
+# TWILIO_PHONE_NUMBER = ""
+
+# Linked DATABASE_URL and REDIS_URL are auto-injected via [[links]] below.
+
+# ── Face Verification (Python microservice) ───────────────────
+
+[[services]]
+name = "face-verification"
+category = "app"
+subtype = "python"
+source = { type = "git", repo = "https://github.com/Tween-IM/tween-pay.git", branch = "main" }
+root_directory = "face-service"
+builder = "dockerfile"
+port = 5001
+depends_on = ["tween-pay"]
+
+[services.proxy]
+enabled = false
+
+[services.env]
+FACE_MODEL = "ArcFace"
+FACE_SIMILARITY_THRESHOLD = "0.70"
+FACE_MIN_CONFIDENCE = "0.90"
+FACE_MAX_IMAGE_SIZE = "10485760"
+
+# ── tween-landing ────────────────────────────────────────────
+
+[[services]]
+name = "tween-landing"
+category = "app"
+subtype = "web"
+builder = "nixpacks"
+source = { type = "git", repo = "https://github.com/mona-chen/tween-launch-pages.git", branch = "main" }
+
+domains = ["tween.im"]
+
+[services.proxy]
+enabled = true
+type = "traefik"
+
+# ── Service Links ─────────────────────────────────────────────
+# Links auto-inject connection strings (DATABASE_URL, REDIS_URL)
+# and enable Docker DNS resolution between services.
+
+[[links]]
+from = "jean"
+to = "jean-postgres"
+alias = "db"
+
+[[links]]
+from = "jean"
+to = "jean-redis"
+alias = "redis"
+
+[[links]]
+from = "jean"
+to = "tween-pay"
+alias = "wallet"
+
+[[links]]
+from = "tween-pay"
+to = "tween-pay-postgres"
+alias = "db"
+
+[[links]]
+from = "tween-pay"
+to = "tween-pay-redis"
+alias = "redis"
+
+[[links]]
+from = "tween-pay"
+to = "jean"
+alias = "tmcp"
+
+[[links]]
+from = "face-verification"
+to = "tween-pay"
+alias = "api"

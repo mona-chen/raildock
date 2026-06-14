@@ -97,6 +97,16 @@ module Api
       render json: { queued: results.length, services: results }
     end
 
+    def cancel_deployments
+      project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: :update)
+
+      deployments = Deployment.cancellable.joins(:service).where(services: { project_id: project.id }).to_a
+      cancelled = deployments.count { |deployment| deployment.cancel!(message: "Cancelled from project actions") }
+
+      render json: { cancelled: cancelled }
+    end
+
     def restart_all
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)

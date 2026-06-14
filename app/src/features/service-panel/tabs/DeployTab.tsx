@@ -6,6 +6,7 @@ import {
   useServiceDeployments,
   useContainerStatus,
   useDeployment,
+  useCancelDeployment,
 } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
@@ -235,6 +236,7 @@ interface DeployTabProps {
 export default function DeployTab({ svc, serviceId }: DeployTabProps) {
   const scaleProcess = useScaleProcess()
   const rollbackService = useRollbackService()
+  const cancelDeployment = useCancelDeployment()
   const { data: deployments } = useServiceDeployments(svc.id)
   const { data: containerStatus } = useContainerStatus(serviceId)
   const { lastUpdate, isConnected, logMap } = useWebSocketDeployments(serviceId)
@@ -246,6 +248,23 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
       setExpandedDeployment(String(lastUpdate.deployment_id))
     }
   }, [lastUpdate?.deployment_id])
+
+  const pendingCount = useMemo(() =>
+    deployments?.filter((d) => d.status === 'pending' || d.status === 'building' || d.status === 'deploying').length ?? 0,
+    [deployments]
+  )
+
+  const handleCancelAllPending = () => {
+    deployments?.forEach((d) => {
+      if (d.status === 'pending' || d.status === 'building' || d.status === 'deploying') {
+        cancelDeployment.mutate(d.id)
+      }
+    })
+  }
+
+  const handleCancel = (deploymentId: string) => {
+    cancelDeployment.mutate(deploymentId)
+  }
 
   const handleRollback = (deploymentId: string) => {
     rollbackService.mutate(
@@ -364,6 +383,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${
             lastUpdate.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
             lastUpdate.status === 'failed' ? 'bg-red-500/10 text-red-400' :
+            lastUpdate.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
             'bg-[#8b5cf6]/10 text-[#8b5cf6]'
           }`}>{lastUpdate.status}</span>
         </div>
@@ -371,7 +391,18 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
 
       {/* Deployment History */}
       <div>
-        <h4 className="text-[14px] font-medium text-white/70 mb-3">Deployment History</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-[14px] font-medium text-white/70">Deployment History</h4>
+          {pendingCount > 1 && (
+            <button
+              onClick={handleCancelAllPending}
+              disabled={cancelDeployment.isPending}
+              className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 transition-colors disabled:opacity-50"
+            >
+              Cancel {pendingCount} pending
+            </button>
+          )}
+        </div>
         <div className="space-y-1.5">
           {deployments && deployments.length > 0 ? (
             deployments.map((d) => (
@@ -388,7 +419,8 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                     d.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
                     d.status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                    d.status === 'deploying' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' :
+                    d.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
+                    d.status === 'deploying' || d.status === 'building' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' :
                     'bg-white/5 text-white/40'
                   }`}>
                     {d.status}
@@ -397,6 +429,18 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                     {d.created_at ? new Date(d.created_at).toLocaleString() : '-'}
                   </span>
                   <span className="text-white/50 truncate flex-1">{d.commit_sha || d.branch || 'manual deploy'}</span>
+                  {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCancel(d.id)
+                      }}
+                      disabled={cancelDeployment.isPending}
+                      className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
                   {d.status === 'succeeded' && (
                     <button
                       onClick={(e) => {

@@ -36,4 +36,15 @@ RSpec.describe DeploymentSequenceJob, type: :job do
     expect(web_deployment.reload).to be_cancelled
     expect(web_deployment.deploy_log).to include(api_deployment.id.to_s)
   end
+
+  it "skips a deployment cancelled while it was queued" do
+    allow(DeploymentJob).to receive(:perform_now)
+    web_deployment.cancel!
+
+    described_class.perform_now([
+      { service_id: web.id, deployment_id: web_deployment.id, depends_on_deployment_ids: [] }
+    ])
+
+    expect(DeploymentJob).not_to have_received(:perform_now)
+  end
 end

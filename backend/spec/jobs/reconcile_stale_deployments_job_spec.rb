@@ -23,6 +23,20 @@ RSpec.describe ReconcileStaleDeploymentsJob, type: :job do
     expect(service.reload.status).to eq("error")
   end
 
+  it "fails an old queued deployment that never received started_at" do
+    deployment = create(
+      :deployment,
+      service: service,
+      status: :pending,
+      started_at: nil,
+      created_at: now - 31.minutes
+    )
+
+    described_class.perform_now(now: now)
+
+    expect(deployment.reload).to have_attributes(status: "failed", completed_at: now)
+  end
+
   it "leaves recent pending deployments alone" do
     deployment = create(
       :deployment,

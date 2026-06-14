@@ -82,7 +82,7 @@ class DokkuEngine
   end
 
   # Run a command and yield each line of output in real-time
-  def run_streaming(command)
+  def run_streaming(command, cancelled: nil)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 
     with_ssh_retry do
@@ -99,10 +99,12 @@ class DokkuEngine
             ch.on_data do |_, data|
               output += data
               yield(data) if block_given?
+              ch.close if cancelled&.call
             end
             ch.on_extended_data do |_, type, data|
               output += data
               yield(data) if block_given?
+              ch.close if cancelled&.call
             end
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
@@ -110,7 +112,7 @@ class DokkuEngine
         channel.wait
       end
 
-      { success: exit_code == 0, output: output }
+      { success: exit_code == 0, output: output, cancelled: cancelled&.call == true }
     end
   end
 

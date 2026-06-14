@@ -134,6 +134,10 @@ export const projectsApi = {
     return fetchJson(`/api/projects/${id}/deploy_all`, { method: 'POST' })
   },
 
+  cancelDeployments: async (id: string): Promise<{ cancelled: number }> => {
+    return fetchJson(`/api/projects/${id}/cancel_deployments`, { method: 'POST' })
+  },
+
   restartAll: async (id: string): Promise<{ queued: number; services: string[] }> => {
     return fetchJson(`/api/projects/${id}/restart_all`, { method: 'POST' })
   },
@@ -271,6 +275,10 @@ export const servicesApi = {
 
   deployment: async (deploymentId: string): Promise<{ id: string; status: string; branch: string; commitSha: string; deployLog: string; buildLog: string; createdAt: string; startedAt: string; completedAt: string }> => {
     return fetchJson(`/api/deployments/${deploymentId}`)
+  },
+
+  cancelDeployment: async (deploymentId: string): Promise<{ success: boolean; deploymentId: string; status: string }> => {
+    return fetchJson(`/api/deployments/${deploymentId}/cancel`, { method: 'POST' })
   },
 
   link: async (id: string, targetId: string): Promise<{ success: boolean; linked_service_ids: string[] }> => {

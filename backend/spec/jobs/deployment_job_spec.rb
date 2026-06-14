@@ -131,7 +131,10 @@ RSpec.describe DeploymentJob, type: :job do
         )
         expect(engine).to have_received(:git_set_deploy_branch).with(service.dokku_app_name, "feature")
         expect(engine).to have_received(:run).with("git:sync #{service.dokku_app_name} #{service.git_repo} feature")
-        expect(engine).to have_received(:run_streaming).with("ps:rebuild #{service.dokku_app_name}")
+        expect(engine).to have_received(:run_streaming).with(
+          "ps:rebuild #{service.dokku_app_name}",
+          cancelled: kind_of(Proc)
+        )
 
         service.process_types.each do |pt|
           expect(engine).to have_received(:ps_scale).with(service.dokku_app_name, pt.name, pt.quantity)
