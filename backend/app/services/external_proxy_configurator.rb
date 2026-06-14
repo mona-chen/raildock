@@ -27,17 +27,14 @@ class ExternalProxyConfigurator
     ports_result = engine.ports_clear(service.dokku_app_name)
     return ports_result unless ports_result[:success]
 
-    old_labels = service.config&.fetch(MANAGED_LABELS_KEY, {}) || {}
     new_labels = build_labels
 
-    old_labels.each do |key, value|
-      next if new_labels[key] == value
-
-      return failure("remove label #{key}") unless remove_label(key, value)
-    end
+    # Always write ALL labels to the file (not just the diff).
+    # The traefik plugin's deploy hooks read from this file and apply
+    # labels to containers during deploy and rebuild.
+    # First clear the file, then write all labels fresh.
+    host_engine.run("truncate -s 0 #{labels_file} || true")
     new_labels.each do |key, value|
-      next if old_labels[key] == value
-
       return failure("add label #{key}") unless add_label(key, value)
     end
 
