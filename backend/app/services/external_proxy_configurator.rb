@@ -65,29 +65,27 @@ class ExternalProxyConfigurator
     server.external_proxy_default_labels.to_h.merge(generated).merge(configured).transform_values(&:to_s)
   end
 
-  # Write labels directly to Dokku's docker-options config files.
-  # This bypasses dokku docker-options:add whose Go shell parser cannot
-  # handle parentheses and backticks in Traefik rule values like Host(\`domain\`).
-  # TODO: Verify whether this is a Dokku bug and file an upstream issue.
-  # The Go shell parser rejects `(` and backticks in option values, which
-  # breaks standard Traefik Host() rules passed via docker-options:add.
+  # Use Dokku's proxy labels file (traefik/<app>/labels) which the scheduler
+  # reads and wraps in single quotes — safe for backticks in Host() rules.
+  # This is how Dokku's own traefik plugin stores labels.
+  # We write directly via SSH instead of proxy:labels:add to avoid its
+  # shell parser issues with parentheses and backticks.
+  # TODO: Verify whether docker-options:add is a Dokku bug and file upstream.
   def add_label(key, value)
-    %w[deploy run].all? do |phase|
-      label_line = "--label=#{key}=#{value}"
-      engine.run("echo #{Shellwords.escape(label_line)} >> #{options_file(phase)}")[:success]
-    end
+    # Remove existing entry for this key, then append new value, then sort+dedup
+    file = labels_file
+    escaped_key = key.gsub(".", '\\.')
+    engine.run("touch #{file} && sed -i '/^#{escaped_key}=/d' #{file} && echo #{Shellwords.escape("#{key}=#{value}")} >> #{file} && sort -u -o #{file} #{file}")[:success]
   end
 
   def remove_label(key, value)
-    label_line = "--label=#{key}=#{value}"
-    %w[deploy run].all? do |phase|
-      # Use grep -v to remove matching lines; write back only if file exists
-      engine.run("test -f #{options_file(phase)} && grep -vF #{Shellwords.escape(label_line)} #{options_file(phase)} > #{options_file(phase)}.tmp && mv #{options_file(phase)}.tmp #{options_file(phase)} || true")[:success]
-    end
+    file = labels_file
+    escaped_key = key.gsub(".", '\\.')
+    engine.run("test -f #{file} && sed -i '/^#{escaped_key}=/d' #{file} || true")[:success]
   end
 
-  def options_file(phase)
-    "/var/lib/dokku/config/docker-options/#{service.dokku_app_name}/_default_.#{phase}"
+  def labels_file
+    "/var/lib/dokku/config/traefik/#{service.dokku_app_name}/labels"
   end
 
   def failure(action)

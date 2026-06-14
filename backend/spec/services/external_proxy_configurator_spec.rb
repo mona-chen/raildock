@@ -39,7 +39,11 @@ RSpec.describe ExternalProxyConfigurator do
     result = described_class.new(service, engine, host_engine).apply!
 
     expect(result[:success]).to be(true)
-    # Verify labels are written to docker-options config files
+    # Verify labels are written to the traefik labels file
+    expect(engine).to have_received(:run).with(
+      a_string_including("traefik/#{service.dokku_app_name}/labels")
+    ).at_least(:once)
+    # Verify key labels are present
     expect(engine).to have_received(:run).with(
       a_string_including("traefik.enable")
     ).at_least(:once)
@@ -51,13 +55,6 @@ RSpec.describe ExternalProxyConfigurator do
     ).at_least(:once)
     expect(engine).to have_received(:run).with(
       a_string_including("custom.priority")
-    ).at_least(:once)
-    # Verify labels go to deploy and run phase files
-    expect(engine).to have_received(:run).with(
-      a_string_including("_default_.deploy")
-    ).at_least(:once)
-    expect(engine).to have_received(:run).with(
-      a_string_including("_default_.run")
     ).at_least(:once)
   end
 
