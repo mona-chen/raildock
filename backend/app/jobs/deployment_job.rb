@@ -299,15 +299,20 @@ class DeploymentJob < ApplicationJob
     end
 
     # 13. Ensure service is connected to project's private network
-    #    and re-add aliases for all linked services (Dokku doesn't persist aliases)
-    network_result = network_manager.connect_service(service)
-    return mark_failed(deployment, service, "Network connection failed", network_result[:output]) unless network_result[:success]
+    #    and re-add aliases for all linked services (Dokku doesn't persist aliases).
+    #    These are best-effort — the app is already deployed and serving traffic.
+    #    Network / alias failures should not mark the deployment as failed.
+    unless network_manager.connect_service(service)[:success]
+      Rails.logger.warn "Post-deploy network connect failed for #{service.dokku_app_name}, service may lack private network aliases"
+    end
 
-    alias_result = network_manager.ensure_linked_aliases(service)
-    return mark_failed(deployment, service, "Linked network alias failed", alias_result[:output]) unless alias_result[:success]
+    unless network_manager.ensure_linked_aliases(service)[:success]
+      Rails.logger.warn "Post-deploy linked alias sync failed for #{service.dokku_app_name}"
+    end
 
-    hostname_result = network_manager.inject_internal_hostnames(service)
-    return mark_failed(deployment, service, "Internal hostname sync failed", hostname_result[:output]) unless hostname_result[:success]
+    unless network_manager.inject_internal_hostnames(service)[:success]
+      Rails.logger.warn "Post-deploy hostname injection failed for #{service.dokku_app_name}"
+    end
 
     # 14. For docker-image services, read container env vars and sync password-type
     #     vars to the Service record so linked services can reference them via
