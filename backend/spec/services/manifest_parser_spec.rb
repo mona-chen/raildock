@@ -138,6 +138,20 @@ RSpec.describe ManifestParser do
       end
     end
 
+    it "does not invent proxy configuration when the block is omitted" do
+      result = described_class.parse(
+        <<~TOML,
+          [[services]]
+          name = "postgres"
+          category = "database"
+          subtype = "postgres"
+        TOML
+        filename: "raildock.toml"
+      )
+
+      expect(result.find_service("postgres")[:proxy]).to eq({})
+    end
+
     context 'with invalid format' do
       it 'raises ParseError' do
         expect {

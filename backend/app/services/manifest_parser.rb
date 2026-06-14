@@ -339,7 +339,7 @@ class ManifestParser
 
   def normalize_proxy(proxy)
     defaults = { enabled: true, type: "traefik", ports: [ { host: 80, container: 3000 } ] }
-    return defaults unless proxy.is_a?(Hash)
+    return {} unless proxy.is_a?(Hash)
 
     ports = (proxy["ports"] || proxy[:ports] || []).map do |p|
       {
