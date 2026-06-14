@@ -1,6 +1,9 @@
+require "json"
+
 class PortDetector
-  def initialize(engine)
+  def initialize(engine, host_engine: nil)
     @engine = engine
+    @host_engine = host_engine
   end
 
   # Detect the port an app listens on using Dokku's built-in commands.
@@ -10,19 +13,23 @@ class PortDetector
   def detect(service)
     app_name = service.dokku_app_name
 
-    # Try 1: For regular apps, use Dokku's ports:report
+    # Try 1: Read the actual exposed ports from the running container.
+    port = detect_from_container(app_name)
+    return port if port
+
+    # Try 2: For regular apps, use Dokku's ports:report
     port = detect_from_ports_report(app_name)
     return port if port
 
-    # Try 2: For datastore plugins, use plugin-specific info commands
+    # Try 3: For datastore plugins, use plugin-specific info commands
     port = detect_from_datastore_info(service, app_name)
     return port if port
 
-    # Try 3: Fall back to known default ports by service type
+    # Try 4: Fall back to known default ports by service type
     port = default_port_for_subtype(service.subtype)
     return port if port
 
-    # Try 4: Generic fallback based on deployment method
+    # Try 5: Generic fallback based on deployment method
     service.docker_image.present? ? 80 : 5000
   rescue => e
     Rails.logger.error "Port detection failed for #{app_name}: #{e.message}"
@@ -30,6 +37,22 @@ class PortDetector
   end
 
   private
+
+  def detect_from_container(app_name)
+    return unless @host_engine
+
+    container = @host_engine.dokku_container_name(app_name)
+    return unless container
+
+    result = @host_engine.docker_inspect(container, format: "{{json .Config.ExposedPorts}}")
+    return unless result[:success]
+
+    ports = JSON.parse(result[:output]).to_h.keys.filter_map { |mapping| mapping.to_s.split("/").first.to_i.presence }
+    ports.min
+  rescue JSON::ParserError => e
+    Rails.logger.warn "Docker exposed-port parse failed for #{app_name}: #{e.message}"
+    nil
+  end
 
   # Parse Dokku's `ports:report` output to extract the detected container port.
   # Format: "Ports map detected: http:80:3000" → returns 3000

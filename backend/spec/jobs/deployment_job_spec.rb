@@ -60,6 +60,7 @@ RSpec.describe DeploymentJob, type: :job do
 
     allow(engine).to receive(:with_session).and_yield
     allow(host_engine).to receive(:with_session).and_yield
+    allow(host_engine).to receive(:dokku_container_name).and_return(nil)
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
     allow(engine).to receive(:config_set).and_return({ success: true, output: "" })

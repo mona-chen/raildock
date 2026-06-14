@@ -223,7 +223,7 @@ class DeploymentJob < ApplicationJob
 
     # 10. Detect the app's listening port from the running container/image
     begin
-      port_detector = PortDetector.new(engine)
+      port_detector = PortDetector.new(engine, host_engine: host_engine)
       detected = port_detector.detect(service)
       if detected
         service.update!(detected_port: detected)
