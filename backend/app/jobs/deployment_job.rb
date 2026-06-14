@@ -216,6 +216,19 @@ class DeploymentJob < ApplicationJob
       result = { success: true, output: deploy_output }
     end
 
+    # Intercept missing-builder errors with an actionable message.
+    # Builder binaries (nixpacks, pack, etc.) must be installed on the Dokku
+    # host — our install.sh includes ensure_builder_binaries() for this.
+    if !result[:success] && (match = deploy_output.match(/Missing (nixpacks|pack|railpack)/i))
+      builder_name = match[1]
+      return mark_failed(
+        deployment, service,
+        "Builder binary '#{builder_name}' is not installed on the server. " \
+        "Run './install.sh update' or install it manually.",
+        deploy_output
+      )
+    end
+
     unless result[:success]
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end

@@ -182,6 +182,30 @@ ensure_dokku_plugins() {
   log_ok "Dokku plugins ready"
 }
 
+ensure_builder_binaries() {
+  if ! is_dokku_installed; then
+    return 0
+  fi
+
+  log_step "Ensuring builder binaries are installed..."
+
+  # Each builder plugin ships with Dokku core, but the actual CLI tools must
+  # be installed separately on the host. Install the ones we support so users
+  # can switch builders in the UI without hitting "Missing nixpacks" errors.
+
+  if ! command -v nixpacks >/dev/null 2>&1; then
+    log_info "Installing nixpacks..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/railwayapp/nixpacks/master/install.sh)" 2>/dev/null || {
+      log_warn "Failed to install nixpacks — app builds using the nixpacks builder will fail"
+      log_warn "Install manually: curl -fsSL https://nixpacks.com/install.sh | bash"
+    }
+  else
+    log_ok "nixpacks $(nixpacks --version 2>/dev/null | head -1) is installed"
+  fi
+
+  log_ok "Builder binaries ready"
+}
+
 configure_sshd_for_raildock() {
   if ! is_dokku_installed; then
     return 0
@@ -644,6 +668,7 @@ install_raildock() {
   check_dokku
 
   ensure_dokku_plugins
+  ensure_builder_binaries
   configure_sshd_for_raildock
 
   log_step "Downloading configuration..."
@@ -775,6 +800,7 @@ update_raildock() {
   fi
   backup_env
   fill_missing_env_vars
+  ensure_builder_binaries
   if [ "$BUILD_FROM_SOURCE" = "1" ]; then
     docker compose -f "$COMPOSE_FILE" build --pull
   else
