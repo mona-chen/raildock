@@ -455,7 +455,12 @@ class ManifestReconciler
     app_result = engine.app_create(app_name)
     return app_result unless app_result[:success]
 
-    return engine.proxy_disable(app_name) if @project.server.external_proxy?
+    # In external mode, keep proxy as traefik so the plugin's deploy hooks
+    # apply labels from the labels file to containers.
+    if @project.server.external_proxy?
+      engine.proxy_set(app_name, "traefik")
+      return { success: true }
+    end
 
     proxy_type = svc.dig(:proxy, :type) || "traefik"
     engine.proxy_set(app_name, proxy_type)

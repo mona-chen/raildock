@@ -30,8 +30,6 @@ RSpec.describe ExternalProxyConfigurator do
     allow(host_engine).to receive(:docker_network_inspect).and_return(success: true, output: "{}")
     allow(host_engine).to receive(:run).and_return(success: true, output: "")
     allow(engine).to receive(:traefik_stop).and_return(success: true, output: "")
-    allow(engine).to receive(:proxy_set_global).and_return(success: true, output: "")
-    allow(engine).to receive(:proxy_disable).and_return(success: true, output: "")
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
   end
 
@@ -39,7 +37,6 @@ RSpec.describe ExternalProxyConfigurator do
     result = described_class.new(service, engine, host_engine).apply!
 
     expect(result[:success]).to be(true)
-    # Verify labels are written to the traefik labels file via host_engine
     expect(host_engine).to have_received(:run).with(
       a_string_including("traefik/#{service.dokku_app_name}/labels")
     ).at_least(:once)
@@ -59,7 +56,6 @@ RSpec.describe ExternalProxyConfigurator do
     expect(result[:success]).to be(false)
     expect(result[:output]).to match(/matrix_default/)
     expect(engine).not_to have_received(:traefik_stop)
-    expect(engine).not_to have_received(:proxy_set_global)
-    expect(engine).not_to have_received(:proxy_disable)
+    expect(engine).not_to have_received(:ports_clear)
   end
 end

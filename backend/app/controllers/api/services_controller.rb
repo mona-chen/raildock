@@ -66,11 +66,7 @@ module Api
           service.update!(status: :running) if result && result[:success]
         else
           engine.app_create(service.dokku_app_name)
-          if server.external_proxy?
-            engine.proxy_disable(service.dokku_app_name)
-          else
-            engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType])
-          end
+          engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType] || "traefik")
           TemporaryDomainService.new(server).ensure_for(service, engine: engine)
         end
       end

@@ -21,9 +21,9 @@ class ExternalProxyConfigurator
     # and apply labels from the traefik labels file to containers.
     engine.traefik_stop
 
-    proxy_result = engine.proxy_disable(service.dokku_app_name)
-    return proxy_result unless proxy_result[:success]
-
+    # Clear port mappings — external Traefik handles routing via Docker labels.
+    # Do NOT disable the proxy — the traefik plugin's deploy hooks need it
+    # enabled to read the labels file and apply labels to containers.
     ports_result = engine.ports_clear(service.dokku_app_name)
     return ports_result unless ports_result[:success]
 

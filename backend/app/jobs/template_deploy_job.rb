@@ -66,12 +66,8 @@ class TemplateDeployJob < ApplicationJob
         ensure_success!(result, "create database #{app_name}")
       else
         ensure_success!(engine.app_create(app_name), "create app #{app_name}")
-        proxy_result = if project.server.external_proxy?
-          engine.proxy_disable(app_name)
-        else
-          proxy_type = service.config&.dig("proxy", "type") || "traefik"
-          engine.proxy_set(app_name, proxy_type)
-        end
+        proxy_type = service.config&.dig("proxy", "type") || "traefik"
+        proxy_result = engine.proxy_set(app_name, proxy_type)
         ensure_success!(proxy_result, "configure proxy for #{app_name}")
 
         # Auto-provision a temporary domain for web services when the server
