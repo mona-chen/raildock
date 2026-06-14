@@ -72,14 +72,17 @@ class ProjectNetworkManager
 
   def configure_attach_networks(service)
     ensure_network!
-    networks = [ network_name ]
+
+    # Private project network — attach-post-create so containers can resolve
+    # linked services (e.g. rustfs, mysql) at boot time. Only one network here
+    # to avoid the Dokku bug where attach-post-create only attaches the first.
+    engine.run("network:set #{service.dokku_app_name} attach-post-create #{network_name}")
+
+    # External Traefik network — attach-post-deploy (after health checks).
+    # Not needed at boot, only for Traefik to discover the container.
     if service.service_type_app? && project.server&.external_proxy?
-      networks << project.server.external_proxy_network
+      engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{project.server.external_proxy_network}")
     end
-    # Use attach-post-deploy instead of attach-post-create to avoid a Dokku
-    # bug where attach-post-create only attaches the first network (early return).
-    # attach-post-deploy correctly iterates all networks and runs after health checks.
-    engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{networks.compact_blank.join(' ')}")
   end
 
   def disconnect_service(service)
