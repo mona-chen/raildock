@@ -459,6 +459,11 @@ class ManifestReconciler
     # apply labels from the labels file to containers.
     if @project.server.external_proxy?
       engine.proxy_set(app_name, "traefik")
+      # Write labels to file immediately so rebuild works before first deploy
+      svc = Service.find_by(dokku_app_name: app_name)
+      if svc
+        ExternalProxyConfigurator.new(svc, engine, @host_engine).apply!
+      end
       return { success: true }
     end
 

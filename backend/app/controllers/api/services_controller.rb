@@ -68,6 +68,12 @@ module Api
           engine.app_create(service.dokku_app_name)
           engine.proxy_set(service.dokku_app_name, proxy_config[:proxyType] || "traefik")
           TemporaryDomainService.new(server).ensure_for(service, engine: engine)
+
+          # Write traefik labels to file immediately so rebuild works before first deploy
+          if server.external_proxy?
+            host_engine = HostEngine.new(server)
+            ExternalProxyConfigurator.new(service, engine, host_engine).apply!
+          end
         end
       end
 

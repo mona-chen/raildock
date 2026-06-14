@@ -74,6 +74,12 @@ class TemplateDeployJob < ApplicationJob
         # has auto_domains enabled. This must happen before runtime env vars
         # like RAILDOCK_PUBLIC_DOMAIN are resolved.
         TemporaryDomainService.new(project.server).ensure_for(service, engine: engine)
+
+        # Write traefik labels to file immediately so rebuild works before first deploy
+        if project.server.external_proxy?
+          host_engine = HostEngine.new(project.server)
+          ExternalProxyConfigurator.new(service, engine, host_engine).apply!
+        end
       end
 
       # Sync storage mounts (only for app services — datastores handle
