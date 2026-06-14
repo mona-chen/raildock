@@ -66,7 +66,7 @@ class ExternalProxyConfigurator
     engine.docker_option_add(
       service.dokku_app_name,
       "deploy",
-      "--label #{key}=#{value}",
+      docker_label_option(key, value),
       process: "web"
     )[:success]
   end
@@ -75,9 +75,14 @@ class ExternalProxyConfigurator
     engine.docker_option_remove(
       service.dokku_app_name,
       "deploy",
-      "--label #{key}=#{value}",
+      docker_label_option(key, value),
       process: "web"
     )
+  end
+
+  def docker_label_option(key, value)
+    escaped_value = value.to_s.gsub("`", '\\\`')
+    %(--label "#{key}=#{escaped_value}")
   end
 
   def labels_file

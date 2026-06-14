@@ -47,13 +47,13 @@ RSpec.describe ExternalProxyConfigurator do
     expect(engine).to have_received(:docker_option_add).with(
       service.dokku_app_name,
       "deploy",
-      "--label traefik.enable=true",
+      '--label "traefik.enable=true"',
       process: "web"
     )
     expect(engine).to have_received(:docker_option_add).with(
       service.dokku_app_name,
       "deploy",
-      "--label traefik.docker.network=matrix_default",
+      '--label "traefik.docker.network=matrix_default"',
       process: "web"
     )
   end
@@ -68,7 +68,7 @@ RSpec.describe ExternalProxyConfigurator do
     expect(engine).to have_received(:docker_option_add).with(
       service.dokku_app_name,
       "deploy",
-      a_string_including("Host(`api.example.com`)"),
+      a_string_including('Host(\`api.example.com\`)'),
       process: "web"
     )
   end
