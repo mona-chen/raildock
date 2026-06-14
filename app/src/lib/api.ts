@@ -448,10 +448,16 @@ export const adminSettingsApi = {
     return fetchJson('/api/admin/github-app', { method: 'DELETE' })
   },
 
-  finishGitHubAppSetup: async (installationId: string): Promise<{ success: boolean; git_source: GitSource; message: string }> => {
+  finishGitHubAppSetup: async (
+    installationId: string,
+    organizationId?: string,
+  ): Promise<{ authorizationUrl: string }> => {
     return fetchJson('/api/github-apps/finish-setup', {
       method: 'POST',
-      body: JSON.stringify({ installation_id: installationId }),
+      body: JSON.stringify({
+        installation_id: installationId,
+        organization_id: organizationId,
+      }),
     })
   },
 

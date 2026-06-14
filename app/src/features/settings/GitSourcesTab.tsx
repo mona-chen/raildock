@@ -326,6 +326,8 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
   const { data: ghConfig } = useGitHubAppConfig()
   const createManifest = useCreateGitHubAppManifest()
   const deleteApp = useDeleteGitHubApp()
+  const user = useAuthStore((s) => s.user)
+  const orgId = useAuthStore((s) => s.currentOrganizationId)
 
   const settingMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -365,11 +367,11 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
       toast.error('GitHub App is not configured')
       return
     }
-    // Use the app owner's install page. GitHub's public /apps/{slug} page
-    // redirects to settings when already installed. The owner's
-    // /settings/apps/{slug}/installations page always shows the full
-    // account picker (personal + all orgs) with Install/Configure buttons.
-    window.open(`https://github.com/settings/apps/${slug}/installations`, '_blank')
+    const state = {
+      user_id: user?.id,
+      organization_id: orgId,
+    }
+    window.location.href = api.gitSources.installUrl(slug, state)
   }
 
   return (
@@ -470,8 +472,16 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                 <TestConnectionButton />
                 <Button
                   variant="ghost"
+                  onClick={() => window.open(`https://github.com/settings/apps/${ghConfig?.githubApp?.appSlug}`, '_blank', 'noopener,noreferrer')}
+                  className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+                >
+                  <ExternalLink size={12} className="mr-1.5" />
+                  GitHub Settings
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => {
-                    if (confirm('Delete the GitHub App from GitHub entirely? This will remove all installations and cannot be undone.')) {
+                    if (confirm('Disconnect this GitHub App from RailDock? The app and its installations will remain on GitHub until you remove them in GitHub Settings.')) {
                       deleteApp.mutate()
                     }
                   }}
@@ -479,14 +489,15 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                   className="text-[11px] text-red-400 hover:text-red-300 h-8"
                 >
                   <Trash2 size={12} className="mr-1.5" />
-                  {deleteApp.isPending ? 'Deleting...' : 'Delete App'}
+                  {deleteApp.isPending ? 'Disconnecting...' : 'Disconnect RailDock'}
                 </Button>
               </div>
 
               {appInstallations.length > 0 && (
                 <p className="text-[10px] text-[#4A4A55]">
                   To add an organization, click "Add Another Account" to open GitHub's install page.
-                  You'll see all your accounts (personal + orgs) — click <b>Install</b> next to your org.
+                  GitHub lets you select your personal account or an organization. The installation
+                  stays attached to the RailDock workspace currently selected above.
                 </p>
               )}
             </div>

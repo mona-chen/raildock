@@ -68,6 +68,22 @@ RSpec.describe "Api::Admin::GithubAppManifestsController", type: :request do
     end
   end
 
+  describe "DELETE /api/admin/github-app" do
+    it "clears RailDock credentials without claiming to delete the GitHub registration" do
+      SystemSetting.set!("github_app_id", "123")
+      SystemSetting.set!("github_app_slug", "raildock-test")
+      create(:git_source, provider: "github", user: admin, installation_id: "456")
+
+      delete "/api/admin/github-app", headers: auth_headers(admin)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["message"]).to include("disconnected from RailDock")
+      expect(SystemSetting.github_app_id).to be_nil
+      expect(SystemSetting.github_app_slug).to be_nil
+      expect(GitSource.where(provider: "github").pluck(:connected)).to contain_exactly(false)
+    end
+  end
+
   def with_env(values)
     previous = {}
     values.each_key { |key| previous[key] = ENV[key.to_s] }

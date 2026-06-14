@@ -84,6 +84,67 @@ class GithubAppService
       Octokit::Client.new(access_token: token)
     end
 
+    def user_authorization_url(state, callback_url:)
+      raise "GitHub App OAuth credentials not configured" if client_id.blank? || client_secret.blank?
+
+      query = URI.encode_www_form(
+        client_id: client_id,
+        redirect_uri: callback_url,
+        state: state
+      )
+      "https://github.com/login/oauth/authorize?#{query}"
+    end
+
+    def exchange_user_code(code, callback_url:)
+      raise "GitHub App OAuth credentials not configured" if client_id.blank? || client_secret.blank?
+
+      response = Faraday.post(
+        "https://github.com/login/oauth/access_token",
+        URI.encode_www_form(
+          client_id: client_id,
+          client_secret: client_secret,
+          code: code,
+          redirect_uri: callback_url
+        ),
+        {
+          "Accept" => "application/json",
+          "Content-Type" => "application/x-www-form-urlencoded"
+        }
+      )
+      data = JSON.parse(response.body)
+      token = data["access_token"]
+      error = data["error_description"] || data["error"]
+      raise "Failed to exchange GitHub user code: #{error || response.status}" unless response.success? && token.present?
+
+      token
+    end
+
+    def user_installations(user_token)
+      installations = []
+      page = 1
+
+      loop do
+        response = Faraday.get(
+          "https://api.github.com/user/installations",
+          { per_page: 100, page: page },
+          {
+            "Authorization" => "Bearer #{user_token}",
+            "Accept" => "application/vnd.github+json",
+            "X-GitHub-Api-Version" => "2022-11-28"
+          }
+        )
+        raise "Failed to list GitHub user installations: #{response.status}" unless response.success?
+
+        page_installations = JSON.parse(response.body)["installations"] || []
+        installations.concat(page_installations)
+        break if page_installations.length < 100
+
+        page += 1
+      end
+
+      installations
+    end
+
     # Fetch details for a specific installation
     def installation_details(installation_id)
       raise "GitHub App credentials not configured" unless enabled?
@@ -184,32 +245,6 @@ class GithubAppService
       true
     rescue Faraday::Error => e
       Rails.logger.error "GitHub App installation deletion failed: #{e.message}"
-      raise
-    end
-
-    # Delete the GitHub App itself from GitHub
-    def delete_app
-      raise "GitHub App credentials not configured" unless enabled?
-
-      jwt = generate_jwt
-      response = Faraday.delete(
-        "https://api.github.com/app",
-        {},
-        {
-          "Authorization" => "Bearer #{jwt}",
-          "Accept" => "application/vnd.github+json",
-          "X-GitHub-Api-Version" => "2022-11-28"
-        }
-      )
-
-      unless response.success?
-        Rails.logger.error "GitHub App deletion failed: #{response.status} #{response.body}"
-        raise "Failed to delete GitHub App: #{response.status}"
-      end
-
-      true
-    rescue Faraday::Error => e
-      Rails.logger.error "GitHub App deletion failed: #{e.message}"
       raise
     end
   end

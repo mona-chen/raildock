@@ -5,29 +5,33 @@ module Api
     skip_before_action :authenticate_user!, only: [ :callback, :webhook ]
 
     # GET /api/github-apps/callback
-    # GitHub redirects here after a user installs the app or accepts the OAuth flow
+    # GitHub redirects here after the user authorizes RailDock to verify the
+    # installation selected during setup.
     def callback
-      installation_id = params[:installation_id]
-      setup_action = params[:setup_action]
+      code = params[:code]
       state = params[:state]
-      callback_user = user_from_state(state)
+      setup = decode_setup_state(state)
+      callback_user = User.find_by(id: setup["user_id"])
+      installation_id = setup["installation_id"].to_s
 
-      unless installation_id.present?
-        redirect_to frontend_redirect_url(github_app: "error", message: "Missing installation_id")
+      unless code.present? && installation_id.present?
+        redirect_to frontend_redirect_url(github_app: "error", message: "Missing GitHub authorization details"), allow_other_host: true
         return
       end
 
       unless callback_user
-        redirect_to frontend_redirect_url(github_app: "error", message: "Invalid setup state")
+        redirect_to frontend_redirect_url(github_app: "error", message: "Invalid setup state"), allow_other_host: true
         return
       end
 
-      # Fetch actual installation details from GitHub (trust GitHub over frontend state)
-      details = GithubAppService.installation_details(installation_id)
-      account = details["account"]
+      user_token = GithubAppService.exchange_user_code(code, callback_url: github_callback_url)
+      installation = GithubAppService.user_installations(user_token).find do |candidate|
+        candidate["id"].to_s == installation_id
+      end
+      account = installation&.dig("account")
 
       unless account
-        redirect_to frontend_redirect_url(github_app: "error", message: "Could not verify installation with GitHub")
+        redirect_to frontend_redirect_url(github_app: "error", message: "GitHub installation is not accessible to this user"), allow_other_host: true
         return
       end
 
@@ -47,25 +51,18 @@ module Api
         username: account["login"]
       )
 
-      # Associate with organization or user based on actual GitHub account type
-      if account_type == "organization"
-        org = find_or_create_organization(account["login"], callback_user)
-        git_source.organization = org
-        git_source.user = nil
-      else
-        git_source.user = callback_user
-        git_source.organization = nil
-      end
+      assign_raildock_owner(git_source, callback_user, setup["organization_id"], redirect: true)
+      return if performed?
 
       if git_source.save
         GithubSyncReposJob.perform_later(git_source.id)
-        redirect_to frontend_redirect_url(github_app: "success", git_source_id: git_source.id)
+        redirect_to frontend_redirect_url(github_app: "success", git_source_id: git_source.id), allow_other_host: true
       else
-        redirect_to frontend_redirect_url(github_app: "error", message: git_source.errors.full_messages.join(", "))
+        redirect_to frontend_redirect_url(github_app: "error", message: git_source.errors.full_messages.join(", ")), allow_other_host: true
       end
     rescue => e
       Rails.logger.error "GitHub App callback failed: #{e.message}"
-      redirect_to frontend_redirect_url(github_app: "error", message: "Internal error")
+      redirect_to frontend_redirect_url(github_app: "error", message: "Failed to verify GitHub installation"), allow_other_host: true
     end
 
     # DELETE /api/github-apps/installations/:id
@@ -143,7 +140,8 @@ module Api
     end
 
     # POST /api/github-apps/finish-setup
-    # Called by the frontend after GitHub redirects back from app installation
+    # Starts GitHub's user authorization flow so the installation ID received
+    # by the setup URL can be verified against the installing GitHub user.
     def finish_setup
       installation_id = params[:installation_id]
 
@@ -152,51 +150,20 @@ module Api
         return
       end
 
-      # Fetch installation details from GitHub
-      details = GithubAppService.installation_details(installation_id)
-      account = details["account"]
+      authorize_raildock_organization(params[:organization_id])
+      return if performed?
 
-      unless account
-        render json: { error: "Could not fetch installation details from GitHub" }, status: :bad_gateway
-        return
-      end
-
-      # Determine account type from GitHub's response
-      account_type = account["type"] == "Organization" ? "organization" : "personal"
-
-      # Create or update the GitSource
-      git_source = GitSource.find_or_initialize_by(
-        provider: "github",
+      state = encode_setup_state(
+        user_id: current_user.id,
+        organization_id: params[:organization_id],
         installation_id: installation_id.to_s
       )
-
-      git_source.assign_attributes(
-        auth_method: :oauth_app,
-        connected: true,
-        account_type: account_type,
-        username: account["login"]
-      )
-
-      # Associate with organization or user based on actual GitHub account type
-      if account_type == "organization"
-        org = find_or_create_organization(account["login"], current_user)
-        git_source.organization = org
-        git_source.user = nil
-      else
-        git_source.user = current_user
-        git_source.organization = nil
-      end
-
-      if git_source.save
-        GithubSyncReposJob.perform_later(git_source.id)
-        render json: {
-          success: true,
-          git_source: git_source.as_json,
-          message: "GitHub App installed successfully for #{account['login']}"
-        }
-      else
-        render json: { error: git_source.errors.full_messages.join(", ") }, status: :unprocessable_entity
-      end
+      render json: {
+        authorization_url: GithubAppService.user_authorization_url(
+          state,
+          callback_url: github_callback_url
+        )
+      }
     rescue => e
       Rails.logger.error "GitHub App finish_setup failed: #{e.message}"
       render json: { error: "Failed to complete GitHub App setup" }, status: :internal_server_error
@@ -204,37 +171,71 @@ module Api
 
     private
 
-    def find_or_create_organization(name, owner)
-      slug = name.parameterize
-      org = Organization.find_by(slug: slug)
-      return org if org
+    def assign_raildock_owner(git_source, user, organization_id, redirect: false)
+      if organization_id.present?
+        organization = Organization.find_by(id: organization_id)
+        unless organization && user.organizations.exists?(organization.id)
+          if redirect
+            redirect_to frontend_redirect_url(github_app: "error", message: "Forbidden"), allow_other_host: true
+          else
+            render json: { error: "Forbidden" }, status: :forbidden
+          end
+          return
+        end
 
-      Organization.create!(
-        name: name,
-        slug: slug,
-        owner: owner
-      )
-    rescue ActiveRecord::RecordInvalid
-      # Fallback: try to find by name if slug collision
-      Organization.find_by(name: name) || Organization.create!(name: name, slug: "#{slug}-#{SecureRandom.hex(4)}", owner: owner)
+        git_source.organization = organization
+        git_source.user = nil
+      else
+        git_source.user = user
+        git_source.organization = nil
+      end
     end
 
-    def decode_state(state)
-      return {} unless state.present?
-      JSON.parse(Base64.urlsafe_decode64(state))
-    rescue
+    def authorize_raildock_organization(organization_id)
+      return if organization_id.blank?
+
+      organization = Organization.find_by(id: organization_id)
+      render json: { error: "Forbidden" }, status: :forbidden unless organization && current_user.organizations.exists?(organization.id)
+    end
+
+    def encode_setup_state(payload)
+      JWT.encode(payload.merge(exp: 15.minutes.from_now.to_i), Rails.application.secret_key_base, "HS256")
+    end
+
+    def decode_setup_state(state)
+      JWT.decode(state.to_s, Rails.application.secret_key_base, true, algorithm: "HS256").first
+    rescue JWT::DecodeError, JWT::ExpiredSignature
       {}
     end
 
-    def user_from_state(state)
-      decoded = decode_state(state)
-      User.find_by(id: decoded["user_id"] || decoded[:user_id])
+    def frontend_redirect_url(params = {})
+      query = URI.encode_www_form(params)
+      "#{public_base_url}/#/dashboard/settings?tab=git-sources&#{query}"
     end
 
-    def frontend_redirect_url(params = {})
-      base = ENV.fetch("FRONTEND_URL") { request.base_url }
-      query = URI.encode_www_form(params)
-      "#{base}/#/dashboard/settings?tab=git-sources&#{query}"
+    def github_callback_url
+      "#{public_base_url}/api/github-apps/callback"
+    end
+
+    def public_base_url
+      configured_url =
+        ENV["RAILDOCK_PUBLIC_URL"].presence ||
+        ENV["APP_URL"].presence ||
+        public_frontend_url
+
+      (configured_url.presence || request.base_url).delete_suffix("/")
+    end
+
+    def public_frontend_url
+      frontend_url = ENV["FRONTEND_URL"].presence
+      return if frontend_url.blank?
+
+      uri = URI.parse(frontend_url)
+      return if uri.host.in?(%w[localhost 127.0.0.1 ::1])
+
+      frontend_url
+    rescue URI::InvalidURIError
+      nil
     end
 
     def verify_webhook(payload, signature)

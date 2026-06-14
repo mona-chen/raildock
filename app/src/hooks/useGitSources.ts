@@ -97,18 +97,13 @@ export function useCreateGitHubAppManifest() {
 }
 
 export function useFinishGitHubAppSetup() {
-  const queryClient = useQueryClient()
-  const setCurrentOrganizationId = useAuthStore((s) => s.setCurrentOrganizationId)
+  const organizationId = useAuthStore((s) => s.currentOrganizationId)
 
   return useMutation({
-    mutationFn: (installationId: string) => api.adminSettings.finishGitHubAppSetup(installationId),
+    mutationFn: (installationId: string) =>
+      api.adminSettings.finishGitHubAppSetup(installationId, organizationId || undefined),
     onSuccess: (data) => {
-      if (data.git_source.organizationId) {
-        setCurrentOrganizationId(data.git_source.organizationId)
-      }
-      queryClient.invalidateQueries({ queryKey: ['git-sources'] })
-      queryClient.invalidateQueries({ queryKey: ['organizations'] })
-      toast.success(data.message || 'GitHub App connected')
+      window.location.href = data.authorizationUrl
     },
     onError: (err: Error) => toast.error(`Setup failed: ${err.message}`),
   })
@@ -135,8 +130,8 @@ export function useDeleteGitHubApp() {
       queryClient.invalidateQueries({ queryKey: ['git-sources'] })
       queryClient.invalidateQueries({ queryKey: ['github-app-config'] })
       queryClient.invalidateQueries({ queryKey: ['system-settings'] })
-      toast.success('GitHub App deleted from GitHub and RailDock')
+      toast.success('GitHub App disconnected from RailDock')
     },
-    onError: (err: Error) => toast.error(`Delete failed: ${err.message}`),
+    onError: (err: Error) => toast.error(`Disconnect failed: ${err.message}`),
   })
 }

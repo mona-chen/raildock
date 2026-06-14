@@ -16,6 +16,7 @@ import {
 import DiffViewer from '@/components/manifest/DiffViewer'
 import TemplateGallery from '@/components/manifest/TemplateGallery'
 import ChangeBadge from '@/components/manifest/ChangeBadge'
+import ManifestCodeEditor from '@/components/manifest/ManifestCodeEditor'
 import type { ManifestChange } from '@/lib/api'
 
 const DEFAULT_MANIFEST = `# RailDock Manifest
@@ -206,15 +207,12 @@ export default function ManifestEditorPage() {
                   <span className="text-[10px] text-amber-400/60">· unsaved changes</span>
                 )}
               </div>
-              <textarea
+              <ManifestCodeEditor
                 value={content}
-                onChange={(e) => {
-                  setContent(e.target.value)
+                onChange={(value) => {
+                  setContent(value)
                   setPreviewResult(null)
                 }}
-                spellCheck={false}
-                className="flex-1 w-full bg-transparent p-4 text-[13px] font-mono text-white/70 resize-none focus:outline-none leading-relaxed"
-                style={{ tabSize: 2 }}
               />
             </div>
             <div className="w-[320px] border-l border-white/[0.06] bg-white/[0.01] overflow-y-auto">

@@ -26,7 +26,9 @@ module Api
             active: true
           },
           redirect_url: "#{base_url}/api/admin/github-app-manifest/callback",
+          callback_urls: [ "#{base_url}/api/github-apps/callback" ],
           setup_url: "#{base_url}/api/admin/github-app-manifest/setup",
+          request_oauth_on_install: false,
           setup_on_update: true,
           public: true,
           default_permissions: MANIFEST_PERMISSIONS,
@@ -81,20 +83,9 @@ module Api
       end
 
       # DELETE /api/admin/github-app
-      # Deletes the GitHub App from GitHub and clears all local credentials
+      # Disconnects the GitHub App from RailDock. GitHub App registrations can
+      # only be deleted by their owner from GitHub's settings UI.
       def destroy_app
-        # Delete from GitHub (404 = already deleted, which is fine)
-        begin
-          GithubAppService.delete_app
-        rescue => e
-          if e.message.include?("404")
-            Rails.logger.info "GitHub App already deleted from GitHub"
-          else
-            raise
-          end
-        end
-
-        # Clear all GitHub App settings
         %w[
           github_app_id github_app_slug github_client_id
           github_client_secret github_app_pem github_webhook_secret
@@ -102,13 +93,15 @@ module Api
           SystemSetting.find_by(key: key)&.destroy
         end
 
-        # Remove all GitHub git sources
-        GitSource.where(provider: "github").destroy_all
+        GitSource.where(provider: "github").update_all(connected: false, updated_at: Time.current)
 
-        render json: { success: true, message: "GitHub App deleted successfully" }
+        render json: {
+          success: true,
+          message: "GitHub App disconnected from RailDock. Delete the registration separately in GitHub settings."
+        }
       rescue => e
         Rails.logger.error "GitHub App destroy_app failed: #{e.message}"
-        render json: { error: "Failed to delete GitHub App" }, status: :internal_server_error
+        render json: { error: "Failed to disconnect GitHub App" }, status: :internal_server_error
       end
 
       private

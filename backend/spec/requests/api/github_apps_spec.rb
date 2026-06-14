@@ -10,14 +10,23 @@ RSpec.describe "Api::GithubAppsController", type: :request do
       expect(response).to redirect_to(%r{github_app=error})
     end
 
-    it "creates a GitSource for the installation and redirects" do
-      allow(GithubAppService).to receive(:installation_details).with("12345").and_return(
-        { "account" => { "type" => "User", "login" => "monalisa" } }
+    it "stores a GitHub organization installation in a personal RailDock workspace" do
+      state = JWT.encode(
+        { user_id: user.id, installation_id: "12345", exp: 5.minutes.from_now.to_i },
+        Rails.application.secret_key_base,
+        "HS256"
+      )
+      allow(GithubAppService).to receive(:exchange_user_code).with(
+        "oauth-code",
+        callback_url: "http://www.example.com/api/github-apps/callback"
+      ).and_return("user-token")
+      allow(GithubAppService).to receive(:user_installations).with("user-token").and_return(
+        [ { "id" => 12345, "account" => { "type" => "Organization", "login" => "acme" } } ]
       )
       allow(GithubSyncReposJob).to receive(:perform_later)
 
       expect {
-        get "/api/github-apps/callback", params: { installation_id: "12345", state: Base64.urlsafe_encode64({ user_id: user.id }.to_json) }
+        get "/api/github-apps/callback", params: { code: "oauth-code", state: state }
       }.to change(GitSource, :count).by(1)
 
       expect(response).to have_http_status(:found)
@@ -26,6 +35,105 @@ RSpec.describe "Api::GithubAppsController", type: :request do
       expect(source.provider).to eq("github")
       expect(source.installation_id).to eq("12345")
       expect(source.connected).to be true
+      expect(source.account_type).to eq("organization")
+      expect(source.user).to eq(user)
+      expect(source.organization).to be_nil
+      expect(Organization.find_by(slug: "acme")).to be_nil
+    end
+
+    it "stores an installation in the selected RailDock organization" do
+      organization = create(:organization)
+      create(:organization_membership, organization: organization, user: user)
+      state = JWT.encode(
+        {
+          user_id: user.id,
+          organization_id: organization.id,
+          installation_id: "67890",
+          exp: 5.minutes.from_now.to_i
+        },
+        Rails.application.secret_key_base,
+        "HS256"
+      )
+      allow(GithubAppService).to receive(:exchange_user_code).and_return("user-token")
+      allow(GithubAppService).to receive(:user_installations).and_return(
+        [ { "id" => 67890, "account" => { "type" => "User", "login" => "monalisa" } } ]
+      )
+      allow(GithubSyncReposJob).to receive(:perform_later)
+
+      get "/api/github-apps/callback", params: { code: "oauth-code", state: state }
+
+      expect(response).to redirect_to(%r{github_app=success})
+      source = GitSource.last
+      expect(source.account_type).to eq("personal")
+      expect(source.organization).to eq(organization)
+      expect(source.user).to be_nil
+    end
+
+    it "rejects an installation the authorized GitHub user cannot access" do
+      state = JWT.encode(
+        { user_id: user.id, installation_id: "12345", exp: 5.minutes.from_now.to_i },
+        Rails.application.secret_key_base,
+        "HS256"
+      )
+      allow(GithubAppService).to receive(:exchange_user_code).and_return("user-token")
+      allow(GithubAppService).to receive(:user_installations).and_return([])
+
+      expect {
+        get "/api/github-apps/callback", params: { code: "oauth-code", state: state }
+      }.not_to change(GitSource, :count)
+
+      expect(response).to redirect_to(%r{github_app=error})
+    end
+  end
+
+  describe "POST /api/github-apps/finish-setup" do
+    before do
+      allow(GithubSyncReposJob).to receive(:perform_later)
+      allow(GithubAppService).to receive(:user_authorization_url)
+    end
+
+    it "starts user authorization for a personal RailDock workspace" do
+      allow(GithubAppService).to receive(:user_authorization_url).and_return("https://github.com/login/oauth/authorize?state=signed")
+
+      post "/api/github-apps/finish-setup",
+        params: { installation_id: "12345" },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["authorization_url"]).to eq("https://github.com/login/oauth/authorize?state=signed")
+      expect(GitSource.find_by(installation_id: "12345")).to be_nil
+    end
+
+    it "includes an authorized RailDock organization in signed setup state" do
+      organization = create(:organization)
+      create(:organization_membership, organization: organization, user: user)
+      allow(GithubAppService).to receive(:user_authorization_url) do |state, callback_url:|
+        payload = JWT.decode(state, Rails.application.secret_key_base, true, algorithm: "HS256").first
+        expect(payload).to include(
+          "user_id" => user.id,
+          "organization_id" => organization.id.to_s,
+          "installation_id" => "67890"
+        )
+        expect(callback_url).to end_with("/api/github-apps/callback")
+        "https://github.com/login/oauth/authorize"
+      end
+
+      post "/api/github-apps/finish-setup",
+        params: { installation_id: "67890", organization_id: organization.id },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "rejects a RailDock organization the user cannot access" do
+      organization = create(:organization)
+
+      post "/api/github-apps/finish-setup",
+        params: { installation_id: "99999", organization_id: organization.id },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(GithubAppService).not_to have_received(:user_authorization_url)
     end
   end
 
