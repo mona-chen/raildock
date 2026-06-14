@@ -12,7 +12,7 @@ RSpec.describe TraefikLabelBuilder do
       external_proxy_redirect_middleware: "redirect-https@docker"
     )
     service = create(:service, project: create(:project, server: server), detected_port: 3000)
-    domain = create(:domain, service: service, hostname: "app.example.com", target_port: 3000)
+    domain = create(:domain, service: service, hostname: "app.example.com", target_port: 3000, ssl: true)
 
     labels = described_class.new(service, domain, server: server).build_labels
     router = "#{service.dokku_app_name}-app-example-com"
@@ -26,5 +26,34 @@ RSpec.describe TraefikLabelBuilder do
       "traefik.http.routers.#{router}-https.tls.certresolver" => "matrix-letsencrypt",
       "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port" => "3000"
     )
+  end
+
+  it "skips HTTPS labels for non-SSL domains (e.g. sslip.io)" do
+    server = create(
+      :server,
+      proxy_mode: "external",
+      external_proxy_network: "traefik",
+      external_proxy_http_entrypoint: "web",
+      external_proxy_https_entrypoint: "web-secure",
+      external_proxy_cert_resolver: "letsencrypt"
+    )
+    service = create(:service, project: create(:project, server: server), detected_port: 8200)
+    domain = create(:domain, service: service, hostname: "app.152.53.163.11.sslip.io", target_port: 8200, ssl: false)
+
+    labels = described_class.new(service, domain, server: server).build_labels
+    router = "#{service.dokku_app_name}-app-152-53-163-11-sslip-io"
+
+    # HTTP router should exist without redirect middleware
+    expect(labels).to include(
+      "traefik.http.routers.#{router}-http.rule" => "Host(`app.152.53.163.11.sslip.io`)",
+      "traefik.http.routers.#{router}-http.entrypoints" => "web",
+      "traefik.http.routers.#{router}-http.service" => "#{service.dokku_app_name}-web",
+      "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port" => "8200"
+    )
+    # No redirect middleware for non-SSL
+    expect(labels).not_to have_key("traefik.http.routers.#{router}-http.middlewares")
+    # No HTTPS router
+    expect(labels).not_to have_key("traefik.http.routers.#{router}-https.rule")
+    expect(labels).not_to have_key("traefik.http.routers.#{router}-https.tls")
   end
 end

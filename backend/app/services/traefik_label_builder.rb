@@ -16,28 +16,33 @@ class TraefikLabelBuilder
     cert_resolver = server&.external_proxy_cert_resolver.presence || (server.nil? ? "letsencrypt" : nil)
 
     labels = {}
+    supports_ssl = domain.ssl != false  # nil = not set = assume SSL is supported
 
-    # HTTP router (with redirect middleware)
+    # HTTP router — always created
     labels["traefik.http.routers.#{router_name}-http.rule"] = domain.traefik_rule
     labels["traefik.http.routers.#{router_name}-http.entrypoints"] = http_entrypoint
-    labels["traefik.http.routers.#{router_name}-http.middlewares"] = redirect_middleware if redirect_middleware
+    # Only add redirect middleware when the domain supports SSL (otherwise
+    # there's no HTTPS to redirect to — e.g. sslip.io / nip.io domains).
+    labels["traefik.http.routers.#{router_name}-http.middlewares"] = redirect_middleware if redirect_middleware && supports_ssl
     labels["traefik.http.routers.#{router_name}-http.service"] = service_name
 
-    # HTTPS router
-    labels["traefik.http.routers.#{router_name}-https.rule"] = domain.traefik_rule
-    labels["traefik.http.routers.#{router_name}-https.entrypoints"] = https_entrypoint
-    labels["traefik.http.routers.#{router_name}-https.tls"] = "true"
-    labels["traefik.http.routers.#{router_name}-https.tls.certresolver"] = cert_resolver if cert_resolver
-    labels["traefik.http.routers.#{router_name}-https.service"] = service_name
+    # HTTPS router — only when the domain supports SSL
+    if supports_ssl
+      labels["traefik.http.routers.#{router_name}-https.rule"] = domain.traefik_rule
+      labels["traefik.http.routers.#{router_name}-https.entrypoints"] = https_entrypoint
+      labels["traefik.http.routers.#{router_name}-https.tls"] = "true"
+      labels["traefik.http.routers.#{router_name}-https.tls.certresolver"] = cert_resolver if cert_resolver
+      labels["traefik.http.routers.#{router_name}-https.service"] = service_name
+
+      # Wildcard cert request
+      if domain.wildcard?
+        labels["traefik.http.routers.#{router_name}-https.tls.domains[0].main"] = domain.base_hostname
+        labels["traefik.http.routers.#{router_name}-https.tls.domains[0].sans"] = domain.hostname
+      end
+    end
 
     # Service target port
     labels["traefik.http.services.#{service_name}.loadbalancer.server.port"] = target.to_s
-
-    # Wildcard cert request
-    if domain.wildcard?
-      labels["traefik.http.routers.#{router_name}-https.tls.domains[0].main"] = domain.base_hostname
-      labels["traefik.http.routers.#{router_name}-https.tls.domains[0].sans"] = domain.hostname
-    end
 
     labels
   end

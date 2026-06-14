@@ -76,7 +76,10 @@ class ProjectNetworkManager
     if service.service_type_app? && project.server&.external_proxy?
       networks << project.server.external_proxy_network
     end
-    engine.run("network:set #{service.dokku_app_name} attach-post-create #{networks.compact_blank.join(' ')}")
+    # Use attach-post-deploy instead of attach-post-create to avoid a Dokku
+    # bug where attach-post-create only attaches the first network (early return).
+    # attach-post-deploy correctly iterates all networks and runs after health checks.
+    engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{networks.compact_blank.join(' ')}")
   end
 
   def disconnect_service(service)
