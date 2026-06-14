@@ -79,6 +79,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const [builder, setBuilder] = useState('auto')
   const [dockerImage, setDockerImage] = useState('')
   const [rootDirectory, setRootDirectory] = useState('')
+  const [repoSearch, setRepoSearch] = useState('')
 
   // Database
   const [dbType, setDbType] = useState('postgres')
@@ -89,6 +90,14 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const { data: reposData, isLoading: reposLoading } = useGitSourceRepos(selectedGitSource?.id)
   const repos = reposData?.repos || []
   const reposSyncing = reposData?.syncing || false
+
+  const filteredRepos = useMemo(() => {
+    if (!repoSearch.trim()) return repos
+    const q = repoSearch.toLowerCase()
+    return repos.filter((r: GitRepo) =>
+      r.fullName?.toLowerCase().includes(q)
+    )
+  }, [repos, repoSearch])
 
   const selectedRepo = useMemo(() => {
     return repos.find((r: GitRepo) => (r.cloneUrl || r.fullName) === gitRepo)
@@ -256,8 +265,23 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                   {reposLoading ? (
                     <div className="h-10 bg-white/[0.03] rounded-lg animate-pulse" />
                   ) : repos.length > 0 ? (
-                    <div className="max-h-40 overflow-y-auto border border-white/[0.06] rounded-lg divide-y divide-white/[0.04]">
-                      {repos.map((repo: GitRepo) => (
+                    <>
+                      <div className="relative mb-1.5">
+                        <input
+                          value={repoSearch}
+                          onChange={(e) => setRepoSearch(e.target.value)}
+                          placeholder="Search repositories..."
+                          className="w-full bg-black/40 border border-white/[0.08] rounded-lg pl-7 pr-3 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                        />
+                        <svg className="absolute left-2 top-1/2 -translate-y-1/2 text-white/20" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      </div>
+                      {filteredRepos.length === 0 ? (
+                        <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                          No repositories match "{repoSearch}"
+                        </div>
+                      ) : (
+                      <div className="max-h-40 overflow-y-auto border border-white/[0.06] rounded-lg divide-y divide-white/[0.04]">
+                      {filteredRepos.map((repo: GitRepo) => (
                         <button
                           key={repo.id}
                           onClick={() => handleSelectRepo(repo)}
@@ -275,7 +299,9 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                           {gitRepo === (repo.cloneUrl || repo.fullName) && <Check size={12} />}
                         </button>
                       ))}
-                    </div>
+                      </div>
+                      )}
+                    </>
                   ) : (
                     <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
                       {reposSyncing

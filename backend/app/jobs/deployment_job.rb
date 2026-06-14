@@ -124,6 +124,14 @@ class DeploymentJob < ApplicationJob
     branch_result = engine.git_set_deploy_branch(service.dokku_app_name, deployment.branch || service.branch || "main")
     return mark_failed(deployment, service, "Git deploy branch configuration failed", branch_result[:output]) unless branch_result[:success]
 
+    # 8.5. Set builder on the Dokku app so the correct buildpack is used.
+    #      The service.builder field is set by the user in the UI; "auto" or
+    #      nil means let Dokku auto-detect (no explicit builder:set).
+    if service.builder.present? && service.builder != "auto" && !service.docker_image.present?
+      builder_result = engine.builder_set(service.dokku_app_name, service.builder)
+      return mark_failed(deployment, service, "Builder configuration failed", builder_result[:output]) unless builder_result[:success]
+    end
+
     # 9. Deploy (with real-time log streaming)
     deployment.update!(status: :building)
     service.update!(status: :building)

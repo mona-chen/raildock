@@ -172,6 +172,10 @@ class DokkuEngine
     run("apps:destroy #{escape(app_name)} --force")
   end
 
+  def builder_set(app_name, builder_type)
+    run("builder:set #{escape(app_name)} selected #{escape(builder_type)}")
+  end
+
   def app_exists?(app_name)
     result = run("apps:exists #{escape(app_name)}")
     result[:success]

@@ -143,6 +143,11 @@ RSpec.describe DokkuEngine, type: :service do
       expect(engine.app_destroy("myapp")[:success]).to be true
     end
 
+    it "#builder_set generates the correct command" do
+      expect(engine).to receive(:run).with("builder:set myapp selected nixpacks").and_return({ success: true, output: "" })
+      expect(engine.builder_set("myapp", "nixpacks")[:success]).to be true
+    end
+
     it "#app_exists? returns true when run succeeds" do
       allow(engine).to receive(:run).with("apps:exists myapp").and_return({ success: true, output: "" })
       expect(engine.app_exists?("myapp")).to be true

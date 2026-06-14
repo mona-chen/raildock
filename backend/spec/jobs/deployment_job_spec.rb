@@ -49,7 +49,8 @@ RSpec.describe DeploymentJob, type: :job do
   before do
     create_list(:environment_variable, 2, service: service)
     create_list(:domain, 2, service: service)
-    create_list(:storage_mount, 2, service: service)
+    create(:storage_mount, service: service, host_path: "/var/lib/dokku/data/storage/mount-a")
+    create(:storage_mount, service: service, host_path: "/var/lib/dokku/data/storage/mount-b")
     create(:process_type, service: service, name: "web", quantity: 2)
     create(:process_type, service: service, name: "worker", quantity: 1)
 
@@ -75,6 +76,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:resource_limit).and_return({ success: true, output: "" })
     allow(engine).to receive(:ports_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:ports_clear).and_return({ success: true, output: "" })
+    allow(engine).to receive(:builder_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:git_set_deploy_branch).and_return({ success: true, output: "" })
     allow(engine).to receive(:run).and_return({ success: true, output: "synced" })
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
