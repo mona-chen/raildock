@@ -16,16 +16,14 @@ class SslStatusChecker
     end
 
     # Auto-detect Cloudflare — if domain resolves to CF IPs, SSL is
-    # handled by Cloudflare, not by Traefik. Downgrade to HTTP-only.
+    # handled by Cloudflare. Keep TLS labels (Cloudflare in Full mode
+    # connects to origin over HTTPS and accepts Traefik's default cert).
     if !domain.wildcard? && CloudflareDetector.cloudflare?(domain.hostname)
       domain.update!(
-        ssl: false,
-        ssl_status: "none",
-        ssl_status_message: "Domain is behind Cloudflare — SSL is handled by Cloudflare, not by Traefik.",
+        ssl_status: "active",
+        ssl_status_message: "Managed by Cloudflare",
         ssl_checked_at: Time.current
       )
-      # Re-generate labels without TLS
-      regenerate_labels_without_tls(domain)
       return
     end
 
@@ -72,19 +70,6 @@ class SslStatusChecker
   private
 
   attr_reader :host_engine
-
-  def regenerate_labels_without_tls(domain)
-    service = domain.service
-    return unless service
-
-    server = service.project&.server
-    return unless server&.external_proxy?
-
-    engine = DokkuEngine.new(server)
-    ExternalProxyConfigurator.new(service, engine, host_engine).apply!
-  rescue => e
-    Rails.logger.warn "Failed to regenerate labels for #{domain.hostname}: #{e.message}"
-  end
 
   def probe_certificate(hostname)
     # Use openssl s_client to check if a valid cert exists.

@@ -19,10 +19,8 @@ module Api
       use_ssl = false if magic
 
       # Auto-detect Cloudflare — if domain resolves to CF IPs, SSL is
-      # handled by Cloudflare, not by Traefik. Skip TLS labels.
-      if use_ssl && !is_wildcard && CloudflareDetector.cloudflare?(domain_params[:hostname])
-        use_ssl = false
-      end
+      # handled by Cloudflare. Keep TLS labels (Cloudflare in Full mode
+      # connects to origin over HTTPS and accepts Traefik's default cert).
 
       domain = @service.domains.create!(
         hostname: domain_params[:hostname],
