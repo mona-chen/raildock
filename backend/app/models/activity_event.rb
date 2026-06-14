@@ -1,7 +1,7 @@
 class ActivityEvent < ApplicationRecord
   belongs_to :project
 
-  validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed warning] }
+  validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed warning rebuilt] }
   validates :message, presence: true
 
   enum :action, {
@@ -14,7 +14,8 @@ class ActivityEvent < ApplicationRecord
     unlinked: "unlinked",
     created: "created",
     destroyed: "destroyed",
-    warning: "warning"
+    warning: "warning",
+    rebuilt: "rebuilt"
   }, prefix: true
 
   default_scope { order(created_at: :desc) }
