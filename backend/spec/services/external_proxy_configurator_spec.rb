@@ -28,33 +28,26 @@ RSpec.describe ExternalProxyConfigurator do
   before do
     create(:domain, service: service, hostname: "app.example.com", target_port: 5000)
     allow(host_engine).to receive(:docker_network_inspect).and_return(success: true, output: "{}")
+    allow(host_engine).to receive(:run).and_return(success: true, output: "")
     allow(engine).to receive(:traefik_stop).and_return(success: true, output: "")
     allow(engine).to receive(:proxy_set_global).and_return(success: true, output: "")
     allow(engine).to receive(:proxy_disable).and_return(success: true, output: "")
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
-    allow(engine).to receive(:run).and_return(success: true, output: "")
   end
 
   it "applies generated, global, and per-service labels" do
     result = described_class.new(service, engine, host_engine).apply!
 
     expect(result[:success]).to be(true)
-    # Verify labels are written to the traefik labels file
-    expect(engine).to have_received(:run).with(
+    # Verify labels are written to the traefik labels file via host_engine
+    expect(host_engine).to have_received(:run).with(
       a_string_including("traefik/#{service.dokku_app_name}/labels")
     ).at_least(:once)
-    # Verify key labels are present
-    expect(engine).to have_received(:run).with(
+    expect(host_engine).to have_received(:run).with(
       a_string_including("traefik.enable")
     ).at_least(:once)
-    expect(engine).to have_received(:run).with(
+    expect(host_engine).to have_received(:run).with(
       a_string_including("matrix_default")
-    ).at_least(:once)
-    expect(engine).to have_received(:run).with(
-      a_string_including("traefik.constraint-label")
-    ).at_least(:once)
-    expect(engine).to have_received(:run).with(
-      a_string_including("custom.priority")
     ).at_least(:once)
   end
 

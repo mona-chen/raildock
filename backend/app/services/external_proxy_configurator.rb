@@ -75,13 +75,13 @@ class ExternalProxyConfigurator
     # Remove existing entry for this key, then append new value, then sort+dedup
     file = labels_file
     escaped_key = key.gsub(".", '\\.')
-    engine.run("touch #{file} && sed -i '/^#{escaped_key}=/d' #{file} && echo #{Shellwords.escape("#{key}=#{value}")} >> #{file} && sort -u -o #{file} #{file}")[:success]
+    host_engine.run("touch #{file} && sed -i '/^#{escaped_key}=/d' #{file} && echo #{Shellwords.escape("#{key}=#{value}")} >> #{file} && sort -u -o #{file} #{file}")[:success]
   end
 
   def remove_label(key, value)
     file = labels_file
     escaped_key = key.gsub(".", '\\.')
-    engine.run("test -f #{file} && sed -i '/^#{escaped_key}=/d' #{file} || true")[:success]
+    host_engine.run("test -f #{file} && sed -i '/^#{escaped_key}=/d' #{file} || true")[:success]
   end
 
   def labels_file
