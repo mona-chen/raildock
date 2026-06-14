@@ -195,10 +195,12 @@ ensure_builder_binaries() {
 
   if ! command -v nixpacks >/dev/null 2>&1; then
     log_info "Installing nixpacks..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/railwayapp/nixpacks/master/install.sh)" 2>/dev/null || {
+    if bash -c "$(curl -fsSL https://raw.githubusercontent.com/railwayapp/nixpacks/master/install.sh)"; then
+      log_ok "nixpacks installed"
+    else
       log_warn "Failed to install nixpacks — app builds using the nixpacks builder will fail"
       log_warn "Install manually: curl -fsSL https://nixpacks.com/install.sh | bash"
-    }
+    fi
   else
     log_ok "nixpacks $(nixpacks --version 2>/dev/null | head -1) is installed"
   fi
