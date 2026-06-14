@@ -42,10 +42,8 @@ module Api
     def destroy
       domain = @service.domains.find_by!(hostname: params[:hostname])
 
-      # Sync to Dokku
-      sync_to_dokku(:remove, domain)
-
       domain.destroy!
+      sync_to_dokku(:remove, domain)
       head :no_content
     end
 
@@ -71,8 +69,22 @@ module Api
         sync_standard_to_dokku(action, domain, engine)
       end
 
-      # Always sync port mapping so the domain routes to the right container port
-      sync_port_mapping(domain, engine)
+      if @service.project.server.external_proxy?
+        refresh_external_proxy(engine)
+      else
+        sync_port_mapping(domain, engine)
+      end
+    end
+
+    def refresh_external_proxy(engine)
+      server = @service.project.server
+      result = ExternalProxyConfigurator.new(@service.reload, engine, HostEngine.new(server)).apply!
+      raise "External proxy configuration failed: #{result[:output]}" unless result[:success]
+
+      if @service.running?
+        rebuild_result = engine.ps_rebuild(@service.dokku_app_name)
+        raise "External proxy rebuild failed: #{rebuild_result[:output]}" unless rebuild_result[:success]
+      end
     end
 
     def sync_standard_to_dokku(action, domain, engine)

@@ -455,11 +455,8 @@ class ManifestReconciler
     app_result = engine.app_create(app_name)
     return app_result unless app_result[:success]
 
-    # In external mode, keep proxy as traefik so the plugin's deploy hooks
-    # apply labels from the labels file to containers.
     if @project.server.external_proxy?
-      engine.proxy_set(app_name, "traefik")
-      # Write labels and set network attachment so rebuild works before first deploy
+      # Apply labels and network attachment before the first deploy.
       svc = Service.find_by(dokku_app_name: app_name)
       if svc
         ExternalProxyConfigurator.new(svc, engine, @host_engine).apply!
@@ -928,5 +925,4 @@ class ManifestReconciler
     config["depends_on"] = svc[:depends_on] if svc[:depends_on].present?
     config
   end
-
 end

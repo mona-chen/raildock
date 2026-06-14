@@ -1,5 +1,3 @@
-require "shellwords"
-
 class ExternalProxyConfigurator
   MANAGED_LABELS_KEY = "_externalProxyLabels"
 
@@ -16,24 +14,26 @@ class ExternalProxyConfigurator
     network_result = host_engine.docker_network_inspect(server.external_proxy_network)
     return { success: false, output: "External proxy network '#{server.external_proxy_network}' was not found" } unless network_result[:success]
 
-    # Stop Dokku's managed Traefik so it doesn't conflict with the external one.
-    # Keep proxy type as traefik so the plugin's deploy hooks still run
-    # and apply labels from the traefik labels file to containers.
+    # External mode owns routing labels directly. Disabling Dokku's proxy keeps
+    # the traefik-vhosts hook from adding its own routers to the container.
     engine.traefik_stop
+    proxy_result = engine.proxy_disable(service.dokku_app_name)
+    return proxy_result unless proxy_result[:success]
 
-    # Clear port mappings — external Traefik handles routing via Docker labels.
-    # Do NOT disable the proxy — the traefik plugin's deploy hooks need it
-    # enabled to read the labels file and apply labels to containers.
     ports_result = engine.ports_clear(service.dokku_app_name)
     return ports_result unless ports_result[:success]
 
     new_labels = build_labels
+    previous_labels = service.config&.fetch(MANAGED_LABELS_KEY, {}) || {}
 
-    # Always write ALL labels to the file (not just the diff).
-    # The traefik plugin's deploy hooks read from this file and apply
-    # labels to containers during deploy and rebuild.
-    # First clear the file, then write all labels fresh.
+    # Remove the legacy labels file so upgrading installations cannot receive
+    # a second copy if the Dokku proxy is later re-enabled manually.
     host_engine.run("truncate -s 0 #{labels_file} || true")
+
+    previous_labels.each do |key, value|
+      remove_label(key, value)
+    end
+
     new_labels.each do |key, value|
       return failure("add label #{key}") unless add_label(key, value)
     end
@@ -62,23 +62,22 @@ class ExternalProxyConfigurator
     server.external_proxy_default_labels.to_h.merge(generated).merge(configured).transform_values(&:to_s)
   end
 
-  # Use Dokku's proxy labels file (traefik/<app>/labels) which the scheduler
-  # reads and wraps in single quotes — safe for backticks in Host() rules.
-  # This is how Dokku's own traefik plugin stores labels.
-  # We write directly via SSH instead of proxy:labels:add to avoid its
-  # shell parser issues with parentheses and backticks.
-  # TODO: Verify whether docker-options:add is a Dokku bug and file upstream.
   def add_label(key, value)
-    # Remove existing entry for this key, then append new value, then sort+dedup
-    file = labels_file
-    escaped_key = key.gsub(".", '\\.')
-    host_engine.run("touch #{file} && sed -i '/^#{escaped_key}=/d' #{file} && echo #{Shellwords.escape("#{key}=#{value}")} >> #{file} && sort -u -o #{file} #{file}")[:success]
+    engine.docker_option_add(
+      service.dokku_app_name,
+      "deploy",
+      "--label #{key}=#{value}",
+      process: "web"
+    )[:success]
   end
 
   def remove_label(key, value)
-    file = labels_file
-    escaped_key = key.gsub(".", '\\.')
-    host_engine.run("test -f #{file} && sed -i '/^#{escaped_key}=/d' #{file} || true")[:success]
+    engine.docker_option_remove(
+      service.dokku_app_name,
+      "deploy",
+      "--label #{key}=#{value}",
+      process: "web"
+    )
   end
 
   def labels_file

@@ -447,12 +447,14 @@ class DokkuEngine
 
   # ── Docker Options ───────────────────────────
 
-  def docker_option_add(app_name, phase, option)
-    run("docker-options:add #{escape(app_name)} #{escape(phase)} #{escape(option)}")
+  def docker_option_add(app_name, phase, option, process: nil)
+    process_arg = process.present? ? "--process #{escape(process)} " : ""
+    run("docker-options:add #{process_arg}#{escape(app_name)} #{escape(phase)} #{escape(option)}")
   end
 
-  def docker_option_remove(app_name, phase, option)
-    run("docker-options:remove #{escape(app_name)} #{escape(phase)} #{escape(option)}")
+  def docker_option_remove(app_name, phase, option, process: nil)
+    process_arg = process.present? ? "--process #{escape(process)} " : ""
+    run("docker-options:remove #{process_arg}#{escape(app_name)} #{escape(phase)} #{escape(option)}")
   end
 
   # ── Resource Limits ──────────────────────────

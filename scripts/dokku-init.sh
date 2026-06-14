@@ -119,16 +119,13 @@ dokku traefik:set --global log-level "INFO" || true
 
 # ── Set Global Proxy to Traefik ────────────────────────────────
 
-# Always set proxy to traefik so the plugin's deploy hooks run and apply
-# labels to containers. In external mode, we just don't start the Traefik
-# container — the external Traefik handles routing via Docker labels.
-echo "[raildock-init] Setting global proxy to traefik..."
-dokku proxy:set --global traefik || true
-
 if [ "${PROXY_MODE:-managed}" = "external" ]; then
-  echo "[raildock-init] External proxy mode — stopping Dokku Traefik (external Traefik handles routing)..."
+  echo "[raildock-init] External proxy mode — disabling Dokku proxy and stopping Dokku Traefik..."
+  dokku proxy:set --global none || true
   dokku traefik:stop 2>/dev/null || true
 else
+  echo "[raildock-init] Setting global proxy to traefik..."
+  dokku proxy:set --global traefik || true
   echo "[raildock-init] Starting traefik..."
   dokku traefik:start || echo "[raildock-init] Traefik start attempted"
 fi

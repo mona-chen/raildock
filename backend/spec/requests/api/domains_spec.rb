@@ -16,6 +16,30 @@ RSpec.describe "Domains API", type: :request do
       expect(service.domains.count).to eq(1)
     end
 
+    context "with an external proxy" do
+      let(:server) { create(:server, proxy_mode: "external", external_proxy_network: "traefik") }
+      let(:engine) { instance_double(DokkuEngine) }
+      let(:host_engine) { instance_double(HostEngine) }
+      let(:configurator) { instance_double(ExternalProxyConfigurator, apply!: { success: true }) }
+
+      before do
+        allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+        allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
+        allow(ExternalProxyConfigurator).to receive(:new).and_return(configurator)
+        allow(engine).to receive(:domain_add).and_return(success: true, output: "")
+        allow(engine).to receive(:ps_rebuild).and_return(success: true, output: "")
+      end
+
+      it "refreshes all labels and rebuilds the running container" do
+        post "/api/services/#{service.id}/domains",
+          params: { hostname: "api.example.com" },
+          headers: auth_headers
+
+        expect(configurator).to have_received(:apply!)
+        expect(engine).to have_received(:ps_rebuild).with(service.dokku_app_name)
+      end
+    end
+
     it "returns 422 with invalid data" do
       post "/api/services/#{service.id}/domains",
         params: { hostname: "" },

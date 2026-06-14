@@ -7,7 +7,7 @@ class TraefikLabelBuilder
   end
 
   def build_labels
-    target = domain.target_port || service.detected_port || service.port || 5000
+    target = service.detected_port || domain.target_port || service.port || 5000
     router_name = "#{app_name}-#{domain.base_hostname.parameterize}"
     service_name = "#{app_name}-web"
     http_entrypoint = server&.external_proxy_http_entrypoint.presence || "web"

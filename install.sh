@@ -262,11 +262,11 @@ configure_dokku_proxy() {
       log_error "PROXY_MODE=external requires EXTERNAL_PROXY_NETWORK"
       exit 1
     fi
-    log_step "Configuring external proxy mode — stopping Dokku Traefik..."
+    log_step "Configuring external proxy mode — disabling Dokku proxy..."
+
+    dokku proxy:set --global none 2>/dev/null || true
 
     # Stop Dokku's managed Traefik so it doesn't conflict with the external one.
-    # Keep proxy type as traefik so the plugin's deploy hooks still run
-    # and apply labels to containers from the traefik labels file.
     if docker ps --filter "name=traefik-traefik-1" --format "{{.Names}}" | grep -q "traefik-traefik-1"; then
       dokku traefik:stop 2>/dev/null || true
       log_ok "Stopped Dokku Traefik"

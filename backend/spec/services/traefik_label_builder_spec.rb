@@ -56,4 +56,13 @@ RSpec.describe TraefikLabelBuilder do
     expect(labels).not_to have_key("traefik.http.routers.#{router}-https.rule")
     expect(labels).not_to have_key("traefik.http.routers.#{router}-https.tls")
   end
+
+  it "prefers the detected container port over a stale domain default" do
+    service = create(:service, detected_port: 8201)
+    domain = create(:domain, service: service, target_port: 80)
+
+    labels = described_class.new(service, domain).build_labels
+
+    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("8201")
+  end
 end

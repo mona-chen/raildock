@@ -342,6 +342,11 @@ RSpec.describe DokkuEngine, type: :service do
       expect(engine).to receive(:run).with("docker-options:remove myapp deploy --restart\\=on-failure").and_return({ success: true, output: "" })
       engine.docker_option_remove("myapp", "deploy", "--restart=on-failure")
     end
+
+    it "#docker_option_add scopes an option to a process" do
+      expect(engine).to receive(:run).with("docker-options:add --process web myapp deploy --label\\ traefik.enable\\=true").and_return({ success: true, output: "" })
+      engine.docker_option_add("myapp", "deploy", "--label traefik.enable=true", process: "web")
+    end
   end
 
   describe "resource limit methods" do
