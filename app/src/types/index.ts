@@ -105,6 +105,10 @@ export interface Domain {
   letsencrypt: boolean
   temporary?: boolean
   wildcard?: boolean
+  sslStatus: 'none' | 'pending' | 'active' | 'failed'
+  sslStatusMessage?: string
+  sslExpiresAt?: string
+  challengeType: 'http' | 'dns'
 }
 
 export interface StorageMount {

@@ -46,7 +46,9 @@ class TemporaryDomainService
       target_port: target_port,
       ssl: use_ssl,
       letsencrypt: use_ssl,
-      temporary: true
+      temporary: true,
+      ssl_status: use_ssl ? "pending" : "none",
+      challenge_type: "http"
     )
 
     if engine && @server.ssh_key.present?

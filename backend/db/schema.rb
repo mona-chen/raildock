@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_13_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_14_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -86,17 +86,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_020000) do
   end
 
   create_table "domains", force: :cascade do |t|
+    t.string "challenge_type", default: "http", null: false
     t.datetime "created_at", null: false
     t.string "hostname"
     t.boolean "letsencrypt"
     t.integer "port"
     t.bigint "service_id", null: false
     t.boolean "ssl"
+    t.datetime "ssl_checked_at"
+    t.datetime "ssl_expires_at"
+    t.string "ssl_status", default: "none", null: false
+    t.string "ssl_status_message"
     t.integer "target_port", default: 80
     t.boolean "temporary", default: false, null: false
     t.datetime "updated_at", null: false
     t.boolean "wildcard", default: false
     t.index ["service_id"], name: "index_domains_on_service_id"
+    t.index ["ssl_status"], name: "index_domains_on_ssl_status"
     t.index ["temporary"], name: "index_domains_on_temporary"
   end
 
@@ -209,6 +215,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_020000) do
     t.string "default_proxy"
     t.integer "disk_total"
     t.integer "disk_used"
+    t.text "dns_challenge_credentials_ciphertext"
+    t.string "dns_challenge_provider"
     t.string "docker_version"
     t.string "dokku_version"
     t.string "external_proxy_cert_resolver"

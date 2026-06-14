@@ -301,6 +301,11 @@ class DeploymentJob < ApplicationJob
       message: "Deployment completed successfully",
       completed_at: Time.current.iso8601
     })
+
+    # 16. Check SSL certificate status for all domains
+    if server.external_proxy?
+      SslStatusChecker.new(host_engine).check_service(service)
+    end
   end
 
   private

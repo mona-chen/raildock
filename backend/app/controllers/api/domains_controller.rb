@@ -7,13 +7,26 @@ module Api
       is_wildcard = domain_params[:hostname].to_s.start_with?("*.")
       target = domain_params[:target_port].presence || @service.detected_port || 80
 
+      use_ssl = domain_params[:ssl] != false
+      challenge = if is_wildcard
+        "dns"  # Wildcards require DNS challenge
+      else
+        domain_params[:challenge_type].presence || "http"
+      end
+
+      # Magic domains (sslip.io, nip.io) can't get SSL certs
+      magic = Domain::MAGIC_DOMAINS.any? { |m| domain_params[:hostname].to_s.end_with?(".#{m}") }
+      use_ssl = false if magic
+
       domain = @service.domains.create!(
         hostname: domain_params[:hostname],
-        port: domain_params[:port] || 443,
+        port: use_ssl ? (domain_params[:port] || 443) : (domain_params[:port] || 80),
         target_port: target,
-        ssl: domain_params[:ssl] != false,
-        letsencrypt: domain_params[:letsencrypt] != false,
-        wildcard: is_wildcard
+        ssl: use_ssl,
+        letsencrypt: use_ssl && domain_params[:letsencrypt] != false,
+        wildcard: is_wildcard,
+        ssl_status: use_ssl ? "pending" : "none",
+        challenge_type: challenge
       )
 
       # Sync to Dokku
