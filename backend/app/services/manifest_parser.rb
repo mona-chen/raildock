@@ -608,26 +608,17 @@ def normalize_env(env)
   def resolve_shared_vars(value, project)
     return value unless value.include?("[SHARED:") || value.match?(/\$\{\{\s*shared\./)
 
+    shared_vars = project&.shared_var_map || {}
     result = value.dup
     # Handle pre-parsed [SHARED:X] markers
     result.gsub!(/\[SHARED:([A-Za-z_][A-Za-z0-9_]*)\]/) do
       var_name = $1
-      if project && project.respond_to?(:project_variables)
-        shared_var = project.project_variables.find_by(key: var_name)
-        shared_var&.value || "[SHARED:#{var_name}]"
-      else
-        "[SHARED:#{var_name}]"
-      end
+      shared_vars.fetch(var_name, "[SHARED:#{var_name}]")
     end
     # Handle raw ${{ shared.VAR }} syntax
     result.gsub!(/\$\{\{\s*shared\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
       var_name = $1
-      if project && project.respond_to?(:project_variables)
-        shared_var = project.project_variables.find_by(key: var_name)
-        shared_var&.value || "[SHARED:#{var_name}]"
-      else
-        "[SHARED:#{var_name}]"
-      end
+      shared_vars.fetch(var_name, "[SHARED:#{var_name}]")
     end
     result
   end

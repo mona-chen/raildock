@@ -45,7 +45,7 @@ module Api
     def shared_vars
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
-      project.update!(shared_vars: params[:vars] || [])
+      project.update!(shared_vars: params[:vars] || params.dig(:project, :vars) || [])
       render json: project
     end
 

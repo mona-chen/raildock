@@ -54,6 +54,23 @@ RSpec.describe Project, type: :model do
     end
   end
 
+  describe "#shared_var_map" do
+    it "normalizes current object entries and legacy KEY=value entries" do
+      project = build(
+        :project,
+        shared_vars: [
+          { "key" => "API_KEY", "value" => "secret" },
+          "LEGACY=value"
+        ]
+      )
+
+      expect(project.shared_var_map).to eq(
+        "API_KEY" => "secret",
+        "LEGACY" => "value"
+      )
+    end
+  end
+
   describe "#as_json" do
     let(:project) { create(:project) }
 

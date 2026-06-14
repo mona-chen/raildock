@@ -76,6 +76,19 @@ class Project < ApplicationRecord
     read_attribute(:shared_vars) || []
   end
 
+  def shared_var_map
+    shared_vars.each_with_object({}) do |variable, result|
+      if variable.is_a?(Hash)
+        key = variable["key"] || variable[:key]
+        value = variable["value"] || variable[:value]
+      else
+        key, value = variable.to_s.split("=", 2)
+      end
+
+      result[key] = value if key.present?
+    end
+  end
+
   def manifest_synced?
     return false if manifest_last_applied_at.nil?
     manifest_last_synced_at.present? && manifest_last_applied_at >= manifest_last_synced_at

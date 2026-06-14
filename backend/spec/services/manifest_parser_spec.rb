@@ -250,6 +250,14 @@ RSpec.describe ManifestParser do
       expect(result).to eq("[LINKED:postgres:DATABASE_URL]")
     end
 
+    it "resolves shared markers from the project's shared variable objects" do
+      project = build(:project, shared_vars: [ { key: "API_KEY", value: "secret" } ])
+
+      result = described_class.resolve_runtime("[SHARED:API_KEY]", project, nil, [])
+
+      expect(result).to eq("secret")
+    end
+
     it 'allows hyphens in linked service names' do
       result = resolve('${{ linked.coder-database.DATABASE_URL }}')
       expect(result).to eq("[LINKED:coder-database:DATABASE_URL]")

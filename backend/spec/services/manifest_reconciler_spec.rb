@@ -105,6 +105,26 @@ RSpec.describe ManifestReconciler do
   end
 
   describe "#apply!" do
+    it "creates manifest domains with valid proxy ports" do
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:port] = 3000
+      definition[:domains] = [ "app.example.com" ]
+      reconciler = described_class.new(project, desired_state(services: [ definition ]))
+      reconciler.diff
+      engine = instance_double(DokkuEngine)
+      host_engine = instance_double(HostEngine)
+
+      allow(engine).to receive(:app_create).and_return(success: true)
+      allow(engine).to receive(:proxy_set).and_return(success: true)
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(engine, host_engine: host_engine)
+
+      domain = project.services.find_by!(name: "web").domains.find_by!(hostname: "app.example.com")
+      expect(result[:success]).to be(true)
+      expect(domain).to have_attributes(port: 443, target_port: 3000, ssl: true, letsencrypt: true)
+    end
+
     it "creates a directed Dokku database link before persisting the link record" do
       web = create(:service, project: project, name: "web", managed_by: :manifest)
       postgres = create(:service, :database, project: project, name: "postgres", managed_by: :manifest)

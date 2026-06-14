@@ -10,6 +10,7 @@
 class ManifestGenerator
   def initialize(project)
     @project = project
+    @shared_vars = project.shared_var_map
   end
 
   def generate(format: :toml)
@@ -63,7 +64,7 @@ class ManifestGenerator
     # Env vars (skip dokku-internal link vars)
     user_env = svc.environment_variables.reject(&:is_dokku_internal)
     if user_env.any?
-      h[:env] = user_env.map { |ev| [ ev.key, ev.value ] }.to_h
+      h[:env] = user_env.map { |ev| [ ev.key, manifest_env_value(ev) ] }.to_h
     end
 
     # Domains
@@ -159,6 +160,27 @@ class ManifestGenerator
     end
 
     h
+  end
+
+  def manifest_env_value(environment_variable)
+    value = environment_variable.value.to_s
+
+    return "${{ RAILDOCK_PUBLIC_DOMAIN }}" if value == "[RAILDOCK_PUBLIC_DOMAIN]"
+
+    if (match = value.match(/\A\[SHARED:([A-Za-z_][A-Za-z0-9_]*)\]\z/))
+      return "${{ shared.#{match[1]} }}"
+    end
+
+    if (match = value.match(/\A\[LINKED:([A-Za-z][A-Za-z0-9_-]*):([A-Za-z_][A-Za-z0-9_]*)\]\z/))
+      return "${{ linked.#{match[1]}.#{match[2]} }}"
+    end
+
+    if @shared_vars.key?(environment_variable.key) &&
+        @shared_vars[environment_variable.key].to_s == value
+      return "${{ shared.#{environment_variable.key} }}"
+    end
+
+    value
   end
 
   def to_toml(desired)

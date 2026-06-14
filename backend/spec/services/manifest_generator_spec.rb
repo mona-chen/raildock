@@ -94,6 +94,20 @@ RSpec.describe ManifestGenerator do
         expect(web[:domains]).to include("api.example.com")
         expect(web[:proxy][:type]).to eq("traefik")
       end
+
+      it 'renders shared and runtime variables as manifest expressions' do
+        project.update!(shared_vars: [ { key: "API_KEY", value: "super-secret" } ])
+        @web.environment_variables.create!(key: "API_KEY", value: "super-secret")
+        @web.environment_variables.create!(key: "PUBLIC_HOST", value: "[RAILDOCK_PUBLIC_DOMAIN]")
+        @web.environment_variables.create!(key: "DATABASE_URL", value: "[LINKED:database:DATABASE_URL]")
+
+        toml = described_class.new(project).generate(format: :toml)
+
+        expect(toml).to include('API_KEY = "${{ shared.API_KEY }}"')
+        expect(toml).to include('PUBLIC_HOST = "${{ RAILDOCK_PUBLIC_DOMAIN }}"')
+        expect(toml).to include('DATABASE_URL = "${{ linked.database.DATABASE_URL }}"')
+        expect(toml).not_to include("super-secret")
+      end
     end
   end
 end

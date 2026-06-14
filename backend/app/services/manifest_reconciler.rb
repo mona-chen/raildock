@@ -409,7 +409,16 @@ class ManifestReconciler
 
       # Create domains
       (svc[:domains] || []).each do |hostname|
-        service.domains.create!(hostname: hostname)
+        magic_domain = Domain::MAGIC_DOMAINS.any? { |domain| hostname.end_with?(".#{domain}") }
+        use_ssl = !magic_domain
+        service.domains.create!(
+          hostname: hostname,
+          port: use_ssl ? 443 : 80,
+          target_port: svc[:port].presence || 80,
+          ssl: use_ssl,
+          letsencrypt: use_ssl,
+          ssl_status: use_ssl ? "pending" : "none"
+        )
       end
 
       # Auto-provision a temporary domain for web services when the server

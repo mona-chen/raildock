@@ -136,6 +136,23 @@ RSpec.describe "Api::ProjectsController", type: :request do
         expect(json["shared_vars"]).to contain_exactly("KEY=value", "FOO=bar")
       end
 
+      it "accepts the object entries sent by the frontend" do
+        vars = [
+          { key: "API_KEY", value: "secret" },
+          { key: "PUBLIC_URL", value: "https://example.com" }
+        ]
+
+        patch "/api/projects/#{project.id}/shared_vars",
+          params: { project: { vars: vars } }.to_json,
+          headers: auth_headers(user).merge("Content-Type" => "application/json")
+
+        expect(response).to have_http_status(:ok)
+        expect(project.reload.shared_var_map).to eq(
+          "API_KEY" => "secret",
+          "PUBLIC_URL" => "https://example.com"
+        )
+      end
+
       it "clears shared vars when empty array passed" do
         patch "/api/projects/#{project.id}/shared_vars", params: { vars: [] }.to_json, headers: auth_headers(user).merge("Content-Type" => "application/json")
 
