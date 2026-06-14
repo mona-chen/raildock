@@ -18,6 +18,12 @@ module Api
       magic = Domain::MAGIC_DOMAINS.any? { |m| domain_params[:hostname].to_s.end_with?(".#{m}") }
       use_ssl = false if magic
 
+      # Auto-detect Cloudflare — if domain resolves to CF IPs, SSL is
+      # handled by Cloudflare, not by Traefik. Skip TLS labels.
+      if use_ssl && !is_wildcard && CloudflareDetector.cloudflare?(domain_params[:hostname])
+        use_ssl = false
+      end
+
       domain = @service.domains.create!(
         hostname: domain_params[:hostname],
         port: use_ssl ? (domain_params[:port] || 443) : (domain_params[:port] || 80),
