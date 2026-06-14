@@ -16,10 +16,10 @@ class ExternalProxyConfigurator
     network_result = host_engine.docker_network_inspect(server.external_proxy_network)
     return { success: false, output: "External proxy network '#{server.external_proxy_network}' was not found" } unless network_result[:success]
 
-    # Stop Dokku's managed Traefik and disable the global proxy plugin.
-    # These are idempotent — safe to call on every deploy.
+    # Stop Dokku's managed Traefik so it doesn't conflict with the external one.
+    # Keep proxy type as traefik so the plugin's deploy hooks still run
+    # and apply labels from the traefik labels file to containers.
     engine.traefik_stop
-    engine.proxy_set_global("none")
 
     proxy_result = engine.proxy_disable(service.dokku_app_name)
     return proxy_result unless proxy_result[:success]
