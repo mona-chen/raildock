@@ -75,10 +75,11 @@ class TemplateDeployJob < ApplicationJob
         # like RAILDOCK_PUBLIC_DOMAIN are resolved.
         TemporaryDomainService.new(project.server).ensure_for(service, engine: engine)
 
-        # Write traefik labels to file immediately so rebuild works before first deploy
+        # Write labels and set network attachment so rebuild works before first deploy
         if project.server.external_proxy?
           host_engine = HostEngine.new(project.server)
           ExternalProxyConfigurator.new(service, engine, host_engine).apply!
+          ProjectNetworkManager.new(project, engine).send(:configure_attach_networks, service)
         end
       end
 
