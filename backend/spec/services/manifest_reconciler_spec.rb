@@ -122,6 +122,66 @@ RSpec.describe ManifestReconciler do
 
       expect(changes).not_to include(have_attributes(field: :env))
     end
+
+    it "ignores Dokku-internal variables when comparing manifest env" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      service.environment_variables.create!(
+        key: "DATABASE_URL",
+        value: "postgres://internal",
+        is_dokku_internal: true
+      )
+
+      changes = described_class.new(
+        project,
+        desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ])
+      ).diff
+
+      expect(changes).not_to include(have_attributes(field: :env))
+    end
+
+    it "does not diff HTTP proxy fields for database services" do
+      create(
+        :service,
+        :database,
+        project: project,
+        name: "postgres",
+        managed_by: :manifest,
+        config: { "proxy" => { "enabled" => true } }
+      )
+      definition = {
+        name: "postgres",
+        category: "database",
+        subtype: "postgres",
+        version: "16",
+        source: { type: "git", branch: "main" },
+        env: {},
+        domains: [],
+        storage: [],
+        proxy: {},
+        scaling: {},
+        limits: {},
+        reservations: {},
+        checks: {},
+        cron: [],
+        docker_options: [],
+        traefik_labels: {},
+        letsencrypt: {},
+        maintenance: false,
+        depends_on: []
+      }
+
+      changes = described_class.new(project, desired_state(services: [ definition ])).diff
+
+      expect(changes).not_to include(have_attributes(field: :proxy))
+    end
   end
 
   describe "#apply!" do

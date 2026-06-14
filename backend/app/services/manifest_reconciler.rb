@@ -220,7 +220,7 @@ class ManifestReconciler
         restart_policy: svc.restart_policy,
         restart_max_retries: svc.restart_max_retries,
         auto_deploy: svc.auto_deploy,
-        env: svc.environment_variables.map { |ev| [ ev.key, ev.value ] }.to_h,
+        env: svc.environment_variables.reject(&:is_dokku_internal).map { |ev| [ ev.key, ev.value ] }.to_h,
         domains: svc.domains.map(&:hostname),
         storage: svc.storage_mounts.map { |sm| { host: sm.host_path, container: sm.container_path } },
         proxy: svc.config&.dig("proxy") || {},
@@ -258,6 +258,9 @@ class ManifestReconciler
       storage proxy scaling limits reservations checks cron
       docker_options traefik_labels letsencrypt depends_on
     ]
+    if desired_svc[:category] == "database"
+      fields -= %i[domains proxy scaling checks cron traefik_labels letsencrypt]
+    end
 
     fields.each do |field|
       old_val = actual_svc[field]
