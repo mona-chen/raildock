@@ -4,6 +4,10 @@
 
 set -e
 
+# Source .env if available (for PROXY_MODE and other settings)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "$SCRIPT_DIR/../.env" ] && set -a && . "$SCRIPT_DIR/../.env" && set +a
+
 SSH_DIR="/data/dokku-ssh"
 DOKKU_USER="dokku"
 DOKKU_HOME="/home/dokku"
@@ -115,12 +119,19 @@ dokku traefik:set --global log-level "INFO" || true
 
 # ── Set Global Proxy to Traefik ────────────────────────────────
 
-echo "[raildock-init] Setting global proxy to traefik..."
-dokku proxy:set --global traefik || true
+# When using an external proxy, disable Dokku's managed Traefik entirely.
+# The external Traefik handles routing via Docker labels on app containers.
+if [ "${PROXY_MODE:-managed}" = "external" ]; then
+  echo "[raildock-init] External proxy mode — stopping Dokku Traefik and disabling proxy..."
+  dokku traefik:stop 2>/dev/null || true
+  dokku proxy:set --global none || true
+  echo "[raildock-init] Dokku proxy disabled (external Traefik handles routing)"
+else
+  echo "[raildock-init] Setting global proxy to traefik..."
+  dokku proxy:set --global traefik || true
 
-# ── Start Traefik ────────────────────────────────
-
-echo "[raildock-init] Starting traefik..."
-dokku traefik:start || echo "[raildock-init] Traefik start attempted"
+  echo "[raildock-init] Starting traefik..."
+  dokku traefik:start || echo "[raildock-init] Traefik start attempted"
+fi
 
 echo "[raildock-init] Dokku is ready for RailDock"

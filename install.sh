@@ -262,7 +262,26 @@ configure_dokku_proxy() {
       log_error "PROXY_MODE=external requires EXTERNAL_PROXY_NETWORK"
       exit 1
     fi
-    log_info "External proxy mode — leaving existing host proxy services untouched"
+    log_step "Configuring external proxy mode — disabling Dokku Traefik..."
+
+    # Stop Dokku's managed Traefik so it doesn't conflict with the external one.
+    if docker ps --filter "name=traefik-traefik-1" --format "{{.Names}}" | grep -q "traefik-traefik-1"; then
+      dokku traefik:stop 2>/dev/null || true
+      log_ok "Stopped Dokku Traefik"
+    else
+      log_info "Dokku Traefik is not running"
+    fi
+
+    # Disable the Dokku proxy plugin entirely — external Traefik handles routing via Docker labels.
+    local current_proxy
+    current_proxy=$(dokku proxy:report --global --proxy-global-type 2>/dev/null | tr -d '[:space:]' || true)
+    if [ "$current_proxy" != "none" ]; then
+      dokku proxy:set --global none
+      log_ok "Disabled Dokku proxy (set to none)"
+    else
+      log_info "Dokku proxy is already disabled"
+    fi
+
     return 0
   fi
 

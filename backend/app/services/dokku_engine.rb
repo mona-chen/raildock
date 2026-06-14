@@ -358,6 +358,10 @@ class DokkuEngine
     run("proxy:set #{escape(app_name)} #{escape(proxy_type)}")
   end
 
+  def proxy_set_global(proxy_type)
+    run("proxy:set --global #{escape(proxy_type)}")
+  end
+
   def proxy_report(app_name)
     run("proxy:report #{escape(app_name)}")
   end

@@ -46,7 +46,9 @@ managed proxy, install with `PROXY_MODE=external` and set
 entrypoint, certificate resolver, and redirect middleware names can be set via
 `EXTERNAL_PROXY_HTTP_ENTRYPOINT`, `EXTERNAL_PROXY_HTTPS_ENTRYPOINT`,
 `EXTERNAL_PROXY_CERT_RESOLVER`, and `EXTERNAL_PROXY_REDIRECT_MIDDLEWARE`.
-External mode must not start, stop, or reconfigure the existing proxy.
+External mode stops Dokku's managed Traefik and sets the global proxy to
+`none` so it does not conflict with the external Traefik. The external
+Traefik itself is never started, stopped, or reconfigured by RailDock.
 
 ## Credentials & secrets
 

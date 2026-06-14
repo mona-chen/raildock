@@ -28,6 +28,8 @@ RSpec.describe ExternalProxyConfigurator do
   before do
     create(:domain, service: service, hostname: "app.example.com", target_port: 5000)
     allow(host_engine).to receive(:docker_network_inspect).and_return(success: true, output: "{}")
+    allow(engine).to receive(:traefik_stop).and_return(success: true, output: "")
+    allow(engine).to receive(:proxy_set_global).and_return(success: true, output: "")
     allow(engine).to receive(:proxy_disable).and_return(success: true, output: "")
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
     allow(engine).to receive(:docker_option_add).and_return(success: true, output: "")
@@ -67,6 +69,8 @@ RSpec.describe ExternalProxyConfigurator do
 
     expect(result[:success]).to be(false)
     expect(result[:output]).to match(/matrix_default/)
+    expect(engine).not_to have_received(:traefik_stop)
+    expect(engine).not_to have_received(:proxy_set_global)
     expect(engine).not_to have_received(:proxy_disable)
   end
 end
