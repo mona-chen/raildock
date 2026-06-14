@@ -1,3 +1,5 @@
+require "shellwords"
+
 class ExternalProxyConfigurator
   MANAGED_LABELS_KEY = "_externalProxyLabels"
 
@@ -63,15 +65,17 @@ class ExternalProxyConfigurator
     server.external_proxy_default_labels.to_h.merge(generated).merge(configured).transform_values(&:to_s)
   end
 
+  # Single-quote the option to protect Traefik backtick rules (e.g. Host(\`domain\`))
+  # through both SSH transport and Dokku's option parser.
   def add_label(key, value)
     %w[deploy run].all? do |phase|
-      engine.docker_option_add(service.dokku_app_name, phase, "--label=#{key}=#{value}")[:success]
+      engine.run("docker-options:add #{Shellwords.escape(service.dokku_app_name)} #{Shellwords.escape(phase)} '--label=#{key}=#{value}'")[:success]
     end
   end
 
   def remove_label(key, value)
     %w[deploy run].all? do |phase|
-      engine.docker_option_remove(service.dokku_app_name, phase, "--label=#{key}=#{value}")[:success]
+      engine.run("docker-options:remove #{Shellwords.escape(service.dokku_app_name)} #{Shellwords.escape(phase)} '--label=#{key}=#{value}'")[:success]
     end
   end
 

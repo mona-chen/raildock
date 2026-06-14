@@ -32,33 +32,24 @@ RSpec.describe ExternalProxyConfigurator do
     allow(engine).to receive(:proxy_set_global).and_return(success: true, output: "")
     allow(engine).to receive(:proxy_disable).and_return(success: true, output: "")
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
-    allow(engine).to receive(:docker_option_add).and_return(success: true, output: "")
-    allow(engine).to receive(:docker_option_remove).and_return(success: true, output: "")
+    allow(engine).to receive(:run).and_return(success: true, output: "")
   end
 
   it "applies generated, global, and per-service labels" do
     result = described_class.new(service, engine, host_engine).apply!
 
     expect(result[:success]).to be(true)
-    expect(engine).to have_received(:docker_option_add).with(
-      service.dokku_app_name,
-      "deploy",
-      "--label=traefik.enable=true"
+    expect(engine).to have_received(:run).with(
+      a_string_matching(/docker-options:add.*deploy.*--label=traefik.enable=true/)
     )
-    expect(engine).to have_received(:docker_option_add).with(
-      service.dokku_app_name,
-      "deploy",
-      "--label=traefik.docker.network=matrix_default"
+    expect(engine).to have_received(:run).with(
+      a_string_matching(/docker-options:add.*deploy.*--label=traefik.docker.network=matrix_default/)
     )
-    expect(engine).to have_received(:docker_option_add).with(
-      service.dokku_app_name,
-      "deploy",
-      "--label=traefik.constraint-label=matrix"
+    expect(engine).to have_received(:run).with(
+      a_string_matching(/docker-options:add.*deploy.*--label=traefik.constraint-label=matrix/)
     )
-    expect(engine).to have_received(:docker_option_add).with(
-      service.dokku_app_name,
-      "deploy",
-      "--label=traefik.http.routers.custom.priority=100"
+    expect(engine).to have_received(:run).with(
+      a_string_matching(/docker-options:add.*deploy.*--label=traefik.http.routers.custom.priority=100/)
     )
   end
 
