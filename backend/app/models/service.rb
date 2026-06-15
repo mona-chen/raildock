@@ -157,7 +157,7 @@ class Service < ApplicationRecord
   end
 
   def effective_port
-    detected_port || port || 5000
+    port || detected_port || 5000
   end
 
   def as_json(options = {})

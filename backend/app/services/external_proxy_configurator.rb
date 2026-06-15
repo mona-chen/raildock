@@ -56,6 +56,15 @@ class ExternalProxyConfigurator
       generated.merge!(TraefikLabelBuilder.new(service, domain, server: server).build_labels)
     end
 
+    # The loadbalancer port is a service-level label, but TraefikLabelBuilder
+    # generates it per-domain with the same key — the last domain processed
+    # wins.  Temporary/sslip domains can have a stale target_port (e.g. 5000)
+    # that overwrites the correct port from the primary domain.
+    # Determine the port once, using the authoritative priority chain.
+    app_name = service.dokku_app_name
+    target = service.port || service.detected_port || service.domains.where(temporary: false).where.not(target_port: nil).pick(:target_port) || 5000
+    generated["traefik.http.services.#{app_name}-web.loadbalancer.server.port"] = target.to_s
+
     traefik_config = service.config&.dig("traefik") || {}
     configured = traefik_config["labels"].is_a?(Hash) ? traefik_config["labels"] : traefik_config
     configured = configured.select { |_key, value| value.is_a?(String) || value.is_a?(Numeric) || [ true, false ].include?(value) }
