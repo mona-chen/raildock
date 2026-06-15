@@ -7,7 +7,11 @@ class TraefikLabelBuilder
   end
 
   def build_labels
-    target = service.detected_port || domain.target_port || service.port || 5000
+    # Prefer manifest-driven ports over auto-detected ones.
+    # domain.target_port is set from the manifest's `port` field by the reconciler.
+    # service.port is the manifest-declared port.  detected_port is auto-detected
+    # from Docker EXPOSE / ports:report which can be unreliable.
+    target = domain.target_port || service.port || service.detected_port || 5000
     router_name = "#{app_name}-#{domain.base_hostname.parameterize}"
     service_name = "#{app_name}-web"
     http_entrypoint = server&.external_proxy_http_entrypoint.presence || "web"

@@ -57,12 +57,21 @@ RSpec.describe TraefikLabelBuilder do
     expect(labels).not_to have_key("traefik.http.routers.#{router}-https.tls")
   end
 
-  it "prefers the detected container port over a stale domain default" do
+  it "prefers domain target_port over detected_port when both set" do
     service = create(:service, detected_port: 8201)
-    domain = create(:domain, service: service, target_port: 80)
+    domain = create(:domain, service: service, target_port: 3000)
 
     labels = described_class.new(service, domain).build_labels
 
-    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("8201")
+    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("3000")
+  end
+
+  it "uses domain target_port default of 80 when no manifest port and no detected_port" do
+    service = create(:service, detected_port: nil)
+    domain = create(:domain, service: service)
+
+    labels = described_class.new(service, domain).build_labels
+
+    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("80")
   end
 end

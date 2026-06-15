@@ -281,7 +281,7 @@ class DeploymentJob < ApplicationJob
     end
 
     # 11. Sync port mappings for all domains (routes public 80/443 → container target_port)
-    target = service.detected_port || 5000
+    target = service.port || service.detected_port || 5000
     unless server.external_proxy?
       port_targets = service.domains.any? ? service.domains.map { |domain| domain.target_port || target }.uniq : [ target ]
       port_targets.each do |domain_target|

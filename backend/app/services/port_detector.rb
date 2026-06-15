@@ -9,27 +9,41 @@ class PortDetector
   # Detect the port an app listens on using Dokku's built-in commands.
   # The Dokku SSH user intercepts raw Docker commands, so we use Dokku's
   # native reporting instead of `docker inspect`.
+  #
+  # Priority: manifest port > domain target_port > Docker EXPOSE > ports:report > defaults.
+  # Docker's EXPOSE directive is unreliable — many Dockerfiles EXPOSE 80 while the
+  # app actually listens on a different port (e.g. Rails on 3000).  The manifest's
+  # `port` field and domain `target_port` are the authoritative sources.
+  #
   # Returns the port number or nil if detection fails.
   def detect(service)
     app_name = service.dokku_app_name
 
-    # Try 1: Read the actual exposed ports from the running container.
-    port = detect_from_container(app_name)
-    return port if port
+    # Try 1: Manifest-declared port (authoritative — set by the user)
+    port = service.port
+    return port if port.present? && port > 0
 
-    # Try 2: For regular apps, use Dokku's ports:report
+    # Try 2: Domain target_port (set by reconciler from manifest port)
+    port = service.domains.pick(:target_port)
+    return port if port.present? && port > 0
+
+    # Try 3: Dokku's ports:report (reflects actual runtime port mapping)
     port = detect_from_ports_report(app_name)
     return port if port
 
-    # Try 3: For datastore plugins, use plugin-specific info commands
+    # Try 4: Docker EXPOSE metadata (unreliable — often wrong)
+    port = detect_from_container(app_name)
+    return port if port
+
+    # Try 5: Datastore plugin info (for postgres, redis, etc.)
     port = detect_from_datastore_info(service, app_name)
     return port if port
 
-    # Try 4: Fall back to known default ports by service type
+    # Try 6: Known default ports by service type
     port = default_port_for_subtype(service.subtype)
     return port if port
 
-    # Try 5: Generic fallback based on deployment method
+    # Try 7: Generic fallback based on deployment method
     service.docker_image.present? ? 80 : 5000
   rescue => e
     Rails.logger.error "Port detection failed for #{app_name}: #{e.message}"

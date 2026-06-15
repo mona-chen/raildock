@@ -5,7 +5,7 @@ module Api
 
     def create
       is_wildcard = domain_params[:hostname].to_s.start_with?("*.")
-      target = domain_params[:target_port].presence || @service.detected_port || 80
+      target = domain_params[:target_port].presence || @service.port || @service.detected_port || 80
 
       use_ssl = domain_params[:ssl] != false
       challenge = if is_wildcard

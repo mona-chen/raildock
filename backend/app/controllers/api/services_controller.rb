@@ -688,7 +688,7 @@ module Api
       end
 
       use_ssl = !server.magic_domain?
-      target = @service.detected_port || 80
+      target = @service.port || @service.detected_port || 80
 
       domain = @service.domains.create!(
         hostname: hostname,
