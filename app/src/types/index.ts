@@ -304,6 +304,8 @@ export interface AppUpdateInfo {
   releaseUrl: string | null
   publishedAt: string | null
   prerelease: boolean
+  canApply: boolean
+  applyStrategy: 'install_sh' | 'docker_compose' | 'ssh_to_local' | 'manual'
   autoUpdateEnabled: boolean
 }
 

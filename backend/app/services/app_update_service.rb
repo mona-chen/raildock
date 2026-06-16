@@ -80,7 +80,9 @@ class AppUpdateService
         latest_version: available_version,
         release_url: available_url,
         published_at: published_at,
-        prerelease: prerelease
+        prerelease: prerelease,
+        can_apply: apply_strategy != :manual,
+        apply_strategy: apply_strategy.to_s
       }
     end
 
@@ -97,11 +99,18 @@ class AppUpdateService
       return { success: false, error: "Update check failed" } unless result
       return { success: false, error: "No update available" } unless result[:update_available]
 
-      if run_update_script
-        SystemSetting.set!("update_available", "false")
-        { success: true, message: "Update triggered successfully. RailDock will restart." }
+      case apply_strategy
+      when :install_sh
+        run_command("./install.sh update")
+      when :docker_compose
+        run_command("docker compose pull -q && docker compose up -d")
+      when :ssh_to_local
+        run_ssh_update
       else
-        { success: false, error: "Failed to run update script" }
+        {
+          success: false,
+          error: "Auto-update is not available in this environment. Run on the host: cd #{ENV['RAILDOCK_INSTALL_DIR'].presence || '/opt/raildock'} && ./install.sh update"
+        }
       end
     end
 
@@ -152,29 +161,80 @@ class AppUpdateService
       SystemSetting.set!("update_check_error", message)
     end
 
-    def run_update_script
+    # Determines how the running process can apply an update. In priority order:
+    #   :install_sh    — local install.sh is on disk (dev / bare-metal install)
+    #   :docker_compose — `docker compose` is on PATH and install dir is mounted
+    #   :ssh_to_local  — we're inside a container but have an SSH key + local server
+    #   :manual        — none of the above; user must run the command themselves
+    def apply_strategy
+      @apply_strategy ||= detect_apply_strategy
+    end
+
+    def detect_apply_strategy
       install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
       script_path = File.join(install_dir, "install.sh")
 
-      if File.exist?(script_path)
-        cmd = "cd #{Shellwords.escape(install_dir)} && ./install.sh update 2>&1"
-      elsif system("which docker-compose >/dev/null 2>&1 || which docker >/dev/null 2>&1")
-        cmd = "cd #{Shellwords.escape(install_dir)} && docker compose pull -q && docker compose up -d 2>&1"
+      return :install_sh if File.exist?(script_path)
+
+      # docker compose must exist and install dir must be reachable
+      if docker_compose_available? && Dir.exist?(install_dir)
+        return :docker_compose
+      end
+
+      # Inside a container with no host access — try SSH to the local Dokku host
+      return :ssh_to_local if running_in_container? && local_ssh_target_present?
+
+      :manual
+    end
+
+    def docker_compose_available?
+      system("which docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1")
+    end
+
+    def running_in_container?
+      return true if File.exist?("/.dockerenv")
+      return true if File.exist?("/run/.containerenv")
+
+      # Podman / others write to /proc/1/cgroup
+      return true if File.exist?("/proc/1/cgroup") &&
+                     File.read("/proc/1/cgroup").to_s.match?(/docker|containerd|podman|kubepods/)
+
+      false
+    end
+
+    def local_ssh_target_present?
+      Server.where("ssh_key IS NOT NULL AND ssh_key != ''").exists?
+    end
+
+    def run_command(cmd)
+      install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
+      full_cmd = "cd #{Shellwords.escape(install_dir)} && #{cmd}"
+      Rails.logger.info "Running update: #{full_cmd}"
+      output, status = Open3.capture2e(full_cmd)
+
+      if status.success?
+        SystemSetting.set!("update_available", "false")
+        { success: true, message: "Update triggered. RailDock will restart momentarily." }
       else
-        Rails.logger.warn "Cannot apply update: no install.sh or docker command found"
-        return false
-      end
-
-      Rails.logger.info "Running update: #{cmd}"
-      output, status = Open3.capture2e(cmd)
-
-      unless status.success?
         Rails.logger.error "Update failed: #{output}"
-        return false
+        { success: false, error: "Update command failed: #{output.lines.last&.strip&.truncate(200) || 'unknown'}" }
       end
+    end
 
-      Rails.logger.info "Update completed successfully"
-      true
+    def run_ssh_update
+      server = Server.where("ssh_key IS NOT NULL AND ssh_key != ''").order(:id).first
+      return { success: false, error: "No SSH key configured" } unless server
+
+      install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
+      cmd = "cd #{Shellwords.escape(install_dir)} && ./install.sh update 2>&1"
+      result = DokkuEngine.new(server).run(cmd)
+
+      if result[:success]
+        SystemSetting.set!("update_available", "false")
+        { success: true, message: "Update triggered via SSH. RailDock will restart." }
+      else
+        { success: false, error: "SSH update failed: #{result[:output].to_s.lines.last&.strip&.truncate(200) || 'unknown'}" }
+      end
     end
   end
 end

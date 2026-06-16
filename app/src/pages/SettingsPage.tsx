@@ -236,7 +236,7 @@ function UpdatesTab() {
                 {checkMutation.isPending ? 'Checking...' : 'Check for Updates'}
               </Button>
 
-              {updateInfo.updateAvailable && (
+              {updateInfo.updateAvailable && updateInfo.canApply && (
                 <Button
                   size="sm"
                   onClick={handleApply}
@@ -246,6 +246,18 @@ function UpdatesTab() {
                   <Rocket size={12} className="mr-1.5" />
                   {applying ? 'Applying...' : 'Apply Update'}
                 </Button>
+              )}
+
+              {updateInfo.updateAvailable && !updateInfo.canApply && (
+                <div className="p-3 bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.2)] rounded-lg">
+                  <div className="text-[11px] text-amber-400 font-medium mb-1">Manual update required</div>
+                  <div className="text-[10px] text-[#A0A0B0] mb-2">
+                    RailDock is running inside a container without host access. Run this on the host:
+                  </div>
+                  <code className="block text-[10px] font-mono text-white/80 bg-black/30 rounded px-2 py-1.5">
+                    cd /opt/raildock && ./install.sh update
+                  </code>
+                </div>
               )}
             </div>
           </div>
