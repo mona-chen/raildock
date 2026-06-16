@@ -18,6 +18,7 @@ import type {
   Template,
   Organization,
   Domain,
+  AppUpdateInfo,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -675,6 +676,26 @@ export const deployKeysApi = {
   },
 }
 
+// ── Update API ───────────────────────────────
+
+export const updateApi = {
+  getInfo: async (): Promise<AppUpdateInfo> => {
+    return fetchJson('/api/admin/update')
+  },
+
+  check: async (): Promise<AppUpdateInfo> => {
+    return fetchJson('/api/admin/update/check', { method: 'POST' })
+  },
+
+  apply: async (): Promise<{ success: boolean; message?: string; error?: string }> => {
+    return fetchJson('/api/admin/update/apply', { method: 'POST' })
+  },
+
+  setAutoUpdate: async (enabled: boolean): Promise<{ autoUpdateEnabled: boolean }> => {
+    return fetchJson('/api/admin/update/auto-update', { method: 'PATCH', body: JSON.stringify({ enabled }) })
+  },
+}
+
 // ── Unified API Export ───────────────────────
 
 export const api = {
@@ -691,4 +712,5 @@ export const api = {
   organizations: organizationsApi,
   deployKeys: deployKeysApi,
   manifest: manifestApi,
+  updates: updateApi,
 }

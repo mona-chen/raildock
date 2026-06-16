@@ -10,6 +10,7 @@
 
 ARG RUBY_VERSION=3.4.4
 ARG NODE_VERSION=24
+ARG RAILDOCK_VERSION=unknown
 
 # ── Stage 1: Build React frontend ──────────────────────────────────────────
 FROM docker.io/node:${NODE_VERSION}-alpine AS frontend-builder
@@ -53,6 +54,7 @@ ENV RAILS_ENV=production \
     PORT=3000 \
     RAILS_LOG_TO_STDOUT=1 \
     RAILS_SERVE_STATIC_FILES=true \
+    RAILDOCK_VERSION=${RAILDOCK_VERSION} \
     PATH=/usr/local/bundle/vendor/ruby/3.4.0/bin:/usr/local/bundle/vendor/bin:/usr/local/bin:$PATH
 
 # Copy frozen gem cache from stage 2

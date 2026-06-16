@@ -61,6 +61,8 @@ jobs:
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.short_sha }}
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.timestamp }}
             ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+          build-args: |
+            RAILDOCK_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=raildock-main
           cache-to: type=gha,mode=max,scope=raildock-main
           provenance: true

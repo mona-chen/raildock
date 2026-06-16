@@ -53,6 +53,8 @@ services:
       ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
       # Optional: for encrypted storage of SSH keys / tokens
       LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY:-}
+      RAILDOCK_VERSION: ${RAILDOCK_VERSION:-latest}
+      RAILDOCK_INSTALL_DIR: ${RAILDOCK_INSTALL_DIR:-/opt/raildock}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     depends_on:
       db:

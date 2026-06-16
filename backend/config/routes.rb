@@ -120,6 +120,11 @@ Rails.application.routes.draw do
       get "github-app-manifest/callback", to: "github_app_manifests#callback"
       get "github-app-manifest/setup", to: "github_app_manifests#setup"
       delete "github-app", to: "github_app_manifests#destroy_app"
+
+      get "update", to: "updates#index"
+      post "update/check", to: "updates#check"
+      post "update/apply", to: "updates#apply"
+      patch "update/auto-update", to: "updates#auto_update"
     end
 
     get "github-apps/callback", to: "github_apps#callback"

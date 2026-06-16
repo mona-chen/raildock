@@ -58,6 +58,8 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ needs.metadata.outputs.version }}
             ${{ env.IMAGE }}:latest
+          build-args: |
+            RAILDOCK_VERSION=${{ needs.metadata.outputs.version }}
           cache-from: type=gha,scope=raildock-release
           provenance: true
           sbom: true

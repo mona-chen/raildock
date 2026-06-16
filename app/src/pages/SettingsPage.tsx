@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2 } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
 import { useDeployKeys, useCreateDeployKey, useDeleteDeployKey } from '@/hooks/useDeployKeys'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,12 +19,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
+import { updateApi } from '@/lib/api'
+import { toast } from 'sonner'
+import type { AppUpdateInfo } from '@/types'
 
 const TABS = [
   { key: 'integrations', label: 'Integrations', icon: Puzzle },
   { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
   { key: 'organizations', label: 'Organizations', icon: Building2 },
   { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
+  { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
 ]
 
 export default function SettingsPage() {
@@ -86,6 +91,190 @@ export default function SettingsPage() {
         {activeTab === 'git-sources' && <GitSourcesTab />}
         {activeTab === 'organizations' && <OrganizationsTab />}
         {activeTab === 'deploy-keys' && <DeployKeysTab />}
+        {activeTab === 'updates' && <UpdatesTab />}
+      </div>
+    </div>
+  )
+}
+
+function UpdatesTab() {
+  const queryClient = useQueryClient()
+  const [applying, setApplying] = useState(false)
+
+  const { data: updateInfo, isLoading, isError } = useQuery<AppUpdateInfo>({
+    queryKey: ['app-update'],
+    queryFn: () => updateApi.getInfo(),
+    staleTime: 30_000,
+  })
+
+  const checkMutation = useMutation({
+    mutationFn: () => updateApi.check(),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['app-update'], data)
+      if (data.updateAvailable) {
+        toast.success(`Update available: v${data.latestVersion}`)
+      } else {
+        toast.success("You're up to date")
+      }
+    },
+    onError: (err: Error) => toast.error(`Check failed: ${err.message}`),
+  })
+
+  const toggleAutoUpdate = useMutation({
+    mutationFn: (enabled: boolean) => updateApi.setAutoUpdate(enabled),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['app-update'], (old: AppUpdateInfo | undefined) =>
+        old ? { ...old, autoUpdateEnabled: data.autoUpdateEnabled } : old
+      )
+      toast.success(data.autoUpdateEnabled ? 'Auto-update enabled' : 'Auto-update disabled')
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  })
+
+  const handleApply = async () => {
+    setApplying(true)
+    try {
+      const result = await updateApi.apply()
+      if (result.success) {
+        toast.success(result.message || 'Update applied — restarting now')
+      } else {
+        toast.error(result.error || 'Update failed')
+      }
+      queryClient.invalidateQueries({ queryKey: ['app-update'] })
+    } catch (err) {
+      toast.error(`Apply failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return 'Not yet checked'
+    try {
+      return new Date(iso).toLocaleString()
+    } catch {
+      return iso
+    }
+  }
+
+  const hasChecked = !!updateInfo?.checkedAt
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
+        <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+          <ArrowUpCircle size={12} className="text-rail-purple" /> Version & Updates
+        </div>
+
+        {isLoading ? (
+          <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+        ) : isError ? (
+          <div className="text-[11px] text-red-400">Failed to load update info</div>
+        ) : updateInfo ? (
+          <div className="space-y-4">
+            {/* Current version + last checked */}
+            <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
+              <div>
+                <div className="text-[11px] text-[#4A4A55]">Current Version</div>
+                <div className="text-sm text-white font-mono mt-0.5">{updateInfo.currentVersion}</div>
+              </div>
+              <div className="text-[10px] text-[#4A4A55] text-right">
+                Last checked: <span className="text-white/60">{formatDate(updateInfo.checkedAt)}</span>
+              </div>
+            </div>
+
+            {/* Update available banner */}
+            {updateInfo.updateAvailable ? (
+              <div className="p-3 bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-green-400 font-medium">Update Available</div>
+                    <div className="text-[11px] text-[#A0A0B0] mt-0.5">
+                      Version <span className="font-mono text-white/80">{updateInfo.latestVersion}</span> is available
+                      {updateInfo.publishedAt && <> (released {formatDate(updateInfo.publishedAt)})</>}
+                    </div>
+                  </div>
+                  {updateInfo.releaseUrl && (
+                    <a
+                      href={updateInfo.releaseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-rail-purple hover:text-rail-purple/80 underline shrink-0"
+                    >
+                      Release Notes
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : hasChecked ? (
+              <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
+                <div className="text-sm text-[#A0A0B0]">You're up to date</div>
+                {updateInfo.latestVersion && (
+                  <div className="text-[11px] text-[#4A4A55] mt-0.5">
+                    Latest available: <span className="font-mono text-white/60">{updateInfo.latestVersion}</span>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                size="sm"
+                onClick={() => checkMutation.mutate()}
+                disabled={checkMutation.isPending}
+                className="bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)] text-white text-xs h-8"
+              >
+                <RefreshCw size={12} className={`mr-1.5 ${checkMutation.isPending ? 'animate-spin' : ''}`} />
+                {checkMutation.isPending ? 'Checking...' : 'Check for Updates'}
+              </Button>
+
+              {updateInfo.updateAvailable && (
+                <Button
+                  size="sm"
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-8"
+                >
+                  <Rocket size={12} className="mr-1.5" />
+                  {applying ? 'Applying...' : 'Apply Update'}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Auto-update settings */}
+      <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
+        <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+          <RefreshCw size={12} className="text-rail-purple" /> Auto-Update
+        </div>
+        <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg gap-4">
+          <div className="min-w-0">
+            <div className="text-sm text-white">Automatic Updates</div>
+            <div className="text-[11px] text-[#4A4A55] mt-0.5">
+              When enabled, RailDock checks for updates every 6 hours and applies them automatically.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => toggleAutoUpdate.mutate(!updateInfo?.autoUpdateEnabled)}
+            disabled={toggleAutoUpdate.isPending}
+            aria-pressed={updateInfo?.autoUpdateEnabled ?? false}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+              updateInfo?.autoUpdateEnabled
+                ? 'bg-rail-purple'
+                : 'bg-[rgba(255,255,255,0.1)]'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                updateInfo?.autoUpdateEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
     </div>
   )
