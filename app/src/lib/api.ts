@@ -253,7 +253,7 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
-  deployments: async (id: string): Promise<{ id: string; status: string; branch: string; commit_sha: string; created_at: string }[]> => {
+  deployments: async (id: string): Promise<{ id: string; status: string; branch: string; commit_sha: string; commit_message: string | null; triggered_by: string; started_at: string | null; completed_at: string | null; created_at: string }[]> => {
     return fetchJson(`/api/services/${id}/deployments`)
   },
 

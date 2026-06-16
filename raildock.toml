@@ -79,6 +79,7 @@ AWS_SECRET_ACCESS_KEY = "${{ shared.AWS_SECRET_ACCESS_KEY }}"
 HLS_STORAGE_BACKEND = "s3"
 
 # TMCP JWT
+TMCP_PRIVATE_KEY = "${{ shared.TMCP_PRIVATE_KEY }}"
 TMCP_JWT_ISSUER = "https://tmcp.tween.im"
 TMCP_JWT_KEY_ID = "tmcp-2026-01"
 

@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RailDock — Self-Hosted Deployment Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --void: #0A0A0C;
+  --base: #101015;
+  --surface: #16161E;
+  --raised: #1C1C26;
+  --border: rgba(255,255,255,0.06);
+  --border-med: rgba(255,255,255,0.11);
+  --text: #E8E8F0;
+  --muted: rgba(232,232,240,0.48);
+  --dim: rgba(232,232,240,0.22);
+  --violet: #7C5CFC;
+  --violet-dim: rgba(124,92,252,0.10);
+  --violet-border: rgba(124,92,252,0.28);
+  --teal: #22D3A5;
+  --teal-dim: rgba(34,211,165,0.10);
+  --amber: #F5A623;
+  --red: #F05252;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+  --display: 'Space Grotesk', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+/* ── NAV ── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 56px;
+  display: flex; align-items: center;
+  padding: 0 2rem;
+  background: rgba(10,10,12,0.85);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 9px;
+  text-decoration: none; margin-right: 2rem;
+}
+.nav-logo-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--violet);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; font-weight: 500; color: #fff;
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+}
+.nav-logo-name {
+  font-family: var(--display); font-weight: 600; font-size: 15px;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-link {
+  padding: 5px 11px; border-radius: 6px;
+  font-size: 13px; color: var(--muted); text-decoration: none;
+  transition: color 0.12s, background 0.12s;
+  cursor: pointer; border: none; background: none;
+}
+.nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.nav-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.btn-ghost {
+  padding: 6px 14px; border-radius: 7px;
+  font-size: 13px; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border-med);
+  background: transparent;
+  transition: color 0.12s, border-color 0.12s;
+  cursor: pointer;
+}
+.btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.btn-primary {
+  padding: 7px 16px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; color: #fff;
+  background: var(--violet);
+  text-decoration: none; border: none; cursor: pointer;
+  transition: opacity 0.12s, transform 0.1s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary-lg {
+  padding: 11px 22px; border-radius: 9px;
+  font-size: 14px; font-weight: 500; color: #fff;
+  background: var(--violet);
+  text-decoration: none; border: none; cursor: pointer;
+  transition: opacity 0.12s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-primary-lg:hover { opacity: 0.88; }
+.btn-outline-lg {
+  padding: 11px 22px; border-radius: 9px;
+  font-size: 14px; color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-med);
+  text-decoration: none; cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-outline-lg:hover { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.03); }
+
+/* ── LAYOUT ── */
+.container { max-width: 1040px; margin: 0 auto; padding: 0 2rem; }
+
+/* ── PAGES ── */
+#landing { display: block; }
+#landing.hidden { display: none; }
+#docs { display: none; }
+#docs.visible { display: block; }
+
+/* ═══════════════════════════════════
+   LANDING PAGE
+   ═══════════════════════════════════ */
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 7rem 0 5rem;
+  position: relative; overflow: hidden;
+}
+.hero-ambient {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 800px 500px at 50% -100px, rgba(124,92,252,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 300px at 80% 60%, rgba(34,211,165,0.04) 0%, transparent 60%);
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 8px;
+  background: var(--violet-dim); border: 1px solid var(--violet-border);
+  border-radius: 100px; margin-bottom: 1.75rem;
+  font-family: var(--mono); font-size: 11px; color: #A78BFA;
+  width: fit-content;
+}
+.hero-eyebrow-dot {
+  width: 18px; height: 18px; border-radius: 5px;
+  background: var(--violet); display: flex; align-items: center;
+  justify-content: center; font-size: 10px; color: #fff;
+}
+.hero-h1 {
+  font-family: var(--display);
+  font-size: clamp(2.4rem, 5.5vw, 3.8rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin-bottom: 1.4rem;
+  max-width: 780px;
+  color: var(--text);
+}
+.hero-h1 em { font-style: normal; color: var(--violet); }
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 540px;
+  margin-bottom: 2.5rem;
+  line-height: 1.75;
+}
+.hero-ctas { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4rem; }
+.hero-note { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+/* ── DEPLOY STRIP (signature element) ── */
+.deploy-strip {
+  background: var(--base);
+  border: 1px solid var(--border-med);
+  border-radius: 14px;
+  overflow: hidden;
+  max-width: 740px;
+}
+.deploy-strip-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.strip-dot { width: 9px; height: 9px; border-radius: 50%; }
+.strip-dot-r { background: #FF5F57; }
+.strip-dot-y { background: #FEBC2E; }
+.strip-dot-g { background: #28C840; }
+.strip-title { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
+
+.deploy-strip-body { padding: 1.1rem 1.4rem; }
+.deploy-commit {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 7px;
+  background: rgba(124,92,252,0.06); border: 1px solid var(--violet-border);
+  margin-bottom: 1rem;
+}
+.deploy-commit-sha { font-family: var(--mono); font-size: 11px; color: #A78BFA; }
+.deploy-commit-msg { font-size: 12px; color: var(--muted); }
+.deploy-commit-time { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: auto; }
+
+.deploy-steps { display: flex; flex-direction: column; gap: 4px; }
+.deploy-step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 12px;
+}
+.deploy-step:last-child { border-bottom: none; }
+.step-icon { width: 20px; flex-shrink: 0; text-align: center; font-size: 11px; }
+.step-label { color: var(--muted); flex: 1; }
+.step-time { color: var(--dim); font-size: 10px; }
+.step-done { color: var(--teal); }
+.step-building .step-icon { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.step-pending .step-label { color: var(--dim); }
+
+.deploy-progress {
+  margin-top: 1rem; padding: 10px 12px;
+  background: var(--surface); border-radius: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.progress-bar-wrap {
+  flex: 1; height: 3px;
+  background: rgba(255,255,255,0.07); border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; width: 60%;
+  background: linear-gradient(90deg, var(--violet), var(--teal));
+  border-radius: 2px;
+  animation: progress-pulse 2s ease-in-out infinite alternate;
+}
+@keyframes progress-pulse { from { opacity: 0.8; } to { opacity: 1; } }
+.progress-label { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.progress-live {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal);
+  animation: live-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes live-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.75)} }
+
+/* ── SECTION SCAFFOLDING ── */
+.section { padding: 5rem 0; }
+.section-alt { background: var(--base); }
+.eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--violet); margin-bottom: 0.6rem;
+}
+.section-h2 {
+  font-family: var(--display); font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+  font-weight: 700; letter-spacing: -0.025em; line-height: 1.2;
+  margin-bottom: 0.75rem; color: var(--text);
+}
+.section-sub { font-size: 0.95rem; color: var(--muted); max-width: 480px; line-height: 1.7; margin-bottom: 3rem; }
+
+/* ── HOW IT WORKS ── */
+.how-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.how-cell {
+  background: var(--surface); padding: 1.6rem;
+  position: relative;
+}
+.how-cell::before {
+  content: attr(data-n);
+  position: absolute; top: 1.4rem; right: 1.4rem;
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  letter-spacing: 0.05em;
+}
+.how-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; margin-bottom: 1rem;
+}
+.how-title { font-family: var(--display); font-weight: 600; font-size: 13px; margin-bottom: 0.35rem; }
+.how-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* ── FEATURES LIST ── */
+.features-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+.feature-item { border-top: 1px solid var(--border); padding-top: 1.4rem; }
+.feature-label { font-family: var(--display); font-weight: 600; font-size: 14px; margin-bottom: 0.45rem; }
+.feature-body { font-size: 13px; color: var(--muted); line-height: 1.65; }
+.feature-tag {
+  display: inline-block; margin-top: 0.5rem;
+  padding: 2px 8px; border-radius: 4px; font-size: 10px;
+  font-family: var(--mono); font-weight: 500;
+}
+.tag-v { background: var(--violet-dim); color: #A78BFA; }
+.tag-t { background: var(--teal-dim); color: var(--teal); }
+
+/* ── MANIFEST PREVIEW ── */
+.manifest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+.code-panel {
+  background: var(--base);
+  border: 1px solid var(--border-med);
+  border-radius: 12px; overflow: hidden;
+}
+.code-panel-bar {
+  padding: 9px 13px; border-bottom: 1px solid var(--border);
+  background: var(--surface); display: flex; align-items: center; gap: 6px;
+}
+.code-panel-dots { display: flex; gap: 5px; }
+.code-panel-name { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: auto; }
+.code-body { padding: 1.1rem 1.3rem; font-family: var(--mono); font-size: 12px; line-height: 1.85; overflow-x: auto; }
+.c-key { color: #A78BFA; }
+.c-str { color: #86EFAC; }
+.c-var { color: var(--amber); }
+.c-dim { color: var(--dim); }
+.c-tbl { color: #60A5FA; }
+.c-num { color: #FB923C; }
+
+.diff-panel {
+  background: var(--base);
+  border: 1px solid var(--border-med);
+  border-radius: 12px; overflow: hidden;
+}
+.diff-header {
+  padding: 9px 13px; border-bottom: 1px solid var(--border);
+  background: var(--surface); font-family: var(--mono);
+  font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+}
+.diff-body { padding: 0.8rem; }
+.diff-change {
+  padding: 8px 10px; border-radius: 7px; margin-bottom: 6px;
+  display: flex; align-items: flex-start; gap: 8px; font-size: 12px;
+}
+.diff-change:last-child { margin-bottom: 0; }
+.diff-reload { background: rgba(34,211,165,0.07); }
+.diff-restart { background: rgba(245,166,35,0.07); }
+.diff-redeploy { background: rgba(240,82,82,0.07); }
+.diff-sev { font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-top: 1px; flex-shrink: 0; }
+.sev-r { background: rgba(34,211,165,0.12); color: var(--teal); }
+.sev-w { background: rgba(245,166,35,0.12); color: var(--amber); }
+.sev-d { background: rgba(240,82,82,0.12); color: var(--red); }
+.diff-text { color: var(--muted); flex: 1; }
+.diff-text strong { color: var(--text); font-weight: 500; }
+
+/* ── TEMPLATES MARQUEE ── */
+.templates-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 2rem;
+}
+.template-chip {
+  padding: 5px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 100px; font-size: 12px; color: var(--muted);
+  white-space: nowrap;
+}
+.template-chip.highlight {
+  border-color: var(--violet-border); color: #C4B5FD; background: var(--violet-dim);
+}
+
+/* ── INSTALL ── */
+.install-block {
+  background: var(--base); border: 1px solid var(--border-med);
+  border-radius: 12px; overflow: hidden; max-width: 700px;
+}
+.install-bar {
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface); display: flex; align-items: center; gap: 6px;
+}
+.install-body { padding: 1.1rem 1.4rem; font-family: var(--mono); font-size: 13px; line-height: 2; }
+.i-prompt { color: var(--dim); }
+.i-cmd { color: var(--text); }
+.i-flag { color: #A78BFA; }
+.i-url { color: #60A5FA; }
+.i-comment { color: var(--dim); font-size: 11px; }
+.i-success { color: var(--teal); }
+
+.install-facts { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 1.5rem; }
+.install-fact {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 14px;
+}
+.install-fact-label { font-size: 10px; font-family: var(--mono); color: var(--dim); margin-bottom: 3px; }
+.install-fact-val { font-size: 12px; color: var(--text); }
+
+/* ── STAT ROW ── */
+.stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; margin: 3rem 0; }
+.stat-cell { background: var(--surface); padding: 2rem; }
+.stat-num { font-family: var(--display); font-size: 2.4rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text); margin-bottom: 0.25rem; }
+.stat-num em { font-style: normal; color: var(--violet); }
+.stat-desc { font-size: 12px; color: var(--muted); }
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 2.5rem 0;
+  text-align: center;
+}
+footer p { font-size: 12px; color: var(--dim); }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
+
+/* ═══════════════════════════════════
+   DOCS PAGE
+   ═══════════════════════════════════ */
+.docs-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+  padding-top: 56px;
+}
+.docs-sidebar {
+  position: sticky; top: 56px; align-self: start;
+  height: calc(100vh - 56px); overflow-y: auto;
+  padding: 1.5rem 0 2rem;
+  border-right: 1px solid var(--border);
+  background: var(--base);
+}
+.docs-sidebar::-webkit-scrollbar { width: 3px; }
+.docs-nav-section { margin-bottom: 1.5rem; }
+.docs-nav-label {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--dim); padding: 0 1.2rem;
+  margin-bottom: 4px; display: block;
+}
+.docs-nav-link {
+  display: block; padding: 5px 1.2rem; font-size: 13px;
+  color: var(--muted); text-decoration: none; cursor: pointer;
+  border: none; background: none; width: 100%; text-align: left;
+  border-left: 2px solid transparent; transition: color 0.1s, background 0.1s;
+}
+.docs-nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.docs-nav-link.active {
+  color: var(--violet); border-left-color: var(--violet);
+  background: var(--violet-dim);
+}
+.docs-main {
+  min-width: 0;
+  padding: 2.5rem 3rem 5rem;
+  max-width: 820px;
+}
+.doc-page { display: none; }
+.doc-page.visible { display: block; }
+
+/* Doc typography */
+.doc-page h2 {
+  font-family: var(--display); font-size: 1.75rem; font-weight: 700;
+  letter-spacing: -0.025em; margin-bottom: 0.5rem; color: var(--text);
+}
+.doc-page .doc-lead {
+  font-size: 1rem; color: var(--muted); margin-bottom: 2rem;
+  padding-bottom: 2rem; border-bottom: 1px solid var(--border); line-height: 1.7;
+}
+.doc-page h3 {
+  font-family: var(--display); font-size: 1rem; font-weight: 600;
+  color: var(--text); margin: 2.5rem 0 0.6rem;
+}
+.doc-page p { font-size: 14px; color: var(--muted); margin-bottom: 1rem; line-height: 1.75; }
+.doc-page ul, .doc-page ol { padding-left: 1.3rem; margin-bottom: 1rem; }
+.doc-page li { font-size: 14px; color: var(--muted); line-height: 1.85; }
+.doc-page li + li { margin-top: 0.1rem; }
+.doc-page li strong, .doc-page p strong { color: var(--text); font-weight: 500; }
+.doc-page code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--raised); padding: 1px 6px; border-radius: 4px;
+  color: #C4B5FD;
+}
+
+.code-block {
+  background: var(--base); border: 1px solid var(--border-med);
+  border-radius: 10px; padding: 1rem 1.2rem;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.8;
+  margin: 1rem 0 1.5rem; overflow-x: auto; color: var(--text);
+}
+.code-block .c-comment { color: var(--dim); }
+.code-block .c-key { color: #A78BFA; }
+.code-block .c-str { color: #86EFAC; }
+.code-block .c-var { color: var(--amber); }
+.code-block .c-tbl { color: #60A5FA; }
+
+.callout {
+  border-radius: 9px; padding: 0.9rem 1.1rem;
+  margin: 1.5rem 0; font-size: 13px; line-height: 1.65;
+}
+.callout-info { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2); color: #93C5FD; }
+.callout-warn { background: rgba(245,166,35,0.07); border: 1px solid rgba(245,166,35,0.2); color: #FCD34D; }
+.callout-tip  { background: rgba(124,92,252,0.07); border: 1px solid rgba(124,92,252,0.2); color: #C4B5FD; }
+.callout-danger{ background: rgba(240,82,82,0.07); border: 1px solid rgba(240,82,82,0.2); color: #FCA5A5; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-family: var(--mono); font-size: 11px; font-weight: 500; }
+.pill-green { background: rgba(34,211,165,0.1); color: var(--teal); }
+.pill-amber { background: rgba(245,166,35,0.1); color: var(--amber); }
+.pill-red   { background: rgba(240,82,82,0.1);  color: var(--red); }
+.pill-violet{ background: var(--violet-dim);    color: #C4B5FD; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 1rem 0 1.5rem; }
+.data-table th, .data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+.data-table th { color: var(--dim); font-weight: 500; font-size: 11px; }
+.data-table td { color: var(--muted); }
+.data-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--text); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 720px) {
+  .nav-links { display: none; }
+  .container { padding: 0 1.2rem; }
+  .hero-h1 { font-size: 2rem; }
+  .how-grid { grid-template-columns: 1fr; }
+  .features-2col { grid-template-columns: 1fr; }
+  .manifest-grid { grid-template-columns: 1fr; }
+  .install-facts { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: 1fr; }
+  .docs-shell { grid-template-columns: 1fr; }
+  .docs-sidebar { position: static; height: auto; }
+  .docs-main { padding: 1.5rem 1.2rem 3rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a class="nav-logo" href="#" onclick="showLanding()">
+    <div class="nav-logo-icon">rd</div>
+    <span class="nav-logo-name">RailDock</span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link" onclick="showLanding()">Overview</button>
+    <button class="nav-link" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50)">Install</button>
+    <button class="nav-link" onclick="showDocs('overview')">Docs</button>
+    <a class="nav-link" href="https://github.com/mona-chen/raildock" target="_blank">GitHub</a>
+  </div>
+  <div class="nav-actions">
+    <button class="btn-ghost" onclick="showDocs('overview')">Documentation</button>
+    <button class="btn-primary" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50)">
+      Get started →
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     LANDING PAGE
+     ═══════════════════════════════════════════ -->
+<div id="landing">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-ambient"></div>
+  <div class="container">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot">⚡</div>
+      Self-hosted · open source · MIT
+    </div>
+    <h1 class="hero-h1">Your server.<br>Your apps.<br><em>Deployed.</em></h1>
+    <p class="hero-sub">
+      RailDock is a deployment platform you run on your own server. Connect a Dokku host over SSH and get a full control plane: visual project canvas, real-time logs, interactive terminal, 306 one-click app stacks, and a declarative TOML manifest system.
+    </p>
+    <div class="hero-ctas">
+      <button class="btn-primary-lg" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install in one command
+      </button>
+      <button class="btn-outline-lg" onclick="showDocs('overview')">Read the docs</button>
+    </div>
+
+    <!-- THE SIGNATURE ELEMENT: live deploy strip -->
+    <div class="deploy-strip">
+      <div class="deploy-strip-bar">
+        <span class="strip-dot strip-dot-r"></span>
+        <span class="strip-dot strip-dot-y"></span>
+        <span class="strip-dot strip-dot-g"></span>
+        <span class="strip-title">myproject / api — deploying</span>
+      </div>
+      <div class="deploy-strip-body">
+        <div class="deploy-commit">
+          <div class="deploy-commit-sha">a4f92c1</div>
+          <div class="deploy-commit-msg">feat: add async job queue with retry logic</div>
+          <div class="deploy-commit-time">just now · webhook</div>
+        </div>
+        <div class="deploy-steps">
+          <div class="deploy-step step-done">
+            <span class="step-icon step-done">✓</span>
+            <span class="step-label">Created Dokku app &amp; configured project network</span>
+            <span class="step-time">0.3s</span>
+          </div>
+          <div class="deploy-step step-done">
+            <span class="step-icon step-done">✓</span>
+            <span class="step-label">Synced 14 environment variables</span>
+            <span class="step-time">0.6s</span>
+          </div>
+          <div class="deploy-step step-done">
+            <span class="step-icon step-done">✓</span>
+            <span class="step-label">Mounted storage, configured domains &amp; proxy</span>
+            <span class="step-time">0.9s</span>
+          </div>
+          <div class="deploy-step step-done">
+            <span class="step-icon step-done">✓</span>
+            <span class="step-label">git:sync origin/main → ps:rebuild (nixpacks)</span>
+            <span class="step-time">18.2s</span>
+          </div>
+          <div class="deploy-step step-building">
+            <span class="step-icon">↻</span>
+            <span class="step-label">Detecting port · wiring network aliases · scaling web=2</span>
+            <span class="step-time">—</span>
+          </div>
+          <div class="deploy-step step-pending">
+            <span class="step-icon" style="color:var(--dim)">○</span>
+            <span class="step-label">Sync linked credentials · broadcast success</span>
+            <span class="step-time">—</span>
+          </div>
+        </div>
+        <div class="deploy-progress">
+          <div class="progress-live"></div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill"></div></div>
+          <div class="progress-label">building · step 5 of 7</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="eyebrow">How it works</div>
+    <h2 class="section-h2">Four concepts. Everything else follows.</h2>
+    <p class="section-sub">RailDock organizes your infrastructure into a hierarchy that maps to how you actually think about deployments.</p>
+    <div class="how-grid">
+      <div class="how-cell" data-n="01">
+        <div class="how-icon" style="background:var(--violet-dim)">🖥</div>
+        <div class="how-title">Servers</div>
+        <div class="how-desc">Add any Dokku host by SSH key and hostname. RailDock validates the connection, detects the Dokku version and active proxy type, and stores your SSH key encrypted at rest (AES-256-GCM). The install script auto-wires the local server so you can deploy in under five minutes.</div>
+      </div>
+      <div class="how-cell" data-n="02">
+        <div class="how-icon" style="background:rgba(34,211,165,0.1)">📁</div>
+        <div class="how-title">Projects</div>
+        <div class="how-desc">A project is a logical grouping of services that belong together — typically one application plus its databases and workers. Every project gets a private Docker bridge network (named <code style="font-family:var(--mono);font-size:11px">rd-{slug}-{id}</code>) so services can reach each other by internal hostname without going through the public internet.</div>
+      </div>
+      <div class="how-cell" data-n="03">
+        <div class="how-icon" style="background:rgba(245,166,35,0.1)">⬡</div>
+        <div class="how-title">Services</div>
+        <div class="how-desc">A service is anything you deploy: a web app, a background worker, a Postgres database, Redis, MySQL, MongoDB, or any Docker image. Apps can be built from a git repository (Nixpacks, Dockerfile, Herokuish, Railpack, Cloud Native Buildpacks, or Lambda) or deployed directly from a Docker image tag.</div>
+      </div>
+      <div class="how-cell" data-n="04">
+        <div class="how-icon" style="background:rgba(96,165,250,0.1)">🔗</div>
+        <div class="how-title">Links</div>
+        <div class="how-desc">Linking an app to a database calls Dokku's plugin link command, which injects <code style="font-family:var(--mono);font-size:11px">DATABASE_URL</code> into the app's environment and connects both services on the project network. RailDock reads Dokku's injected connection strings and mirrors them into the service record so you can see them in the UI.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STAT ROW -->
+<section class="section">
+  <div class="container">
+    <div class="stat-row">
+      <div class="stat-cell">
+        <div class="stat-num"><em>306</em></div>
+        <div class="stat-desc">One-click app templates — from n8n and Nextcloud to Ollama and Chatwoot</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num"><em>15</em></div>
+        <div class="stat-desc">Steps in a deploy sequence — waiting for databases, wiring networks, syncing secrets</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num"><em>3</em></div>
+        <div class="stat-desc">Manifest change severities — reload, restart, or full redeploy, classified per field</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="eyebrow">Capabilities</div>
+    <h2 class="section-h2">Built for what running software actually requires</h2>
+    <p class="section-sub">Not a feature checklist. These are the things RailDock does that save you from writing shell scripts at 2am.</p>
+    <div class="features-2col">
+      <div class="feature-item">
+        <div class="feature-label">Real-time log streaming</div>
+        <div class="feature-body">Logs stream over an ActionCable WebSocket using a dedicated SSH connection. The frontend strips ANSI codes, detects log levels (fatal/error/warn/info/debug/trace) from message content, and pretty-prints JSON payloads. For databases, the correct plugin log command is used automatically.</div>
+        <span class="feature-tag tag-t">tailing over SSH</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Interactive terminal</div>
+        <div class="feature-body">A full PTY session into any running container via xterm.js. Forwards keystrokes and resize events directly to the SSH channel. Supports shell selection (sh, bash, zsh, ash) and is restricted to project owners and org admins — not all users.</div>
+        <span class="feature-tag tag-v">PTY over WebSocket</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Secret injection with stable IDs</div>
+        <div class="feature-body">Use <code style="font-family:var(--mono);font-size:11px;color:#C4B5FD">${{ secret() }}</code> in your manifest or template. RailDock generates a random value on first deploy and keeps it stable on subsequent deploys — you never see the raw value, but the service always gets the same one.</div>
+        <span class="feature-tag tag-v">deterministic secrets</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Linked service credential propagation</div>
+        <div class="feature-body">After a Docker-image service starts, RailDock inspects the running container to discover generated passwords. Apps that reference those passwords via <code style="font-family:var(--mono);font-size:11px;color:#C4B5FD">${{ linked.service.VAR }}</code> have their env vars updated and their containers restarted automatically.</div>
+        <span class="feature-tag tag-t">container-inspect sync</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Webhook-triggered deploys</div>
+        <div class="feature-body">Every service gets a unique token-authenticated webhook URL. Push a payload from GitHub or GitLab and RailDock validates the HMAC signature (X-Hub-Signature-256 for GitHub, X-Gitlab-Token for GitLab), finds matching services with auto-deploy enabled, and queues a deploy idempotently.</div>
+        <span class="feature-tag tag-v">HMAC-verified</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Canvas project view</div>
+        <div class="feature-body">Services appear as draggable cards on an infinite pan/zoom canvas. Connection lines show which apps are linked to which databases. Card positions persist to the database. Click a card to open the full service panel with all tabs: deploy, logs, terminal, variables, domains, storage, database, metrics, backups.</div>
+        <span class="feature-tag tag-t">persistent positions</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Topology-aware template deploys</div>
+        <div class="feature-body">When deploying a multi-service template (e.g. Chatwoot with Sidekiq, Postgres, and Redis), RailDock runs a topological sort on the <code style="font-family:var(--mono);font-size:11px;color:#C4B5FD">depends_on</code> graph and deploys services in dependency order, cancelling dependents if an upstream deploy fails.</div>
+        <span class="feature-tag tag-v">DAG-ordered deploys</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">Automatic domains &amp; SSL</div>
+        <div class="feature-body">Configure a base domain on your server (e.g. <code style="font-family:var(--mono);font-size:11px;color:#C4B5FD">apps.example.com</code>) and every new service gets a subdomain automatically. Magic DNS services (sslip.io, nip.io) embed the server's public IP in the hostname so no DNS config is needed. Custom domains with Let's Encrypt one-click enabled.</div>
+        <span class="feature-tag tag-t">magic DNS support</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MANIFEST -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow">Manifest system</div>
+    <h2 class="section-h2">Declare your stack. Preview the diff. Apply by severity.</h2>
+    <p class="section-sub">Write a TOML file that describes your entire project — services, env vars, storage, scaling, proxy config. RailDock diffs it against live Dokku state and tells you what will happen before anything changes.</p>
+    <div class="manifest-grid">
+      <div class="code-panel">
+        <div class="code-panel-bar">
+          <div class="code-panel-dots">
+            <span class="strip-dot strip-dot-r"></span>
+            <span class="strip-dot strip-dot-y"></span>
+            <span class="strip-dot strip-dot-g"></span>
+          </div>
+          <span class="code-panel-name">raildock.toml</span>
+        </div>
+        <div class="code-body">
+<span class="c-dim"># raildock.toml</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>    = <span class="c-str">"api"</span>
+<span class="c-key">builder</span> = <span class="c-str">"nixpacks"</span>
+<span class="c-key">source</span>  = { type = <span class="c-str">"git"</span> }
+
+  [services.<span class="c-tbl">scaling</span>]
+  web    = <span class="c-num">2</span>
+  worker = <span class="c-num">1</span>
+
+  [services.<span class="c-tbl">env</span>]
+  RAILS_ENV       = <span class="c-str">"production"</span>
+  SECRET_KEY_BASE = <span class="c-var">"$&#123;&#123; secret() &#125;&#125;"</span>
+  DATABASE_URL    = <span class="c-var">"$&#123;&#123; linked.db.DATABASE_URL &#125;&#125;"</span>
+
+  [services.<span class="c-tbl">checks</span>]
+  enabled = <span class="c-str">true</span>
+  wait    = <span class="c-num">5</span>
+  timeout = <span class="c-num">30</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>    = <span class="c-str">"db"</span>
+<span class="c-key">subtype</span> = <span class="c-str">"postgres"</span>
+<span class="c-key">category</span>= <span class="c-str">"database"</span>
+<span class="c-key">source</span>  = { type = <span class="c-str">"docker"</span> }
+
+[[<span class="c-tbl">links</span>]]
+<span class="c-key">from</span> = <span class="c-str">"api"</span>
+<span class="c-key">to</span>   = <span class="c-str">"db"</span>
+        </div>
+      </div>
+      <div>
+        <div class="diff-panel" style="margin-bottom:1rem">
+          <div class="diff-header">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Preview · 3 changes detected
+          </div>
+          <div class="diff-body">
+            <div class="diff-change diff-reload">
+              <span class="diff-sev sev-r">reload</span>
+              <div class="diff-text"><strong>SECRET_KEY_BASE</strong> — new env var (auto-generated secret)</div>
+            </div>
+            <div class="diff-change diff-restart">
+              <span class="diff-sev sev-w">restart</span>
+              <div class="diff-text"><strong>scaling.web</strong> changed 1 → 2 (process scale)</div>
+            </div>
+            <div class="diff-change diff-redeploy">
+              <span class="diff-sev sev-d">redeploy</span>
+              <div class="diff-text"><strong>checks.timeout</strong> changed 20 → 30 (full rebuild required)</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);line-hight:1.6">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:0.5rem">AGGREGATE SEVERITY</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem">
+            <span class="pill pill-red">redeploy</span>
+            <span style="color:var(--text);font-size:13px">Full rebuild required</span>
+          </div>
+          Env var updates and scaling are hot-applied first. The build is triggered once for the timeout change.
+        </div>
+        <div style="margin-top:1rem;padding:0.75rem 1rem;background:var(--violet-dim);border:1px solid var(--violet-border);border-radius:9px;font-size:12px;color:#C4B5FD">
+          Changes classified by field: <strong style="color:var(--text)">env, domains, storage, proxy, traefik_labels</strong> are reload-only · <strong style="color:var(--text)">scaling, cron, checks, resources</strong> require restart · <strong style="color:var(--text)">builder, docker_image, branch, start_command</strong> require full redeploy
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="eyebrow">App templates</div>
+    <h2 class="section-h2">306 stacks, deployed in one click</h2>
+    <p class="section-sub">Every template is a real TOML file. Selecting one creates all services, generates secrets, mounts storage, wires service links, and queues deployments in dependency order — before you can reload the page.</p>
+    <div class="templates-row">
+      <span class="template-chip highlight">n8n</span>
+      <span class="template-chip highlight">Chatwoot</span>
+      <span class="template-chip highlight">Nextcloud</span>
+      <span class="template-chip highlight">Ollama + Open WebUI</span>
+      <span class="template-chip">Gitea</span>
+      <span class="template-chip">Mattermost</span>
+      <span class="template-chip">Grafana</span>
+      <span class="template-chip">Vaultwarden</span>
+      <span class="template-chip">Keycloak</span>
+      <span class="template-chip">Immich</span>
+      <span class="template-chip">Metabase</span>
+      <span class="template-chip">NocoDB</span>
+      <span class="template-chip">Plane</span>
+      <span class="template-chip">Cal.com</span>
+      <span class="template-chip">LibreChat</span>
+      <span class="template-chip">Dify</span>
+      <span class="template-chip">Uptime Kuma</span>
+      <span class="template-chip">Minio</span>
+      <span class="template-chip">Directus</span>
+      <span class="template-chip">Strapi</span>
+      <span class="template-chip">Outline</span>
+      <span class="template-chip">Appsmith</span>
+      <span class="template-chip">Gitea</span>
+      <span class="template-chip">Jenkins</span>
+      <span class="template-chip">Pocketbase</span>
+      <span class="template-chip">+ 281 more</span>
+    </div>
+    <p style="font-size:12px;color:var(--dim);font-family:var(--mono)">Templates can also be loaded from a remote git repo by setting RAILDOCK_TEMPLATES_REPO — build your own private library.</p>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="section" id="install">
+  <div class="container">
+    <div class="eyebrow">Installation</div>
+    <h2 class="section-h2">One command. Your server is now a PaaS.</h2>
+    <p class="section-sub">The installer checks your environment, generates SSH keys, pulls the image, starts the stack, and auto-connects the local Dokku server. You get a working dashboard in under five minutes.</p>
+
+    <div class="install-block">
+      <div class="install-bar">
+        <span class="strip-dot strip-dot-r"></span>
+        <span class="strip-dot strip-dot-y"></span>
+        <span class="strip-dot strip-dot-g"></span>
+        <span class="strip-title">terminal</span>
+      </div>
+      <div class="install-body">
+        <div><span class="i-comment"># Standard — Dokku must already be installed</span></div>
+        <div><span class="i-prompt">$ </span><span class="i-cmd">curl</span> <span class="i-flag">-sSL</span> <span class="i-url">https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh</span> | bash</div>
+        <br>
+        <div><span class="i-comment"># Also install Dokku on this server</span></div>
+        <div><span class="i-flag">INSTALL_DOKKU=1</span> <span class="i-cmd">curl</span> <span class="i-flag">-sSL</span> <span class="i-url">https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh</span> | bash</div>
+        <br>
+        <div><span class="i-comment"># Skip local Dokku check (connecting to a remote server)</span></div>
+        <div><span class="i-flag">SKIP_DOKKU_CHECK=1</span> <span class="i-cmd">curl</span> <span class="i-flag">-sSL</span> <span class="i-url">https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh</span> | bash</div>
+        <br>
+        <div><span class="i-success">✓</span> Dashboard available at <span class="i-url">http://your-server:8888</span></div>
+      </div>
+    </div>
+
+    <div class="install-facts">
+      <div class="install-fact">
+        <div class="install-fact-label">Requires</div>
+        <div class="install-fact-val">Linux · Docker 20+ · Dokku 0.38+</div>
+      </div>
+      <div class="install-fact">
+        <div class="install-fact-label">Default port</div>
+        <div class="install-fact-val">:8888 (port 80/443 stays for Dokku)</div>
+      </div>
+      <div class="install-fact">
+        <div class="install-fact-label">To update</div>
+        <div class="install-fact-val">RAILDOCK_VERSION=latest ./install.sh</div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;padding:0.9rem 1.1rem;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.2);border-radius:9px;font-size:13px;color:#FCD34D">
+      After install, back up <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px">.env</code> and <code style="background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px">backend/config/master.key</code>. Losing them loses all encrypted credentials — they cannot be recovered.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>MIT License · <a href="https://github.com/mona-chen/raildock" target="_blank">github.com/mona-chen/raildock</a> · Built on Dokku 0.38+</p>
+  </div>
+</footer>
+</div><!-- /landing -->
+
+
+<!-- ═══════════════════════════════════════════
+     DOCS PAGE
+     ═══════════════════════════════════════════ -->
+<div id="docs">
+<div class="docs-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="docs-sidebar">
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Getting started</span>
+      <button class="docs-nav-link active" onclick="showDoc('overview')">What is RailDock?</button>
+      <button class="docs-nav-link" onclick="showDoc('install')">Installation</button>
+      <button class="docs-nav-link" onclick="showDoc('architecture')">Architecture</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Core concepts</span>
+      <button class="docs-nav-link" onclick="showDoc('servers')">Servers</button>
+      <button class="docs-nav-link" onclick="showDoc('projects')">Projects &amp; networks</button>
+      <button class="docs-nav-link" onclick="showDoc('services')">Services</button>
+      <button class="docs-nav-link" onclick="showDoc('canvas')">The canvas</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Deployments</span>
+      <button class="docs-nav-link" onclick="showDoc('deploy-sequence')">Deploy sequence</button>
+      <button class="docs-nav-link" onclick="showDoc('builders')">Builders</button>
+      <button class="docs-nav-link" onclick="showDoc('webhooks')">Webhook triggers</button>
+      <button class="docs-nav-link" onclick="showDoc('rollback')">Rollback</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Manifests</span>
+      <button class="docs-nav-link" onclick="showDoc('manifest-intro')">Introduction</button>
+      <button class="docs-nav-link" onclick="showDoc('manifest-schema')">Schema reference</button>
+      <button class="docs-nav-link" onclick="showDoc('manifest-vars')">Template variables</button>
+      <button class="docs-nav-link" onclick="showDoc('manifest-reconciler')">Reconciler &amp; diff</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Services in depth</span>
+      <button class="docs-nav-link" onclick="showDoc('logs')">Logs &amp; terminal</button>
+      <button class="docs-nav-link" onclick="showDoc('linking')">Service linking</button>
+      <button class="docs-nav-link" onclick="showDoc('databases')">Databases</button>
+      <button class="docs-nav-link" onclick="showDoc('domains')">Domains &amp; SSL</button>
+      <button class="docs-nav-link" onclick="showDoc('storage')">Storage mounts</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Platform</span>
+      <button class="docs-nav-link" onclick="showDoc('templates')">App templates</button>
+      <button class="docs-nav-link" onclick="showDoc('orgs')">Organizations &amp; RBAC</button>
+      <button class="docs-nav-link" onclick="showDoc('github-app')">GitHub App</button>
+      <button class="docs-nav-link" onclick="showDoc('security')">Security</button>
+      <button class="docs-nav-link" onclick="showDoc('backup')">Backup &amp; restore</button>
+    </div>
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Development</span>
+      <button class="docs-nav-link" onclick="showDoc('dev')">Local dev setup</button>
+      <button class="docs-nav-link" onclick="showDoc('limitations')">Known limitations</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="docs-main">
+
+    <!-- ── OVERVIEW ── -->
+    <div class="doc-page visible" id="doc-overview">
+      <h2>What is RailDock?</h2>
+      <p class="doc-lead">RailDock is a self-hosted deployment platform. You install it on a Linux server alongside Dokku, and it becomes a full PaaS control plane: deploy apps from git or Docker images, provision and link databases, manage domains and SSL, stream live logs, open interactive terminals into containers, and define your entire infrastructure as a TOML manifest.</p>
+
+      <h3>What it is — from reading the code</h3>
+      <p>RailDock operates by talking to Dokku over SSH. Every action in the UI translates to real Dokku commands executed on your server. It maintains a PostgreSQL database of its own for service records, deployment history, environment variables (stored in plaintext, as Dokku would see them), and encrypted credentials (SSH keys, Git tokens — stored with Lockbox AES-256-GCM).</p>
+      <p>The React frontend communicates with a Rails API. Real-time features (log tailing, deployment progress, interactive terminal) use ActionCable WebSockets. Background work (builds, template deploys, manifest applies) runs through Solid Queue.</p>
+
+      <h3>What it is not</h3>
+      <ul>
+        <li>It is not a Dokku dashboard or admin panel. RailDock has its own service model, networking layer, manifest system, and deployment pipeline — Dokku is the execution engine it speaks to.</li>
+        <li>It is not a multi-server orchestrator. Each project maps to one Dokku server. You can register multiple servers and have different projects on each, but there is no cross-server coordination.</li>
+        <li>It is not a managed hosting service. You run it on your own server and you own the infrastructure.</li>
+      </ul>
+
+      <h3>What works today</h3>
+      <ul>
+        <li><strong>Full deploy loop</strong> — git repos (sync + rebuild) and Docker images, with real-time log streaming during build</li>
+        <li><strong>Interactive terminal</strong> — PTY session into any running container via xterm.js</li>
+        <li><strong>306 one-click templates</strong> — full multi-service stacks deployed with topology-aware sequencing</li>
+        <li><strong>Manifest reconciler</strong> — TOML-declared infrastructure with diff preview and severity-classified apply</li>
+        <li><strong>Service linking</strong> — Dokku plugin links with DATABASE_URL injection and credential propagation</li>
+        <li><strong>Webhook deploys</strong> — per-service token URLs with HMAC verification for GitHub and GitLab</li>
+        <li><strong>Domains, SSL, and auto-provisioned subdomains</strong></li>
+        <li><strong>Organizations and RBAC</strong> — teams, deploy keys, GitHub App integration per org</li>
+        <li><strong>Database ops</strong> — provision, link, backup, restore for Postgres, MySQL, MariaDB, MongoDB, Redis</li>
+        <li><strong>External Traefik proxy mode</strong> — for servers with an existing reverse proxy</li>
+      </ul>
+
+      <h3>Known limitations</h3>
+      <ul>
+        <li><strong>Backup schedules run on paper only</strong> — the UI lets you create backup schedules, but there is no recurring job that executes them. Manual backups work.</li>
+        <li><strong>No password reset UI</strong> — reset passwords from the Rails console: <code>User.find_by(email: "...").update!(password: "newpass")</code></li>
+        <li><strong>Single server per project</strong> — no multi-server orchestration</li>
+        <li><strong>No preview environments</strong></li>
+        <li><strong>Metrics fallback</strong> — if Dokku's ps:report output format changes, metrics fall back to nil with a warning log</li>
+      </ul>
+    </div>
+
+    <!-- ── INSTALL ── -->
+    <div class="doc-page" id="doc-install">
+      <h2>Installation</h2>
+      <p class="doc-lead">RailDock ships as a single Docker image. The install script handles key generation, secret bootstrapping, and initial server connection in one pass.</p>
+
+      <h3>Requirements</h3>
+      <ul>
+        <li>Linux server (Ubuntu 22.04+ recommended)</li>
+        <li>Docker 20+ and Docker Compose</li>
+        <li>Dokku 0.38+ (installer can set it up for you)</li>
+        <li>Port 8888 open — RailDock listens here so Dokku's proxy keeps ports 80/443</li>
+      </ul>
+
+      <h3>Quick install</h3>
+      <div class="code-block">curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash</div>
+
+      <p>The installer does the following, in order:</p>
+      <ol>
+        <li>Checks for Docker; prints install instructions if missing</li>
+        <li>Checks for Dokku; installs it if <code>INSTALL_DOKKU=1</code> is set</li>
+        <li>Generates an Ed25519 SSH key pair and writes it to <code>data/dokku-ssh/</code></li>
+        <li>Registers the public key with Dokku via <code>dokku ssh-keys:add</code></li>
+        <li>Copies <code>.env.example</code> to <code>.env</code> and fills in random secrets (JWT_SECRET_KEY, LOCKBOX_MASTER_KEY, etc.)</li>
+        <li>Generates a fresh <code>backend/config/credentials.yml.enc</code> and <code>master.key</code></li>
+        <li>Pulls <code>ghcr.io/mona-chen/raildock:latest</code> and starts the stack</li>
+        <li>Waits for the API to respond, then creates the "Local Dokku" server record automatically</li>
+      </ol>
+
+      <h3>Variants</h3>
+      <div class="code-block"><span class="c-comment"># Also install Dokku</span>
+INSTALL_DOKKU=1 curl -sSL .../install.sh | bash
+
+<span class="c-comment"># Connecting to a remote Dokku server — skip local Dokku check</span>
+SKIP_DOKKU_CHECK=1 curl -sSL .../install.sh | bash
+
+<span class="c-comment"># Build the image from source instead of pulling</span>
+BUILD_FROM_SOURCE=1 ./install.sh</div>
+
+      <h3>Upgrading</h3>
+      <div class="code-block">cd /opt/raildock
+RAILDOCK_VERSION=latest ./install.sh</div>
+
+      <div class="callout callout-danger">
+        After every install or upgrade, back up <code>.env</code> and <code>backend/config/master.key</code>. These are the encryption keys for all SSH keys and Git tokens stored by RailDock. They cannot be recovered if lost.
+      </div>
+
+      <h3>Uninstall</h3>
+      <div class="code-block">./uninstall.sh</div>
+      <p>This stops and removes the RailDock containers and volumes. It does not touch Dokku or any apps you deployed through RailDock.</p>
+    </div>
+
+    <!-- ── ARCHITECTURE ── -->
+    <div class="doc-page" id="doc-architecture">
+      <h2>Architecture</h2>
+      <p class="doc-lead">RailDock is a Rails 8 API backend with a React 19 frontend, deployed as a single Docker image managed by supervisord. All communication with Dokku happens over SSH.</p>
+
+      <h3>Process layout inside the container</h3>
+      <div class="code-block">supervisord
+├── nginx          — serves the React frontend; reverse-proxies /api to Puma
+├── puma           — Rails API (ActionCable included)
+└── solid-queue    — background job workers (deploys, template installs, manifest applies)</div>
+
+      <h3>Data flow</h3>
+      <div class="code-block">Browser (React 19 / Vite)
+    │  REST + WebSocket (ActionCable)
+    ▼
+Puma (Rails 8.1)  ←→  PostgreSQL (RailDock's own DB)
+    │  SSH (Net::SSH)
+    ▼
+Dokku on host server
+    │
+    ▼
+Running app containers + Dokku plugin datastores</div>
+
+      <h3>Key backend services</h3>
+      <ul>
+        <li><strong>DokkuEngine</strong> — SSH wrapper with 60+ methods. Wraps every Dokku command category: apps, config, domains, storage, proxy, ports, Traefik, Postgres/MySQL/Redis/MongoDB/MariaDB operations, cron, resource limits, metrics, ps:report, and an interactive PTY class. Maintains a persistent SSH session per deploy job to avoid connection storms during one-click template installs.</li>
+        <li><strong>HostEngine</strong> — Runs raw Docker commands on the host (network management, container inspection, docker pull, container existence checks) that are not available through Dokku's SSH interface. Uses the same SSH session pooling.</li>
+        <li><strong>ManifestParser</strong> — Parses raildock.toml, raildock.json, or app.json into a normalized <code>ManifestDesiredState</code>. Handles format auto-detection. Replaces <code>${{ ... }}</code> template variables with internal markers (<code>[SECRET:id]</code>, <code>[RAILDOCK_PUBLIC_DOMAIN]</code>, etc.) during parse, resolved at apply time.</li>
+        <li><strong>ManifestReconciler</strong> — Diffs ManifestDesiredState against current DB + Dokku state. Produces a list of typed <code>Change</code> objects, each classified by ChangeClassifier.</li>
+        <li><strong>ChangeClassifier</strong> — Maps manifest fields to one of three severities: <span class="pill pill-green">reload</span>, <span class="pill pill-amber">restart</span>, or <span class="pill pill-red">redeploy</span>.</li>
+        <li><strong>ServiceSettingsSync</strong> — Pushes hot-reloadable config changes (proxy settings, Traefik labels, port mappings, cron, resource limits, Let's Encrypt, maintenance mode) to Dokku immediately when a service is updated in the DB, without requiring a redeploy.</li>
+        <li><strong>ProjectNetworkManager</strong> — Creates and manages a per-project Docker bridge network so services can reach each other by internal hostname. Configures Dokku's attach-post-create hook to attach containers to the network before they start, preventing DNS race conditions.</li>
+        <li><strong>TemporaryDomainService</strong> — Auto-provisions a public domain for new services. If the server's base domain is a magic DNS service (sslip.io, nip.io, traefik.me), embeds the server's public IP in the hostname. Otherwise generates a subdomain and optionally enables Let's Encrypt.</li>
+        <li><strong>ExternalProxyConfigurator</strong> — For servers in "external" proxy mode, disables Dokku's built-in proxy and applies Traefik Docker labels to route traffic from an external Traefik instance.</li>
+        <li><strong>PortDetector</strong> — Four-step port discovery: (1) Dokku ports:report, (2) plugin-specific info commands, (3) known defaults by subtype, (4) heuristic fallback based on deploy method.</li>
+        <li><strong>TraefikLabelBuilder</strong> — Generates the full set of Traefik router and service labels for HTTP+HTTPS routing, TLS cert resolvers, and wildcard certificates.</li>
+        <li><strong>ComposeToManifest</strong> — Best-effort converter from Docker Compose YAML to raildock.toml. Maps image names to service categories, converts port/volume/env/depends_on declarations, and warns on unsupported features.</li>
+        <li><strong>GithubAppService</strong> — Manages GitHub App installation tokens, verifies webhook signatures, and syncs accessible repositories via the GitHub API.</li>
+      </ul>
+
+      <h3>ActionCable channels</h3>
+      <ul>
+        <li><strong>LogsChannel</strong> — Opens a dedicated SSH connection and tails the appropriate Dokku log command for the service type. Parses timestamp, process name, and log level from each line. Strips ANSI escape codes. Broadcasts to the frontend over WebSocket. Each subscription gets its own thread with a <code>Concurrent::Atom</code> stop token for clean shutdown.</li>
+        <li><strong>DeploymentsChannel</strong> — Broadcasts deployment status events (pending → building → deploying → succeeded/failed) with log chunk streaming during the build phase.</li>
+        <li><strong>TerminalChannel</strong> — Opens a PTY session via DokkuEngine's interactive_shell method. Forwards keystrokes (base64-encoded through JSON) and resize events. Restricted to project owners and org admins/owners.</li>
+      </ul>
+
+      <h3>Background jobs</h3>
+      <ul>
+        <li><strong>DeploymentJob</strong> — Runs the full 15-step deploy sequence for one service. Concurrency-locked per service (one deploy at a time). Uses a persistent SSH session for the entire job.</li>
+        <li><strong>DeploymentSequenceJob</strong> — Runs a topologically-sorted list of deployments in order, cancelling any deployment whose dependency failed.</li>
+        <li><strong>TemplateDeployJob</strong> — Handles the Dokku-side setup of a one-click template deploy: creates apps and datastores, creates links, connects project networks, resolves runtime variables, then enqueues DeploymentSequenceJob.</li>
+        <li><strong>ManifestApplyJob</strong> — Runs ManifestReconciler.apply! in the background and broadcasts progress over ActionCable.</li>
+        <li><strong>ReconcileStaleDeploymentsJob</strong> — Runs every 10 minutes in production. Marks deployments that have been "building" for too long as failed.</li>
+        <li><strong>GithubSyncReposJob</strong> — Fetches the list of accessible repositories from GitHub after a GitHub App install.</li>
+      </ul>
+    </div>
+
+    <!-- ── SERVERS ── -->
+    <div class="doc-page" id="doc-servers">
+      <h2>Servers</h2>
+      <p class="doc-lead">A server is a Dokku host that RailDock manages over SSH. You register servers by providing a hostname and SSH private key. RailDock validates the connection, detects Dokku and Docker versions, and stores the key encrypted with Lockbox.</p>
+
+      <h3>Auto-configured local server</h3>
+      <p>When RailDock starts for the first time with no servers registered, it reads the SSH key from <code>/data/dokku-ssh/id_ed25519</code> (generated by the install script) and automatically creates a "Local Dokku" server record pointing at the Dokku instance on the same host. This gives you a working deployment envir with zero configuration.</p>
+
+      <h3>SSH user</h3>
+      <p>RailDock connects to Dokku servers as the <code>dokku</code> user by default. This is the standard Dokku SSH user — Dokku intercepts SSH commands and routes them through its plugin system. You can override the SSH user per server in the server settings.</p>
+
+      <h3>Proxy detection</h3>
+      <p>When you validate a server connection, RailDock runs <code>proxy:report --global</code> to detect the active proxy type (traefik, nginx, caddy, haproxy, openresty). This is stored as the server's default proxy and inherited by new services created on that server.</p>
+
+      <h3>Base domain and auto-domains</h3>
+      <p>If you set a base domain on a server (e.g. <code>apps.example.com</code>), RailDock auto-provisions a subdomain for every new service (e.g. <code>myproject-api.apps.example.com</code>). Magic DNS services are detected by name — sslip.io, nip.io, and traefik.me will embed the server's public IP in the hostname so no DNS configuration is needed.</p>
+
+      <h3>External proxy mode</h3>
+      <p>If your server already has a Traefik instance managing routing, set the proxy mode to "external" and provide the Docker network name your Traefik container is attached to. RailDock will disable Dokku's built-in proxy for services on that server and instely Traefik Docker labels, connecting each service's container to the proxy network.</p>
+    </div>
+
+    <!-- ── PROJECTS ── -->
+    <div class="doc-page" id="doc-projects">
+      <h2>Projects &amp; networks</h2>
+      <p class="doc-lead">A project groups related services — typically one application with its databases, caches, and workers. Every project lives on one server and gets its own isolated Docker network.</p>
+
+      <h3>Project network</h3>
+      <p>When a project is created, RailDock generates a private Docker bridge network named <code>rd-{slug}-{id}</code>. Every service in the project is connected to this network so services can reach each other by internal hostname without going through the public internet or Dokku's proxy.</p>
+      <p>RailDock configures Dokku's <code>docker-options:add deploy</code> with <code>--network rd-{slug}-{id}</code> so the container is attached before it starts, preventing the DNS race conditions that occur when you connect a container to a network after it boots.</p>
+
+      <h3>Internal hostnames</h3>
+      <p>Each service is assigned an internal hostname based on its name (e.g. a service named <code>redis</code> is reachable at <code>redis</code> from other services in the same project). RailDock injects these as env vars (e.g. <code>REDIS_HOST=redis</code>) when a link is established.</p>
+
+      <h3>Environments</h3>
+      <p>Projects have an environment field: <code>production</code>, <code>staging</code>, or <code>development</code>. This is a label — it does not change runtime behavior, but it appears on service cards on the canvas and in the project list.</p>
+
+      <h3>Shared variables</h3>
+      <p>Projects support shared variables — key-value pairs accessible to all services in the project via <code>${{ shared.VAR }}</code> in manifests. Useful for values like app name, region, or shared API endpoints.</p>
+    </div>
+
+    <!-- ── SERVICES ── -->
+    <div class="doc-page" id="doc-services">
+      <h2>Services</h2>
+      <p class="doc-lead">A service is anything deployed in a project: an app, a database, a cache, or any Docker image. All services share the same data model — their type and subtype determine what Dokku commands RailDock uses to manage them.</p>
+
+      <h3>Service types</h3>
+      <table class="data-table">
+        <thead><tr><th>type</th><th>subtypes</th><th>How managed</th></tr></thead>
+        <tbody>
+          <tr><td>app</td><td>web, worker, or any name</td><td>Dokku app: create, git:sync, ps:rebuild, git:from-image</td></tr>
+          <tr><td>database</td><td>postgres, mysql, mariadb, mongo</td><td>Dokku plugin: postgres:create, mysql:create, etc.</td></tr>
+          <tr><td>cache</td><td>redis</td><td>Dokku plugin: redis:create</td></tr>
+          <tr><td>queue</td><td>rabbitmq</td><td>Docker image, treated as app</td></tr>
+          <tr><td>search</td><td>elasticsearch, meilisearch, typesense</td><td>Docker image, treated as app</td></tr>
+          <tr><td>service</td><td>any</td><td>Docker image, treated as app</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Managed-by</h3>
+      <p>Every service has a <code>managed_by</code> field:</p>
+      <ul>
+        <li><strong>ui</strong> (default) — config is owned by the UI. Changes apply immediately.</li>
+        <li><strong>manifest</strong> — config is owned by the raildock.toml manifest. UI edits are stored as overrides and overwritten onext manifest apply.</li>
+        <li><strong>hybrid</strong> — manifest provides baseline; UI edits overlay it on apply.</li>
+      </ul>
+
+      <h3>Service naming</h3>
+      <p>Every service gets a Dokku app name generated as <code>{project-name}-{service-name}</code> (parameterized). For example, a service named <code>api</code> in a project named <code>My App</code> becomes <code>my-app-api</code> in Dokku. Database services follow the same convention.</p>
+
+      <h3>Default Docker images</h3>
+      <p>Some service subtypes have known default Docker images and can be created without specifying one:</p>
+      <table class="data-table">
+        <thead><tr><th>subtype</th><th>default image</th></tr></thead>
+        <tbody>
+          <tr><td>minio</td><td>minio/minio:latest</td></tr>
+          <tr><td>rabbitmq</td><td>rabbitmq:alpine</td></tr>
+          <tr><td>elasticsearch</td><td>elasticsearch:8</td></tr>
+          <tr><td>meilisearch</td><td>getmeili/meilisearch:latest</td></tr>
+          <tr><td>typesense</td><td>typesense/typesense:latest</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── CANVAS ── -->
+    <div class="doc-page" id="doc-canvas">
+      <h2>The canvas</h2>
+      <p class="doc-lead">The project canvas is an infinite pan/zoom workspace where your services appear as draggable cards. It is the main interface for understanding and managing a project.</p>
+
+      <h3>Navigation</h3>
+      <ul>
+        <li><strong>Scroll</strong> — pan the canvas (two-finger or mouse wheel)</li>
+        <li><strong>⌘/Ctrl + scroll, or pinch</strong> — zoom in/out</li>
+        <li><strong>Middle-click drag</strong> — pan canvas</li>
+        <li><strong>Drag a card</strong> — move the service; position is saved to the database on mouse up</li>
+        <li><strong>Click a card</strong> — open the service panel on the right</li>
+        <li><strong>Click canvas background</strong> — deselect active service</li>
+        <li><strong>Escape</strong> — close panel or modal</li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <table class="data-table">
+        <thead><tr><th>Key</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>N or +</td><td>Open "Add service" modal</td></tr>
+          <tr><td>↑ ↓ ← →</td><td>Pan canvas (80px per keypress / zoom)</td></tr>
+          <tr><td>⌘= / ⌘–</td><td>Zoom in / out</td></tr>
+          <tr><td>⌘0</td><td>Reset zoom and pan to default</td></tr>
+          <tr><td>?</td><td>Show keyboard shortcut help overlay</td></tr>
+          <tr><td>Escape</td><td>Close service panel, modal, or shortcut overlay</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Service panel tabs</h3>
+      <p>Clicking a service card opens a panel with tabs:</p>
+      <ul>
+        <li><strong>Overview</strong> — status, last deploy timestamp, process types, quick-action buttons (deploy, start, stop, restart, rebuild)</li>
+        <li><strong>Deploy</strong> — trigger a deploy, choose branch, view deployment history, rollback to a previous commit</li>
+        <li><strong>Logs</strong> — real-time log stream with level filter, text search, ANSI-stripped output, JSON pretty-printing, and download</li>
+        <li><strong>Console</strong> — interactive PTY terminal into the running container</li>
+        <li><strong>Variables</strong> — add, edit, and delete environment variables; see which are Dokku-injected</li>
+        <li><strong>Domains</strong> — add/remove custom domains, enable Let's Encrypt, generate a temporary domain</li>
+        <li><strong>Storage</strong> — view and manage persistent volume mounts</li>
+        <li><strong>Database</strong> — connection info, DSN, status (for database services)</li>
+        <li><strong>Metrics</strong> — CPU, memory, and disk readings from the server</li>
+        <li><strong>Backups</strong> — trigger a manual backup, view backup history</li>
+        <li><strong>Connections</strong> — manage links to other services in the project</li>
+        <li><strong>Settings</strong> — builder, git source, resource limits, proxy config, restart policy, Docker options</li>
+      </ul>
+
+      <h3>Connection lines</h3>
+      <p>Dashed lines on the canvas connect services that are linked. Lines are drawn only between visible services (they disawhen a linked service is filtered out or hidden by search). Clicking the link icon on a service card opens a menu to link to or unlink from other services in the project.</p>
+    </div>
+
+    <!-- ── DEPLOY SEQUENCE ── -->
+    <div class="doc-page" id="doc-deploy-sequence">
+      <h2>Deploy sequence</h2>
+      <p class="doc-lead">Every deploy runs through a deterministic 15-step sequence. Understanding it explains why deploys take the time they do, and why certain failure modes occur.</p>
+
+      <h3>The full sequence</h3>
+      <ol>
+        <li><strong>Wait for linked databases</strong> — If the service has linked datastores, RailDock polls them (up to 120 seconds) until they respond on their plugin info command or their TCP port is open. Prevents apps from booting before Postgres/MySQL/Redis is ready.</li>
+        <li><strong>Create Dokku app</strong> — Runs <code>dokku apps:create {name}</code> if the app doesn't exist yet. Idempotent.</li>
+        <li><strong>Configure project network</strong> — Calls ProjectNetworkManager to create the project's Docker bridge network if needed and configure Dokku's attach-post-create docker option so the container joins the network before starting.</li>
+        <li><strong>Sync environment variables</strong> — Iterates all service env vars and calls <code>dokku config:set</code> for each.</li>
+        <li><strong>Sync domains</strong> — Calls <code>dokku domains:set</code> with all configured hostnames.</li>
+        <li><strong>Sync storage mounts</strong> — Calls <code>dokku storage:mount</code> for each configured volume.</li>
+        <li><strong>Configure proxy</strong> — Either applies ExternalProxyConfigurator (for external Traefik mode), disables the proxy, or calls <code>dokku proxy:set</code> and applies nginx settings. Calls <code>dokku proxy:enable</code>.</li>
+        <li><strong>Apply Docker options</strong> — Calls <code>dokku docker-options:add</code> for each configured option (phase: build/deploy/run).</li>
+        <li><strong>Apply resource limits</strong> — Calls <code>dokku resource:limit</code> for each process type with CPU/memory/GPU constraints.</li>
+        <li><strong>Set git deploy branch</strong> — Calls <code>dokku git:set deploy-branch {branch}</code>.</li>
+        <li><strong>Build and deploy</strong> — For Docker image services: pre-pulls the image on the host, then calls <code>git:from-image</code> with real-time log streaming. For git repos: calls <code>git:sync</code>, then streams <code>ps:rebuild</code>. Retries once on transient overlayfs extraction failures.</li>
+        <li><strong>Detect port</strong> — PortDetector reads the running container's port via ports:report, plugin info commands, or known defaults.</li>
+        <li><strong>Sync port mappings</strong> — Calls <code>dokku ports:set</code> for HTTP and HTTPS, mapping host ports 80/443 to the detected container port.</li>
+        <li><strong>Scale processes</strong> — Calls <code>dokku ps:scale</code> for each process type's configured quantity.</li>
+        <li><strong>Connect to project network and sync credentials</strong> — Connects the container to the project network, ensures network aliases for all linked services, injects internal hostnames as env vars. For Docker image services, inspects the running container to discover generated passwords and propagates them to linked apps.</li>
+      </ol>
+
+      <div class="callout callout-info">
+        The entire sequence uses a single persistent SSH session to avoid connection storms. On one-click template deploys with multiple services, each service deploy runs serially inside the same session.
+      </div>
+
+      <h3>Deploy statuses</h3>
+      <table class="data-table">
+        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>pending</td><td>Queued, not yet started</td></tr>
+          <tr><td>building</td><td>Running steps 1–10: network, env, domains, storage, proxy, build</td></tr>
+          <tr><td>deploying</td><td>Steps 11–15: port detection, mappings, scaling, networking</td></tr>
+          <tr><td>succeeded</td><td>All steps completed; service status set to running</td></tr>
+          <tr><td>failed</td><td>Any step returned an error; deploy log preserved</td></tr>
+          <tr><td>cancelled</td><td>A dependency deployment failed (sequence job cancelled this one)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── BUILDERS ── -->
+    <div class="doc-page" id="doc-builders">
+      <h2>Builders</h2>
+      <p class="doc-lead">Builders control how RailDock turns your source code into a running container. The builder you choose determines which Dokku build backend is used.</p>
+      <table class="data-table">
+        <thead><tr><th>Builder</th><th>How it works</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td>auto</td><td>Dokku checks for Dockerfile → Nixpacks → Herokuish in order</td><td>Most projects; set and forget</td></tr>
+          <tr><td>nixpacks</td><td>Auto-detects language, generates optimized Nix-based image without a Dockerfile</td><td>Node, Python, Go, Ruby, PHP, Rust, Java, .NET</td></tr>
+          <tr><td>dockerfile</td><td>Uses the Dockerfile in your repo root</td><td>Full control over build environment</td></tr>
+          <tr><td>railpack</td><td>Railway-inspired buildpack with modern language support</td><td>Modern frameworks, monorepos</td></tr>
+          <tr><td>herokuish</td><td>Emulates Heroku buildpacks using the same detection logic</td><td>Existing Heroku-compatible apps</td></tr>
+          <tr><td>pack</td><td>Cloud Native Buildpacks standard (Paketo, etc.)</td><td>Cloud-native and standardized builds</td></tr>
+          <tr><td>lambda</td><td>Lambda-style packaging</td><td>Serverless function deployments</td></tr>
+        </tbody>
+      </table>
+      <p>For Docker image deploys, the builder field is ignored — RailDock calls <code>git:from-image</code> regardless of the builder setting.</p>
+    </div>
+
+    <!-- ── WEBHOOKS ── -->
+    <div class="doc-page" id="doc-webhooks">
+      <h2>Webhook triggers</h2>
+      <p class="doc-lead">Every service has a unique token-authenticated webhook URL. Posting to it triggers a deploy. You can also register a shared webhook that matches services by repository name.</p>
+
+      <h3>Per-service webhook URL</h3>
+      <p>Visible in the service panel under Deploy. Format:</p>
+      <div class="code-block">{RAILDOCK_API_URL}/api/services/{id}/webhooks/{token}/deploy</div>
+      <p>No signature verification — the token in the URL is the secret. POST any body to trigger a deploy. Optionally pass a <code>branch</code> parameter.</p>
+
+      <h3>Generic webhook (repo-matching)</h3>
+      <div class="code-block">POST {RAILDOCK_API_URL}/api/webhooks/deploy</div>
+      <p>Matches services by git repository. Supports:</p>
+      <ul>
+        <li><strong>GitHub</strong> — verifies X-Hub-Signature-256 HMAC with WEBHOOK_SECRET env var</li>
+        <li><strong>GitLab</strong> — verifies X-Gitlab-Token against WEBHOOK_SECRET</li>
+        <li><strong>Generic</strong> — verifies X-Webhook-Secret header or <code>token</code> query param</li>
+      </ul>
+      <p>Only deploys services that have <code>auto_deploy: true</code> and whose configured branch matches the pushed ref. Idempotent — uses the GitHub delivery ID or a commit SHA hash as the idempotency key to prevent duplicate deploys from re-delivered webhooks.</p>
+
+      <h3>GitHub App</h3>
+      <p>Connect a GitHub App per organization to enable automatic repo syncing and push-triggered deploys without managing webhook secrets. See <a href="#" onclick="showDoc('github-app');return false" style="color:var(--violet)">GitHub App integration</a>.</p>
+    </div>
+
+    <!-- ── ROLLBACK ── -->
+    <div class="doc-page" id="doc-rollback">
+      <h2>Rollback</h2>
+      <p class="doc-lead">You can roll back any git-deployed service to a previous commit by selecting a past deployment in the Deploy tab.</p>
+      <p>Rollback creates a new Deployment record with the previous deployment's branch and commit SHA, then runs the standard deploy sequence using that commit. The full deploy pipeline runs — env vars, domains, storage, build — so rollback is a clean re-deploy, not a container swap.</p>
+
+      <div class="callout callout-warn">
+        Rollback requires the deployment to have a recorded commit SHA. Deployments triggered without a specific commit (e.g. a branch-only deploy with no commit in the payload) cannot be rolled back precisely and will return an error.
+      </div>
+
+      <p>For Docker image services, rollback pins the image tag from the previous deployment's log output. This requires the image tag to still be available in the registry.</p>
+    </div>
+
+    <!-- ── MANIFEST INTRO ── -->
+    <div class="doc-page" id="doc-manifest-intro">
+      <h2>Manifests — introduction</h2>
+      <p class="doc-lead">A RailDock manifest is a TOML file that declares your entire project: services, env vars, databases, storage, links, scaling, proxy, and deploy behavior. It is the closest thing to infrastructure-as-code in RailDock.</p>
+
+      <h3>Supported formats</h3>
+      <ul>
+        <li><strong>raildock.toml</strong> — primary format, full feature set, auto-detected</li>
+        <li><strong>raildock.json</strong> — JSON equivalent, same schema</li>
+        <li><strong>app.json</strong> — Heroku/Dokku native format, limited to Dokku-native features</li>
+      </ul>
+      <p>Format is auto-detected from content structure when no filename hint is given. If a manifest is explicitly saved as app.json, it is parsed with the Heroku/Dokku schema.</p>
+
+      <h3>Basic example</h3>
+      <div class="code-block"><span class="c-comment"># raildock.toml</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>     = <span class="c-str">"api"</span>
+<span class="c-key">builder</span>  = <span class="c-str">"nixpacks"</span>
+<span class="c-key">source</span>   = { type = <span class="c-str">"git"</span> }
+
+  [services.<span class="c-tbl">scaling</span>]
+  web = <span class="c-num">1</span>
+
+  [services.<span class="c-tbl">env</span>]
+  RAILS_ENV       = <span class="c-str">"production"</span>
+  SECRET_KEY_BASE = <span class="c-var">"$&#123;&#123; secret() &#125;&#125;"</span>
+
+  [[services.<span class="c-tbl">storage</span>]]
+  host      = <span class="c-str">"api-uploads"</span>
+  container = <span class="c-str">"/app/storage"</span>
+
+  [services.<span class="c-tbl">checks</span>]
+  enabled = <span class="c-str">true</span>
+  wait    = <span class="c-num">5</span>
+  timeout = <span class="c-num">30</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>     = <span class="c-str">"db"</span>
+<span class="c-key">category</span> = <span class="c-str">"database"</span>
+<span class="c-key">subtype</span>  = <span class="c-str">"postgres"</span>
+<span class="c-key">source</span>   = { type = <span class="c-str">"docker"</span> }
+
+[[<span class="c-tbl">links</span>]]
+<span class="c-key">from</span> = <span class="c-str">"api"</span>
+<span class="c-key">to</span>   = <span class="c-str">"db"</span></div>
+
+      <h3>How manifests interact with live state</h3>
+      <p>The manifest editor in the UI (under the Manifest tab of any project) lets you write or paste a manifest, save it, preview the diff, and apply it. Saving a manifest does not apply changes — it only stores the content and runs an auto-preview. Changes are applied only when you click "Apply".</p>
+      <p>The manifest API endpoint (<code>GET /api/projects/:id/manifest</code>) will generate a manifest from the current live state if none is stored, so you can inspect what a manifest for your project would look like before writing one.</p>
+    </div>
+
+    <!-- ── MANIFEST SCHEMA ── -->
+    <div class="doc-page" id="doc-manifest-schema">
+      <h2>Schema reference</h2>
+      <p class="doc-lead">The full set of fields recognized by the raildock.toml parser and reconciler.</p>
+
+      <h3>Top level</h3>
+      <table class="data-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>string</td><td>Display name for the project or template</td></tr>
+          <tr><td>description</td><td>string</td><td>Optional description</td></tr>
+          <tr><td>[[services]]</td><td>array</td><td>Service definitions (one block per service)</td></tr>
+          <tr><td>[[links]]</td><td>array</td><td>Service-to-service connections</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Service fields</h3>
+      <table class="data-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>name</td><td>string</td><td>Service name, used to generate the Dokku app name</td></tr>
+          <tr><td>category</td><td>string</td><td>app, database, cache, queue, search, or service</td></tr>
+          <tr><td>subtype</td><td>string</td><td>web, worker, postgres, redis, mysql, mariadb, mongo, docker, etc.</td></tr>
+          <tr><td>builder</td><td>string</td><td>nixpacks, dockerfile, herokuish, railpack, pack, lambda, auto</td></tr>
+          <tr><td>docker_image</td><td>string</td><td>Docker image URI for image-based deploys</td></tr>
+          <tr><td>start_command</td><td>string</td><td>Override the container entrypoint</td></tr>
+          <tr><td>source</td><td>table</td><td>{ type = "git" } or { type = "docker" }</td></tr>
+          <tr><td>version</td><td>string</td><td>Plugin version for datastore services</td></tr>
+          <tr><td>depends_on</td><td>array</td><td>Names of other services that must deploy first</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Service subsections</h3>
+      <div class="code-block"><span class="c-comment"># All recognized subsections</span>
+
+[services.<span class="c-tbl">scaling</span>]
+web    = <span class="c-num">1</span>        <span class="c-comment"># process type name = replica count</span>
+worker = <span class="c-num">2</span>
+
+[services.<span class="c-tbl">env</span>]
+KEY = <span class="c-str">"value"</span>     <span class="c-comment"># env var; supports ${{ }} variables</span>
+
+[services.<span class="c-tbl">checks</span>]
+enabled = <span class="c-str">true</span>
+wait    = <span class="c-num">5</span>          <span class="c-comment"># seconds before health check starts</span>
+timeout = <span class="c-num">30</span>         <span class="c-comment"># seconds before check is declared failed</span>
+
+[[services.<span class="c-tbl">storage</span>]]
+host      = <span class="c-str">"my-volume"</span>       <span class="c-comment"># named volume or host path</span>
+container = <span class="c-str">"/app/storage"</span>    <span class="c-comment"># mount point inside container</span>
+
+[services.<span class="c-tbl">proxy</span>]
+enabled = <span class="c-str">true</span>
+type    = <span class="c-str">"traefik"</span>         <span class="c-comment"># nginx | traefik | caddy | haproxy | openresty</span>
+
+  [[services.proxy.<span class="c-tbl">ports</span>]]
+  host      = <span class="c-num">80</span>
+  container = <span class="c-num">3000</span>
+
+[services.<span class="c-tbl">letsencrypt</span>]
+enabled    = <span class="c-str">true</span>
+email      = <span class="c-str">"you@example.com"</span>
+staging    = <span class="c-str">false</span>
+auto_renew = <span class="c-str">true</span>
+
+[services.<span class="c-tbl">limits</span>]
+web = { memory = <span class="c-str">"512m"</span>, cpu = <span class="c-str">"0.5"</span> }
+
+[services.<span class="c-tbl">reservations</span>]
+web = { memory = <span class="c-str">"256m"</span> }</div>
+
+      <h3>Links</h3>
+      <div class="code-block">[[<span class="c-tbl">links</span>]]
+<span class="c-key">from</span> = <span class="c-str">"api"</span>       <span class="c-comment"># service that depends on the other</span>
+<span class="c-key">to</span>   = <span class="c-str">"postgres"</span>  <span class="c-comment"># database or service being linked to</span></div>
+    </div>
+
+    <!-- ── MANIFEST VARS ── -->
+    <div class="doc-page" id="doc-manifest-vars">
+      <h2>Template variables</h2>
+      <p class="doc-lead">Environment values in manifests and templates support <code>${{ ... }}</code> variable syntax. These are resolved by RailDock at apply time, not passed literally to Dokku.</p>
+
+      <h3>Available variables</h3>
+      <table class="data-table">
+        <thead><tr><th>Variable</th><th>Resolves to</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>$&#123;&#123; secret() &#125;&#125;</td><td>A random 32-byte hex string</td><td>Generated once on first deploy, stable on subsequent deploys. Stored in the service's env var record.</td></tr>
+          <tr><td>$&#123;&#123; RAILDOCK_PUBLIC_DOMAIN &#125;&#125;</td><td>The service's first non-localhost public domain</td><td>Resolved at deploy time. Requires a domain to be configured or auto-provisioned first.</td></tr>
+          <tr><td>$&#123;&#123; shared.VAR &#125;&#125;</td><td>A project-level shared variable</td><td>Set shared vars in the project settings.</td></tr>
+          <tr><td>$&#123;&#123; linked.SERVICE.VAR &#125;&#125;</td><td>An env var value from a linked service</td><td>Resolved at deploy time. If the linked service has that var, the value is propagated. If the linked service is a docker-image service, its container is inspected first to discover generated passwords.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>How $&#123;&#123; linked.* &#125;&#125; works</h3>
+      <p>This is the most powerful and least obvious mechanism. When service A has:</p>
+      <div class="code-block">REDIS_PASSWORD = <span class="c-var">"$&#123;&#123; linked.redis.REDIS_PASSWORD &#125;&#125;"</span></div>
+      <p>And service A is linked to a service named "redis", RailDock stores an internal marker <code>[LINKED:redis:REDIS_PASSWORD]</code> in the env var value. At deploy time (step 15), it:</p>
+      <ol>
+        <li>Inspects the redis container's running environment</li>
+        <li>Finds the REDIS_PASSWORD that was generated by the Redis image on first start</li>
+        <li>Resolves the marker to the actual password value</li>
+        <li>Calls <code>dokku config:set</code> on service A with the resolved value</li>
+        <li>Restarts service A's container so it picks up the new value</li>
+      </ol>
+      <p>This means you don't need to know the password ahead of time — RailDock reads it from the running container after the database starts.</p>
+    </div>
+
+    <!-- ── RECONCILER ── -->
+    <div class="doc-page" id="doc-manifest-reconciler">
+      <h2>Reconciler &amp; diff</h2>
+      <p class="doc-lead">The manifest reconciler diffs your declared desired state against the current live state of the project and classifies every change by its required action.</p>
+
+      <h3>Diff process</h3>
+      <p>When you save a manifest or click "Preview", ManifestReconciler:</p>
+      <ol>
+        <li>Parses the manifest into a ManifestDesiredState</li>
+        <li>Reads the current state from the database (services, env vars, storage mounts, domains, scaling, config)</li>
+        <li>Computes the set difference: services to create, services to remove, fields to update</li>
+        <li>Wraps each delta in a <code>Change</code> object with service_name, field, change_type (added/removed/modified), old_value, and new_value</li>
+        <li>Classifies each Change using ChangeClassifier</li>
+      </ol>
+
+      <h3>Change severity classification</h3>
+      <table class="data-table">
+        <thead><tr><th>Severity</th><th>Meaning</th><th>Fields that trigger it</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill pill-green">reload</span></td><td>Applied with no process disruption</td><td>env, domains, storage, proxy, traefik_labels, letsencrypt, maintenance_mode</td></tr>
+          <tr><td><span class="pill pill-amber">restart</span></td><td>Service process restart, no rebuild</td><td>limits, reservations, checks, cron, scaling, restart_policy, restart_max_retries, auto_deploy, depends_on</td></tr>
+          <tr><td><span class="pill pill-red">redeploy</span></td><td>Full rebuild and redeploy</td><td>builder, docker_image, git_repo, branch, root_directory, start_command, docker_options, version, subtype, category, exposed, port</td></tr>
+        </tbody>
+      </table>
+
+      <p>The aggregate severity of an apply is the highest severity among all changes. A single <span class="pill pill-red">redeploy</span>-class field change means the entire apply is classified as redeploy, even if 20 other changes are reload-only.</p>
+
+      <div class="callout callout-warn">
+        Services removed from the manifest are flagged as "orphaned" but are not automatically destroyed. You must manually destroy orphaned services from the UI or CLI to avoid data loss.
+      </div>
+
+      <p>Services tagged <code>managed_by: ui</code> are never modified by a manifest apply, even if they appear in the manifest. Only services already tagged <code>managed_by: manifest</code> or newly created by the apply are touched.</p>
+    </div>
+
+    <!-- ── LOGS & TERMINAL ── -->
+    <div class="doc-page" id="doc-logs">
+      <h2>Logs &amp; terminal</h2>
+      <p class="doc-lead">Logs stream in real time over a WebSocket. The interactive terminal gives you a full PTY session into any running container.</p>
+
+      <h3>Log streaming</h3>
+      <p>LogsChannel opens a dedicated SSH connection (separate from the deploy session) and tails the appropriate log command:</p>
+      <table class="data-table">
+        <thead><tr><th>Service type</th><th>Command</th></tr></thead>
+        <tbody>
+          <tr><td>App services</td><td>dokku logs {app} -n 0 --tail</td></tr>
+          <tr><td>postgres</td><td>dokku postgres:logs {name} --tail</td></tr>
+          <tr><td>redis</td><td>dokku redis:logs {name} --tail</td></tr>
+          <tr><td>mysql / mariadb</td><td>dokku mysql:logs {name} --tail</td></tr>
+          <tr><td>mongo</td><td>dokku mongo:logs {name} --tail</td></tr>
+        </tbody>
+      </table>
+
+      <p>Each log line is parsed for timestamp, process type, and message using Dokku's standard format (<code>2026-01-01T00:00:00Z app[web.1]: message</code>). ANSI escape codes are stripped. The frontend detects log level from message content (FATAL, ERROR, WARN, INFO, DEBUG, TRACE keywords) and colorizes accordingly.</p>
+
+      <h3>Log features in the UI</h3>
+      <ul>
+        <li>Filter by log level (show errors only, hide debug, etc.)</li>
+        <li>Full-text search across displayed log lines</li>
+        <li>JSON payload pretty-printing</li>
+        <li>Pause/resume the live stream</li>
+        <li>Download the current log buffer as a text file</li>
+        <li>Copy individual lines to clipboard</li>
+        <li>Expand to fullscreen</li>
+      </ul>
+
+      <h3>Interactive terminal</h3>
+      <p>TerminalChannel opens a PTY via <code>dokku enter {app}</code> (or the database plugin equivalent for datastores like <code>dokku postgres:enter {name}</code>). The frontend uses xterm.js with:</p>
+      <ul>
+        <li>Shell selection: /bin/sh, /bin/bash, /bin/zsh, /bin/ash</li>
+        <li>Resize events forwarded to the PTY (cols × rows)</li>
+        <li>Output base64-encoded through the WebSocket JSON protocol</li>
+        <li>Ctrl+F opens an in-terminal search (xterm.js search addon)</li>
+        <li>Expand to fullscreen</li>
+      </ul>
+
+      <div class="callout callout-warn">
+        Terminal access is restricted to project owners and org admins/owners. Regular org members cannot open a terminal into any service.
+      </div>
+    </div>
+
+    <!-- ── SERVICE LINKING ── -->
+    <div class="doc-page" id="doc-linking">
+      <h2>Service linking</h2>
+      <p class="doc-lead">Linking an app service to a database service tells Dokku to inject a connection URL into the app's environment and wires the two services onto the project's private network.</p>
+
+      <h3>What happens when you link</h3>
+      <ol>
+        <li>A <code>ServiceLink</code> record is created in the database</li>
+        <li>RailDock calls the appropriate Dokku plugin link command: <code>postgres:link {db} {app}</code>, <code>redis:link</code>, etc.</li>
+        <li>Dokku injects env vars like <code>DATABASE_URL</code>, <code>REDIS_URL</code>, <code>DOKKU_POSTGRES_*</code> into the app</li>
+        <li>RailDock reads Dokku's injected vars back out via <code>config:show</code> and stores them in the service record</li>
+        <li>For Postgres: also sets <code>PGSSLMODE=disable</code> on the app (Dokku internal connections don't use SSL)</li>
+        <li>Both services are connected to the project's Docker bridge network with appropriate network aliases</li>
+        <li>Internal hostnames are injected as env vars so apps can reach databases by name</li>
+      </ol>
+
+      <h3>What happens when you unlink</h3>
+      <ol>
+        <li>The <code>ServiceLink</code> record is destroyed</li>
+        <li>The corresponding Dokku plugin unlink command is called</li>
+        <li>Env vars injected by the link (source: "dokku-link") are removed from the service record</li>
+      </ol>
+
+      <h3>Canvas linking</h3>
+      <p>On the canvas, click the link icon on any service card to open a dropdown of services you can link to or unlink from. The direction of the link determines which service gets Dokku's injected env vars — linking app → database gives the app the DATABASE_URL.</p>
+    </div>
+
+    <!-- ── DATABASES ── -->
+    <div class="doc-page" id="doc-databases">
+      <h2>Databases</h2>
+      <p class="doc-lead">RailDock provisions and manages database services through Dokku plugins. Supported: PostgreSQL, MySQL, MariaDB, MongoDB, Redis.</p>
+
+      <h3>Provisioning</h3>
+      <p>When you create a database service, RailDock calls the corresponding Dokku plugin create command (<code>postgres:create</code>, <code>redis:create</code>, etc.) immediately — not as a background job. The Dokku plugin starts the database container and configures it. The service status is set to "running" immediately after creation succeeds.</p>
+
+      <h3>Database info</h3>
+      <p>The "Database" tab in the service panel calls the plugin's info command (<code>postgres:info</code>, etc.) to show the connection DSN, status, version, and other metadata directly from Dokku.</p>
+
+      <h3>Backup and restore</h3>
+      <p>Manual backup calls the plugin's export command and records the result in the service's backup history. Restore uploads data and calls the plugin's import command.</p>
+
+      <div class="callout callout-warn">
+        Backup schedules can be created in the UI, but there is currently no scheduled job that executes them. They will not run automatically. Use cron or an external scheduler to call the backup API endpoint on a schedule.
+      </div>
+
+      <h3>Password discovery</h3>
+      <p>For Docker-image databases (services deployed from a Docker image rather than a Dokku plugin), RailDock inspects the running container after each deploy to discover generated passwords. It scans the container's environment for known password variable names (<code>POSTGRES_PASSWORD</code>, <code>MYSQL_ROOT_PASSWORD</code>, <code>REDIS_PASSWORD</code>, etc.) and stores them in the service record. This allows linked apps to reference these passwords via <code>${{ linked.service.VAR }}</code>.</p>
+    </div>
+
+    <!-- ── DOMAINS ── -->
+    <div class="doc-page" id="doc-domains">
+      <h2>Domains &amp; SSL</h2>
+      <p class="doc-lead">Add custom domains from the service panel, enable Let's Encrypt with one click, or let RailDock provision a temporary public URL automatically.</p>
+
+      <h3>Custom domains</h3>
+      <p>Adding a domain calls <code>dokku domains:add {app} {hostname}</code>. DNS must already point to your server. Removing a domain calls <code>dokku domains:remove</code>.</p>
+
+      <h3>Let's Encrypt</h3>
+      <p>Enabling Let's Encrypt calls <code>dokku letsencrypt:enable {app}</code>. Dokku handles certificate issuance and ACME challenge response. Auto-renewal is managed by Dokku's built-in cron job — RailDock does not need to do anything extra.</p>
+
+      <h3>Temporary domains</h3>
+      <p>When a server has a base domain configured, RailDock auto-provisions a temporary domain for every new app service:</p>
+      <ul>
+        <li>If the base domain is a <strong>magic DNS service</strong> (sslip.io, nip.io, traefik.me), the hostname embeds the server's public IP: <code>{app-name}.{public-ip}.sslip.io</code>. No DNS configuration needed — these domains resolve automatically. SSL is not enabled for magic DNS domains.</li>
+        <li>If the base domain is a <strong>regular domain</strong>, the hostname is <code>{app-name}.{base-domain}</code>. SSL is enabled via Let's Encrypt automatically.</li>
+      </ul>
+      <p>Temporary domains are marked with a <code>temporary: true</code> flag and appear separately from manually-added custom domains.</p>
+
+      <h3>Generate domain button</h3>
+      <p>You can also trigger domain generation manually from the Domains tab. This calls <code>generate_domain</code> which creates the domain record, calls <code>dokku domains:add</code>, and syncs the port mappings to route traffic correctly.</p>
+    </div>
+
+    <!-- ── STORAGE ── -->
+    <div class="doc-page" id="doc-storage">
+      <h2>Storage mounts</h2>
+      <p class="doc-lead">Persistent storage is managed by Dokku's storage plugin. RailDock tracks mounts in its database and syncs them to Dokku during each deploy.</p>
+      <p>Storage mounts are defined with a host path (a named Docker volume or an absolute path on the host) and a container path (the mount point inside the container).</p>
+      <div class="code-block"><span class="c-comment"># In raildock.toml</span>
+[[services.<span class="c-tbl">storage</span>]]
+host      = <span class="c-str">"my-app-uploads"</span>   <span class="c-comment"># named Docker volume</span>
+container = <span class="c-str">"/app/storage"</span>
+
+[[services.<span class="c-tbl">storage</span>]]
+host      = <span class="c-str">"/var/data/config"</span>  <span class="c-comment"># host path bind mount</span>
+container = <span class="c-str">"/app/config"</span></div>
+
+      <p>Mounts are applied during step 4 of the deploy sequence using <code>dokku storage:mount</code>. Adding new mounts via the UI are applied on the next deploy. They are not hot-applied to running containers.</p>
+
+      <div class="callout callout-info">
+        Named volumes (no leading /) are created automatically by Dokku if they do not exist. Host bind mounts must already exist on the server.
+      </div>
+    </div>
+
+    <!-- ── TEMPLATES ── -->
+    <div class="doc-page" id="doc-templates">
+      <h2>App templates</h2>
+      <p class="doc-lead">Templates are TOML manifests that define a complete multi-service stack. Selecting one from the gallery creates all services, generates secrets, mounts storage, and deploys everything in dependency order.</p>
+
+      <h3>Template deploy sequence</h3>
+      <ol>
+        <li><strong>Create service records</strong> — All services in the template are created in the database synchronously (before the background job starts), so the canvas populates immediately</li>
+        <li><strong>Create pending deployment records</strong> — App services get a pending Deployment record so the UI shows "deploying" state right away</li>
+        <li><strong>Create service links</strong> — ServiceLink records are created from the template's <code>[[links]]</code> blocks</li>
+        <li><strong>TemplateDeployJob starts (background)</strong> — Creates Dokku apps and datastores, calls plugin link commands, syncs storage mounts</li>
+        <li><strong>Resolve runtime variables</strong> — <code>${{ secret() }}</code>, <code>${{ RAILDOCK_PUBLIC_DOMAIN }}</code>, and <code>${{ linked.* }}</code> markers are resolved against the now-running datastores</li>
+        <li><strong>Topological deploy</strong> — DeploymentSequenceJob runs the full deploy for each app service in dependency order</li>
+      </ol>
+
+      <h3>Built-in templates</h3>
+      <p>RailDock ships with 306 templates in <code>backend/config/templates/</code>. Categories include AI/ML tools, databases, CMS platforms, dev tools, monitoring, media servers, communication tools, productivity apps, and more.</p>
+
+      <h3>Remote template repositories</h3>
+      <p>Set <code>RAILDOCK_TEMPLATES_REPO</code> to a git URL to load additional templates from a remote repository. RailDock clones/pulls the repo on startup and merges templates (remote takes precedence on ID conflicts). This supports private template libraries and community-contributed stacks.</p>
+
+      <h3>Writing a template</h3>
+      <div class="code-block"><span class="c-comment"># backend/config/templates/my-app.toml</span>
+<span class="c-key">name</span>        = <span class="c-str">"My App"</span>
+<span class="c-key">description</span> = <span class="c-str">"A short description shown in the gallery"</span>
+<span class="c-key">category</span>    = <span class="c-str">"stack"</span>
+<span class="c-key">logo</span>        = <span class="c-str">"svgs/myapp.svg"</span>  <span class="c-comment"># optional, in public/templates/logos/</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>         = <span class="c-str">"app"</span>
+<span class="c-key">category</span>     = <span class="c-str">"app"</span>
+<span class="c-key">subtype</span>      = <span class="c-str">"docker"</span>
+<span class="c-key">docker_image</span> = <span class="c-str">"myorg/myapp:latest"</span>
+<span class="c-key">source</span>       = { type = <span class="c-str">"docker"</span> }
+  [services.<span class="c-tbl">env</span>]
+  SECRET    = <span class="c-var">"$&#123;&#123; secret() &#125;&#125;"</span>
+  SITE_URL  = <span class="c-var">"https://$&#123;&#123; RAILDOCK_PUBLIC_DOMAIN &#125;&#125;"</span>
+  DB_PASS   = <span class="c-var">"$&#123;&#123; linked.db.POSTGRES_PASSWORD &#125;&#125;"</span>
+  [[services.<span class="c-tbl">storage</span>]]
+  host      = <span class="c-str">"app-data"</span>
+  container = <span class="c-str">"/data"</span>
+  [services.<span class="c-tbl">checks</span>]
+  enabled = <span class="c-str">true</span>
+  wait    = <span class="c-num">10</span>
+  timeout = <span class="c-num">30</span>
+
+[[<span class="c-tbl">services</span>]]
+<span class="c-key">name</span>     = <span class="c-str">"db"</span>
+<span class="c-key">category</span> = <span class="c-str">"database"</span>
+<span class="c-key">subtype</span>  = <span class="c-str">"postgres"</span>
+<span class="c-key">source</span>   = { type = <span class="c-str">"docker"</span> }
+
+[[<span class="c-tbl">links</span>]]
+<span class="c-key">from</span> = <span class="c-str">"app"</span>
+<span class="c-key">to</span>   = <span class="c-str">"db"</span></div>
+
+      <div class="callout callout-tip">
+        Template values like <code>SMTP_ADDRESS = "SMTP_ADDRESS_VALUE"</code> are placeholder strings that users must replace before deploying. RailDock does not validate these — they will be passed as-is to the app.
+      </div>
+    </div>
+
+    <!-- ── ORGS ── -->
+    <div class="doc-page" id="doc-orgs">
+      <h2>Organizations &amp; RBAC</h2>
+      <p class="doc-lead">Organizations let multiple users collaborate on projects. Access is controlled by membership roles at the organization level.</p>
+
+      <h3>Roles</h3>
+      <table class="data-table">
+        <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
+        <tbody>
+          <tr><td>owner</td><td>Full access. Can delete the organization, manage all members, all projects, all settings.</td></tr>
+          <tr><td>admin</td><td>Can manage projects, services, git sources, and deploy keys. Cannot delete the org or demote other admins/owners.</td></tr>
+          <tr><td>member</td><td>Read access to projects and services. Cannot deploy, create services, or access the terminal.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Deploy keys</h3>
+      <p>Generate Ed25519 deploy keys per organization to authenticate with private git repositories. Keys are generated server-side, stored encrypted, and the private key is only exposed once at creation time. Use the public key to grant read access on your git host.</p>
+
+      <h3>Git sources</h3>
+      <p>Git sources track connections to GitHub, GitLab, Bitbucket, or Gitea. Each source is scoped to either a personal account or an organization. For personal sources, only the account owner can access repos. For org sources, all org members can browse repos when configuring a service.</p>
+    </div>
+
+    <!-- ── GITHUB APP ── -->
+    <div class="doc-page" id="doc-github-app">
+      <h2>GitHub App integration</h2>
+      <p class="doc-lead">Connect a GitHub App to enable automatic push-triggered deploys and seamless repository access without managing OAuth tokens or webhook secrets per repo.</p>
+
+      <h3>Setup</h3>
+      <p>Go to Settings → Integrations in RailDock. The admin panel provides a "GitHub App Manifest" flow that creates a GitHub App with the correct permissions automatically. After creation, install the app on your GitHub account or organization.</p>
+
+      <h3>How it works</h3>
+      <p>After a user installs the GitHub App, GitHub redirects to RailDock's callback URL. RailDock:</p>
+      <ol>
+        <li>Receives the installation ID and fetches installation details from the GitHub API to verify the account type</li>
+        <li>Creates or updates a GitSource record tied to the installation</li>
+        <li>Queues GithubSyncReposJob to fetch accessible repositories</li>
+        <li>Push events from GitHub hit <code>/api/github-apps/webhook</code> with event verification</li>
+        <li>On push, RailDock finds matching services by repo and queues deploys</li>
+      </ol>
+
+      <h3>Per-deploy authentication</h3>
+      <p>When deploying a git-backed service, RailDock exchanges the GitHub App installation ID for a short-lived installation token from the GitHub API. The token is embedded in the clone URL (<code>x-access-token:{token}@github.com/{repo}</code>) for the duration of the deploy. No long-lived tokens are stored for git fetch operations.</p>
+    </div>
+
+    <!-- ── SECURITY ── -->
+    <div class="doc-page" id="doc-security">
+      <h2>Security</h2>
+      <p class="doc-lead">A summary of the security controls built into RailDock. This is not an exhaustive security audit.</p>
+      <ul>
+        <li><strong>JWT authentication</strong> — tokens expire after 30 days; generated with HS256 and a random secret set at install time</li>
+        <li><strong>Rate limiting</strong> — auth endpoints protected by Rack::Attack</li>
+        <li><strong>Encrypted credentials</strong> — SSH keys and git tokens stored with Lockbox AES-256-GCM; the master key is in <code>master.key</code> (never committed to git)</li>
+        <li><strong>CORS</strong> — production restricts API access to the configured frontend origin</li>
+        <li><strong>CSP headers</strong> — production enforces Content Security Policy via SecurityHeaders initializer</li>
+        <li><strong>FORCE_SSL</strong> — set in .env when RailDock is behind a TLS-terminating proxy</li>
+        <li><strong>Webhook HMAC</strong> — generic webhooks verify X-Hub-Signature-256 (GitHub) or X-Gitlab-Token; missing authentication with a configured secret is rejected</li>
+        <li><strong>Terminal authorization</strong> — TerminalChannel rejects connections from regular org members; only project owners and org admins/owners can open a terminal</li>
+        <li><strong>Brakeman + bundler-audit</strong> — run in CI on every push (see .github/workflows/ci.yml)</li>
+        <li><strong>Parameter filtering</strong> — SSH keys, master key, and JWT secrets filtered from Rails logs</li>
+      </ul>
+
+      <div class="callout callout-danger">
+        There is no password reset UI. To reset a password: <code>User.find_by(email: "user@example.com").update!(password: "new-password")</code> in the Rails console (<code>docker exec -it raildock-backend rails console</code>).
+      </div>
+    </div>
+
+    <!-- ── BACKUP ── -->
+    <div class="doc-page" id="doc-backup">
+      <h2>Backup &amp; restore</h2>
+      <p class="doc-lead">RailDock's own PostgreSQL database can be backed up and restored with the included scripts. App databases are backed up separately through the service panel.</p>
+
+      <h3>RailDock platform backup</h3>
+      <div class="code-block">cd /opt/raildock
+./scripts/backup.sh
+<span class="c-comment"># Creates: backups/raildock_production-YYYYMMDD-HHMMSS.sql.gz</span>
+
+<span class="c-comment"># Restore</span>
+./scripts/restore.sh backups/raildock_production-20260601-120000.sql.gz</div>
+
+      <div class="callout callout-danger">
+        Also back up <code>.env</code> and <code>backend/config/master.key</code>. The database backup does not include these. Without them, all encrypted SSH keys and git tokens are permanently unreadable.
+      </div>
+
+      <h3>Application database backup</h3>
+      <p>From the service panel "Backups" tab, click "Create backup". RailDock calls the Dokku plugin export command (<code>postgres:export</code>, <code>redis:export</code>, etc.) and stores a reference to the backup. Click "Restore" and upload a backup file to call the corresponding import command.</p>
+
+      <div class="callout callout-warn">
+        Backup schedules exist in the UI but are not automatically executed. No recurring job runs them. Set up an external cron job to POST to the backup API endpoint if you need scheduled backups.
+      </div>
+    </div>
+
+    <!-- ── DEV SETUP ── -->
+    <div class="doc-page" id="doc-dev">
+      <h2>Local development</h2>
+      <p class="doc-lead">The full stack — Rails API, React frontend, PostgreSQL, and Solid Queue — runs locally via Docker Compose.</p>
+
+      <h3>Requirements</h3>
+      <ul>
+        <li>Docker and Docker Compose</li>
+        <li>Ruby 3.4+ (for running backend tests locally)</li>
+        <li>Node.js 20+ (for running frontend tests locally)</li>
+      </ul>
+
+      <h3>Setup</h3>
+      <div class="code-block">git clone https://github.com/mona-chen/raildock.git
+cd raildock
+
+make setup-dev   <span class="c-comment"># copies .env files, runs migrations, seeds the DB</span>
+make start       <span class="c-comment"># starts API, frontend, and workers with live reload</span></div>
+
+      <h3>Common make targets</h3>
+      <div class="code-block">make stop           <span class="c-comment"># stop all containers</span>
+make logs           <span class="c-comment"># tail all service logs</span>
+make logs-backend   <span class="c-comment"># Rails logs only</span>
+make db             <span class="c-comment"># open psql console</span>
+make console        <span class="c-comment"># open Rails console</span>
+make test           <span class="c-comment"># run Vitest (frontend unit tests)</span></div>
+
+      <h3>Running tests</h3>
+      <div class="code-block"><span class="c-comment"># Frontend (Vitest)</span>
+cd app && npm test
+
+<span class="c-comment"># Backend (RSpec)</span>
+cd backend && bundle exec rspec</div>
+
+      <h3>Dokku simulator</h3>
+      <p>The repo includes a Dokku simulator at <code>test/dokku-sim/</code>. It's a Docker container that accepts SSH connections on a test key and returns stubbed responses to Dokku commands — useful for testing the DokkuEngine layer without a real server.</p>
+
+      <h3>Environment variables</h3>
+      <p>Both <code>.env.example</code> and <code>app/.env.example</code> document all required variables. Key ones:</p>
+      <table class="data-table">
+        <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>JWT_SECRET_KEY</td><td>Signs authentication tokens</td></tr>
+          <tr><td>LOCKBOX_MASTER_KEY</td><td>Encrypts SSH keys and git tokens</td></tr>
+          <tr><td>RAILS_MASTER_KEY</td><td>Rails credentials (same as master.key content)</td></tr>
+          <tr><td>DOKKU_HOST</td><td>Hostname for the auto-configured local Dokku server (default: dokku)</td></tr>
+          <tr><td>RAILDOCK_API_URL</td><td>Public URL for webhook URL generation in service records</td></tr>
+          <tr><td>RAILDOCK_TEMPLATES_REPO</td><td>Optional remote git URL for additional templates</td></tr>
+          <tr><td>WEBHOOK_SECRET</td><td>HMAC secret for verifying generic webhook payloads</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── LIMITATIONS ── -->
+    <div class="doc-page" id="doc-limitations">
+      <h2>Known limitations</h2>
+      <p class="doc-lead">Things that exist in the codebase but do not work as you might expect, documented honestly.</p>
+
+      <ul>
+        <li><strong>Backup schedules are not executed</strong> — The UI allows creating a backup schedule with a frequency and retention count, and these records are stored in the database. However, <code>recurring.yml</code> only has two entries: <code>ReconcileStaleDeploymentsJob</code> (every 10 minutes) and a SolidQueue cleanup job. No job executes backup schedules. Manual backups from the service panel work correctly.</li>
+        <li><strong>No password reset UI</strong> — Use the Rails console: <code>docker exec -it raildock-backend rails console</code> then <code>User.find_by(email: "...").update!(password: "...")</code>.</li>
+        <li><strong>Single server per project</strong> — All services in a project run on one Dokku server. There is no multi-server orchestration.</li>
+        <li><strong>No preview environments</strong> — Branch-based preview deployments are not implemented.</li>
+        <li><strong>Metrics parsing is brittle</strong> — The metrics endpoint parses <code>ps:report</code> output with a regex. If Dokku changes its output format, metrics will return nil and log a warning. There is no fallback data.</li>
+        <li><strong>Landing page and pricing page are unreachable</strong> — <code>HomePage.tsx</code> and <code>PricingPage.tsx</code> exist in the codebase but are not in the React Router route tree. The app redirects directly to <code>/dashboard</code>.</li>
+        <li><strong>Template placeholder values</strong> — Many templates contain values like <code>SMTP_ADDRESS_VALUE</code> that are placeholders for user-specific configuration. These are not flagged by RailDock at deploy time and will be passed as-is to the running container.</li>
+        <li><strong>GitHub App account type is detected from GitHub, not from state</strong> — If a GitHub App install is re-processed (re-delivered callback), the organization association is determined fresh from GitHub's API. This is intentional to avoid trusting frontend state, but it means the GitSource organization association can change if the GitHub account type changes.</li>
+        <li><strong>Container-level port mapping for external proxy mode</strong> — When using external Traefik proxy mode, Dokku's built-in proxy and port mappings are disabled. Traffic must flow through the external proxy. Services cannot be reached on their host ports directly.</li>
+      </ul>
+    </div>
+
+  </main>
+</div>
+</div><!-- /docs -->
+
+<script>
+function showLanding() {
+  document.getElementById('landing').classList.remove('hidden');
+  document.getElementById('docs').classList.remove('visible');
+}
+function showDocs(section) {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('docs').classList.add('visible');
+  showDoc(section || 'overview');
+}
+function showDoc(id) {
+  document.querySelectorAll('.doc-page').forEach(el => el.classList.remove('visible'));
+  document.querySelectorAll('.docs-nav-link').forEach(el => el.classList.remove('active'));
+  const page = document.getElementById('doc-' + id);
+  if (page) {
+    page.classList.add('visible');
+    document.querySelector('.docs-main').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('.docs-nav-link').forEach(btn => {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + id + "'")) {
+      btn.classList.add('active');
+    }
+  });
+}
+</script>
+</body>
+</html>

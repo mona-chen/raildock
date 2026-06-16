@@ -425,10 +425,27 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                   }`}>
                     {d.status}
                   </span>
-                  <span className="text-white/30 font-mono">
+                  <span className="text-white/30 font-mono text-[11px]">
                     {d.created_at ? new Date(d.created_at).toLocaleString() : '-'}
                   </span>
-                  <span className="text-white/50 truncate flex-1">{d.commit_sha || d.branch || 'manual deploy'}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                    d.triggered_by === 'webhook'
+                      ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+                      : 'bg-white/5 text-white/40'
+                  }`}>
+                    {d.triggered_by === 'webhook' ? 'auto' : 'manual'}
+                  </span>
+                  {d.started_at && d.completed_at && (
+                    <span className="text-white/20 text-[11px] font-mono">
+                      {Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s
+                    </span>
+                  )}
+                  <span className="text-white/30 font-mono text-[11px]">
+                    {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
+                  </span>
+                  <span className="text-white/50 truncate flex-1 text-[11px]">
+                    {d.commit_message || d.branch || ''}
+                  </span>
                   {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (
                     <button
                       onClick={(e) => {

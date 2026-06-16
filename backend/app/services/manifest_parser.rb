@@ -453,12 +453,13 @@ class ManifestParser
 def normalize_env(env)
     return {} unless env.is_a?(Hash)
     env.transform_keys(&:to_s).transform_values { |v| resolve_placeholders(v.to_s) }
-  end
+end
 
   def resolve_placeholders(value)
     return value unless value.is_a?(String)
 
     result = value.dup
+
 
     # Cache for inline secret() calls to return the same value within one parse
     @secret_cache ||= {}

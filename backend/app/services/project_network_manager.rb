@@ -49,6 +49,13 @@ class ProjectNetworkManager
 
     if service.linked_services.any?
       service.linked_services.each do |linked|
+        # Skip linked services that aren't deployed yet — they'll be connected
+        # when they deploy. Don't block the current service's deploy.
+        unless linked.status == "running"
+          Rails.logger.info "Skipping network alias for #{linked.dokku_app_name}: not deployed (status=#{linked.status})"
+          next
+        end
+
         linked_container = wait_for_linked_container(linked.dokku_app_name)
         linked_alias = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
         if linked_container.present?
@@ -58,7 +65,8 @@ class ProjectNetworkManager
             return { success: false, output: "Network alias #{linked_alias} did not propagate for #{linked_container}" }
           end
         else
-          return { success: false, output: "Linked container #{linked.dokku_app_name} was not found" }
+          Rails.logger.warn "Linked container #{linked.dokku_app_name} not found in Docker, skipping"
+          next
         end
       end
     end
@@ -115,10 +123,16 @@ class ProjectNetworkManager
     return { success: true } if service.linked_services.blank?
 
     service.linked_services.each do |linked|
-      # Wait for linked container to be running
+      # Skip linked services that aren't deployed yet
+      unless linked.status == "running"
+        Rails.logger.info "Skipping alias for #{linked.dokku_app_name}: not deployed (status=#{linked.status})"
+        next
+      end
+
       container = wait_for_linked_container(linked.dokku_app_name)
       unless container
-        return { success: false, output: "Linked container for #{linked.dokku_app_name} was not found" }
+        Rails.logger.warn "Linked container #{linked.dokku_app_name} not found in Docker, skipping"
+        next
       end
 
       alias_name = linked.name.to_s.downcase.gsub(/[^a-z0-9-]/, "-")
