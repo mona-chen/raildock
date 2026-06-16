@@ -188,7 +188,14 @@ function UpdatesTab() {
               <div className="p-3 bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-lg">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm text-green-400 font-medium">Update Available</div>
+                    <div className="text-sm text-green-400 font-medium flex items-center gap-2">
+                      Update Available
+                      {updateInfo.prerelease && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium uppercase tracking-wider">
+                          Pre-release
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-[#A0A0B0] mt-0.5">
                       Version <span className="font-mono text-white/80">{updateInfo.latestVersion}</span> is available
                       {updateInfo.publishedAt && <> (released {formatDate(updateInfo.publishedAt)})</>}

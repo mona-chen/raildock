@@ -303,6 +303,7 @@ export interface AppUpdateInfo {
   latestVersion: string | null
   releaseUrl: string | null
   publishedAt: string | null
+  prerelease: boolean
   autoUpdateEnabled: boolean
 }
 

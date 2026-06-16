@@ -3,7 +3,7 @@ require "shellwords"
 
 class AppUpdateService
   GITHUB_REPO = "mona-chen/raildock"
-  GITHUB_API = "https://api.github.com/repos/#{GITHUB_REPO}/releases/latest"
+  GITHUB_API = "https://api.github.com/repos/#{GITHUB_REPO}/releases"
 
   class << self
     def current_version
@@ -22,19 +22,32 @@ class AppUpdateService
         return nil
       end
 
-      data = JSON.parse(response.body)
-      latest_tag = data["tag_name"] || data["name"] || ""
+      releases = JSON.parse(response.body)
+      # /releases/latest excludes prereleases; we want them too since main builds
+      # are published as prereleases. Pick the most recent non-draft release.
+      published = releases.reject { |r| r["draft"] }
+      latest = published.first
+
+      if latest.nil?
+        Rails.logger.warn "Update check: no published releases found"
+        update_check_failed("No published releases")
+        return nil
+      end
+
+      latest_tag = latest["tag_name"] || latest["name"] || ""
       latest_version = latest_tag.delete_prefix("v")
-      release_url = data["html_url"] || ""
-      published_at = data["published_at"] || data["created_at"] || ""
+      release_url = latest["html_url"] || ""
+      published_at = latest["published_at"] || latest["created_at"] || ""
+      is_prerelease = !!latest["prerelease"]
 
       result = {
         latest_version: latest_version,
         latest_tag: latest_tag,
         release_url: release_url,
         published_at: published_at,
+        prerelease: is_prerelease,
         current_version: current_version,
-        update_available: update_available?(latest_version),
+        update_available: update_available?(latest_version, published),
         checked_at: Time.current.iso8601
       }
 
@@ -43,6 +56,7 @@ class AppUpdateService
       SystemSetting.set!("update_available_url", release_url)
       SystemSetting.set!("update_available", result[:update_available] ? "true" : "false")
       SystemSetting.set!("latest_update_published_at", published_at)
+      SystemSetting.set!("latest_update_prerelease", is_prerelease ? "true" : "false")
 
       result
     rescue Faraday::Error, JSON::ParserError => e
@@ -57,6 +71,7 @@ class AppUpdateService
       available_url = SystemSetting.find_by(key: "update_available_url")&.value
       update_available = SystemSetting.find_by(key: "update_available")&.value == "true"
       published_at = SystemSetting.find_by(key: "latest_update_published_at")&.value
+      prerelease = SystemSetting.find_by(key: "latest_update_prerelease")&.value == "true"
 
       {
         current_version: current_version,
@@ -64,7 +79,8 @@ class AppUpdateService
         update_available: update_available,
         latest_version: available_version,
         release_url: available_url,
-        published_at: published_at
+        published_at: published_at,
+        prerelease: prerelease
       }
     end
 
@@ -91,19 +107,39 @@ class AppUpdateService
 
     private
 
-    def update_available?(latest_version)
+    def update_available?(latest_version, releases = [])
       current = current_version
       return false if current == "unknown" || current == "latest"
       return false if latest_version.blank?
+      return false if latest_version == current
 
       current_normalized = normalize_version(current)
       latest_normalized = normalize_version(latest_version)
 
-      begin
-        Gem::Version.new(latest_normalized) > Gem::Version.new(current_normalized)
-      rescue ArgumentError
-        false
+      # For clean semver (1.2.3), do a real version comparison. Skip the
+      # position-based check entirely.
+      if semver?(current_normalized) && semver?(latest_normalized)
+        return Gem::Version.new(latest_normalized) > Gem::Version.new(current_normalized)
       end
+
+      # For non-semver (e.g. 0.0.0-main-<sha>), compare by position in the
+      # chronologically ordered release list. Gem::Version mis-compares these
+      # because it interprets the SHA portion as nested pre-release identifiers.
+      current_index = releases.find_index do |r|
+        tag = r["tag_name"].to_s.delete_prefix("v")
+        tag == current || tag == current_normalized
+      end
+
+      return true if current_index.nil?
+      return false if current_index.zero?
+
+      true
+    end
+
+    def semver?(version)
+      # Reject strings with prerelease markers like "0.0.0-main-abc123" — those
+      # parse as valid Gem::Version but compare unpredictably.
+      Gem::Version.correct?(version) && !version.include?("-")
     end
 
     def normalize_version(version)
