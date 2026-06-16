@@ -34,6 +34,7 @@ RUN bundle install && rm -rf ~/.bundle/
 
 # ── Stage 3: Production image ─────────────────────────────────────────────
 FROM docker.io/library/ruby:${RUBY_VERSION}-slim AS base
+ARG RAILDOCK_VERSION=unknown
 WORKDIR /rails
 
 # Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc
