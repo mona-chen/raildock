@@ -19,6 +19,18 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1B\[[0-9;]*m/g, '')
 }
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const sec = Math.floor(diff / 1000)
+  if (sec < 1) return 'now'
+  if (sec < 60) return `${sec}s ago`
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  return `${Math.floor(hr / 24)}d ago`
+}
+
 function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; liveLog?: string }) {
   const { data: deployment, isLoading } = useDeployment(deploymentId)
   const logRef = useRef<HTMLDivElement>(null)
@@ -408,7 +420,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
             deployments.map((d) => (
               <div key={d.id} className="space-y-1">
                 <div
-                  className="flex items-center gap-3 text-[12px] px-3 py-2 bg-[#1a1a1e]/50 rounded-lg group cursor-pointer hover:bg-[#1a1a1e]"
+                  className="flex items-center gap-3 px-3 py-2 bg-[#1a1a1e]/50 rounded-lg group cursor-pointer hover:bg-[#1a1a1e]"
                   onClick={() => setExpandedDeployment(expandedDeployment === d.id ? null : d.id)}
                 >
                   {expandedDeployment === d.id ? (
@@ -416,60 +428,68 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                   ) : (
                     <ChevronRight size={14} className="text-white/30 flex-shrink-0" />
                   )}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                    d.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
-                    d.status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                    d.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
-                    d.status === 'deploying' || d.status === 'building' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' :
-                    'bg-white/5 text-white/40'
-                  }`}>
-                    {d.status}
-                  </span>
-                  <span className="text-white/30 font-mono text-[11px]">
-                    {d.created_at ? new Date(d.created_at).toLocaleString() : '-'}
-                  </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                    d.triggered_by === 'webhook'
-                      ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
-                      : 'bg-white/5 text-white/40'
-                  }`}>
-                    {d.triggered_by === 'webhook' ? 'auto' : 'manual'}
-                  </span>
-                  {d.started_at && d.completed_at && (
-                    <span className="text-white/20 text-[11px] font-mono">
-                      {Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s
+                  <div className="flex-1 grid grid-cols-[auto_1fr_auto] items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
+                        d.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
+                        d.status === 'failed' ? 'bg-red-500/10 text-red-400' :
+                        d.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
+                        d.status === 'deploying' || d.status === 'building' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' :
+                        'bg-white/5 text-white/40'
+                      }`}>
+                        {d.status}
+                      </span>
+                      <span className="text-white/30 font-mono text-[11px] shrink-0">
+                        {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
+                      </span>
+                      <span className="text-white/60 truncate text-[12px]" title={d.commit_message || ''}>
+                        {d.commit_message || <span className="text-white/20">no commit message</span>}
+                      </span>
+                    </div>
+                    <div />
+                    <div className="flex items-center gap-2 text-white/30 text-[11px] font-mono shrink-0">
+                      {d.created_at && <span>{timeAgo(d.created_at)}</span>}
+                      {d.started_at && d.completed_at && (
+                        <>
+                          <span className="text-white/15">·</span>
+                          <span>{Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      d.triggered_by === 'webhook'
+                        ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+                        : 'bg-white/5 text-white/40'
+                    }`}>
+                      {d.triggered_by === 'webhook' ? 'auto' : 'manual'}
                     </span>
-                  )}
-                  <span className="text-white/30 font-mono text-[11px]">
-                    {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
-                  </span>
-                  <span className="text-white/50 truncate flex-1 text-[11px]">
-                    {d.commit_message || d.branch || ''}
-                  </span>
-                  {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCancel(d.id)
-                      }}
-                      disabled={cancelDeployment.isPending}
-                      className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  {d.status === 'succeeded' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setRollbackTarget(d.id)
-                      }}
-                      disabled={rollbackService.isPending}
-                      className="text-[10px] px-2 py-1 bg-white/[0.06] text-white/40 rounded hover:bg-white/[0.1] hover:text-white/70 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                    >
-                      Rollback
-                    </button>
-                  )}
+                    {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCancel(d.id)
+                        }}
+                        disabled={cancelDeployment.isPending}
+                        className="text-[10px] px-2 py-0.5 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    {d.status === 'succeeded' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRollbackTarget(d.id)
+                        }}
+                        disabled={rollbackService.isPending}
+                        className="text-[10px] px-2 py-0.5 bg-white/[0.06] text-white/40 rounded hover:bg-white/[0.1] hover:text-white/70 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                      >
+                        Rollback
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {expandedDeployment === d.id && (
                   <DeploymentLogPanel deploymentId={d.id} liveLog={logMap[d.id]} />

@@ -296,6 +296,16 @@ export interface SystemSetting {
   value?: string
 }
 
+export interface AppUpdateInfo {
+  currentVersion: string
+  checkedAt: string | null
+  updateAvailable: boolean
+  latestVersion: string | null
+  releaseUrl: string | null
+  publishedAt: string | null
+  autoUpdateEnabled: boolean
+}
+
 // ───────────────────────────────────────────────
 // Organization
 // ───────────────────────────────────────────────
@@ -318,7 +328,7 @@ export interface ActivityEvent {
   id: string
   projectId: string
   serviceName: string
-  action: 'deployed' | 'stopped' | 'started' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed'
+  action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'warning'
   message: string
   timestamp: string
 }
