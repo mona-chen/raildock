@@ -1,4 +1,5 @@
 class DeploymentJob < ApplicationJob
+  include DokkuEnvBatchable
   queue_as :default
 
   limits_concurrency to: 1, key: ->(service_id, deployment_id) { "deploy:#{service_id}" }
@@ -64,9 +65,14 @@ class DeploymentJob < ApplicationJob
     # was vulnerable to partial writes. Even if the host's ENV file is
     # corrupt (tail fragments from interrupted writes), Dokku's godotenv
     # reads it leniently and config:clear wipes the slate clean.
-    env_hash = service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
+    #
+    # build_full_env_hash also preserves any Dokku-injected link URL
+    # (DATABASE_URL, REDIS_URL, etc.) that was set by `postgres:link`
+    # but isn't yet tracked in the DB — Dokku only sets those at link
+    # time, so without this safety net config:clear would silently
+    # strip them.
+    env_hash = build_full_env_hash(service, engine)
     begin
-      engine = DokkuEngine.new(project.server)
       result = engine.config_replace_all(service.dokku_app_name, env_hash)
       unless result[:success]
         return mark_failed(deployment, service, "Environment sync failed", result[:error] || result[:output].to_s.truncate(300))

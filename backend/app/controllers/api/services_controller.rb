@@ -1,6 +1,7 @@
 module Api
   class ServicesController < BaseController
     include Authorizable
+    include DokkuEnvBatchable
 
     # Standard error response format
     ERROR_RESPONSE = ->(message = nil, details = nil) {
@@ -616,9 +617,9 @@ module Api
         return render json: { error: "No server configured" }, status: :unprocessable_entity
       end
 
-      env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
-
       engine = DokkuEngine.new(@service.project.server)
+      env_hash = build_full_env_hash(@service, engine)
+
       result = engine.config_replace_all(@service.dokku_app_name, env_hash)
       unless result[:success]
         return render json: { error: result[:error] || "Sync failed: #{result[:output].to_s.truncate(300)}" },

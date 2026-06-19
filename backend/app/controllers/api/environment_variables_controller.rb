@@ -1,6 +1,7 @@
 module Api
   class EnvironmentVariablesController < BaseController
     include Authorizable
+    include DokkuEnvBatchable
     before_action :set_and_authorize_service!
 
     def create
@@ -54,12 +55,26 @@ module Api
     # Dokku's godotenv-based read is lenient on partial corruption (more
     # than bash `source`), so even a file with tail fragments like
     # `dcheap.us/apps"` gets cleanly replaced with the canonical state.
+    #
+    # Important: ALL env vars are written, including those marked
+    # is_dokku_internal. Those are the Dokku-injected link URLs
+    # (DATABASE_URL, REDIS_URL, etc.) that were originally created by
+    # `postgres:link` / `redis:link`. `config:clear` wipes them from the
+    # host ENV, and they would not be re-injected on the next restart —
+    # Dokku only sets them at link-time. So RailDock re-writes them as
+    # part of every batch to keep the host in sync with the DB.
+    #
+    # Safety net: if the DB is missing a link URL the user has not yet
+    # synced (e.g. the service was provisioned before ServiceLinkSetup
+    # ran), we read the current host env before clearing and preserve any
+    # DATABASE_URL / REDIS_URL / MONGO_URL we find, so clearing never
+    # wipes a link the user has not opted into managing from RailDock.
     def sync_env_to_dokku
       return { success: true } unless @service.project&.server&.ssh_key.present?
 
-      env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
-
       engine = DokkuEngine.new(@service.project.server)
+      env_hash = build_full_env_hash(@service, engine)
+
       result = engine.config_replace_all(@service.dokku_app_name, env_hash)
 
       if result[:success]
