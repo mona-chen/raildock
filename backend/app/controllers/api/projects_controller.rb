@@ -116,7 +116,10 @@ module Api
       queued = []
 
       sorted.each do |service|
-        RestartJob.perform_later(service.id)
+        next if service.project&.server&.ssh_key.blank?
+
+        idempotency_key = "restart-all:#{project.id}:#{service.id}:#{params[:nonce] || Time.current.to_f}"
+        RestartJob.perform_later(service.id, idempotency_key: idempotency_key)
         queued << service.name
       end
 

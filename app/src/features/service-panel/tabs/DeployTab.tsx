@@ -439,12 +439,25 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                       }`}>
                         {d.status}
                       </span>
-                      <span className="text-white/30 font-mono text-[11px] shrink-0">
-                        {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
-                      </span>
-                      <span className="text-white/60 truncate text-[12px]" title={d.commit_message || ''}>
-                        {d.commit_message || <span className="text-white/20">no commit message</span>}
-                      </span>
+                      {d.kind && d.kind !== 'deploy' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-medium uppercase tracking-wider shrink-0">
+                          {d.kind.replace('_', ' ')}
+                        </span>
+                      )}
+                      {d.kind === 'deploy' || !d.kind ? (
+                        <>
+                          <span className="text-white/30 font-mono text-[11px] shrink-0">
+                            {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
+                          </span>
+                          <span className="text-white/60 truncate text-[12px]" title={d.commit_message || ''}>
+                            {d.commit_message || <span className="text-white/20">no commit message</span>}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-white/50 truncate text-[12px]">
+                          {d.deploy_log?.split("\n").filter(Boolean).pop() || `${d.kind} operation`}
+                        </span>
+                      )}
                     </div>
                     <div />
                     <div className="flex items-center gap-2 text-white/30 text-[11px] font-mono shrink-0">
@@ -465,7 +478,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                     }`}>
                       {d.triggered_by === 'webhook' ? 'auto' : 'manual'}
                     </span>
-                    {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (
+                    {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (!d.kind || d.kind === 'deploy') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -477,7 +490,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                         Cancel
                       </button>
                     )}
-                    {d.status === 'succeeded' && (
+                    {d.status === 'succeeded' && (!d.kind || d.kind === 'deploy') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()

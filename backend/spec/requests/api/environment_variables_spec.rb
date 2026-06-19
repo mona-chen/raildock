@@ -8,8 +8,8 @@ RSpec.describe "Environment Variables API", type: :request do
   let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
 
   before do
-    allow_any_instance_of(DokkuEngine).to receive(:config_set)
-    allow_any_instance_of(DokkuEngine).to receive(:config_unset)
+    allow(DokkuEnvSyncer).to receive(:sync).and_return({})
+    allow(RestartJob).to receive(:perform_later)
   end
 
   describe "POST /api/services/:service_id/env-vars" do
@@ -34,7 +34,7 @@ RSpec.describe "Environment Variables API", type: :request do
 
     it "destroys the environment variable" do
       delete "/api/services/#{service.id}/env-vars/OLD_KEY", headers: auth_headers
-      expect(response).to have_http_status(:no_content)
+      expect(response).to have_http_status(:ok)
       expect(service.environment_variables.count).to eq(0)
     end
   end

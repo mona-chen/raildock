@@ -266,24 +266,23 @@ module Api
     def restart
       authorize_service!(@service, action: :update)
 
-      with_dokku_engine(@service) do |engine|
-        result = engine.ps_restart(@service.dokku_app_name)
-        if result[:success]
-          @service.update!(status: "running")
-          ActivityEvent.create!(
-            project: @service.project,
-            service_name: @service.name,
-            action: :restarted,
-            message: "Restarted #{@service.name}"
-          )
-          return render json: { success: true, status: "running" }
-        else
-          return render json: { success: false, error: result[:output] }, status: :unprocessable_entity
-        end
+      if @service.project&.server&.ssh_key.blank?
+        return render json: { error: "No server configured" }, status: :unprocessable_entity
       end
 
-      @service.update!(status: "running")
-      render json: { success: true, status: "running" }
+      idempotency_key = "restart:#{@service.id}:#{params[:nonce] || Time.current.to_f}"
+      RestartJob.perform_later(@service.id, idempotency_key: idempotency_key)
+
+      # Look up the (or create the) deployment so we can return its id for the UI
+      # to subscribe to log streaming.
+      deployment = @service.deployments.find_by(idempotency_key: idempotency_key) ||
+                  @service.deployments.where(kind: "restart").order(created_at: :desc).first
+
+      render json: {
+        success: true,
+        queued: true,
+        deployment_id: deployment&.id
+      }
     end
 
     def rebuild

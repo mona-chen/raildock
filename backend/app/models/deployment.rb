@@ -2,6 +2,7 @@ class Deployment < ApplicationRecord
   belongs_to :service
 
   validates :status, inclusion: { in: %w[pending building deploying succeeded failed cancelled] }
+  validates :kind, inclusion: { in: %w[deploy restart rebuild env_sync] }
 
   enum :status, {
     pending: "pending",
@@ -12,8 +13,16 @@ class Deployment < ApplicationRecord
     cancelled: "cancelled"
   }
 
+  enum :kind, {
+    deploy: "deploy",
+    restart: "restart",
+    rebuild: "rebuild",
+    env_sync: "env_sync"
+  }
+
   scope :cancellable, -> { where(status: %w[pending building deploying]) }
   scope :pending, -> { where(status: "pending") }
+  scope :restarts, -> { where(kind: %w[restart env_sync]) }
 
   def self.create_idempotently!(service:, key:, attributes:)
     deployment = service.deployments.create_or_find_by!(idempotency_key: key) do |record|
@@ -25,6 +34,10 @@ class Deployment < ApplicationRecord
 
   def cancellable?
     pending? || building? || deploying?
+  end
+
+  def restart?
+    kind == "restart" || kind == "env_sync"
   end
 
   def cancel!(message: "Cancelled by user")
