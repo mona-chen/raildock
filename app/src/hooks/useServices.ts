@@ -101,9 +101,14 @@ export function useSetEnvVar() {
   return useMutation({
     mutationFn: ({ id, key, value, source }: { id: string; key: string; value: string; source?: string }) =>
       api.services.setEnvVar(id, key, value, source),
-    onSuccess: (_, { id, key }) => {
+    onSuccess: (data, { id, key }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
-      toast.success(`Saved ${key}`)
+      if (data?.restart_deployment_id) {
+        queryClient.invalidateQueries({ queryKey: ['services', id, 'deployments'] })
+        toast.success(`Saved ${key} — restarting to apply`)
+      } else {
+        toast.success(`Saved ${key}`)
+      }
     },
     onError: (err) => toast.error(`Failed to set variable: ${err.message}`),
   })

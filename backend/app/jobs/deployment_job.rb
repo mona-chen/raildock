@@ -62,6 +62,8 @@ class DeploymentJob < ApplicationJob
     # one SSH round trip instead of one `config:set` per variable. The per-var
     # loop rewrote the ENV file via godotenv.Write on each call, and partial
     # writes left the file in a tail-only state that bash could not parse.
+    # auto_repair (default true) overwrites the corrupt file with the
+    # canonical state from RailDock — no user intervention needed.
     env_hash = service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
     begin
       DokkuEnvSyncer.sync(
@@ -69,8 +71,6 @@ class DeploymentJob < ApplicationJob
         app_name: service.dokku_app_name,
         desired_env: env_hash
       )
-    rescue DokkuEnvSyncer::EnvCorruptError => e
-      return mark_failed(deployment, service, "Environment file is corrupt on the host", e.message)
     rescue DokkuEnvSyncer::SyncFailedError => e
       return mark_failed(deployment, service, "Environment sync failed", e.message)
     end

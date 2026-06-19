@@ -200,12 +200,20 @@ export const servicesApi = {
     await fetchJson(`/api/services/${id}/scale`, { method: 'POST', body: JSON.stringify({ processName, quantity }) })
   },
 
-  setEnvVar: async (id: string, key: string, value: string, source?: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/env-vars`, { method: 'POST', body: JSON.stringify({ key, value, source }) })
+  setEnvVar: async (
+    id: string,
+    key: string,
+    value: string,
+    source?: string
+  ): Promise<{ restart_deployment_id?: string }> => {
+    return fetchJson(`/api/services/${id}/env-vars`, { method: 'POST', body: JSON.stringify({ key, value, source }) })
   },
 
-  unsetEnvVar: async (id: string, key: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/env-vars/${encodeURIComponent(key)}`, { method: 'DELETE' })
+  unsetEnvVar: async (
+    id: string,
+    key: string
+  ): Promise<{ restart_deployment_id?: string }> => {
+    return fetchJson(`/api/services/${id}/env-vars/${encodeURIComponent(key)}`, { method: 'DELETE' })
   },
 
   addDomain: async (id: string, hostname: string, port: number, targetPort?: number): Promise<void> => {

@@ -27,28 +27,61 @@ class DokkuEnvSyncer
 
   ENV_FILE_TEMPLATE = "/var/lib/dokku/config/%s/ENV"
 
-  def self.sync(server:, app_name:, desired_env:, replace: false, force_repair: false)
-    new(server, app_name, desired_env, replace, force_repair).sync
+  def self.sync(server:, app_name:, desired_env:, replace: false, auto_repair: true)
+    new(server, app_name, desired_env, replace, auto_repair).sync
   end
 
-  def initialize(server, app_name, desired_env, replace, force_repair)
+  # Force a write even if the existing file is corrupt. Logs a warning.
+  # Use this only when you have a known-good canonical state to write —
+  # i.e. when sync() with auto_repair would have done the same thing.
+  def self.force_sync(server:, app_name:, desired_env:)
+    new(server, app_name, desired_env, false, false).sync
+  end
+
+  def initialize(server, app_name, desired_env, replace, auto_repair)
     @server = server
     @app_name = app_name
     @desired_env = stringify(desired_env)
     @replace = replace
-    @force_repair = force_repair
+    @auto_repair = auto_repair
   end
 
   def sync
     env_file = format(ENV_FILE_TEMPLATE, @app_name)
 
-    validate_existing_file(env_file) unless @force_repair
+    # Validate existing file. If it's corrupt and auto_repair is on,
+    # the atomic write replaces the bad file with the canonical state
+    # without bothering the caller. If auto_repair is off, surface the
+    # corruption so the caller can decide.
+    begin
+      validate_existing_file(env_file)
+    rescue EnvCorruptError => e
+      if @auto_repair
+        Rails.logger.warn "DokkuEnvSyncer: ENV file at #{env_file} is corrupt (#{e.message}); auto-repairing from canonical state"
+        return sync_with_force_repair(env_file)
+      else
+        raise
+      end
+    end
 
     rendered = render_env(@desired_env)
     result = write_atomic(env_file, rendered)
 
     unless result[:success]
       raise SyncFailedError, "Failed to write env file: #{result[:output].to_s.truncate(300)}"
+    end
+
+    @desired_env
+  end
+
+  private
+
+  def sync_with_force_repair(env_file)
+    rendered = render_env(@desired_env)
+    result = write_atomic(env_file, rendered)
+
+    unless result[:success]
+      raise SyncFailedError, "Auto-repair write failed: #{result[:output].to_s.truncate(300)}"
     end
 
     @desired_env

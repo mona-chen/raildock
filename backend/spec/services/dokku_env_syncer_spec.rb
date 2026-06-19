@@ -36,27 +36,47 @@ RSpec.describe DokkuEnvSyncer do
       expect(captured_stdin).to include(%(Q="it's"\n))
     end
 
-    it "aborts with EnvCorruptError when the existing file fails to parse" do
+    it "aborts with EnvCorruptError when the existing file fails to parse and auto_repair is disabled" do
+      # The validate script is the one that runs `source ENV_FILE` directly
+      # (no TMP_FILE reference). The write_atomic script sources TMP_FILE.
       allow(engine).to receive(:run) do |cmd|
-        if cmd.include?("bash -c")
+        if cmd.include?("source '/var/lib/dokku/config/x/ENV'")
           { success: false, output: "bash: parse error" }
         else
           { success: true, output: "OK" }
         end
       end
-
-      expect {
-        described_class.sync(server: server, app_name: "x", desired_env: { "K" => "V" })
-      }.to raise_error(DokkuEnvSyncer::EnvCorruptError, /corrupt/)
-    end
-
-    it "skips the corruption check when force_repair is true" do
-      allow(engine).to receive(:run).and_return({ success: true, output: "OK" })
       allow(engine).to receive(:run_with_stdin).and_return({ success: true, output: "OK" })
 
       expect {
-        described_class.sync(server: server, app_name: "x", desired_env: { "K" => "V" }, force_repair: true)
+        described_class.sync(server: server, app_name: "x", desired_env: { "K" => "V" }, auto_repair: false)
+      }.to raise_error(DokkuEnvSyncer::EnvCorruptError, /corrupt/)
+    end
+
+    it "auto-repairs a corrupt file by rewriting from the canonical state" do
+      # Both validate scripts report corrupt (validate-existing fails);
+      # the atomic write succeeds.
+      allow(engine).to receive(:run).and_return({ success: false, output: "CORRUPT: line 3" })
+      allow(engine).to receive(:run_with_stdin).and_return({ success: true, output: "OK" })
+
+      expect(Rails.logger).to receive(:warn).with(/auto-repairing/)
+
+      expect {
+        described_class.sync(server: server, app_name: "x", desired_env: { "K" => "V" })
       }.not_to raise_error
+
+      expect(engine).to have_received(:run_with_stdin).once
+    end
+
+    it "raises SyncFailedError when auto-repair write itself fails" do
+      allow(engine).to receive(:run).and_return({ success: false, output: "CORRUPT: line 3" })
+      allow(engine).to receive(:run_with_stdin).and_return(
+        { success: false, output: "ERROR: rendered env failed to parse" }
+      )
+
+      expect {
+        described_class.sync(server: server, app_name: "x", desired_env: { "K" => "V" })
+      }.to raise_error(DokkuEnvSyncer::SyncFailedError, /Auto-repair write failed/)
     end
 
     it "raises SyncFailedError when the atomic write fails on the host" do

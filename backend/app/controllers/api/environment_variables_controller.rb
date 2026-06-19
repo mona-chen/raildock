@@ -47,6 +47,7 @@ module Api
 
     # Batched atomic write — replaces the per-key `config:set` calls that
     # were vulnerable to partial writes corrupting the host ENV file.
+    # Auto-repairs a corrupt file by overwriting with the canonical state.
     def sync_env_to_dokku
       return { success: true } unless @service.project&.server&.ssh_key.present?
 
@@ -58,7 +59,7 @@ module Api
         desired_env: env_hash
       )
       { success: true }
-    rescue DokkuEnvSyncer::EnvCorruptError, DokkuEnvSyncer::SyncFailedError => e
+    rescue DokkuEnvSyncer::SyncFailedError => e
       { error: e.message, status: :unprocessable_entity }
     end
 

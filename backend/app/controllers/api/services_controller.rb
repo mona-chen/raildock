@@ -623,9 +623,9 @@ module Api
           server: @service.project.server,
           app_name: @service.dokku_app_name,
           desired_env: env_hash,
-          force_repair: true
+          auto_repair: false
         )
-      rescue DokkuEnvSyncer::SyncFailedError => e
+      rescue DokkuEnvSyncer::EnvCorruptError, DokkuEnvSyncer::SyncFailedError => e
         return render json: { error: e.message }, status: :unprocessable_entity
       end
 
