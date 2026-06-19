@@ -239,11 +239,12 @@ class DokkuEngine
   # the host doesn't choke on embedded newlines or special chars. Empty
   def config_set_many(app_name, env_hash)
     args = env_hash.reject { |_, v| v.nil? || v.to_s.empty? }.map do |k, v|
-      if multiline?(v)
-        encoded = Base64.strict_encode64(v.to_s)
+      str = v.to_s
+      if str.include?("\n") || str.length > 4096
+        encoded = Base64.strict_encode64(str)
         "--encoded #{escape(k)}=#{shell_quote(encoded)}"
       else
-        "#{escape(k)}=#{shell_quote(v.to_s)}"
+        "#{escape(k)}=#{shell_quote(str)}"
       end
     end
 
@@ -1168,10 +1169,6 @@ class DokkuTerminalSession
   end
 
 private
-
-  def multiline?(value)
-    value.to_s.include?("\n") || value.to_s.length > 4096
-  end
 
   def shell_quote(value)
     return "''" if value.empty?
