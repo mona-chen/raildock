@@ -64,7 +64,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
-    allow(engine).to receive(:config_set).and_return({ success: true, output: "" })
+    allow(DokkuEnvSyncer).to receive(:sync).and_return({})
     allow(engine).to receive(:domain_add).and_return({ success: true, output: "" })
     allow(engine).to receive(:domain_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:storage_mount).and_return({ success: true, output: "" })
@@ -108,8 +108,11 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).not_to have_received(:app_create)
 
         service.environment_variables.each do |ev|
-          expect(engine).to have_received(:config_set).with(service.dokku_app_name, ev.key, ev.value)
+          # New behavior: env sync is batched via DokkuEnvSyncer.sync
         end
+        expect(DokkuEnvSyncer).to have_received(:sync).with(
+          hash_including(app_name: service.dokku_app_name)
+        )
 
         expect(engine).to have_received(:domain_set).with(
           service.dokku_app_name,
@@ -297,7 +300,9 @@ RSpec.describe DeploymentJob, type: :job do
 
     context "when environment sync fails" do
       before do
-        allow(engine).to receive(:config_set).and_return({ success: false, output: "config failed" })
+        allow(DokkuEnvSyncer).to receive(:sync).and_raise(
+          DokkuEnvSyncer::SyncFailedError.new("sync failed")
+        )
       end
 
       it "marks deployment as failed before building" do

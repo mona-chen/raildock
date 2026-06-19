@@ -9,8 +9,7 @@ module Api
       ev.assign_attributes(env_var_params)
       ev.save!
 
-      # Sync to Dokku
-      sync_to_dokku(:set, ev.key, ev.value)
+      sync_env_to_dokku
 
       render json: ev, status: ev.previously_new_record? ? :created : :ok
     end
@@ -18,10 +17,9 @@ module Api
     def destroy
       ev = @service.environment_variables.find_by!(key: params[:key])
 
-      # Sync to Dokku
-      sync_to_dokku(:unset, ev.key)
-
       ev.destroy!
+      sync_env_to_dokku
+
       head :no_content
     end
 
@@ -36,15 +34,20 @@ module Api
       params.permit(:key, :value, :source, :is_dokku_internal)
     end
 
-    def sync_to_dokku(action, key, value = nil)
+    # Batched atomic write — replaces the per-key `config:set` calls that
+    # were vulnerable to partial writes corrupting the host ENV file.
+    def sync_env_to_dokku
       return unless @service.project&.server&.ssh_key.present?
 
-      engine = DokkuEngine.new(@service.project.server)
-      if action == :set
-        engine.config_set(@service.dokku_app_name, key, value)
-      else
-        engine.config_unset(@service.dokku_app_name, key)
-      end
+      env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
+
+      DokkuEnvSyncer.sync(
+        server: @service.project.server,
+        app_name: @service.dokku_app_name,
+        desired_env: env_hash
+      )
+    rescue DokkuEnvSyncer::EnvCorruptError, DokkuEnvSyncer::SyncFailedError => e
+      render json: { error: e.message }, status: :unprocessable_entity
     end
   end
 end

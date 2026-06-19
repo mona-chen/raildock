@@ -2,7 +2,7 @@ class EnvironmentVariable < ApplicationRecord
   belongs_to :service
 
   validates :key, presence: true, uniqueness: { scope: :service_id }
-  validates :key, format: { with: /\A[A-Za-z_][A-Za-z0-9_]*\z/, message: "must be a valid env var name (letters, digits, underscores)" }
+  validates :key, format: { with: /\A[A-Za-z_][A-Za-z0-9_\-\.]*\z/, message: "must start with a letter or underscore and contain only letters, digits, underscores, dashes, or dots" }
   validates :value, presence: true
   validate :value_must_be_shell_safe
 

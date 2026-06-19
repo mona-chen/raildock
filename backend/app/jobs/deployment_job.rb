@@ -58,10 +58,21 @@ class DeploymentJob < ApplicationJob
     network_result = network_manager.configure_attach_networks(service)
     return mark_failed(deployment, service, "Network configuration failed", network_result[:output]) unless network_result[:success]
 
-    # 2. Sync environment variables
-    service.environment_variables.each do |ev|
-      result = engine.config_set(service.dokku_app_name, ev.key, ev.value)
-      return mark_failed(deployment, service, "Environment sync failed for #{ev.key}", result[:output]) unless result[:success]
+    # 2. Sync environment variables atomically. We send the entire env set in
+    # one SSH round trip instead of one `config:set` per variable. The per-var
+    # loop rewrote the ENV file via godotenv.Write on each call, and partial
+    # writes left the file in a tail-only state that bash could not parse.
+    env_hash = service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
+    begin
+      DokkuEnvSyncer.sync(
+        server: project.server,
+        app_name: service.dokku_app_name,
+        desired_env: env_hash
+      )
+    rescue DokkuEnvSyncer::EnvCorruptError => e
+      return mark_failed(deployment, service, "Environment file is corrupt on the host", e.message)
+    rescue DokkuEnvSyncer::SyncFailedError => e
+      return mark_failed(deployment, service, "Environment sync failed", e.message)
     end
 
     # 3. Sync domains

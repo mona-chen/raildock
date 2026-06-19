@@ -608,7 +608,29 @@ module Api
         result = engine.app_lock(@service.dokku_app_name)
         return render json: { success: result[:success], output: result[:output] }
       end
-      render json: { error: "No server configured" }, status: :unprocessable_entity
+    end
+
+    def repair_env
+      authorize_service!(@service, action: :update)
+
+      if @service.project&.server&.ssh_key.blank?
+        return render json: { error: "No server configured" }, status: :unprocessable_entity
+      end
+
+      env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
+
+      begin
+        DokkuEnvSyncer.sync(
+          server: @service.project.server,
+          app_name: @service.dokku_app_name,
+          desired_env: env_hash,
+          force_repair: true
+        )
+      rescue DokkuEnvSyncer::SyncFailedError => e
+        return render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      render json: { success: true, synced: env_hash.size }
     end
 
     def app_unlock
