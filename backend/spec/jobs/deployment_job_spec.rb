@@ -64,7 +64,8 @@ RSpec.describe DeploymentJob, type: :job do
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
-    allow(DokkuEnvSyncer).to receive(:sync).and_return({})
+    allow(DokkuEngine).to receive(:new).and_return(engine)
+    allow(engine).to receive(:config_replace_all).and_return({ success: true, output: "" })
     allow(engine).to receive(:domain_add).and_return({ success: true, output: "" })
     allow(engine).to receive(:domain_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:storage_mount).and_return({ success: true, output: "" })
@@ -107,12 +108,9 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:app_exists?).with(service.dokku_app_name)
         expect(engine).not_to have_received(:app_create)
 
-        service.environment_variables.each do |ev|
-          # New behavior: env sync is batched via DokkuEnvSyncer.sync
-        end
-        expect(DokkuEnvSyncer).to have_received(:sync).with(
-          hash_including(app_name: service.dokku_app_name)
-        )
+        # Env sync now happens via batched config:clear + config:set.
+        expect(engine).to have_received(:config_replace_all)
+          .with(service.dokku_app_name, hash_including(service.environment_variables.first.key => service.environment_variables.first.value))
 
         expect(engine).to have_received(:domain_set).with(
           service.dokku_app_name,
@@ -300,9 +298,8 @@ RSpec.describe DeploymentJob, type: :job do
 
     context "when environment sync fails" do
       before do
-        allow(DokkuEnvSyncer).to receive(:sync).and_raise(
-          DokkuEnvSyncer::SyncFailedError.new("sync failed")
-        )
+        allow(engine).to receive(:config_replace_all)
+          .and_return({ success: false, output: "", error: "sync failed" })
       end
 
       it "marks deployment as failed before building" do

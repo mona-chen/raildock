@@ -618,15 +618,11 @@ module Api
 
       env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
 
-      begin
-        DokkuEnvSyncer.sync(
-          server: @service.project.server,
-          app_name: @service.dokku_app_name,
-          desired_env: env_hash,
-          auto_repair: false
-        )
-      rescue DokkuEnvSyncer::EnvCorruptError, DokkuEnvSyncer::SyncFailedError => e
-        return render json: { error: e.message }, status: :unprocessable_entity
+      engine = DokkuEngine.new(@service.project.server)
+      result = engine.config_replace_all(@service.dokku_app_name, env_hash)
+      unless result[:success]
+        return render json: { error: result[:error] || "Sync failed: #{result[:output].to_s.truncate(300)}" },
+                      status: :unprocessable_entity
       end
 
       render json: { success: true, synced: env_hash.size }

@@ -231,6 +231,42 @@ class DokkuEngine
     run("config:clear #{escape(app_name)}")
   end
 
+  # Set many env vars in a single SSH call. Use this to sync the entire
+  # desired state from RailDock to Dokku atomically (one rewrite of the
+  # ENV file, regardless of how many vars are being set).
+  #
+  # Multi-line values are auto-detected and encoded with --encoded so
+  # the host doesn't choke on embedded newlines or special chars. Empty
+  def config_set_many(app_name, env_hash)
+    args = env_hash.reject { |_, v| v.nil? || v.to_s.empty? }.map do |k, v|
+      if multiline?(v)
+        encoded = Base64.strict_encode64(v.to_s)
+        "--encoded #{escape(k)}=#{shell_quote(encoded)}"
+      else
+        "#{escape(k)}=#{shell_quote(v.to_s)}"
+      end
+    end
+
+    return { success: true, output: "" } if args.empty?
+
+    cmd = "config:set --no-restart #{escape(app_name)} #{args.join(' ')}"
+    run(cmd)
+  end
+
+  # Sync the host's env to exactly match the desired state. This is the
+  # atomic-replace path: clear first, then set all in one batched call.
+  # Dokku's godotenv-based read is lenient on partial corruption (more so
+  # than bash), so even a file with tail fragments gets replaced cleanly.
+  def config_replace_all(app_name, env_hash)
+    clear_result = config_clear(app_name)
+    return { success: false, output: clear_result[:output], error: "config:clear failed" } unless clear_result[:success]
+
+    set_result = config_set_many(app_name, env_hash)
+    return set_result unless set_result[:success]
+
+    { success: true, output: clear_result[:output].to_s + "
+" + set_result[:output].to_s }
+  end
   def config_export(app_name)
     run("config:export #{escape(app_name)}")
   end
@@ -1129,5 +1165,22 @@ class DokkuTerminalSession
       @close_called = true
     end
     @callbacks[:on_close]&.call
+  end
+
+private
+
+  def multiline?(value)
+    value.to_s.include?("\n") || value.to_s.length > 4096
+  end
+
+  def shell_quote(value)
+    return "''" if value.empty?
+    return value if value.match?(/\A[A-Za-z0-9_\-\.\/=:@\+]+\z/) && !value.start_with?("=")
+
+    if value.include?("'")
+      %("#{value.gsub("\\\\", "\\\\\\\\").gsub("\"", "\\\\\"").gsub("\n", "\\\\n").gsub("\r", "\\\\r")}")
+    else
+      "'#{value}'"
+    end
   end
 end

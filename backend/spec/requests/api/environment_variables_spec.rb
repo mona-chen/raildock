@@ -8,7 +8,8 @@ RSpec.describe "Environment Variables API", type: :request do
   let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
 
   before do
-    allow(DokkuEnvSyncer).to receive(:sync).and_return({})
+    allow_any_instance_of(DokkuEngine).to receive(:config_replace_all)
+      .and_return({ success: true, output: "" })
     allow(RestartJob).to receive(:perform_later)
   end
 

@@ -10,7 +10,10 @@ module Api
       ev.save!
 
       sync_result = sync_env_to_dokku
-      return sync_error_response(sync_result) if sync_result.is_a?(Hash) && sync_result[:error]
+      if sync_result[:error]
+        return render json: { error: sync_result[:error] },
+                      status: sync_result[:status] || :unprocessable_entity
+      end
 
       restart_deployment_id = trigger_restart_after_env_change
 
@@ -23,7 +26,10 @@ module Api
 
       ev.destroy!
       sync_result = sync_env_to_dokku
-      return sync_error_response(sync_result) if sync_result.is_a?(Hash) && sync_result[:error]
+      if sync_result[:error]
+        return render json: { error: sync_result[:error] },
+                      status: sync_result[:status] || :unprocessable_entity
+      end
 
       restart_deployment_id = trigger_restart_after_env_change
 
@@ -41,42 +47,37 @@ module Api
       params.permit(:key, :value, :source, :is_dokku_internal)
     end
 
-    def sync_error_response(sync_result)
-      render json: { error: sync_result[:error] }, status: sync_result[:status] || :unprocessable_entity
-    end
-
-    # Batched atomic write — replaces the per-key `config:set` calls that
-    # were vulnerable to partial writes corrupting the host ENV file.
-    # Auto-repairs a corrupt file by overwriting with the canonical state.
+    # Sync the entire desired env state to Dokku in one batched call:
+    #   1. config:clear         (one SSH round trip, removes all old vars)
+    #   2. config:set --no-restart K1=V1 K2=V2 ...  (one SSH round trip)
+    #
+    # Dokku's godotenv-based read is lenient on partial corruption (more
+    # than bash `source`), so even a file with tail fragments like
+    # `dcheap.us/apps"` gets cleanly replaced with the canonical state.
     def sync_env_to_dokku
       return { success: true } unless @service.project&.server&.ssh_key.present?
 
       env_hash = @service.environment_variables.where(is_dokku_internal: [ false, nil ]).pluck(:key, :value).to_h
 
-      DokkuEnvSyncer.sync(
-        server: @service.project.server,
-        app_name: @service.dokku_app_name,
-        desired_env: env_hash
-      )
-      { success: true }
-    rescue DokkuEnvSyncer::SyncFailedError => e
-      { error: e.message, status: :unprocessable_entity }
+      engine = DokkuEngine.new(@service.project.server)
+      result = engine.config_replace_all(@service.dokku_app_name, env_hash)
+
+      if result[:success]
+        { success: true }
+      else
+        { error: result[:error] || "Sync failed: #{result[:output].to_s.truncate(300)}",
+          status: :unprocessable_entity }
+      end
     end
 
     # Schedule a restart so new env values take effect in the running
     # container. The restart appears in the Deploy tab as a tracked
-    # Deployment of kind "restart" with streamed logs. We pass a nonce
-    # so two env saves in quick succession get separate Deployment records
-    # (idempotency_key makes them unique), but the same nonce reused
-    # (e.g. on retry) reuses the existing record.
+    # Deployment of kind "restart" with streamed logs.
     def trigger_restart_after_env_change
       return nil unless @service.project&.server&.ssh_key.present?
 
       idempotency_key = "env-restart:#{@service.id}:#{SecureRandom.hex(4)}"
       RestartJob.perform_later(@service.id, idempotency_key: idempotency_key)
-
-      # Best-effort: return the deployment_id if the job has already
-      # created one synchronously (rare in production); nil otherwise.
       Deployment.find_by(idempotency_key: idempotency_key)&.id
     end
   end
