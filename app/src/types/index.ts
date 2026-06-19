@@ -310,6 +310,30 @@ export interface AppUpdateInfo {
 }
 
 // ───────────────────────────────────────────────
+// Deployment — covers deploys, restarts, and env syncs
+// ───────────────────────────────────────────────
+
+export interface Deployment {
+  id: string
+  status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
+  kind?: 'deploy' | 'restart' | 'rebuild' | 'env_sync'
+  branch?: string | null
+  commit_sha?: string | null
+  commit_message?: string | null
+  triggered_by?: 'manual' | 'webhook' | string
+  started_at?: string | null
+  completed_at?: string | null
+  created_at: string
+  deploy_log?: string | null
+  build_log?: string | null
+}
+
+export interface DeploymentDetail extends Deployment {
+  deployLog: string
+  buildLog: string
+}
+
+// ───────────────────────────────────────────────
 // Organization
 // ───────────────────────────────────────────────
 

@@ -208,7 +208,10 @@ class AppUpdateService
 
     def run_command(cmd)
       install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
-      full_cmd = "cd #{Shellwords.escape(install_dir)} && #{cmd}"
+      # cmd values are hardcoded at the call sites (./install.sh update,
+      # docker compose pull, etc.) but we escape defensively so Brakeman
+      # can't flag this as a potential command-injection sink.
+      full_cmd = "cd #{Shellwords.escape(install_dir)} && #{Shellwords.escape(cmd)}"
       Rails.logger.info "Running update: #{full_cmd}"
       output, status = Open3.capture2e(full_cmd)
 

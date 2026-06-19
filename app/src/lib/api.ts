@@ -19,6 +19,8 @@ import type {
   Organization,
   Domain,
   AppUpdateInfo,
+  Deployment as ApiDeployment,
+  DeploymentDetail as ApiDeploymentDetail,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -262,7 +264,7 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
-  deployments: async (id: string): Promise<{ id: string; status: string; branch: string; commit_sha: string; commit_message: string | null; triggered_by: string; started_at: string | null; completed_at: string | null; created_at: string }[]> => {
+  deployments: async (id: string): Promise<ApiDeployment[]> => {
     return fetchJson(`/api/services/${id}/deployments`)
   },
 
@@ -282,7 +284,7 @@ export const servicesApi = {
     await fetchJson(`/api/services/${id}/backup_schedules/${scheduleId}`, { method: 'DELETE' })
   },
 
-  deployment: async (deploymentId: string): Promise<{ id: string; status: string; branch: string; commitSha: string; deployLog: string; buildLog: string; createdAt: string; startedAt: string; completedAt: string }> => {
+  deployment: async (deploymentId: string): Promise<ApiDeploymentDetail> => {
     return fetchJson(`/api/deployments/${deploymentId}`)
   },
 
