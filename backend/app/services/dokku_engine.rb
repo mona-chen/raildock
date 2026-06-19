@@ -841,6 +841,21 @@ class DokkuEngine
     Shellwords.escape(value.to_s)
   end
 
+  # Quote a value for inclusion in a shell command. Plain alphanumeric and
+  # common safe punctuation passes through unchanged; anything else gets
+  # single- or double-quoted. Public so config_set_many can call it from
+  # inside a block (private methods aren't visible across block bindings).
+  def shell_quote(value)
+    return "''" if value.empty?
+    return value if value.match?(/\A[A-Za-z0-9_\-\.\/=:@\+]+\z/) && !value.start_with?("=")
+
+    if value.include?("'")
+      %("#{value.gsub("\\\\", "\\\\\\\\").gsub("\"", "\\\\\"").gsub("\n", "\\\\n").gsub("\r", "\\\\r")}")
+    else
+      "'#{value}'"
+    end
+  end
+
   private
 
   # Retry transient SSH failures. dokku commands are idempotent where it matters,
@@ -1170,14 +1185,4 @@ class DokkuTerminalSession
 
 private
 
-  def shell_quote(value)
-    return "''" if value.empty?
-    return value if value.match?(/\A[A-Za-z0-9_\-\.\/=:@\+]+\z/) && !value.start_with?("=")
-
-    if value.include?("'")
-      %("#{value.gsub("\\\\", "\\\\\\\\").gsub("\"", "\\\\\"").gsub("\n", "\\\\n").gsub("\r", "\\\\r")}")
-    else
-      "'#{value}'"
-    end
-  end
 end
