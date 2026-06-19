@@ -1182,7 +1182,4 @@ class DokkuTerminalSession
     end
     @callbacks[:on_close]&.call
   end
-
-private
-
 end
