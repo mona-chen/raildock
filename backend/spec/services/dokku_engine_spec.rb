@@ -22,7 +22,9 @@ RSpec.describe DokkuEngine, type: :service do
     # are populated before ssh.loop returns.
     allow(channel).to receive(:on_data) { |&block| block.call(channel, output) }
     allow(channel).to receive(:on_extended_data) { |&block| block.call(channel, 1, "") }
-    allow(channel).to receive(:on_request).with("exit-status") { |&block| block.call(channel, exit_status_data) }
+    allow(channel).to receive(:on_request).with("exit-status") do |&block|
+      block.call(channel, exit_status_data) unless exit_code.nil?
+    end
     allow(channel).to receive(:wait)
 
     ssh = double("ssh_session")
@@ -129,6 +131,18 @@ RSpec.describe DokkuEngine, type: :service do
       result = engine.validate_connection
       expect(result[:success]).to be false
       expect(result[:output]).to eq("connection refused")
+    end
+  end
+
+  describe "#run_streaming" do
+    it "reports an interrupted remote session when no exit status arrives" do
+      channel = mock_ssh_channel(output: "still building", exit_code: nil)
+      expect(channel).to receive(:exec).with("ps:rebuild myapp").and_yield(channel, true)
+
+      result = engine.run_streaming("ps:rebuild myapp")
+
+      expect(result[:success]).to be(false)
+      expect(result[:error]).to include("ended before Dokku reported an exit status")
     end
   end
 

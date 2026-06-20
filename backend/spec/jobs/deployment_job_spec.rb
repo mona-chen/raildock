@@ -279,7 +279,9 @@ RSpec.describe DeploymentJob, type: :job do
 
     context "when ps:rebuild fails" do
       before do
-        allow(engine).to receive(:run_streaming).and_yield("build error").and_return({ success: false, output: "build error" })
+        allow(engine).to receive(:run_streaming).and_yield("build output").and_return(
+          { success: false, output: "build output", error: "Remote build session ended unexpectedly" }
+        )
       end
 
       it "marks deployment and service as failed" do
@@ -287,7 +289,7 @@ RSpec.describe DeploymentJob, type: :job do
 
         expect(deployment.reload.status).to eq("failed")
         expect(service.reload.status).to eq("error")
-        expect(deployment.deploy_log).to match(/build error/)
+        expect(deployment.deploy_log).to include("build output", "Remote build session ended unexpectedly")
 
         expect(DeploymentsChannel).to have_received(:broadcast_to).with(
           service,

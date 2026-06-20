@@ -37,4 +37,10 @@ RSpec.describe ActivityEvent, type: :model do
       expect(described_class.all).to eq([ new_event, old_event ])
     end
   end
+
+  it "persists activity when realtime broadcasting is unavailable" do
+    allow(ProjectChannel).to receive(:broadcast_to).and_raise("cable unavailable")
+
+    expect { create(:activity_event) }.to change(described_class, :count).by(1)
+  end
 end

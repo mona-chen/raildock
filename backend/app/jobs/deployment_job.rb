@@ -167,13 +167,13 @@ class DeploymentJob < ApplicationJob
     # 9. Deploy (with real-time log streaming)
     deployment.update!(status: :building)
     service.update!(status: :building)
-    DeploymentsChannel.broadcast_to(service, {
+    safely_broadcast_deployment(service, {
       deployment_id: deployment.id,
       status: "building",
       message: "Build started",
       started_at: Time.current.iso8601
     })
-    ProjectChannel.broadcast_to(project, {
+    safely_broadcast_project(project, {
       type: "deployment", service_id: service.id, deployment_id: deployment.id,
       status: "building", timestamp: Time.current.iso8601
     })
@@ -294,6 +294,9 @@ class DeploymentJob < ApplicationJob
     end
 
     unless result[:success]
+      if result[:error].present? && !deploy_output.include?(result[:error])
+        deploy_output += "\n\n--- #{LogRedactor.redact(result[:error])} ---"
+      end
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end
 
@@ -301,7 +304,7 @@ class DeploymentJob < ApplicationJob
 
     deployment.update!(status: :deploying)
     service.update!(status: :deploying)
-    DeploymentsChannel.broadcast_to(service, {
+    safely_broadcast_deployment(service, {
       deployment_id: deployment.id,
       status: "deploying",
       message: "Release configuration started",
@@ -387,13 +390,13 @@ class DeploymentJob < ApplicationJob
       message: "Deployed #{service.dokku_app_name} successfully"
     )
 
-    DeploymentsChannel.broadcast_to(service, {
+    safely_broadcast_deployment(service, {
       deployment_id: deployment.id,
       status: "succeeded",
       message: "Deployment completed successfully",
       completed_at: Time.current.iso8601
     })
-    ProjectChannel.broadcast_to(project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "succeeded", timestamp: Time.current.iso8601 })
+    safely_broadcast_project(project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "succeeded", timestamp: Time.current.iso8601 })
 
     # 16. Check SSL certificate status for all domains
     if server.external_proxy?
@@ -407,6 +410,12 @@ class DeploymentJob < ApplicationJob
     DeploymentsChannel.broadcast_to(service, payload)
   rescue => error
     Rails.logger.warn "Deployment realtime broadcast failed for #{service.id}: #{error.message}"
+  end
+
+  def safely_broadcast_project(project, payload)
+    ProjectChannel.broadcast_to(project, payload)
+  rescue => error
+    Rails.logger.warn "Project realtime broadcast failed for #{project.id}: #{error.message}"
   end
 
   def abort_if_cancelled(deployment)
@@ -544,13 +553,13 @@ class DeploymentJob < ApplicationJob
   def mark_failed(deployment, service, message, output = nil)
     # Preserve existing streamed logs; only append a brief failure marker
     current_log = LogRedactor.redact(deployment.deploy_log || "")
-    deploy_log = if current_log.present?
-      "#{current_log}\n\n--- #{message} ---"
-    elsif output.present?
-      LogRedactor.redact(output)
+    failure_output = LogRedactor.redact(output.to_s)
+    base_log = if current_log.present? && failure_output.present?
+      failure_output.include?(current_log) ? failure_output : "#{current_log}\n\n#{failure_output}"
     else
-      message
+      failure_output.presence || current_log.presence
     end
+    deploy_log = base_log.present? ? "#{base_log}\n\n--- #{message} ---" : message
 
     deployment.update!(
       status: :failed,
@@ -566,13 +575,13 @@ class DeploymentJob < ApplicationJob
       message: "Deployment failed for #{service.name}: #{message}"
     )
 
-    DeploymentsChannel.broadcast_to(service, {
+    safely_broadcast_deployment(service, {
       deployment_id: deployment.id,
       status: "failed",
       message: message,
       completed_at: Time.current.iso8601
     })
-    ProjectChannel.broadcast_to(service.project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "failed", timestamp: Time.current.iso8601 })
+    safely_broadcast_project(service.project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "failed", timestamp: Time.current.iso8601 })
   end
 
   def update_service_status_after(deployment, service, success:)
