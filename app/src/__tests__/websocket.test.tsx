@@ -18,6 +18,8 @@ let deploymentHandlers: {
     deployment_id: string
     status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
     message: string
+    log_chunk?: string
+    sequence?: number
   }) => void
   connected?: () => void
   disconnected?: () => void
@@ -141,5 +143,20 @@ describe('useWebSocketDeployments', () => {
     })
 
     invalidateSpy.mockRestore()
+  })
+
+  it('appends ordered log chunks to deployment detail and ignores duplicates', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(['deployments', 'dep-1'], { id: 'dep-1', deployLog: 'start\n' })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    const { result } = renderHook(() => useWebSocketDeployments('svc-1'), { wrapper: Wrapper })
+
+    act(() => deploymentHandlers.received?.({ deployment_id: 'dep-1', status: 'building', message: 'Building', log_chunk: 'next\n', sequence: 1 }))
+    act(() => deploymentHandlers.received?.({ deployment_id: 'dep-1', status: 'building', message: 'Building', log_chunk: 'duplicate\n', sequence: 1 }))
+
+    await waitFor(() => expect(result.current.logMap['dep-1']).toBe('next\n'))
+    expect(queryClient.getQueryData<{ deployLog: string }>(['deployments', 'dep-1'])?.deployLog).toBe('start\nnext\n')
   })
 })

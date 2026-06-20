@@ -61,6 +61,7 @@ RSpec.describe DeploymentJob, type: :job do
 
     allow(engine).to receive(:with_session).and_yield
     allow(host_engine).to receive(:with_session).and_yield
+    allow(host_engine).to receive(:builder_available?).and_return(true)
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
     allow(engine).to receive(:config_export_json).and_return({ success: true, output: "{}" })
     allow(engine).to receive(:app_exists?).and_return(true)
@@ -79,6 +80,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:ports_set).and_return({ success: true, output: "" })
     allow(engine).to receive(:ports_clear).and_return({ success: true, output: "" })
     allow(engine).to receive(:builder_set).and_return({ success: true, output: "" })
+    allow(engine).to receive(:builder_dockerfile_set_path).and_return({ success: true, output: "" })
     allow(engine).to receive(:git_set_deploy_branch).and_return({ success: true, output: "" })
     allow(engine).to receive(:run).and_return({ success: true, output: "synced" })
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })

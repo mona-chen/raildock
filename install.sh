@@ -218,6 +218,36 @@ ensure_builder_binaries() {
     log_ok "nixpacks $(nixpacks --version 2>/dev/null | head -1) is installed"
   fi
 
+  if ! command -v railpack >/dev/null 2>&1; then
+    log_info "Installing railpack..."
+    if curl -fsSL https://railpack.com/install.sh -o /tmp/raildock-railpack-install.sh \
+      && sh /tmp/raildock-railpack-install.sh --bin-dir /usr/local/bin; then
+      log_ok "railpack installed"
+    else
+      log_warn "Failed to install railpack — Dockerfile and other available builders remain usable"
+    fi
+    rm -f /tmp/raildock-railpack-install.sh
+  else
+    log_ok "railpack $(railpack --version 2>/dev/null | head -1) is installed"
+  fi
+
+  if command -v railpack >/dev/null 2>&1; then
+    if ! docker inspect buildkit >/dev/null 2>&1; then
+      log_info "Starting the BuildKit service required by railpack..."
+      docker run --privileged -d --restart unless-stopped --name buildkit moby/buildkit:latest >/dev/null
+    elif [ "$(docker inspect -f '{{.State.Running}}' buildkit 2>/dev/null)" != "true" ]; then
+      docker start buildkit >/dev/null
+    fi
+
+    touch /etc/default/dokku
+    if grep -q '^export BUILDKIT_HOST=' /etc/default/dokku; then
+      sed -i "s|^export BUILDKIT_HOST=.*|export BUILDKIT_HOST='docker-container://buildkit'|" /etc/default/dokku
+    else
+      echo "export BUILDKIT_HOST='docker-container://buildkit'" >> /etc/default/dokku
+    fi
+    log_ok "Railpack BuildKit service is ready"
+  fi
+
   log_ok "Builder binaries ready"
 }
 

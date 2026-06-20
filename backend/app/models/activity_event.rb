@@ -19,6 +19,7 @@ class ActivityEvent < ApplicationRecord
   }, prefix: true
 
   default_scope { order(created_at: :desc) }
+  after_create_commit :broadcast_created
 
   def timestamp
     created_at&.iso8601
@@ -27,4 +28,9 @@ class ActivityEvent < ApplicationRecord
   def as_json(options = {})
     super(options.merge(methods: [ :timestamp ]))
   end
+
+  private
+    def broadcast_created
+      ProjectChannel.broadcast_to(project, { type: "activity", project_id: project_id, event: as_json, timestamp: Time.current.iso8601 })
+    end
 end

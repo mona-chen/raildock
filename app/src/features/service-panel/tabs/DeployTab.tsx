@@ -9,7 +9,7 @@ import {
   useCancelDeployment,
 } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
-import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
+import type { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import type { Service } from '@/types'
 import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/clipboard'
@@ -37,16 +37,23 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
   const [wrapLines, setWrapLines] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [copiedAll, setCopiedAll] = useState(false)
+  const [followLogs, setFollowLogs] = useState(true)
 
-  const logText = liveLog || deployment?.deployLog || deployment?.buildLog || ''
+  const logText = deployment?.deployLog || deployment?.buildLog || liveLog || ''
   const cleanText = useMemo(() => stripAnsi(logText), [logText])
   const lines = useMemo(() => cleanText.split('\n'), [cleanText])
 
   useEffect(() => {
-    if (logRef.current) {
+    if (followLogs && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight
     }
-  }, [cleanText])
+  }, [cleanText, followLogs])
+
+  const handleLogScroll = () => {
+    if (!logRef.current) return
+    const distanceFromBottom = logRef.current.scrollHeight - logRef.current.scrollTop - logRef.current.clientHeight
+    setFollowLogs(distanceFromBottom < 48)
+  }
 
   const handleCopyAll = async () => {
     const success = await copyToClipboard(cleanText)
@@ -139,8 +146,18 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
       {/* Log lines */}
       <div
         ref={logRef}
+        onScroll={handleLogScroll}
         className="flex-1 overflow-y-auto font-mono text-[12px] leading-relaxed p-2"
       >
+        {!followLogs && (
+          <button
+            type="button"
+            onClick={() => setFollowLogs(true)}
+            className="sticky left-1/2 top-2 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-[#24242a] px-3 py-1 text-[10px] text-white/60 shadow-lg hover:text-white"
+          >
+            Resume live logs
+          </button>
+        )}
         {lines.length > 0 ? (
           <div className="space-y-0.5">
             {lines.map((line, i) => (
@@ -243,15 +260,16 @@ function WebhookCard({ url }: { url: string }) {
 interface DeployTabProps {
   svc: Service
   serviceId: string
+  realtime: ReturnType<typeof useWebSocketDeployments>
 }
 
-export default function DeployTab({ svc, serviceId }: DeployTabProps) {
+export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) {
   const scaleProcess = useScaleProcess()
   const rollbackService = useRollbackService()
   const cancelDeployment = useCancelDeployment()
   const { data: deployments } = useServiceDeployments(svc.id)
   const { data: containerStatus } = useContainerStatus(serviceId)
-  const { lastUpdate, isConnected, logMap } = useWebSocketDeployments(serviceId)
+  const { lastUpdate, isConnected, logMap } = realtime
   const [expandedDeployment, setExpandedDeployment] = useState<string | null>(null)
   const [rollbackTarget, setRollbackTarget] = useState<string | null>(null)
 
@@ -446,16 +464,16 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                         </span>
                       )}
                       {d.kind === 'deploy' || !d.kind ? (
-                        <div className="min-w-0"><div className="truncate text-[12px] text-white/70" title={d.commit_message || ''}>{d.commit_message || 'Manual deployment'}</div><div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/25"><span className="flex items-center gap-1 font-mono"><GitCommit size={10} />{d.commit_sha ? d.commit_sha.slice(0, 7) : 'working tree'}</span><span className="flex items-center gap-1"><GitBranch size={10} />{d.branch || svc.branch || 'main'}</span></div></div>
+                        <div className="min-w-0"><div className="truncate text-[12px] text-white/70" title={d.commitMessage || ''}>{d.commitMessage || 'Manual deployment'}</div><div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/25"><span className="flex items-center gap-1 font-mono"><GitCommit size={10} />{d.commitSha ? d.commitSha.slice(0, 7) : 'working tree'}</span><span className="flex items-center gap-1"><GitBranch size={10} />{d.branch || svc.branch || 'main'}</span></div></div>
                       ) : (
                         <span className="truncate text-[12px] text-white/50">
-                          {d.deploy_log?.split("\n").filter(Boolean).pop() || `${d.kind} operation`}
+                          {d.deployLog?.split("\n").filter(Boolean).pop() || `${d.kind} operation`}
                         </span>
                       )}
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-white/35"><UserRound size={11} /><span className="truncate">{d.triggered_by?.replace('_', ' ') || 'manual'}</span></div>
-                  <span className="text-[10px] text-white/30">{d.created_at ? timeAgo(d.created_at) : '—'}</span>
-                  <div className="flex items-center justify-end gap-1 text-[10px] font-mono text-white/30"><Timer size={10} />{d.started_at && d.completed_at ? `${Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s` : d.status === 'building' || d.status === 'deploying' ? 'live' : '—'}
+                  <div className="flex items-center gap-1.5 text-[10px] text-white/35"><UserRound size={11} /><span className="truncate">{d.triggeredBy?.replace('_', ' ') || 'manual'}</span></div>
+                  <span className="text-[10px] text-white/30">{d.createdAt ? timeAgo(d.createdAt) : '—'}</span>
+                  <div className="flex items-center justify-end gap-1 text-[10px] font-mono text-white/30"><Timer size={10} />{d.startedAt && d.completedAt ? `${Math.round((new Date(d.completedAt).getTime() - new Date(d.startedAt).getTime()) / 1000)}s` : d.status === 'building' || d.status === 'deploying' ? 'live' : '—'}
                     {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (!d.kind || d.kind === 'deploy') && (
                       <button
                         onClick={(e) => {

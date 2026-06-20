@@ -12,5 +12,11 @@ RSpec.describe "Builders API", type: :request do
       expect(json).to be_an(Array)
       expect(json.first).to include("id", "name")
     end
+
+    it "requires authentication before probing a server" do
+      get "/api/builders", params: { server_id: create(:server).id }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
   end
 end

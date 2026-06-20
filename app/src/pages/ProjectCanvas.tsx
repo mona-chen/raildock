@@ -11,6 +11,7 @@ import { useProject } from '@/hooks/useProjects'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import { toast } from 'sonner'
 import type { Service } from '@/types'
+import { useProjectRealtime } from '@/hooks/useProjectRealtime'
 
 import CanvasGrid from '@/features/project-canvas/components/CanvasGrid'
 import ServiceCard from '@/features/project-canvas/components/ServiceCard'
@@ -53,6 +54,7 @@ export default function ProjectCanvas() {
 
   const { data: services = [], isLoading } = useServices(projectId || '')
   const { data: project } = useProject(projectId || '')
+  useProjectRealtime(projectId || '')
 
   const zoom = useCanvasStore((s) => s.zoom)
   const pan = useCanvasStore((s) => s.pan)

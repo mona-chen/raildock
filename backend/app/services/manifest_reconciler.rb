@@ -886,7 +886,8 @@ class ManifestReconciler
     deployment = service.deployments.create!(
       status: :pending,
       started_at: Time.current,
-      branch: service.branch || "main"
+      branch: service.branch || "main",
+      commit_sha: @desired.find_service(service.name)&.dig(:source_revision)
     )
     service.update!(status: :deploying)
 
@@ -970,6 +971,7 @@ class ManifestReconciler
     config["letsencrypt"] = svc[:letsencrypt] if svc[:letsencrypt]
     config["depends_on"] = svc[:depends_on] if svc[:depends_on].present?
     config["scripts"] = svc[:scripts] if svc[:scripts]&.values&.any?(&:present?)
+    config["dockerfilePath"] = svc[:dockerfile_path] if svc[:dockerfile_path].present?
     config
   end
 end

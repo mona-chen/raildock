@@ -335,6 +335,28 @@ export interface GitRepo {
   serviceName?: string  // which service this deploys to
 }
 
+export interface RepositoryImportService {
+  name: string
+  category: string
+  subtype: string
+  builder?: string
+  rootDirectory?: string
+  scripts?: { build?: string; predeploy?: string; postdeploy?: string }
+  checks?: { enabled?: boolean; path?: string }
+}
+
+export interface RepositoryImportPreview {
+  repository: string
+  branch: string
+  commitSha: string
+  services: RepositoryImportService[]
+  links: { from: string; to: string }[]
+  warnings: string[]
+  conflicts: string[]
+  evidence: { path: string; format: string; decision: string; confidence: string }[]
+  snapshotToken: string
+}
+
 export interface GitHubAppConfig {
   enabled: boolean
   appSlug?: string
@@ -368,14 +390,15 @@ export interface Deployment {
   status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
   kind?: 'deploy' | 'restart' | 'rebuild' | 'env_sync'
   branch?: string | null
-  commit_sha?: string | null
-  commit_message?: string | null
-  triggered_by?: 'manual' | 'webhook' | string
-  started_at?: string | null
-  completed_at?: string | null
-  created_at: string
-  deploy_log?: string | null
-  build_log?: string | null
+  commitSha?: string | null
+  commitMessage?: string | null
+  triggeredBy?: 'manual' | 'webhook' | string
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt: string
+  deployLog?: string | null
+  buildLog?: string | null
+  eventSequence?: number
 }
 
 export interface DeploymentDetail extends Deployment {

@@ -59,6 +59,7 @@ class ManifestApplyJob < ApplicationJob
       timestamp: Time.current.iso8601
     }
     payload[:details] = details if details
-    ActionCable.server.broadcast("project_#{project_id}", payload)
+    project = Project.find_by(id: project_id)
+    ProjectChannel.broadcast_to(project, payload) if project
   end
 end

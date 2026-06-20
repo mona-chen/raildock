@@ -232,6 +232,10 @@ class DokkuEngine
     run("builder:set #{escape(app_name)} selected #{escape(builder_type)}")
   end
 
+  def builder_dockerfile_set_path(app_name, path)
+    run("builder-dockerfile:set #{escape(app_name)} dockerfile-path #{escape(path)}")
+  end
+
   def app_exists?(app_name)
     result = run("apps:exists #{escape(app_name)}")
     result[:success]

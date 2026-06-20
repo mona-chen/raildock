@@ -84,6 +84,12 @@ class GithubAppService
       Octokit::Client.new(access_token: token)
     end
 
+    def repository_client(git_source)
+      raise "Git source must use a GitHub App installation" unless git_source&.github_app?
+
+      installation_client(git_source.installation_id)
+    end
+
     def user_authorization_url(state, callback_url:)
       raise "GitHub App OAuth credentials not configured" if client_id.blank? || client_secret.blank?
 

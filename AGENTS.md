@@ -38,6 +38,10 @@ The installer:
 8. Binds the web UI to port `8888` by default so port `80` stays free for Dokku's Traefik.
 9. Creates the "Local Dokku" server record automatically via `DOKKU_HOST`.
 
+The installer also provisions Nixpacks and Railpack. Railpack uses a managed,
+restartable BuildKit container and configures Dokku's `BUILDKIT_HOST`; deployment
+preflight reports a clear error when a selected external builder is unavailable.
+
 Use `BUILD_FROM_SOURCE=1` or `INSTALL_DOKKU=0` (to skip Dokku install) as needed.
 
 To use an existing Traefik instance on the Dokku host instead of Dokku's
