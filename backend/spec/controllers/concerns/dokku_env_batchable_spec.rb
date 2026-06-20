@@ -11,7 +11,7 @@ RSpec.describe DokkuEnvBatchable do
         @engine = engine
       end
 
-      public :build_full_env_hash, :preserve_missing_link_urls
+      public :build_full_env_hash, :preserve_host_only_keys
     end
   end
 
@@ -32,17 +32,22 @@ RSpec.describe DokkuEnvBatchable do
       expect(hash["DATABASE_URL"]).to eq("postgres://x/y")
     end
 
-    it "preserves link URLs that exist on the host but not in the DB" do
+    it "preserves any host-only key not in the DB" do
       service.environment_variables.create!(key: "RAILS_ENV", value: "production")
 
       allow(engine).to receive(:config_show).and_return({
         success: true,
-        output: "DATABASE_URL=postgres://user:pass@dokku-postgres-x:5432/db\nREDIS_URL=redis://x:6379\n"
+        output: <<~ENV
+          DATABASE_URL=postgres://user:pass@dokku-postgres-x:5432/db
+          REDIS_URL=redis://x:6379
+          DOKKU_POSTGRES_FOO=bar
+        ENV
       })
 
       hash = helper.build_full_env_hash(service, engine)
       expect(hash["DATABASE_URL"]).to eq("postgres://user:pass@dokku-postgres-x:5432/db")
       expect(hash["REDIS_URL"]).to eq("redis://x:6379")
+      expect(hash["DOKKU_POSTGRES_FOO"]).to eq("bar")
     end
 
     it "skips placeholder values like ${{ shared.FOO }}" do
@@ -69,15 +74,18 @@ RSpec.describe DokkuEnvBatchable do
       expect(hash["DATABASE_URL"]).to eq("postgres://from-db/x")
     end
 
-    it "skips config_show entirely when all link keys are already in the DB" do
-      DokkuEnvBatchable::LINK_URL_KEYS.each do |k|
-        service.environment_variables.create!(key: k, value: "x-#{k}", is_dokku_internal: true)
-      end
+    it "does not duplicate keys that exist in both DB and host" do
+      service.environment_variables.create!(key: "RAILS_ENV", value: "production")
 
-      expect(engine).not_to receive(:config_show)
+      allow(engine).to receive(:config_show).and_return({
+        success: true,
+        output: "RAILS_ENV=production\nEXTRA_KEY=extra-value\n"
+      })
 
       hash = helper.build_full_env_hash(service, engine)
-      expect(hash["DATABASE_URL"]).to eq("x-DATABASE_URL")
+      expect(hash["RAILS_ENV"]).to eq("production")
+      expect(hash["EXTRA_KEY"]).to eq("extra-value")
+      expect(hash.size).to eq(2)
     end
 
     it "tolerates a failed config_show" do
