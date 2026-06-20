@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useTerminal } from '@/hooks/useTerminal'
+import { reconnectCable } from '@/lib/cable'
 import {
   Loader2, Monitor, AlertCircle, Power,
   Search, ChevronUp, ChevronDown, X, Shell,
@@ -66,6 +67,14 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
   const handleFindPrev = useCallback(() => {
     if (searchQuery) findPrevious(searchQuery)
   }, [searchQuery, findPrevious])
+
+  const handleRetry = useCallback(() => {
+    // Force a fresh ActionCable consumer so a stale connection state can't
+    // block the next subscribe attempt. This is what unsticks the
+    // 'connection timed out' state after a server restart.
+    reconnectCable()
+    setRetryToken((attempt) => attempt + 1)
+  }, [])
 
   return (
     <div className={`flex flex-col h-full bg-[#0B0B0D] ${isExpanded ? 'fixed inset-0 z-[100]' : ''}`}>
@@ -224,7 +233,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
               </div>
               <button
                 type="button"
-                onClick={() => setRetryToken((attempt) => attempt + 1)}
+                onClick={handleRetry}
                 className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
               >
                 Try again
