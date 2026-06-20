@@ -34,6 +34,8 @@ class ManifestSchema
     # app.json has a different top-level structure
     if app_json?(hash)
       errors.concat(validate_app_json(hash))
+    elsif railway?(hash)
+      errors.concat(validate_railway(hash))
     else
       errors.concat(validate_raildock(hash))
     end
@@ -47,6 +49,13 @@ class ManifestSchema
     hash.key?("buildpacks") || hash.key?("formation") || hash.key?("stack")
   end
 
+  # Railway's signature top-level keys are build and deploy. If both are
+  # present (or either one is), we route to validate_railway. raildock.toml
+  # has neither, so there's no ambiguity.
+  def railway?(hash)
+    hash.key?("build") || hash.key?("deploy")
+  end
+
   def validate_app_json(hash)
     errors = []
     errors << "app.json: 'name' must be a string" if hash["name"] && !hash["name"].is_a?(String)
@@ -54,6 +63,58 @@ class ManifestSchema
     errors << "app.json: 'formation' must be an object" if hash["formation"] && !hash["formation"].is_a?(Hash)
     errors << "app.json: 'env' must be an object" if hash["env"] && !hash["env"].is_a?(Hash)
     errors << "app.json: 'cron' must be an array" if hash["cron"] && !hash["cron"].is_a?(Array)
+    errors
+  end
+
+  def validate_railway(hash)
+    errors = []
+    prefix = "railway"
+
+    # build section
+    if hash.key?("build")
+      unless hash["build"].is_a?(Hash)
+        errors << "#{prefix}: 'build' must be an object"
+      else
+        if hash["build"].key?("builder") && !hash["build"]["builder"].is_a?(String)
+          errors << "#{prefix}.build.builder: must be a string"
+        end
+        if hash["build"].key?("buildCommand") && !hash["build"]["buildCommand"].is_a?(String)
+          errors << "#{prefix}.build.buildCommand: must be a string"
+        end
+      end
+    end
+
+    # deploy section
+    if hash.key?("deploy")
+      unless hash["deploy"].is_a?(Hash)
+        errors << "#{prefix}: 'deploy' must be an object"
+      else
+        if hash["deploy"].key?("startCommand") && !hash["deploy"]["startCommand"].is_a?(String) && !hash["deploy"]["startCommand"].is_a?(Array)
+          errors << "#{prefix}.deploy.startCommand: must be a string or array"
+        end
+        if hash["deploy"].key?("healthcheckPath") && !hash["deploy"]["healthcheckPath"].is_a?(String)
+          errors << "#{prefix}.deploy.healthcheckPath: must be a string"
+        end
+        if hash["deploy"].key?("healthcheckTimeout") && !hash["deploy"]["healthcheckTimeout"].is_a?(Integer)
+          errors << "#{prefix}.deploy.healthcheckTimeout: must be an integer"
+        end
+        if hash["deploy"].key?("restartPolicyType") && !%w[never on-failure always].include?(hash["deploy"]["restartPolicyType"].to_s)
+          errors << "#{prefix}.deploy.restartPolicyType: must be one of: never, on-failure, always"
+        end
+        if hash["deploy"].key?("preDeployCommand") && !hash["deploy"]["preDeployCommand"].is_a?(String) && !hash["deploy"]["preDeployCommand"].is_a?(Array)
+          errors << "#{prefix}.deploy.preDeployCommand: must be a string or array"
+        end
+      end
+    end
+
+    # env and vars sections
+    if hash.key?("env") && !hash["env"].is_a?(Hash)
+      errors << "#{prefix}: 'env' must be an object"
+    end
+    if hash.key?("vars") && !hash["vars"].is_a?(Hash)
+      errors << "#{prefix}: 'vars' must be an object"
+    end
+
     errors
   end
 

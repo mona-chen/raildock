@@ -3,8 +3,9 @@
 require "toml-rb"
 require "json"
 
-# Parses declarative configuration files (app.json, raildock.toml, raildock.json)
-# into a normalized internal representation: ManifestDesiredState.
+# Parses declarative configuration files (app.json, raildock.toml,
+# raildock.json, railway.toml, railway.json) into a normalized
+# internal representation: ManifestDesiredState.
 class ManifestParser
   class ParseError < StandardError; end
 
@@ -82,9 +83,19 @@ class ManifestParser
     return :app_json if filename.to_s.downcase == "app.json"
     return :raildock_toml if filename.to_s.downcase == "raildock.toml"
     return :raildock_json if filename.to_s.downcase == "raildock.json"
+    return :railway_toml if filename.to_s.downcase == "railway.toml"
+    return :railway_json if filename.to_s.downcase == "railway.json"
 
     stripped = raw_content.to_s.strip
-    return :app_json if stripped.start_with?("{") && stripped.include?("buildpacks") || stripped.include?("formation")
+    return :app_json if stripped.start_with?("{") && (stripped.include?("buildpacks") || stripped.include?("formation"))
+    # Railway detection must come BEFORE the generic JSON fallback, since
+    # both start with "{". Railway's signature top-level keys are `build`
+    # or `deploy`; raildock.json has neither.
+    return :railway_json if stripped.start_with?("{") && (stripped.match?(/["']build["']\s*:/) || stripped.match?(/["']deploy["']\s*:/))
+    # Railway TOML detection must come BEFORE the generic `[` raildock.toml
+    # check, since both start with `[`. Railway's signature sections are
+    # [build] and [deploy]; raildock.toml uses `[[services]]` or `name =`.
+    return :railway_toml if stripped.match?(/\A\s*\[build\]/) || stripped.match?(/\A\s*\[deploy\]/)
     return :raildock_toml if stripped.start_with?("[") || stripped.match?(/\A\s*name\s*=/)
     return :raildock_json if stripped.start_with?("{")
 
@@ -95,12 +106,12 @@ class ManifestParser
 
   def parse_raw(raw_content, format)
     case format
-    when :app_json, :raildock_json
+    when :app_json, :raildock_json, :railway_json
       JSON.parse(raw_content)
-    when :raildock_toml
+    when :raildock_toml, :railway_toml
       TomlRB.parse(raw_content)
     else
-      raise ParseError, "Unable to detect manifest format. Use app.json, raildock.toml, or raildock.json"
+      raise ParseError, "Unable to detect manifest format. Use app.json, raildock.toml, raildock.json, railway.toml, or railway.json"
     end
   end
 
@@ -112,6 +123,8 @@ class ManifestParser
       normalize_app_json(hash, raw_content)
     when :raildock_toml, :raildock_json
       normalize_raildock(hash, raw_content)
+    when :railway_toml, :railway_json
+      normalize_railway(hash, raw_content, format)
     else
       raise ParseError, "Unsupported manifest format: #{format}"
     end
@@ -234,6 +247,136 @@ class ManifestParser
     when /java/ then "java"
     else "web"
     end
+  end
+
+  # ── railway.toml / railway.json ─────────────────────────────
+  #
+  # Railway's config-as-code describes a single service per file. We wrap
+  # it into RailDock's multi-service shape exactly like app.json does.
+  # No links, no per-service domains, no storage, no cron — same
+  # constraints as app.json, with the same warnings surfaced.
+
+  def normalize_railway(hash, raw, format)
+    warnings = []
+    services = []
+    links = []
+
+    build = hash["build"] || {}
+    deploy = hash["deploy"] || {}
+
+    builder = normalize_railway_builder(build["builder"])
+    warnings << "railway.toml: builder '#{build["builder"]}' is not in RailDock's enum; falling back to nil" if build["builder"].present? && builder.nil?
+
+    start_command = normalize_railway_command(deploy["startCommand"])
+    warnings << "railway.toml: buildCommand is not yet supported by RailDock" if build["buildCommand"].present?
+    warnings << "railway.toml: preDeployCommand is not yet supported by RailDock" if deploy["preDeployCommand"].present?
+
+    svc = {
+      name: "app",
+      category: "app",
+      subtype: "web",
+      builder: builder,
+      source: { type: "git" },
+      start_command: start_command,
+      env: normalize_railway_env(hash["env"], hash["vars"]),
+      domains: [],
+      storage: [],
+      proxy: { enabled: true, type: "traefik", ports: [ { host: 80, container: 3000 } ] },
+      scaling: {},
+      limits: {},
+      checks: normalize_railway_checks(deploy),
+      restart_policy: normalize_railway_restart_policy(deploy["restartPolicyType"]),
+      cron: [],
+      docker_options: [],
+      traefik_labels: {},
+      letsencrypt: { enabled: false },
+      maintenance: false,
+      scripts: { predeploy: nil, postdeploy: nil }
+    }
+
+    services << svc
+
+    warnings << "railway.toml does not support domains, storage, or proxy config. Use raildock.toml for full feature coverage."
+    warnings << "railway.toml does not support service links. Use raildock.toml for multi-service stacks."
+
+    ManifestDesiredState.new(
+      services: services,
+      links: links,
+      format_detected: format.to_s.tr(":", ".").sub("railway_", "railway."),
+      warnings: warnings,
+      raw: raw
+    )
+  end
+
+  # Railway accepts upper- or mixed-case builder names ("DOCKERFILE",
+  # "Nixpacks"). The RailDock schema enum is lowercase, so normalize.
+  # Returns nil for unknown / blank values so the schema can reject them
+  # downstream with a proper error rather than this parser swallowing.
+  def normalize_railway_builder(value)
+    return nil if value.blank?
+
+    downcased = value.to_s.downcase
+    ManifestSchema::BUILDERS.include?(downcased) ? downcased : nil
+  end
+
+  # Railway's startCommand can be a string OR an array of strings
+  # (executed sequentially). RailDock's start_command is a single string,
+  # so join arrays with " && ".
+  def normalize_railway_command(value)
+    return nil if value.blank?
+
+    case value
+    when Array then value.join(" && ")
+    else value.to_s
+    end
+  end
+
+  # Merge [env] and [vars] into one hash. Railway allows both top-level
+  # blocks; [vars] is shell env, [env] is Railway-managed. In RailDock
+  # both become regular env vars. [vars] takes precedence on key conflict
+  # since it's the more "shell-like" of the two.
+  def normalize_railway_env(env_value, vars_value)
+    env_block = normalize_railway_env_block(env_value)
+    vars_block = normalize_railway_env_block(vars_value)
+    # Start with [env] as the base, then layer [vars] on top so [vars]
+    # wins on key conflict (Hash#merge: later-merged keys overwrite).
+    env_block.merge(vars_block)
+  end
+
+  def normalize_railway_env_block(block)
+    return {} unless block.is_a?(Hash)
+
+    block.each_with_object({}) do |(key, val), acc|
+      case val
+      when String
+        acc[key] = val
+      when Hash
+        acc[key] = val["value"] if val["value"]
+        acc[key] = "#{val["generator"].to_s.upcase}_GENERATED" if val["generator"]
+      end
+    end
+  end
+
+  def normalize_railway_checks(deploy)
+    path = deploy["healthcheckPath"]
+    return { enabled: false } if path.blank?
+
+    {
+      enabled: true,
+      path: path,
+      timeout: deploy["healthcheckTimeout"].to_i,
+      wait: 0,
+      skip: []
+    }
+  end
+
+  # Map Railway's restartPolicyType to RailDock's restart_policy enum.
+  # Railway: "never" | "on-failure" | "always"
+  # RailDock Service enum (checked separately) accepts these same values.
+  def normalize_railway_restart_policy(value)
+    return nil if value.blank?
+
+    %w[never on-failure always].include?(value.to_s) ? value.to_s : nil
   end
 
   # ── raildock.toml / raildock.json ───────────────────────────

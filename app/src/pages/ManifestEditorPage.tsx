@@ -243,6 +243,16 @@ export default function ManifestEditorPage() {
                       <span className="text-white/50">app.json</span>
                       <span className="text-white/25">— Heroku compatible</span>
                     </div>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <div className="w-2 h-2 rounded-full bg-white/20" />
+                      <span className="text-white/50">railway.toml</span>
+                      <span className="text-white/25">— Railway compatible</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <div className="w-2 h-2 rounded-full bg-white/20" />
+                      <span className="text-white/50">railway.json</span>
+                      <span className="text-white/25">— Railway compatible</span>
+                    </div>
                   </div>
                 </div>
                 <a

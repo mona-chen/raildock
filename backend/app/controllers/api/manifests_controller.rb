@@ -129,7 +129,17 @@ module Api
 
     def detect_format(content)
       stripped = content.to_s.strip
+
+      # app.json: JSON with buildpacks/formation (must come BEFORE the
+      # Railway JSON check, since both start with "{")
       return "app.json" if stripped.start_with?("{") && (stripped.include?("buildpacks") || stripped.include?("formation"))
+
+      # railway.json: JSON with build or deploy top-level keys
+      return "railway.json" if stripped.start_with?("{") && (stripped.match?(/["']build["']\s*:/) || stripped.match?(/["']deploy["']\s*:/))
+
+      # railway.toml: TOML with [build] or [deploy] section
+      return "railway.toml" if stripped.match?(/\A\s*\[build\]/) || stripped.match?(/\A\s*\[deploy\]/)
+
       "raildock.toml"
     end
   end

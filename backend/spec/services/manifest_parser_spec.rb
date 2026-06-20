@@ -152,6 +152,184 @@ RSpec.describe ManifestParser do
       expect(result.find_service("postgres")[:proxy]).to eq({})
     end
 
+    context 'with railway.toml' do
+      let(:toml) do
+        <<~TOML
+          [build]
+          builder = "railpack"
+          buildCommand = "echo building!"
+
+          [deploy]
+          startCommand = "npm start"
+          healthcheckPath = "/healthz"
+          healthcheckTimeout = 30
+          restartPolicyType = "on-failure"
+
+          [vars]
+          NODE_ENV = "production"
+        TOML
+      end
+
+      it 'parses into single service with Railway fields mapped' do
+        result = described_class.parse(toml, filename: "railway.toml")
+
+        expect(result.format_detected).to eq("railway.toml")
+        expect(result.services.length).to eq(1)
+
+        svc = result.services.first
+        expect(svc[:name]).to eq("app")
+        expect(svc[:builder]).to eq("railpack")
+        expect(svc[:start_command]).to eq("npm start")
+        expect(svc[:checks][:enabled]).to be(true)
+        expect(svc[:checks][:path]).to eq("/healthz")
+        expect(svc[:checks][:timeout]).to eq(30)
+        expect(svc[:restart_policy]).to eq("on-failure")
+        expect(svc[:env]).to eq({ "NODE_ENV" => "production" })
+      end
+
+      it 'warns that buildCommand is not yet supported' do
+        result = described_class.parse(toml, filename: "railway.toml")
+        expect(result.warnings).to include(a_string_matching(/buildCommand is not yet supported/))
+      end
+
+      it 'warns that single-service config cannot do links or storage' do
+        result = described_class.parse(toml, filename: "railway.toml")
+        expect(result.warnings).to include(a_string_matching(/does not support domains/))
+        expect(result.warnings).to include(a_string_matching(/does not support service links/))
+      end
+    end
+
+    context 'with railway.json' do
+      let(:json) do
+        <<~JSON
+          {
+            "build": { "builder": "nixpacks" },
+            "deploy": {
+              "startCommand": ["npm", "run", "start"],
+              "healthcheckPath": "/",
+              "restartPolicyType": "always"
+            },
+            "env": {
+              "API_KEY": "${{ secrets.API_KEY }}",
+              "PORT": { "value": "3000" }
+            },
+            "vars": { "NODE_ENV": "production" }
+          }
+        JSON
+      end
+
+      it 'parses TOML and JSON identically' do
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.format_detected).to eq("railway.json")
+        svc = result.services.first
+        expect(svc[:builder]).to eq("nixpacks")
+        expect(svc[:start_command]).to eq("npm && run && start")
+        expect(svc[:checks][:path]).to eq("/")
+        expect(svc[:restart_policy]).to eq("always")
+      end
+
+      it 'joins array startCommand with " && "' do
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.services.first[:start_command]).to eq("npm && run && start")
+      end
+
+      it 'merges [env] and [vars] with [vars] winning on conflict' do
+        json_with_conflict = <<~JSON
+          {
+            "deploy": { "startCommand": "node index.js" },
+            "env": { "SHARED": "from-env" },
+            "vars": { "SHARED": "from-vars" }
+          }
+        JSON
+        result = described_class.parse(json_with_conflict, filename: "railway.json")
+        expect(result.services.first[:env]).to eq({ "SHARED" => "from-vars" })
+      end
+
+      it 'leaves Railway-only markers like ${{ secrets.X }} as opaque strings' do
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.services.first[:env]["API_KEY"]).to eq("${{ secrets.API_KEY }}")
+      end
+
+      it 'resolves generator hash values to GENERATED markers' do
+        json_with_gen = <<~JSON
+          {
+            "deploy": { "startCommand": "node index.js" },
+            "vars": { "DB_PASS": { "generator": "secret" } }
+          }
+        JSON
+        result = described_class.parse(json_with_gen, filename: "railway.json")
+        expect(result.services.first[:env]["DB_PASS"]).to eq("SECRET_GENERATED")
+      end
+    end
+
+    context 'with unknown Railway builder' do
+      it 'still produces a service hash with builder=nil and a warning' do
+        json = <<~JSON
+          {
+            "build": { "builder": "Bazel" },
+            "deploy": { "startCommand": "make run" }
+          }
+        JSON
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.services.first[:builder]).to be_nil
+        expect(result.warnings).to include(a_string_matching(/builder 'Bazel' is not in RailDock's enum/))
+      end
+
+      it 'normalizes DOCKERFILE to dockerfile without warning' do
+        json = <<~JSON
+          {
+            "build": { "builder": "DOCKERFILE" },
+            "deploy": { "startCommand": "echo hi" }
+          }
+        JSON
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.services.first[:builder]).to eq("dockerfile")
+        expect(result.warnings).not_to include(a_string_matching(/is not in RailDock's enum/))
+      end
+    end
+
+    context 'with preDeployCommand' do
+      it 'warns that preDeployCommand is not yet supported' do
+        json = <<~JSON
+          {
+            "deploy": {
+              "startCommand": "node index.js",
+              "preDeployCommand": ["npm", "run", "migrate"]
+            }
+          }
+        JSON
+        result = described_class.parse(json, filename: "railway.json")
+        expect(result.warnings).to include(a_string_matching(/preDeployCommand is not yet supported/))
+      end
+    end
+
+    context 'with no filename hint (auto-detection)' do
+      it 'detects railway.toml from [build] section' do
+        toml = "[build]\nbuilder = \"railpack\"\n[deploy]\nstartCommand = \"echo hi\"\n"
+        result = described_class.parse(toml)
+        expect(result.format_detected).to eq("railway.toml")
+      end
+
+      it 'detects railway.json from "build" top-level key' do
+        json = '{ "build": { "builder": "railpack" }, "deploy": { "startCommand": "echo hi" } }'
+        result = described_class.parse(json)
+        expect(result.format_detected).to eq("railway.json")
+      end
+
+      it 'detects railway.json from "deploy" top-level key' do
+        json = '{ "deploy": { "startCommand": "echo hi" } }'
+        result = described_class.parse(json)
+        expect(result.format_detected).to eq("railway.json")
+      end
+
+      it 'does not misroute a railway.json as app.json or raildock.json' do
+        json = '{ "build": { "builder": "railpack" }, "deploy": { "startCommand": "echo hi" } }'
+        result = described_class.parse(json)
+        expect(result.format_detected).not_to eq("app.json")
+        expect(result.format_detected).not_to eq("raildock.json")
+      end
+    end
+
     context 'with invalid format' do
       it 'raises ParseError' do
         expect {
