@@ -14,14 +14,16 @@ import {
   useRestartAllServices,
   useStopAllServices,
 } from '@/hooks/useProjects'
+import { realtimeStateLabel, type RealtimeState } from '@/hooks/useRealtimeState'
 
 interface CanvasToolbarProps {
   projectId: string
   projectName: string
   projectEnvironment: string
+  connectionState: RealtimeState
 }
 
-export default function CanvasToolbar({ projectId, projectName, projectEnvironment }: CanvasToolbarProps) {
+export default function CanvasToolbar({ projectId, projectName, projectEnvironment, connectionState }: CanvasToolbarProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -54,6 +56,10 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
         </button>
         <div className="w-px h-4 bg-white/[0.08]" />
         <span className="text-[12px] text-white/50 capitalize">{projectEnvironment}</span>
+        <div className="flex items-center gap-1.5 text-[10px] text-white/30" title="Project state synchronization">
+          <span className={`h-1.5 w-1.5 rounded-full ${connectionState === 'live' ? 'bg-emerald-400' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
+          {realtimeStateLabel(connectionState)}
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

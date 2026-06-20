@@ -7,12 +7,4 @@ class ProjectChannel < ApplicationCable::Channel
   rescue ActiveRecord::RecordNotFound
     reject
   end
-
-  private
-    def project_accessible?(project)
-      return false unless current_user
-      return current_user.organizations.exists?(id: project.organization_id) if project.organization_id
-
-      project.user_id == current_user.id || (project.user_id.nil? && current_user.admin?)
-    end
 end

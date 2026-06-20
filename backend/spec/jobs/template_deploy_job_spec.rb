@@ -52,4 +52,15 @@ RSpec.describe TemplateDeployJob, type: :job do
     expect(entries_by_service.fetch(backend.id)[:depends_on_deployment_ids]).to eq([ deployments.fetch(rustfs.id).id ])
     expect(entries_by_service.fetch(frontend.id)[:depends_on_deployment_ids]).to eq([ deployments.fetch(backend.id).id ])
   end
+
+  it "broadcasts template failures through the authorized project stream" do
+    allow(ProjectChannel).to receive(:broadcast_to)
+
+    described_class.new.send(:broadcast_error, project.id, "Template failed")
+
+    expect(ProjectChannel).to have_received(:broadcast_to).with(
+      project,
+      hash_including(type: "template_deploy", status: "failed", message: "Template failed")
+    )
+  end
 end

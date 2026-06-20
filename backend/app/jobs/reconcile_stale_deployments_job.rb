@@ -31,7 +31,7 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
       active = service.deployments.where(status: %i[pending building deploying]).exists?
       service.update!(status: active ? :deploying : :error)
 
-      DeploymentsChannel.broadcast_to(service, {
+      RealtimeBroadcaster.deployment(service, {
         deployment_id: deployment.id,
         status: "failed",
         message: message,

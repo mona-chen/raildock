@@ -8,9 +8,10 @@ import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 const mockUnsubscribe = vi.fn()
 
 let logHandlers: {
-  received?: (data: { line?: string; message?: string }) => void
+  received?: (data: { type?: string; state?: string; line?: string; message?: string }) => void
   connected?: () => void
   disconnected?: () => void
+  rejected?: () => void
 } = {}
 
 let deploymentHandlers: {
@@ -23,6 +24,7 @@ let deploymentHandlers: {
   }) => void
   connected?: () => void
   disconnected?: () => void
+  rejected?: () => void
 } = {}
 
 const mockCable = {
@@ -67,6 +69,7 @@ describe('useWebSocketLogs', () => {
     })
 
     act(() => logHandlers.connected?.())
+    act(() => logHandlers.received?.({ type: 'stream_state', state: 'live' }))
     await waitFor(() => expect(result.current.isConnected).toBe(true))
 
     act(() => logHandlers.received?.({ line: 'Build started' }))
@@ -158,5 +161,33 @@ describe('useWebSocketDeployments', () => {
 
     await waitFor(() => expect(result.current.logMap['dep-1']).toBe('next\n'))
     expect(queryClient.getQueryData<{ deployLog: string }>(['deployments', 'dep-1'])?.deployLog).toBe('start\nnext\n')
+  })
+
+  it('reconciles sequence gaps from durable state without duplicating logs', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(['deployments', 'dep-1'], { id: 'dep-1', deployLog: 'durable\n', eventSequence: 5 })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    const { result } = renderHook(() => useWebSocketDeployments('svc-1'), { wrapper: Wrapper })
+
+    act(() => deploymentHandlers.received?.({ deployment_id: 'dep-1', status: 'building', message: 'Duplicate', log_chunk: 'duplicate\n', sequence: 5 }))
+    expect(result.current.logMap['dep-1']).toBeUndefined()
+    expect(queryClient.getQueryData<{ deployLog: string }>(['deployments', 'dep-1'])?.deployLog).toBe('durable\n')
+
+    act(() => deploymentHandlers.received?.({ deployment_id: 'dep-1', status: 'building', message: 'Gap', log_chunk: 'seven\n', sequence: 7 }))
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['deployments', 'dep-1'] }))
+    expect(result.current.logMap['dep-1']).toBeUndefined()
+  })
+
+  it('exposes reconnecting and fallback states', async () => {
+    const { result } = renderHook(() => useWebSocketDeployments('svc-1'), { wrapper: createWrapper() })
+
+    act(() => deploymentHandlers.disconnected?.())
+    await waitFor(() => expect(result.current.connectionState).toBe('reconnecting'))
+
+    act(() => deploymentHandlers.rejected?.())
+    await waitFor(() => expect(result.current.connectionState).toBe('fallback'))
   })
 })

@@ -12,8 +12,10 @@ class TerminalChannel < ApplicationCable::Channel
     stream_for @service
     Rails.logger.info "[ActionCable] TerminalChannel subscribed for service #{@service.id} (user #{current_user.id})"
 
-    # Open interactive PTY session
-    open_terminal_session
+    # Confirm the Action Cable subscription immediately. SSH/container startup
+    # can legitimately take longer than a websocket handshake and must not
+    # block subscription confirmation.
+    @open_thread = Thread.new { open_terminal_session }
   rescue ActiveRecord::RecordNotFound
     Rails.logger.warn "[ActionCable] TerminalChannel subscription rejected: service #{params[:service_id]} not found"
     reject
@@ -54,8 +56,7 @@ class TerminalChannel < ApplicationCable::Channel
       return project.user_id == current_user.id
     end
 
-    membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
-    membership&.owner? || membership&.admin?
+    project_accessible?(project, roles: %i[owner admin])
   end
 
   def open_terminal_session
@@ -107,6 +108,8 @@ class TerminalChannel < ApplicationCable::Channel
   end
 
   def close_terminal_session
+    @open_thread&.kill if @open_thread != Thread.current
+    @open_thread = nil
     return unless @session
     @session.close
     @session = nil

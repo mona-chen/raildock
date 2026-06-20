@@ -6,6 +6,7 @@ import {
 import { copyToClipboard } from '@/lib/clipboard'
 import { useServiceLogs } from '@/hooks/useServices'
 import { useWebSocketLogs } from '@/hooks/useWebSocketLogs'
+import { realtimeStateLabel } from '@/hooks/useRealtimeState'
 
 interface LogLine {
   timestamp: string
@@ -78,7 +79,7 @@ function formatFullLine(line: LogLine & { cleanMessage: string }): string {
 
 export default function LogsTab({ serviceId }: { serviceId: string }) {
   const { data: historicalLogs } = useServiceLogs(serviceId)
-  const { lines: liveLines, isConnected, clear } = useWebSocketLogs(serviceId)
+  const { lines: liveLines, connectionState, isConnected, clear } = useWebSocketLogs(serviceId)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hasCleared, setHasCleared] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
@@ -107,7 +108,13 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
       process_type: l.processType,
       message: l.message,
     }))
-    return [...historical, ...liveLines]
+    const seen = new Set<string>()
+    return [...historical, ...liveLines].filter((line) => {
+      const fingerprint = `${line.timestamp}|${line.process_type}|${line.message}`
+      if (seen.has(fingerprint)) return false
+      seen.add(fingerprint)
+      return true
+    })
   }, [historicalLogs, liveLines, hasCleared])
 
   // Enrich with level detection
@@ -291,8 +298,8 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e] animate-pulse' : 'bg-white/20'}`} />
-              <span className="text-[11px] text-white/40">{isConnected ? 'Live' : 'Polling'}</span>
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
+              <span className="text-[11px] text-white/40">{realtimeStateLabel(connectionState)}</span>
             </div>
             {isPaused && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded-full">

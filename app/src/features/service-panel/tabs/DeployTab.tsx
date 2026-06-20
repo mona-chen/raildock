@@ -13,6 +13,7 @@ import type { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import type { Service } from '@/types'
 import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/clipboard'
+import { realtimeStateLabel } from '@/hooks/useRealtimeState'
 
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
@@ -269,7 +270,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
   const cancelDeployment = useCancelDeployment()
   const { data: deployments } = useServiceDeployments(svc.id)
   const { data: containerStatus } = useContainerStatus(serviceId)
-  const { lastUpdate, isConnected, logMap } = realtime
+  const { lastUpdate, isConnected, connectionState, logMap } = realtime
   const [expandedDeployment, setExpandedDeployment] = useState<string | null>(null)
   const [rollbackTarget, setRollbackTarget] = useState<string | null>(null)
 
@@ -408,8 +409,9 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
 
       {lastUpdate && (
         <div className="bg-[#8b5cf6]/5 border border-[#8b5cf6]/20 rounded-lg p-3 flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : 'bg-white/20'} animate-pulse`} />
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
           <span className="text-[12px] text-white/60">{lastUpdate.message}</span>
+          <span className="text-[10px] text-white/25">{realtimeStateLabel(connectionState)}</span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${
             lastUpdate.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
             lastUpdate.status === 'failed' ? 'bg-red-500/10 text-red-400' :

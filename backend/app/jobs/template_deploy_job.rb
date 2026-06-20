@@ -309,7 +309,10 @@ class TemplateDeployJob < ApplicationJob
 
 
   def broadcast_error(project_id, message)
-    ActionCable.server.broadcast("project_#{project_id}", {
+    project = Project.find_by(id: project_id)
+    return unless project
+
+    RealtimeBroadcaster.project(project, {
       type: "template_deploy",
       status: "failed",
       message: message,

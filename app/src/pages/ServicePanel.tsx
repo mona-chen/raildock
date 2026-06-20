@@ -21,6 +21,7 @@ import MetricsTab from '@/features/service-panel/tabs/MetricsTab'
 import DomainsTab from '@/features/service-panel/tabs/DomainsTab'
 import StorageTab from '@/features/service-panel/tabs/StorageTab'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
+import { realtimeStateLabel } from '@/hooks/useRealtimeState'
 
 interface ServicePanelProps {
   serviceId: string
@@ -210,7 +211,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           >
             {svc.status === 'running' ? 'Online' : svc.status}
           </span>
-          <span className={`h-2 w-2 rounded-full ${deploymentRealtime.isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} title={deploymentRealtime.isConnected ? 'Live updates connected' : 'Reconnecting; active operations refresh automatically'} />
+          <span className={`h-2 w-2 rounded-full ${deploymentRealtime.connectionState === 'live' ? 'bg-emerald-400' : deploymentRealtime.connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'}`} title={`${realtimeStateLabel(deploymentRealtime.connectionState)} updates`} />
         </div>
       </div>
 

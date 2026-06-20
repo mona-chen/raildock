@@ -60,6 +60,6 @@ class ManifestApplyJob < ApplicationJob
     }
     payload[:details] = details if details
     project = Project.find_by(id: project_id)
-    ProjectChannel.broadcast_to(project, payload) if project
+    RealtimeBroadcaster.project(project, payload) if project
   end
 end

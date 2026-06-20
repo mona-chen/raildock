@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { getCable, isCableAvailable, reconnectCable } from '@/lib/cable'
+import { getCable, isCableAvailable } from '@/lib/cable'
 import { useQueryClient } from '@tanstack/react-query'
 import { debugLog, debugWarn } from '@/lib/debug'
+import { useRealtimeState } from './useRealtimeState'
 
 interface DeploymentUpdate {
   deployment_id: string
@@ -14,12 +15,11 @@ interface DeploymentUpdate {
 }
 
 export function useWebSocketDeployments(serviceId: string) {
-  const [lastUpdate, setLastUpdate] = useState<DeploymentUpdate | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
-  const [isRejected, setIsRejected] = useState(false)
+  const [updateState, setUpdateState] = useState<{ serviceId: string; update: DeploymentUpdate | null }>({ serviceId, update: null })
+  const { state, expectConnection, markLive, markFallback, markUnavailable } = useRealtimeState()
   const logMapRef = useRef<Record<string, string>>({})
   const sequenceRef = useRef<Record<string, number>>({})
-  const [logMap, setLogMap] = useState<Record<string, string>>({})
+  const [logState, setLogState] = useState<{ serviceId: string; logs: Record<string, string> }>({ serviceId, logs: {} })
   const queryClient = useQueryClient()
 
   const invalidate = useCallback(() => {
@@ -29,42 +29,45 @@ export function useWebSocketDeployments(serviceId: string) {
 
   useEffect(() => {
     if (!isCableAvailable() || !serviceId) {
-      setIsConnected(false)
-      setIsRejected(false)
+      markUnavailable()
       return
     }
 
-    setIsRejected(false)
+    logMapRef.current = {}
+    sequenceRef.current = {}
+    expectConnection()
 
     const subscription = getCable().subscriptions.create(
       { channel: 'DeploymentsChannel', service_id: serviceId },
       {
         connected() {
           debugLog('[WebSocket] DeploymentsChannel connected for', serviceId)
-          setIsConnected(true)
-          setIsRejected(false)
+          markLive()
         },
         disconnected() {
           debugLog('[WebSocket] DeploymentsChannel disconnected for', serviceId)
-          setIsConnected(false)
+          expectConnection('reconnecting')
         },
         rejected() {
           debugWarn('[WebSocket] DeploymentsChannel rejected for', serviceId)
-          setIsConnected(false)
-          setIsRejected(true)
+          markFallback()
         },
         received(data: DeploymentUpdate) {
           debugLog('[WebSocket] DeploymentsChannel received:', data)
-          setLastUpdate(data)
+          setUpdateState({ serviceId, update: data })
           if (data.log_chunk && data.deployment_id) {
-            const previousSequence = sequenceRef.current[data.deployment_id] || 0
+            const cached = queryClient.getQueryData<Record<string, unknown>>(['deployments', data.deployment_id])
+            const previousSequence = sequenceRef.current[data.deployment_id] || Number(cached?.eventSequence || 0)
             if (data.sequence && data.sequence <= previousSequence) return
             if (data.sequence && previousSequence && data.sequence > previousSequence + 1) {
+              sequenceRef.current[data.deployment_id] = data.sequence
               queryClient.invalidateQueries({ queryKey: ['deployments', data.deployment_id] })
+              invalidate()
+              return
             }
             if (data.sequence) sequenceRef.current[data.deployment_id] = data.sequence
             logMapRef.current[data.deployment_id] = (logMapRef.current[data.deployment_id] || '') + data.log_chunk
-            setLogMap({ ...logMapRef.current })
+            setLogState({ serviceId, logs: { ...logMapRef.current } })
             queryClient.setQueryData(['deployments', data.deployment_id], (current: Record<string, unknown> | undefined) => current ? {
               ...current,
               status: data.status,
@@ -79,9 +82,10 @@ export function useWebSocketDeployments(serviceId: string) {
 
     return () => {
       subscription.unsubscribe()
-      setIsConnected(false)
     }
-  }, [serviceId, invalidate, queryClient])
+  }, [serviceId, invalidate, queryClient, expectConnection, markFallback, markLive, markUnavailable])
 
-  return { lastUpdate, isConnected, isRejected, logMap }
+  const lastUpdate = updateState.serviceId === serviceId ? updateState.update : null
+  const logMap = logState.serviceId === serviceId ? logState.logs : {}
+  return { lastUpdate, connectionState: state, isConnected: state === 'live', isRejected: state === 'fallback', logMap }
 }

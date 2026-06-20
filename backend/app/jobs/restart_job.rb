@@ -28,7 +28,7 @@ class RestartJob < ApplicationJob
     )
 
     if is_new
-      DeploymentsChannel.broadcast_to(service, {
+      RealtimeBroadcaster.deployment(service, {
         deployment_id: deployment.id,
         kind: kind,
         status: "building",
@@ -44,13 +44,14 @@ class RestartJob < ApplicationJob
     begin
       log = ->(msg) {
         line = "[#{Time.current.iso8601}] #{msg}\n"
-        deployment.update!(deploy_log: (deployment.deploy_log || "") + line)
-        DeploymentsChannel.broadcast_to(service, {
+        line = deployment.append_log_chunk!(line)
+        RealtimeBroadcaster.deployment(service, {
           deployment_id: deployment.id,
           kind: deployment.kind,
           status: "building",
           message: msg,
-          log_chunk: line
+          log_chunk: line,
+          sequence: deployment.event_sequence
         })
       }
 
@@ -88,7 +89,7 @@ class RestartJob < ApplicationJob
       if restart_success
         service.update!(status: "running")
         deployment.update!(status: "succeeded", completed_at: Time.current)
-        DeploymentsChannel.broadcast_to(service, {
+        RealtimeBroadcaster.deployment(service, {
           deployment_id: deployment.id,
           kind: deployment.kind,
           status: "succeeded",
@@ -104,7 +105,7 @@ class RestartJob < ApplicationJob
       else
         service.update!(status: "error")
         deployment.update!(status: "failed", completed_at: Time.current)
-        DeploymentsChannel.broadcast_to(service, {
+        RealtimeBroadcaster.deployment(service, {
           deployment_id: deployment.id,
           kind: deployment.kind,
           status: "failed",
@@ -115,7 +116,7 @@ class RestartJob < ApplicationJob
     rescue => e
       Rails.logger.error "RestartJob exception for #{service.dokku_app_name}: #{e.message}"
       deployment.update!(status: "failed", completed_at: Time.current) if deployment
-      DeploymentsChannel.broadcast_to(service, {
+      RealtimeBroadcaster.deployment(service, {
         deployment_id: deployment&.id,
         kind: "restart",
         status: "failed",

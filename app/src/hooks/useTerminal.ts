@@ -13,7 +13,8 @@ interface TerminalMessage {
 export function useTerminal(
   serviceId: string,
   terminalRef: React.RefObject<HTMLDivElement | null>,
-  shell: string = '/bin/sh'
+  shell: string = '/bin/sh',
+  retryToken: number = 0
 ) {
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +61,7 @@ export function useTerminal(
         if (!current) setError('Terminal connection timed out — check your network or server status')
         return current
       })
-    }, 8000)
+    }, 35000)
 
     // Create terminal with WebGL renderer if available
     const term = new Terminal({
@@ -122,12 +123,11 @@ export function useTerminal(
       { channel: 'TerminalChannel', service_id: serviceId, shell },
       {
         connected() {
-          window.clearTimeout(connectionWatchdog)
-          setIsConnected(true)
           setError(null)
         },
         disconnected() {
           setIsConnected(false)
+          setError('Terminal connection lost')
         },
         rejected() {
           window.clearTimeout(connectionWatchdog)
@@ -143,6 +143,7 @@ export function useTerminal(
               term.write(msg.data)
             }
           } else if (msg.type === 'connected') {
+            window.clearTimeout(connectionWatchdog)
             setIsConnected(true)
             setError(null)
             term.clear()
@@ -157,7 +158,10 @@ export function useTerminal(
       }
     )
 
-    subscriptionRef.current = subscription as any
+    subscriptionRef.current = subscription as {
+      unsubscribe: () => void
+      perform: (action: string, data?: Record<string, unknown>) => void
+    }
 
     // Forward keystrokes to backend
     const disposable = term.onData((data) => {
@@ -188,7 +192,7 @@ export function useTerminal(
       subscriptionRef.current = null
       setIsConnected(false)
     }
-  }, [serviceId, shell, terminalRef, sendData, sendResize])
+  }, [serviceId, shell, retryToken, terminalRef, sendData, sendResize])
 
   return { isConnected, error, term: termRef.current, findNext, findPrevious, clearSearch }
 }

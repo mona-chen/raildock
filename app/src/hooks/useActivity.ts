@@ -6,5 +6,6 @@ export function useActivity(projectId?: string) {
     queryKey: projectId ? ['projects', projectId, 'activity'] : ['activity', 'all'],
     queryFn: () => api.activity.list(projectId),
     enabled: projectId ? !!projectId : true,
+    refetchInterval: 15000,
   })
 }

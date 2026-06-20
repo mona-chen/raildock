@@ -24,10 +24,14 @@ function getCableUrl(): string {
 }
 
 let consumer: ReturnType<typeof createConsumer> | null = null
+let consumerToken: string | null = null
 
 export function getCable() {
-  if (!consumer) {
+  const token = getToken()
+  if (!consumer || consumerToken !== token) {
+    consumer?.disconnect()
     consumer = createConsumer(getCableUrl())
+    consumerToken = token
   }
   return consumer
 }
@@ -37,6 +41,7 @@ export function reconnectCable() {
   if (consumer) {
     consumer.disconnect()
     consumer = null
+    consumerToken = null
   }
   return getCable()
 }

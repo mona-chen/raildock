@@ -407,15 +407,11 @@ class DeploymentJob < ApplicationJob
   private
 
   def safely_broadcast_deployment(service, payload)
-    DeploymentsChannel.broadcast_to(service, payload)
-  rescue => error
-    Rails.logger.warn "Deployment realtime broadcast failed for #{service.id}: #{error.message}"
+    RealtimeBroadcaster.deployment(service, payload)
   end
 
   def safely_broadcast_project(project, payload)
-    ProjectChannel.broadcast_to(project, payload)
-  rescue => error
-    Rails.logger.warn "Project realtime broadcast failed for #{project.id}: #{error.message}"
+    RealtimeBroadcaster.project(project, payload)
   end
 
   def abort_if_cancelled(deployment)

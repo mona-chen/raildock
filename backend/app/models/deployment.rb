@@ -57,7 +57,7 @@ class Deployment < ApplicationRecord
     previous_success = service.deployments.succeeded.where.not(id: id).exists?
     service.update!(status: active ? :deploying : (previous_success ? :running : :error))
 
-    DeploymentsChannel.broadcast_to(service, {
+    RealtimeBroadcaster.deployment(service, {
       deployment_id: id,
       status: "cancelled",
       message: message,

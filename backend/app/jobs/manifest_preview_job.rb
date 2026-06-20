@@ -18,7 +18,7 @@ class ManifestPreviewJob < ApplicationJob
     changes = reconciler.diff
 
     # Broadcast preview result via ActionCable
-    ProjectChannel.broadcast_to(
+    RealtimeBroadcaster.project(
       project,
       {
         type: "manifest_preview",
@@ -29,7 +29,7 @@ class ManifestPreviewJob < ApplicationJob
       }
     )
   rescue ManifestParser::ParseError => e
-    ProjectChannel.broadcast_to(
+    RealtimeBroadcaster.project(
       project,
       { type: "manifest_preview_error", error: e.message }
     )

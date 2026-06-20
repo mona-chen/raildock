@@ -21,8 +21,9 @@ interface InteractiveTerminalProps {
 
 export default function InteractiveTerminal({ serviceId, serviceName }: InteractiveTerminalProps) {
   const [shell, setShell] = useState('/bin/sh')
+  const [retryToken, setRetryToken] = useState(0)
   const terminalRef = useRef<HTMLDivElement>(null)
-  const { isConnected, error, findNext, findPrevious, clearSearch } = useTerminal(serviceId, terminalRef, shell)
+  const { isConnected, error, findNext, findPrevious, clearSearch } = useTerminal(serviceId, terminalRef, shell, retryToken)
   const [showInfo, setShowInfo] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -136,9 +137,9 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           )}
 
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : error ? 'bg-red-400' : 'bg-amber-500'}`} />
             <span className="text-[10px] text-white/40">
-              {isConnected ? 'Connected' : 'Connecting...'}
+              {isConnected ? 'Connected' : error ? 'Unavailable' : 'Connecting...'}
             </span>
           </div>
         </div>
@@ -208,6 +209,26 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
             <div className="flex flex-col items-center gap-2 text-white/30">
               <Loader2 size={20} className="animate-spin" />
               <span className="text-[12px]">Opening terminal session...</span>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0B0D]/90 z-10 px-6">
+            <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-300">
+                <AlertCircle size={17} />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-white/80">Couldn’t open the terminal</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/40">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRetryToken((attempt) => attempt + 1)}
+                className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+              >
+                Try again
+              </button>
             </div>
           </div>
         )}

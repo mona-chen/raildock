@@ -8,6 +8,18 @@ RSpec.describe LogsChannel, type: :channel do
 
   before do
     stub_connection current_user: user
+    described_class.active_subscribers.clear
+    described_class.active_log_streams.clear
+    described_class.active_log_threads.clear
+  end
+
+  describe "subscriber tracking" do
+    it "keeps the shared log tail alive until the last subscriber leaves" do
+      expect(described_class.add_subscriber(service.id, "tab-1")).to be(true)
+      expect(described_class.add_subscriber(service.id, "tab-2")).to be(false)
+      expect(described_class.remove_subscriber(service.id, "tab-1")).to be(false)
+      expect(described_class.remove_subscriber(service.id, "tab-2")).to be(true)
+    end
   end
 
   describe "#subscribed" do
@@ -19,6 +31,16 @@ RSpec.describe LogsChannel, type: :channel do
 
       expect(subscription).to be_confirmed
       expect(subscription).to have_stream_for(service)
+    end
+
+    it "rejects another user's personal project" do
+      personal_project = create(:project, user: create(:user, admin: false))
+      personal_service = create(:service, project: personal_project)
+      stub_connection current_user: create(:user, admin: false)
+
+      subscribe(service_id: personal_service.id)
+
+      expect(subscription).to be_rejected
     end
 
     it "starts a background thread to tail logs" do

@@ -2,14 +2,33 @@ class LogsChannel < ApplicationCable::Channel
   # Thread-safe map to track active log streams per service
   cattr_accessor(:active_log_streams, default: Concurrent::Map.new)
   cattr_accessor(:active_log_threads, default: Concurrent::Map.new)
+  cattr_accessor(:active_subscribers, default: Concurrent::Map.new)
+
+  class << self
+    def add_subscriber(service_id, subscriber_id)
+      subscribers = active_subscribers.compute_if_absent(service_id) { Concurrent::Set.new }
+      subscribers.add(subscriber_id)
+      subscribers.size == 1
+    end
+
+    def remove_subscriber(service_id, subscriber_id)
+      subscribers = active_subscribers[service_id]
+      return false unless subscribers
+
+      subscribers.delete(subscriber_id)
+      return false unless subscribers.empty?
+
+      active_subscribers.delete_pair(service_id, subscribers)
+      true
+    end
+  end
 
   def subscribed
     service = Service.find(params[:service_id])
     @service = service
 
     # Authorization: verify the user can access this service's project
-    reject unless current_user
-    unless logs_allowed?(service)
+    unless project_accessible?(service.project)
       reject
       return
     end
@@ -18,7 +37,8 @@ class LogsChannel < ApplicationCable::Channel
     Rails.logger.info "[ActionCable] LogsChannel subscribed for service #{service.id} (user #{current_user.id})"
 
     # Start log tailing with proper cleanup
-    start_log_stream(service)
+    first_subscriber = self.class.add_subscriber(service.id, object_id)
+    start_log_stream(service) if first_subscriber || !active_log_threads.key?(service.id)
   rescue ActiveRecord::RecordNotFound
     Rails.logger.warn "[ActionCable] LogsChannel subscription rejected: service #{params[:service_id]} not found"
     reject
@@ -26,38 +46,27 @@ class LogsChannel < ApplicationCable::Channel
 
   def unsubscribed
     Rails.logger.info "[ActionCable] LogsChannel unsubscribed"
-    stop_log_stream
+    stop_log_stream if @service && self.class.remove_subscriber(@service.id, object_id)
   end
 
   private
 
-  def logs_allowed?(service)
-    project = service.project
-    return false unless project
-    return true if current_user.admin?
-
-    if project.organization_id.nil?
-      return project.user_id == current_user.id
-    end
-
-    current_user.organizations.exists?(id: project.organization_id)
-  end
-
   def start_log_stream(service)
-    # Clean up any existing stream for this service
-    stop_log_stream_for(service)
-
     # Use a thread-safe queue to signal shutdown
     stop_token = Concurrent::Atom.new(false)
 
-    # Store the stop token so we can signal it later
-    active_log_streams[service.id] = stop_token
+    # Claim the service before starting the thread so simultaneous browser tabs
+    # cannot create duplicate SSH tails.
+    return if active_log_streams.put_if_absent(service.id, stop_token)
 
     # Run log tailing in a background executor to avoid blocking ActionCable
     thread = Thread.new do
       tail_logs(service, stop_token)
     end
     active_log_threads[service.id] = thread
+  rescue
+    active_log_streams.delete_pair(service.id, stop_token)
+    raise
   end
 
   def stop_log_stream
@@ -98,8 +107,11 @@ class LogsChannel < ApplicationCable::Channel
           ch.exec(log_cmd) do |_, success|
             unless success
               Rails.logger.error "LogsChannel: failed to execute logs command"
+              RealtimeBroadcaster.logs(service, { type: "stream_state", state: "fallback" })
               return
             end
+
+            RealtimeBroadcaster.logs(service, { type: "stream_state", state: "live" })
 
             ch.on_data do |_, data|
               break if stop_token.value
@@ -107,7 +119,7 @@ class LogsChannel < ApplicationCable::Channel
                 next if line.strip.empty?
                 parsed = parse_log_line(line)
                 next if parsed[:message].empty?
-                LogsChannel.broadcast_to(service, parsed)
+                RealtimeBroadcaster.logs(service, parsed)
               end
             end
 
@@ -117,7 +129,7 @@ class LogsChannel < ApplicationCable::Channel
                 next if line.strip.empty?
                 parsed = parse_log_line(line)
                 next if parsed[:message].empty?
-                LogsChannel.broadcast_to(service, parsed.merge(process_type: "stderr"))
+                RealtimeBroadcaster.logs(service, parsed.merge(process_type: "stderr"))
               end
             end
           end
@@ -126,11 +138,15 @@ class LogsChannel < ApplicationCable::Channel
       end
     rescue Net::SSH::Exception => e
       Rails.logger.error "LogsChannel SSH error: #{e.message}"
+      RealtimeBroadcaster.logs(service, { type: "stream_state", state: "fallback" })
     rescue => e
       Rails.logger.error "LogsChannel error: #{e.message}"
+      RealtimeBroadcaster.logs(service, { type: "stream_state", state: "fallback" })
     ensure
-      active_log_streams.delete(service.id)
-      active_log_threads.delete(service.id)
+      # Only remove this worker's entries. A replacement worker may already be
+      # running after a reconnect.
+      active_log_streams.delete_pair(service.id, stop_token)
+      active_log_threads.delete_pair(service.id, Thread.current)
     end
   end
 

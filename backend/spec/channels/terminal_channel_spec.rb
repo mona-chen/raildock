@@ -21,6 +21,7 @@ RSpec.describe TerminalChannel, type: :channel do
     create(:organization_membership, organization: organization, user: user, role: :admin)
     stub_connection current_user: user
     allow_any_instance_of(DokkuEngine).to receive(:interactive_shell).and_return(terminal_session)
+    allow(Thread).to receive(:new).and_return(instance_double(Thread, kill: nil))
   end
 
   it "confirms terminal access for an organization administrator" do
@@ -28,5 +29,6 @@ RSpec.describe TerminalChannel, type: :channel do
 
     expect(subscription).to be_confirmed
     expect(subscription).to have_stream_for(service)
+    expect(Thread).to have_received(:new)
   end
 end

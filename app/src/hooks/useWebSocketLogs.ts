@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getCable, isCableAvailable } from '@/lib/cable'
 import { debugLog, debugWarn } from '@/lib/debug'
+import { useRealtimeState } from './useRealtimeState'
 
 interface LogLine {
   timestamp: string
@@ -9,41 +10,54 @@ interface LogLine {
 }
 
 export function useWebSocketLogs(serviceId: string) {
-  const [lines, setLines] = useState<LogLine[]>([])
-  const [isConnected, setIsConnected] = useState(false)
+  const [logState, setLogState] = useState<{ serviceId: string; lines: LogLine[] }>({ serviceId, lines: [] })
+  const { state, expectConnection, markLive, markFallback, markUnavailable } = useRealtimeState()
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null)
 
-  const clear = useCallback(() => setLines([]), [])
+  const clear = useCallback(() => setLogState({ serviceId, lines: [] }), [serviceId])
 
   useEffect(() => {
-    if (!isCableAvailable() || !serviceId) return
+    if (!isCableAvailable() || !serviceId) {
+      markUnavailable()
+      return
+    }
+    expectConnection()
 
     const subscription = getCable().subscriptions.create(
       { channel: 'LogsChannel', service_id: serviceId },
       {
         connected() {
           debugLog('[WebSocket] LogsChannel connected for', serviceId)
-          setIsConnected(true)
+          expectConnection()
         },
         disconnected() {
           debugLog('[WebSocket] LogsChannel disconnected for', serviceId)
-          setIsConnected(false)
+          expectConnection('reconnecting')
         },
         rejected() {
           debugWarn('[WebSocket] LogsChannel rejected for', serviceId)
-          setIsConnected(false)
+          markFallback()
         },
-        received(data: { timestamp?: string; process_type?: string; line?: string; message?: string }) {
+        received(data: { type?: string; state?: string; timestamp?: string; process_type?: string; line?: string; message?: string }) {
+          if (data.type === 'stream_state') {
+            if (data.state === 'live') markLive()
+            else markFallback()
+            return
+          }
           const message = data.line || data.message || ''
           if (!message) return
-          setLines((prev) => [
-            ...prev,
-            {
+          markLive()
+          setLogState((current) => ({
+            serviceId,
+            lines: [
+              ...(current.serviceId === serviceId ? current.lines : []),
+              {
               timestamp: data.timestamp || new Date().toISOString(),
               process_type: data.process_type || 'app',
               message,
-            },
-          ])
+              },
+            ],
+          }))
         },
       }
     )
@@ -53,9 +67,9 @@ export function useWebSocketLogs(serviceId: string) {
     return () => {
       subscription.unsubscribe()
       subscriptionRef.current = null
-      setIsConnected(false)
     }
-  }, [serviceId])
+  }, [serviceId, expectConnection, markFallback, markLive, markUnavailable])
 
-  return { lines, isConnected, clear }
+  const lines = logState.serviceId === serviceId ? logState.lines : []
+  return { lines, connectionState: state, isConnected: state === 'live', clear }
 }

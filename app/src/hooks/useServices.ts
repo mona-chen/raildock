@@ -8,6 +8,7 @@ export function useServices(projectId: string) {
     queryKey: ['projects', projectId, 'services'],
     queryFn: () => api.services.list(projectId),
     enabled: !!projectId,
+    refetchInterval: 15000,
   })
 }
 
@@ -16,6 +17,7 @@ export function useService(id: string) {
     queryKey: ['services', id],
     queryFn: () => api.services.get(id),
     enabled: !!id,
+    refetchInterval: 15000,
   })
 }
 
