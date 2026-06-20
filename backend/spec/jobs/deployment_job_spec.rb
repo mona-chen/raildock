@@ -105,6 +105,17 @@ RSpec.describe DeploymentJob, type: :job do
         expect(event.service_name).to eq(service.name)
       end
 
+      it "keeps deploying when a realtime log broadcast fails" do
+        allow(DeploymentsChannel).to receive(:broadcast_to) do |_target, payload|
+          raise "cable unavailable" if payload[:log_chunk]
+        end
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(deployment.deploy_log).to eq("synceddeployed")
+      end
+
       it "invokes every dokku command with the correct parameters" do
         DeploymentJob.perform_now(service.id, deployment.id)
 

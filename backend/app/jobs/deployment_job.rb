@@ -195,7 +195,7 @@ class DeploymentJob < ApplicationJob
       ) do |chunk|
         redacted_chunk = deployment.append_log_chunk!(chunk)
         deploy_output += redacted_chunk
-        DeploymentsChannel.broadcast_to(service, {
+        safely_broadcast_deployment(service, {
           deployment_id: deployment.id,
           status: "building",
           log_chunk: redacted_chunk,
@@ -219,7 +219,7 @@ class DeploymentJob < ApplicationJob
         ) do |chunk|
           redacted_chunk = deployment.append_log_chunk!(chunk)
           deploy_output += redacted_chunk
-          DeploymentsChannel.broadcast_to(service, {
+          safely_broadcast_deployment(service, {
             deployment_id: deployment.id,
             status: "building",
             log_chunk: redacted_chunk,
@@ -238,7 +238,7 @@ class DeploymentJob < ApplicationJob
       if sync_result[:output].present?
         redacted_sync = deployment.append_log_chunk!(sync_result[:output])
         deploy_output += redacted_sync
-        DeploymentsChannel.broadcast_to(service, {
+        safely_broadcast_deployment(service, {
           deployment_id: deployment.id,
           status: "building",
           log_chunk: redacted_sync,
@@ -260,7 +260,7 @@ class DeploymentJob < ApplicationJob
       ) do |chunk|
         redacted_chunk = deployment.append_log_chunk!(chunk)
         deploy_output += redacted_chunk
-        DeploymentsChannel.broadcast_to(service, {
+        safely_broadcast_deployment(service, {
           deployment_id: deployment.id,
           status: "building",
           log_chunk: redacted_chunk,
@@ -402,6 +402,12 @@ class DeploymentJob < ApplicationJob
   end
 
   private
+
+  def safely_broadcast_deployment(service, payload)
+    DeploymentsChannel.broadcast_to(service, payload)
+  rescue => error
+    Rails.logger.warn "Deployment realtime broadcast failed for #{service.id}: #{error.message}"
+  end
 
   def abort_if_cancelled(deployment)
     deployment.reload
