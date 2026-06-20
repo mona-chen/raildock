@@ -43,7 +43,24 @@ export function useTerminal(
   }, [])
 
   useEffect(() => {
-    if (!isCableAvailable() || !serviceId || !terminalRef.current) return
+    if (!serviceId) return
+
+    if (!isCableAvailable()) {
+      setError('Sign in required to open a terminal session')
+      return
+    }
+
+    if (!terminalRef.current) {
+      setError('Terminal container is not mounted')
+      return
+    }
+
+    const connectionWatchdog = window.setTimeout(() => {
+      setIsConnected((current) => {
+        if (!current) setError('Terminal connection timed out — check your network or server status')
+        return current
+      })
+    }, 8000)
 
     // Create terminal with WebGL renderer if available
     const term = new Terminal({
@@ -105,6 +122,7 @@ export function useTerminal(
       { channel: 'TerminalChannel', service_id: serviceId, shell },
       {
         connected() {
+          window.clearTimeout(connectionWatchdog)
           setIsConnected(true)
           setError(null)
         },
@@ -112,7 +130,8 @@ export function useTerminal(
           setIsConnected(false)
         },
         rejected() {
-          setError('Terminal connection rejected')
+          window.clearTimeout(connectionWatchdog)
+          setError('Terminal connection rejected by server')
           setIsConnected(false)
         },
         received(msg: TerminalMessage) {
@@ -158,6 +177,7 @@ export function useTerminal(
     sendResize(cols, rows)
 
     return () => {
+      window.clearTimeout(connectionWatchdog)
       disposable.dispose()
       resizeObserver.disconnect()
       subscription.unsubscribe()
