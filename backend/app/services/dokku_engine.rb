@@ -1123,6 +1123,7 @@ class DokkuTerminalSession
     @closed = false
     @close_called = false
     @opened = false
+    @opened_at = nil
     @exit_status = nil
     @error_buffer = +""
     @mutex = Mutex.new
@@ -1163,6 +1164,7 @@ class DokkuTerminalSession
           end
 
           @opened = true
+          @opened_at = Time.now
           @callbacks[:on_open]&.call
         end
       end
@@ -1304,9 +1306,23 @@ class DokkuTerminalSession
   # on_open, the user only sees a generic "closed" message and an
   # endlessly-spinning terminal. Surface the actual Dokku/OCI failure
   # so the UI can explain what went wrong and offer a safe fallback.
+  #
+  # The @opened flag tracks whether the dokku exec request itself was
+  # accepted; the OCI "no such file" failure happens *after* exec
+  # succeeds, when docker tries to start the requested shell inside
+  # the container. So we also classify stderr when the session closes
+  # quickly (e.g. within 2s) and never produced a real shell prompt.
   def report_pre_open_failure
-    return if @opened
-    return if @close_called && @pre_open_error_reported
+    return if @pre_open_error_reported
+
+    if @opened
+      # The exec request was accepted but the inner container shell
+      # died before any real interactivity happened. Only treat as a
+      # pre-open failure if the buffer clearly indicates a startup
+      # problem (OCI / missing file / command not found / non-zero
+      # exit before the session lived long enough to be useful).
+      return unless quick_close_with_startup_error?
+    end
 
     message = classify_pre_open_failure
     return if message.nil?
@@ -1314,6 +1330,18 @@ class DokkuTerminalSession
     @pre_open_error_reported = true
     Rails.logger.warn "[DokkuTerminalSession] pre-open failure for shell=#{@shell}: #{message}"
     @callbacks[:on_error]&.call(message)
+  end
+
+  def quick_close_with_startup_error?
+    return false if @opened_at.nil?
+    elapsed = Time.now - @opened_at
+    return false if elapsed > 2.0
+
+    buf = @error_buffer.to_s
+    buf.match?(/OCI runtime exec failed/i) ||
+      buf.match?(/no such file or directory/i) ||
+      buf.match?(/command not found/i) ||
+      @exit_status == 127
   end
 
   def classify_pre_open_failure

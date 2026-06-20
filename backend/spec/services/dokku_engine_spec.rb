@@ -545,5 +545,25 @@ RSpec.describe DokkuEngine, type: :service do
       message = session.send(:classify_pre_open_failure)
       expect(message).to include("SSH connection lost")
     end
+
+    it "classifies a quick close with OCI stderr as a missing shell, even when @opened is true" do
+      session.instance_variable_set(:@shell, "/bin/zsh")
+      session.instance_variable_set(:@opened, true)
+      session.instance_variable_set(:@opened_at, Time.now - 0.2)
+      session.instance_variable_set(:@error_buffer, "OCI runtime exec failed: exec failed: unable to start container process: exec: \"/bin/zsh\": stat /bin/zsh: no such file or directory\n")
+      session.instance_variable_set(:@exit_status, 127)
+
+      expect(session.send(:quick_close_with_startup_error?)).to be(true)
+      expect(session.send(:classify_pre_open_failure)).to include("/bin/zsh")
+    end
+
+    it "ignores a long-lived session that later closes cleanly" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@opened, true)
+      session.instance_variable_set(:@opened_at, Time.now - 30)
+      session.instance_variable_set(:@error_buffer, "")
+
+      expect(session.send(:quick_close_with_startup_error?)).to be(false)
+    end
   end
 end
