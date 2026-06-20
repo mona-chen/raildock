@@ -20,6 +20,7 @@ import VariablesTab from '@/features/service-panel/tabs/VariablesTab'
 import MetricsTab from '@/features/service-panel/tabs/MetricsTab'
 import DomainsTab from '@/features/service-panel/tabs/DomainsTab'
 import StorageTab from '@/features/service-panel/tabs/StorageTab'
+import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 
 interface ServicePanelProps {
   serviceId: string
@@ -34,6 +35,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const stopService = useStopService()
   const restartService = useRestartService()
   const rebuildService = useRebuildService()
+  const deploymentRealtime = useWebSocketDeployments(serviceId)
 
   const handleDeploy = () => {
     setTab('deploy')
@@ -140,6 +142,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
             <div className="text-[11px] text-white/40">
               {svc.subtype} {svc.version ? `v${svc.version}` : ''}
+              {deploymentRealtime.lastUpdate && <span className="ml-2 text-white/25">· {deploymentRealtime.lastUpdate.message}</span>}
             </div>
           </div>
         </div>
@@ -207,6 +210,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           >
             {svc.status === 'running' ? 'Online' : svc.status}
           </span>
+          <span className={`h-2 w-2 rounded-full ${deploymentRealtime.isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} title={deploymentRealtime.isConnected ? 'Live updates connected' : 'Reconnecting; active operations refresh automatically'} />
         </div>
       </div>
 
@@ -232,8 +236,8 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto" data-no-pan>
-        {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} onDeploy={handleDeploy} />}
-        {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} />}
+        {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} lastUpdate={deploymentRealtime.lastUpdate} isConnected={deploymentRealtime.isConnected} />}
+        {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} realtime={deploymentRealtime} />}
         {tab === 'logs' && <LogsTab serviceId={serviceId} />}
         {tab === 'console' && <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />}
         {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}

@@ -10,6 +10,7 @@ interface DeploymentUpdate {
   log_chunk?: string
   started_at?: string
   completed_at?: string
+  sequence?: number
 }
 
 export function useWebSocketDeployments(serviceId: string) {
@@ -17,6 +18,7 @@ export function useWebSocketDeployments(serviceId: string) {
   const [isConnected, setIsConnected] = useState(false)
   const [isRejected, setIsRejected] = useState(false)
   const logMapRef = useRef<Record<string, string>>({})
+  const sequenceRef = useRef<Record<string, number>>({})
   const [logMap, setLogMap] = useState<Record<string, string>>({})
   const queryClient = useQueryClient()
 
@@ -55,10 +57,22 @@ export function useWebSocketDeployments(serviceId: string) {
           debugLog('[WebSocket] DeploymentsChannel received:', data)
           setLastUpdate(data)
           if (data.log_chunk && data.deployment_id) {
+            const previousSequence = sequenceRef.current[data.deployment_id] || 0
+            if (data.sequence && data.sequence <= previousSequence) return
+            if (data.sequence && previousSequence && data.sequence > previousSequence + 1) {
+              queryClient.invalidateQueries({ queryKey: ['deployments', data.deployment_id] })
+            }
+            if (data.sequence) sequenceRef.current[data.deployment_id] = data.sequence
             logMapRef.current[data.deployment_id] = (logMapRef.current[data.deployment_id] || '') + data.log_chunk
             setLogMap({ ...logMapRef.current })
+            queryClient.setQueryData(['deployments', data.deployment_id], (current: Record<string, unknown> | undefined) => current ? {
+              ...current,
+              status: data.status,
+              deployLog: `${String(current.deployLog || '')}${data.log_chunk}`,
+              eventSequence: data.sequence || current.eventSequence,
+            } : current)
           }
-          invalidate()
+          if (!data.log_chunk || data.status === 'succeeded' || data.status === 'failed' || data.status === 'cancelled') invalidate()
         },
       }
     )
@@ -67,7 +81,7 @@ export function useWebSocketDeployments(serviceId: string) {
       subscription.unsubscribe()
       setIsConnected(false)
     }
-  }, [serviceId, invalidate])
+  }, [serviceId, invalidate, queryClient])
 
   return { lastUpdate, isConnected, isRejected, logMap }
 }

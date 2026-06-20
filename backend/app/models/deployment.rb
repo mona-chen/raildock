@@ -78,4 +78,29 @@ class Deployment < ApplicationRecord
     return nil unless started_at && completed_at
     completed_at - started_at
   end
+
+  def append_log_chunk!(chunk)
+    redacted = LogRedactor.redact(chunk)
+    with_lock do
+      self.event_sequence += 1
+      self.deploy_log = "#{deploy_log}#{redacted}"
+      save!
+    end
+    redacted
+  end
+
+  def next_event_sequence!
+    with_lock do
+      self.event_sequence += 1
+      save!
+      event_sequence
+    end
+  end
+
+  def as_json(options = {})
+    json = super(options)
+    json["deploy_log"] = LogRedactor.redact(json["deploy_log"]) if json["deploy_log"].present?
+    json["build_log"] = LogRedactor.redact(json["build_log"]) if json["build_log"].present?
+    json
+  end
 end

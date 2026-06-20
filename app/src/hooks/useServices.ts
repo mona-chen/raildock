@@ -220,6 +220,7 @@ export function useServiceDeployments(id: string) {
     queryKey: ['services', id, 'deployments'],
     queryFn: () => api.services.deployments(id),
     enabled: !!id,
+    refetchInterval: (query) => query.state.data?.some((deployment) => ['pending', 'building', 'deploying'].includes(deployment.status)) ? 3000 : false,
   })
 }
 
@@ -486,6 +487,7 @@ export function useDeployment(deploymentId: string | null) {
     queryKey: ['deployments', deploymentId],
     queryFn: () => api.services.deployment(deploymentId!),
     enabled: !!deploymentId,
+    refetchInterval: (query) => query.state.data && ['pending', 'building', 'deploying'].includes(query.state.data.status) ? 3000 : false,
   })
 }
 

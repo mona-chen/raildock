@@ -157,6 +157,31 @@ class HostEngine
     run("docker inspect #{fmt}#{Shellwords.escape(container)}")
   end
 
+  def builder_capabilities
+    result = run(<<~SH.squish)
+      for builder in nixpacks railpack pack; do
+        if command -v "$builder" >/dev/null 2>&1; then echo "$builder=available"; else echo "$builder=missing"; fi
+      done;
+      if docker inspect -f '{{.State.Running}}' buildkit 2>/dev/null | grep -q true; then echo 'buildkit=available'; else echo 'buildkit=missing'; fi
+    SH
+    return {} unless result[:success]
+
+    result[:output].lines.to_h do |line|
+      name, status = line.strip.split("=", 2)
+      [ name, status == "available" ]
+    end
+  end
+
+  def builder_available?(builder)
+    capabilities = builder_capabilities
+    case builder.to_s
+    when "nixpacks" then capabilities["nixpacks"] == true
+    when "pack" then capabilities["pack"] == true
+    when "railpack" then capabilities["railpack"] == true && capabilities["buildkit"] == true
+    else true
+    end
+  end
+
   # Wait for a container to be running and return its name
   # Returns the container name if found, nil if not found after timeout
   def wait_for_container(app_name, timeout: 60)

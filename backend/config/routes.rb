@@ -11,6 +11,10 @@ Rails.application.routes.draw do
     post "users", to: "users#create"
 
     resources :projects do
+      resource :repository_import, path: "repository-import", only: [] do
+        post :preview, on: :collection
+        post :apply, on: :collection
+      end
       resource :manifest, only: [ :show, :update ] do
         post :preview, on: :collection
         post :apply, on: :collection

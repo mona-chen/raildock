@@ -1,14 +1,19 @@
 import { useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
-  Box, Database, Zap, Cog, X, Plus, Rocket, ChevronLeft,
-  GitBranch, Settings2, HelpCircle, FolderOpen, Check, Loader2,
+  Database, Zap, Cog, X, Plus, Rocket, ChevronLeft,
+  GitBranch, HelpCircle, FolderOpen, Check, Loader2,
+  Sparkles, AlertTriangle, ChevronDown,
 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
 import { useBuilders } from '@/hooks/useModules'
 import { useGitSources, useGitSourceRepos } from '@/hooks/useGitSources'
 import type { GitRepo } from '@/types'
+import type { RepositoryImportPreview } from '@/types'
+import { api } from '@/lib/api'
+import { toast } from 'sonner'
 
 interface AddServiceModalProps {
   projectId: string
@@ -80,6 +85,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const [dockerImage, setDockerImage] = useState('')
   const [rootDirectory, setRootDirectory] = useState('')
   const [repoSearch, setRepoSearch] = useState('')
+  const [discovery, setDiscovery] = useState<RepositoryImportPreview | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+  const [builderOverrides, setBuilderOverrides] = useState<Record<string, string>>({})
+  const queryClient = useQueryClient()
 
   // Database
   const [dbType, setDbType] = useState('postgres')
@@ -98,10 +109,6 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
       r.fullName?.toLowerCase().includes(q)
     )
   }, [repos, repoSearch])
-
-  const selectedRepo = useMemo(() => {
-    return repos.find((r: GitRepo) => (r.cloneUrl || r.fullName) === gitRepo)
-  }, [repos, gitRepo])
 
   const handleSelectRepo = (repo: GitRepo) => {
     setGitRepo(repo.cloneUrl || repo.fullName)
@@ -126,6 +133,34 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
       },
       { onSuccess: onClose }
     )
+  }
+
+  const handleScanRepository = async () => {
+    if (!gitSourceId || !gitRepo) return
+    setIsScanning(true)
+    try {
+      setDiscovery(await api.repositoryImports.preview(projectId, { gitSourceId, repository: gitRepo, branch: gitBranch }))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not inspect this repository')
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
+  const handleApplyDiscovery = async () => {
+    if (!discovery) return
+    setIsApplying(true)
+    try {
+      const result = await api.repositoryImports.apply(projectId, discovery.snapshotToken, builderOverrides)
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest'] })
+      toast.success(`Deploying ${result.serviceCount} ${result.serviceCount === 1 ? 'service' : 'services'}`)
+      onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not deploy this repository')
+    } finally {
+      setIsApplying(false)
+    }
   }
 
   const handleCreateDatabase = () => {
@@ -196,6 +231,30 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
   // ── Step: Application ────────────────────────
   if (step === 'app') {
+    if (discovery) {
+      const databases = discovery.services.filter((service) => service.category === 'database').length
+      const applications = discovery.services.length - databases
+      return (
+        <ModalShell onClose={onClose} title="Ready to deploy">
+          <div className="space-y-4">
+            <button onClick={() => setDiscovery(null)} className="flex items-center gap-1 text-[12px] text-white/40 hover:text-white/70"><ChevronLeft size={14} /> Choose another repository</button>
+            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-4">
+              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><Sparkles size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. You can review the technical decisions below if you want to.</p></div></div>
+            </div>
+            <div className="divide-y divide-white/[0.05] border-y border-white/[0.06]">
+              {discovery.services.map((service) => <div key={service.name} className="flex items-center gap-3 py-3"><ServiceIcon subtype={service.subtype} size={17} /><div className="min-w-0 flex-1"><div className="truncate text-[12px] font-medium text-white/70">{service.name}</div><div className="mt-0.5 text-[10px] text-white/25">{service.category === 'database' ? 'Database' : service.rootDirectory ? `From ${service.rootDirectory}` : 'From repository root'}</div></div><span className="rounded bg-white/[0.05] px-2 py-1 text-[9px] capitalize text-white/35">{service.category}</span></div>)}
+            </div>
+            {(discovery.conflicts.length > 0 || discovery.warnings.length > 0) && <div className="rounded-lg border border-amber-400/15 bg-amber-400/[0.035] p-3 text-[11px] text-amber-200/60"><div className="flex gap-2"><AlertTriangle size={14} className="shrink-0 text-amber-300" /><span>{discovery.conflicts[0] || `${discovery.warnings.length} compatibility note${discovery.warnings.length === 1 ? '' : 's'} found`}</span></div></div>}
+            <button type="button" onClick={() => setShowTechnicalDetails((value) => !value)} className="flex w-full items-center justify-between text-[11px] text-white/35 hover:text-white/60"><span>How RailDock decided</span><ChevronDown size={13} className={showTechnicalDetails ? 'rotate-180' : ''} /></button>
+            {showTechnicalDetails && <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/15 p-3">
+              {discovery.evidence.map((item) => <div key={item.path} className="flex items-start justify-between gap-3 text-[10px]"><div><div className="font-mono text-white/50">{item.path}</div><div className="mt-0.5 text-white/25">{item.decision}</div></div><span className="text-emerald-400/70">{item.confidence}</span></div>)}
+              <div className="border-t border-white/[0.06] pt-3"><div className="mb-2 text-[10px] text-white/30">Build method overrides</div>{discovery.services.filter((service) => service.category === 'app').map((service) => <label key={service.name} className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/45"><span className="truncate">{service.name}</span><select value={builderOverrides[service.name] ?? '__discovered__'} onChange={(event) => setBuilderOverrides((current) => { const next = { ...current }; if (event.target.value === '__discovered__') delete next[service.name]; else next[service.name] = event.target.value; return next })} className="rounded border border-white/[0.08] bg-[#18181d] px-2 py-1 text-white/55"><option value="__discovered__">Use discovered setting{service.builder ? ` (${service.builder})` : ''}</option>{builders.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>)}</div>
+            </div>}
+            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : `Deploy ${discovery.services.length === 1 ? discovery.services[0].name : 'all services'}`}</button>
+          </div>
+        </ModalShell>
+      )
+    }
     return (
       <ModalShell onClose={onClose} title="Add Application">
         <button
@@ -206,7 +265,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
         </button>
 
         <div className="space-y-4">
-          <div>
+          {(!selectedGitSource || sourceType === 'docker') && <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Name</label>
             <input
               value={name}
@@ -214,7 +273,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
               placeholder="my-app"
               className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
             />
-          </div>
+          </div>}
 
           <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Source</label>
@@ -330,7 +389,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                 </div>
               )}
 
-              <div className="flex gap-3">
+              {!selectedGitSource && <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-[11px] text-white/40 block mb-1.5">Branch</label>
                   <input
@@ -352,10 +411,10 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                     className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
                   />
                 </div>
-              </div>
+              </div>}
 
               {/* Builder Selection */}
-              <div>
+              {!selectedGitSource && <div>
                 <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
                   Builder
                   <span title="Builders determine how your code is turned into a container image." className="cursor-help">
@@ -389,7 +448,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                 <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2 mt-2">
                   {BUILDER_INFO[builder]?.description || builders.find((b) => b.id === builder)?.description}
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
@@ -409,12 +468,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           )}
 
           <button
-            onClick={handleCreateApp}
-            disabled={isCreating || (sourceType === 'git' && !gitRepo.trim()) || (sourceType === 'docker' && !dockerImage.trim())}
+            onClick={selectedGitSource && sourceType === 'git' ? handleScanRepository : handleCreateApp}
+            disabled={isCreating || isScanning || (sourceType === 'git' && !gitRepo.trim()) || (sourceType === 'docker' && !dockerImage.trim())}
             className="w-full py-2.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <Plus size={14} />
-            {isCreating ? 'Creating...' : 'Create Application'}
+            {isScanning ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            {isScanning ? 'Reading deployment settings…' : isCreating ? 'Creating...' : selectedGitSource && sourceType === 'git' ? 'Continue' : 'Create Application'}
           </button>
         </div>
       </ModalShell>
@@ -543,7 +602,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       onClick={onClose}
     >
       <div
-        className="bg-[#16161a] border border-white/[0.08] rounded-xl w-[520px] max-h-[80%] flex flex-col shadow-2xl"
+        className="bg-[#16161a] border border-white/[0.08] rounded-xl w-[min(620px,calc(100vw-32px))] max-h-[80%] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         data-no-pan
       >

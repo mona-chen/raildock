@@ -26,6 +26,7 @@ import type {
   PostgresPitrConfig,
   RestoreDrill,
   Backup,
+  RepositoryImportPreview,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -634,6 +635,13 @@ export const manifestApi = {
   },
 }
 
+export const repositoryImportsApi = {
+  preview: async (projectId: string, data: { gitSourceId: string; repository: string; branch: string }): Promise<RepositoryImportPreview> =>
+    fetchJson(`/api/projects/${projectId}/repository-import/preview`, { method: 'POST', body: JSON.stringify({ git_source_id: data.gitSourceId, repository: data.repository, branch: data.branch }) }),
+  apply: async (projectId: string, snapshotToken: string, builderOverrides: Record<string, string> = {}): Promise<{ status: string; serviceCount: number; commitSha: string }> =>
+    fetchJson(`/api/projects/${projectId}/repository-import/apply`, { method: 'POST', body: JSON.stringify({ snapshot_token: snapshotToken, builder_overrides: builderOverrides }) }),
+}
+
 // ── Modules API ──────────────────────────────
 
 export const modulesApi = {
@@ -764,5 +772,6 @@ export const api = {
   organizations: organizationsApi,
   deployKeys: deployKeysApi,
   manifest: manifestApi,
+  repositoryImports: repositoryImportsApi,
   updates: updateApi,
 }

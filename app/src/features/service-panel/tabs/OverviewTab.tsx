@@ -1,35 +1,25 @@
-import { Rocket, Play, Square, RotateCw, Wrench, GitBranch, Settings2 } from 'lucide-react'
+import { GitBranch, Settings2 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import {
   useScaleProcess,
   useContainerStatus,
-  useDeployService,
-  useStartService,
-  useStopService,
-  useRestartService,
-  useRebuildService,
 } from '@/hooks/useServices'
-import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import type { Service } from '@/types'
 import ConnectionsCard from './ConnectionsCard'
 
 export default function OverviewTab({
   svc,
   serviceId,
-  onDeploy,
+  lastUpdate,
+  isConnected,
 }: {
   svc: Service
   serviceId: string
-  onDeploy: () => void
+  lastUpdate: { message: string; status: string } | null
+  isConnected: boolean
 }) {
   const scaleProcess = useScaleProcess()
   const { data: containerStatus } = useContainerStatus(serviceId)
-  const { lastUpdate, isConnected, logMap } = useWebSocketDeployments(serviceId)
-  const deployService = useDeployService()
-  const startService = useStartService()
-  const stopService = useStopService()
-  const restartService = useRestartService()
-  const rebuildService = useRebuildService()
 
   return (
     <div className="p-5 space-y-5">
@@ -61,55 +51,6 @@ export default function OverviewTab({
           </span>
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex items-center gap-2">
-          {svc.type !== 'database' && (
-            <button
-              onClick={onDeploy}
-              disabled={deployService.isPending}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
-            >
-              <Rocket size={13} />
-              {deployService.isPending ? 'Deploying...' : 'Deploy'}
-            </button>
-          )}
-          {svc.status !== 'running' && svc.status !== 'deploying' && (
-            <button
-              onClick={() => startService.mutate(serviceId)}
-              disabled={startService.isPending}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#22c55e]/10 text-[#22c55e] rounded-lg text-[12px] font-medium hover:bg-[#22c55e]/20 transition-all disabled:opacity-50"
-            >
-              <Play size={13} />
-              {startService.isPending ? 'Starting...' : 'Start'}
-            </button>
-          )}
-          {svc.status === 'running' && (
-            <button
-              onClick={() => stopService.mutate(serviceId)}
-              disabled={stopService.isPending}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[12px] font-medium hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-            >
-              <Square size={13} />
-              {stopService.isPending ? 'Stopping...' : 'Stop'}
-            </button>
-          )}
-          <button
-            onClick={() => restartService.mutate(serviceId)}
-            disabled={restartService.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[12px] font-medium hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-          >
-            <RotateCw size={13} />
-            {restartService.isPending ? 'Restarting...' : 'Restart'}
-          </button>
-          <button
-            onClick={() => rebuildService.mutate(serviceId)}
-            disabled={rebuildService.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[12px] font-medium hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-          >
-            <Wrench size={13} />
-            {rebuildService.isPending ? 'Rebuilding...' : 'Rebuild'}
-          </button>
-        </div>
       </div>
 
       {/* Service Details */}

@@ -143,8 +143,22 @@ class DeploymentJob < ApplicationJob
     #      The service.builder field is set by the user in the UI; "auto" or
     #      nil means let Dokku auto-detect (no explicit builder:set).
     if service.builder.present? && service.builder != "auto" && !service.docker_image.present?
+      unless host_engine.builder_available?(service.builder)
+        requirement = service.builder == "railpack" ? "railpack and its BuildKit service" : service.builder
+        return mark_failed(
+          deployment,
+          service,
+          "#{service.builder.titleize} is not ready on this server",
+          "RailDock requires #{requirement}. Run the RailDock installer update, then retry this deployment."
+        )
+      end
       builder_result = engine.builder_set(service.dokku_app_name, service.builder)
       return mark_failed(deployment, service, "Builder configuration failed", builder_result[:output]) unless builder_result[:success]
+
+      if service.builder == "dockerfile" && service.config&.dig("dockerfilePath").present?
+        dockerfile_result = engine.builder_dockerfile_set_path(service.dokku_app_name, service.config["dockerfilePath"])
+        return mark_failed(deployment, service, "Dockerfile path configuration failed", dockerfile_result[:output]) unless dockerfile_result[:success]
+      end
     end
 
     # Check if cancelled before starting the build
@@ -159,6 +173,10 @@ class DeploymentJob < ApplicationJob
       message: "Build started",
       started_at: Time.current.iso8601
     })
+    ProjectChannel.broadcast_to(project, {
+      type: "deployment", service_id: service.id, deployment_id: deployment.id,
+      status: "building", timestamp: Time.current.iso8601
+    })
 
     deploy_output = ""
 
@@ -167,7 +185,7 @@ class DeploymentJob < ApplicationJob
       # Pre-pull to warm the layer cache and avoid overlayfs extraction races
       # on large images (e.g. ActivePieces with huge node_modules layers)
       pre_pull = host_engine.run("docker pull #{service.docker_image}")
-      deploy_output += pre_pull[:output] if pre_pull[:output].present?
+      deploy_output += LogRedactor.redact(pre_pull[:output]) if pre_pull[:output].present?
 
       deploy_command = "git:from-image #{service.dokku_app_name} #{service.docker_image}"
 
@@ -175,12 +193,13 @@ class DeploymentJob < ApplicationJob
         deploy_command,
         cancelled: -> { deployment.reload.cancelled? }
       ) do |chunk|
-        deploy_output += chunk
-        deployment.update!(deploy_log: deploy_output)
+        redacted_chunk = deployment.append_log_chunk!(chunk)
+        deploy_output += redacted_chunk
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
           status: "building",
-          log_chunk: chunk,
+          log_chunk: redacted_chunk,
+          sequence: deployment.event_sequence,
           started_at: deployment.started_at.iso8601
         })
       end
@@ -198,12 +217,13 @@ class DeploymentJob < ApplicationJob
           deploy_command,
           cancelled: -> { deployment.reload.cancelled? }
         ) do |chunk|
-          deploy_output += chunk
-          deployment.update!(deploy_log: deploy_output)
+          redacted_chunk = deployment.append_log_chunk!(chunk)
+          deploy_output += redacted_chunk
           DeploymentsChannel.broadcast_to(service, {
             deployment_id: deployment.id,
             status: "building",
-            log_chunk: chunk,
+            log_chunk: redacted_chunk,
+            sequence: deployment.event_sequence,
             started_at: deployment.started_at.iso8601
           })
         end
@@ -215,8 +235,17 @@ class DeploymentJob < ApplicationJob
       git_repo = git_repo_for_deploy(service)
       git_ref = deployment.commit_sha.presence || deployment.branch.presence || service.branch.presence || "main"
       sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}")
-      deploy_output += sync_result[:output]
-      deployment.update!(deploy_log: deploy_output) if deploy_output.present?
+      if sync_result[:output].present?
+        redacted_sync = deployment.append_log_chunk!(sync_result[:output])
+        deploy_output += redacted_sync
+        DeploymentsChannel.broadcast_to(service, {
+          deployment_id: deployment.id,
+          status: "building",
+          log_chunk: redacted_sync,
+          sequence: deployment.event_sequence,
+          started_at: deployment.started_at.iso8601
+        })
+      end
 
       if !sync_result[:success]
         return mark_failed(deployment, service, "Git sync failed", sync_result[:output])
@@ -229,12 +258,13 @@ class DeploymentJob < ApplicationJob
         "ps:rebuild #{service.dokku_app_name}",
         cancelled: -> { deployment.reload.cancelled? }
       ) do |chunk|
-        deploy_output += chunk
-        deployment.update!(deploy_log: deploy_output)
+        redacted_chunk = deployment.append_log_chunk!(chunk)
+        deploy_output += redacted_chunk
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
           status: "building",
-          log_chunk: chunk,
+          log_chunk: redacted_chunk,
+          sequence: deployment.event_sequence,
           started_at: deployment.started_at.iso8601
         })
       end
@@ -345,7 +375,7 @@ class DeploymentJob < ApplicationJob
     # 15. Mark success
     deployment.update!(
       status: :succeeded,
-      deploy_log: deploy_output,
+      deploy_log: LogRedactor.redact(deploy_output),
       completed_at: Time.current
     )
     update_service_status_after(deployment, service, success: true)
@@ -363,6 +393,7 @@ class DeploymentJob < ApplicationJob
       message: "Deployment completed successfully",
       completed_at: Time.current.iso8601
     })
+    ProjectChannel.broadcast_to(project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "succeeded", timestamp: Time.current.iso8601 })
 
     # 16. Check SSL certificate status for all domains
     if server.external_proxy?
@@ -506,11 +537,11 @@ class DeploymentJob < ApplicationJob
 
   def mark_failed(deployment, service, message, output = nil)
     # Preserve existing streamed logs; only append a brief failure marker
-    current_log = deployment.deploy_log || ""
+    current_log = LogRedactor.redact(deployment.deploy_log || "")
     deploy_log = if current_log.present?
       "#{current_log}\n\n--- #{message} ---"
     elsif output.present?
-      output
+      LogRedactor.redact(output)
     else
       message
     end
@@ -535,6 +566,7 @@ class DeploymentJob < ApplicationJob
       message: message,
       completed_at: Time.current.iso8601
     })
+    ProjectChannel.broadcast_to(service.project, { type: "deployment", service_id: service.id, deployment_id: deployment.id, status: "failed", timestamp: Time.current.iso8601 })
   end
 
   def update_service_status_after(deployment, service, success:)

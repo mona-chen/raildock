@@ -275,6 +275,7 @@ class ManifestParser
       category: "app",
       subtype: "web",
       builder: builder,
+      dockerfile_path: build["dockerfilePath"].presence,
       source: { type: "git" },
       start_command: start_command,
       env: normalize_railway_env(hash["env"], hash["vars"]),
@@ -450,6 +451,7 @@ class ManifestParser
       category: category,
       subtype: (svc_hash["subtype"] || svc_hash[:subtype] || "web").to_s,
       builder: svc_hash["builder"] || svc_hash[:builder],
+      dockerfile_path: svc_hash["dockerfile_path"] || svc_hash[:dockerfile_path] || svc_hash["dockerfilePath"] || svc_hash[:dockerfilePath],
       source: source,
       env: env,
       domains: normalize_domains(svc_hash["domains"] || svc_hash[:domains]),
@@ -473,8 +475,19 @@ class ManifestParser
       restart_policy: svc_hash["restart_policy"] || svc_hash[:restart_policy],
       restart_max_retries: svc_hash["restart_max_retries"] || svc_hash[:restart_max_retries],
       auto_deploy: value_for(svc_hash, "auto_deploy").nil? ? true : value_for(svc_hash, "auto_deploy"),
-      depends_on: normalize_depends_on(svc_hash["depends_on"] || svc_hash[:depends_on])
+      depends_on: normalize_depends_on(svc_hash["depends_on"] || svc_hash[:depends_on]),
+      scripts: normalize_scripts(svc_hash["scripts"] || svc_hash[:scripts]),
+      source_revision: svc_hash["source_revision"] || svc_hash[:source_revision]
     }
+  end
+
+  def normalize_scripts(scripts)
+    return {} unless scripts.is_a?(Hash)
+
+    %w[build predeploy postdeploy].each_with_object({}) do |phase, normalized|
+      value = scripts[phase] || scripts[phase.to_sym]
+      normalized[phase.to_sym] = normalize_railway_command(value) if value.present?
+    end
   end
 
   def value_for(hash, key)
