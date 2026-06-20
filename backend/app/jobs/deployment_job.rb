@@ -60,11 +60,9 @@ class DeploymentJob < ApplicationJob
     return mark_failed(deployment, service, "Network configuration failed", network_result[:output]) unless network_result[:success]
 
     # 2. Sync environment variables atomically. We use Dokku's own
-    # `config:clear` + batched `config:set --no-restart` to write the
-    # entire env in two SSH round trips. Replaces the per-var loop that
-    # was vulnerable to partial writes. Even if the host's ENV file is
-    # corrupt (tail fragments from interrupted writes), Dokku's godotenv
-    # reads it leniently and config:clear wipes the slate clean.
+    # `config:import --replace` writes the whole env atomically. Services
+    # with no env use `config:clear --no-restart`; importing an empty JSON
+    # object makes some Dokku versions interpret it as an invalid blank key.
     #
     # build_full_env_hash also preserves any Dokku-injected link URL
     # (DATABASE_URL, REDIS_URL, etc.) that was set by `postgres:link`

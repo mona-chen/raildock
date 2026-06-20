@@ -10,6 +10,18 @@
 #     schedule: at 5am every day
 
 production:
+  run_due_backups:
+    class: RunDueBackupsJob
+    schedule: every minute
+
+  archive_postgres_wal:
+    class: RunPostgresPitrJob
+    schedule: every minute
+
+  run_recovery_drills:
+    class: RunRecoveryDrillsJob
+    schedule: every Sunday at 3am
+
   reconcile_stale_deployments:
     class: ReconcileStaleDeploymentsJob
     schedule: every 10 minutes

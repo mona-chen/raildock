@@ -190,8 +190,11 @@ function DeploySettings({ svc }: { svc: Service }) {
   const { setConfigPath, setField } = useConfigUpdater(svc)
   const checks = {
     enabled: svc.checks?.enabled ?? false,
+    mode: svc.checks?.mode ?? 'enabled',
     wait: svc.checks?.wait ?? 5,
     timeout: svc.checks?.timeout ?? 30,
+    attempts: svc.checks?.attempts ?? 5,
+    waitToRetire: svc.checks?.waitToRetire ?? 60,
     skipList: svc.checks?.skipList ?? [],
   }
 
@@ -208,6 +211,7 @@ function DeploySettings({ svc }: { svc: Service }) {
           <option value="on-failure">On Failure</option>
           <option value="always">Always</option>
           <option value="unless-stopped">Unless Stopped</option>
+          <option value="never">Never</option>
         </select>
         <div className="mt-2">
           <TextField label="Max Retries" type="number" value={String(svc.restartMaxRetries)} onChange={(v) => setField('restartMaxRetries', parseInt(v) || 0)} />
@@ -215,14 +219,21 @@ function DeploySettings({ svc }: { svc: Service }) {
       </SettingCard>
 
       <SettingCard title="Health Checks">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-[13px] text-white/70">Zero-Downtime Checks</div>
-          <AccessibleToggle checked={checks.enabled} onChange={(v) => setConfigPath('checks.enabled', v)} label="Enable health checks" />
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div><div className="text-[13px] text-white/70">Zero-downtime policy</div><div className="mt-0.5 text-[11px] leading-4 text-white/35">Keep the old container serving until the replacement is ready and connections drain.</div></div>
+          <select value={checks.mode} onChange={(e) => { setConfigPath('checks.mode', e.target.value); setConfigPath('checks.enabled', e.target.value === 'enabled') }} className="rounded border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-none focus:border-[#8b5cf6]/40">
+            <option value="enabled">Enabled</option>
+            <option value="skipped">Skip checks</option>
+            <option value="disabled">Disable rolling deploy</option>
+          </select>
         </div>
-        {checks.enabled && (
+        {checks.mode === 'disabled' && <div className="mb-3 rounded-md border border-red-500/15 bg-red-500/5 px-3 py-2 text-[11px] leading-4 text-red-300/70">Downtime expected: old containers stop before replacements start.</div>}
+        {checks.mode === 'enabled' && (
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Wait (seconds)" type="number" value={String(checks.wait)} onChange={(v) => setConfigPath('checks.wait', parseInt(v) || 0)} />
             <TextField label="Timeout (seconds)" type="number" value={String(checks.timeout)} onChange={(v) => setConfigPath('checks.timeout', parseInt(v) || 0)} />
+            <TextField label="Attempts" type="number" value={String(checks.attempts)} onChange={(v) => setConfigPath('checks.attempts', parseInt(v) || 1)} />
+            <TextField label="Drain window (seconds)" type="number" value={String(checks.waitToRetire)} onChange={(v) => setConfigPath('checks.waitToRetire', parseInt(v) || 0)} />
           </div>
         )}
       </SettingCard>

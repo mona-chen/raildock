@@ -67,7 +67,7 @@ export interface Service {
   letsencrypt: LetsEncryptSettings
   git: GitSettings
   traefik: TraefikSettings
-  restartPolicy: 'on-failure' | 'always' | 'unless-stopped'
+  restartPolicy: 'never' | 'on-failure' | 'always' | 'unless-stopped'
   restartMaxRetries: number
   locked: boolean
   autoDeploy: boolean
@@ -113,6 +113,7 @@ export interface Domain {
 }
 
 export interface StorageMount {
+  id: string
   hostPath: string
   containerPath: string
 }
@@ -126,8 +127,54 @@ export interface LogEntry {
 export interface Backup {
   id: string
   createdAt: string
-  size: string
-  status: 'success' | 'failed' | 'pending'
+  size: number
+  status: 'completed' | 'failed' | 'pending' | 'running'
+  filePath?: string
+  metadata?: Record<string, string>
+  backupKind?: 'database' | 'volume' | 'pitrBase' | 'wal'
+  encrypted?: boolean
+  backupDestinationId?: string
+}
+
+export interface BackupDestination {
+  id: string
+  name: string
+  provider: 's3' | 'r2'
+  endpoint?: string
+  region: string
+  bucket: string
+  pathPrefix?: string
+  status: 'pending' | 'verified' | 'failed'
+  configured: boolean
+  lastVerifiedAt?: string
+  lastError?: string
+  recoveryKey?: string
+}
+
+export interface PostgresPitrConfig {
+  id: string
+  enabled: boolean
+  status: 'pending' | 'active' | 'error' | 'paused'
+  retentionDays: number
+  backupDestinationId: string
+  lastBaseBackupAt?: string
+  lastWalArchivedAt?: string
+  lastError?: string
+}
+
+export interface RestoreDrill {
+  id: string
+  backupId: string
+  status: 'pending' | 'running' | 'succeeded' | 'failed'
+  checksumVerified: boolean
+  log?: string
+  completedAt?: string
+}
+
+export interface RecoveryOverview {
+  destinations: BackupDestination[]
+  pitr?: PostgresPitrConfig | null
+  drills: RestoreDrill[]
 }
 
 // ───────────────────────────────────────────────
@@ -166,8 +213,11 @@ export interface ResourceSetting {
 
 export interface ChecksSettings {
   enabled: boolean
+  mode?: 'enabled' | 'skipped' | 'disabled'
   wait: number
   timeout: number
+  attempts?: number
+  waitToRetire?: number
   skipList: string[]
 }
 

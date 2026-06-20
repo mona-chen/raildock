@@ -28,6 +28,7 @@ services:
       - ./data/dokku-ssh:/data/dokku-ssh:ro
       - ./backend/config/credentials.yml.enc:/rails/config/credentials.yml.enc:ro
       - ./backend/config/master.key:/rails/config/master.key:ro
+      - ${BACKUPS_DIR:-./data/backups}:/rails/storage/backups
     labels:
       traefik.enable: "${TRAEFIK_ENABLE:-false}"
       traefik.docker.network: "raildock_default"
@@ -55,6 +56,7 @@ services:
       LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY:-}
       RAILDOCK_VERSION: ${RAILDOCK_VERSION:-latest}
       RAILDOCK_INSTALL_DIR: ${RAILDOCK_INSTALL_DIR:-/opt/raildock}
+      RAILDOCK_BACKUPS_DIR: /rails/storage/backups
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     depends_on:
       db:

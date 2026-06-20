@@ -70,10 +70,21 @@ Rails.application.routes.draw do
 
     # Service sub-resource destroy actions (not shallow — stay under /services/:id/...)
     scope "/services/:service_id" do
+      get "recovery", to: "recovery#show"
+      post "recovery/destinations", to: "recovery#create_destination"
+      post "recovery/destinations/:destination_id/verify", to: "recovery#verify_destination"
+      delete "recovery/destinations/:destination_id", to: "recovery#destroy_destination"
+      post "recovery/volumes/:storage_mount_id/snapshot", to: "recovery#snapshot_volume"
+      put "recovery/pitr", to: "recovery#configure_pitr"
+      delete "recovery/pitr", to: "recovery#disable_pitr"
+      post "recovery/backups/:backup_id/drills", to: "recovery#create_drill"
       delete "env-vars/:key", to: "environment_variables#destroy"
       delete "domains/:hostname", to: "domains#destroy", constraints: { hostname: /[^\/]+/ }
       delete "storage/*host_path", to: "storage_mounts#destroy", format: false
       delete "backup_schedules/:schedule_id", to: "services#destroy_backup_schedule"
+      get "backups/:backup_id/download", to: "services#download_backup"
+      post "backups/:backup_id/restore", to: "services#restore_backup"
+      delete "backups/:backup_id", to: "services#destroy_backup"
     end
 
     resources :servers do

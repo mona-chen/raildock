@@ -98,8 +98,8 @@ class ManifestSchema
         if hash["deploy"].key?("healthcheckTimeout") && !hash["deploy"]["healthcheckTimeout"].is_a?(Integer)
           errors << "#{prefix}.deploy.healthcheckTimeout: must be an integer"
         end
-        if hash["deploy"].key?("restartPolicyType") && !%w[never on-failure always].include?(hash["deploy"]["restartPolicyType"].to_s)
-          errors << "#{prefix}.deploy.restartPolicyType: must be one of: never, on-failure, always"
+        if hash["deploy"].key?("restartPolicyType") && !%w[NEVER ON_FAILURE ALWAYS never on-failure always].include?(hash["deploy"]["restartPolicyType"].to_s)
+          errors << "#{prefix}.deploy.restartPolicyType: must be one of: NEVER, ON_FAILURE, ALWAYS"
         end
         if hash["deploy"].key?("preDeployCommand") && !hash["deploy"]["preDeployCommand"].is_a?(String) && !hash["deploy"]["preDeployCommand"].is_a?(Array)
           errors << "#{prefix}.deploy.preDeployCommand: must be a string or array"

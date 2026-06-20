@@ -4,10 +4,13 @@ module Api
     before_action :set_and_authorize_service!
 
     def create
-      mount = @service.storage_mounts.create!(mount_params)
+      mount = @service.storage_mounts.build(mount_params)
+      mount.validate!
 
-      # Sync to Dokku
-      sync_to_dokku(:mount, mount.host_path, mount.container_path)
+      result = sync_to_dokku(:mount, mount.host_path, mount.container_path)
+      return render json: { error: result[:output] }, status: :unprocessable_entity if result && !result[:success]
+
+      mount.save!
 
       render json: mount, status: :created
     end
@@ -16,7 +19,8 @@ module Api
       mount = @service.storage_mounts.find_by!(host_path: params[:host_path])
 
       # Sync to Dokku
-      sync_to_dokku(:unmount, mount.host_path, mount.container_path)
+      result = sync_to_dokku(:unmount, mount.host_path, mount.container_path)
+      return render json: { error: result[:output] }, status: :unprocessable_entity if result && !result[:success]
 
       mount.destroy!
       head :no_content

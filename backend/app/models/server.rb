@@ -1,5 +1,6 @@
 class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
+  has_many :backup_destinations, dependent: :destroy
   belongs_to :user, optional: true
 
   validates :name, presence: true

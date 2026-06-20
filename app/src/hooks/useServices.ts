@@ -228,6 +228,47 @@ export function useBackups(id: string) {
     queryKey: ['services', id, 'backups'],
     queryFn: () => api.services.backups(id),
     enabled: !!id,
+    refetchInterval: (query) => query.state.data?.some((backup) => backup.status === 'pending' || backup.status === 'running') ? 3000 : false,
+  })
+}
+
+export function useRecovery(id: string) {
+  return useQuery({ queryKey: ['services', id, 'recovery'], queryFn: () => api.services.recovery(id), enabled: !!id, refetchInterval: 10000 })
+}
+
+export function useCreateBackupDestination() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, string> }) => api.services.createBackupDestination(id, data),
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Encrypted destination verified') },
+    onError: (err) => toast.error(`Destination failed: ${err.message}`),
+  })
+}
+
+export function useSnapshotVolume() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, storageMountId, backupDestinationId }: { id: string; storageMountId: string; backupDestinationId?: string }) => api.services.snapshotVolume(id, storageMountId, backupDestinationId),
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] }); toast.success('Volume snapshot queued') },
+    onError: (err) => toast.error(`Snapshot failed: ${err.message}`),
+  })
+}
+
+export function useConfigurePitr() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, destinationId, retentionDays }: { id: string; destinationId: string; retentionDays: number }) => api.services.configurePitr(id, destinationId, retentionDays),
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Point-in-time recovery enabled') },
+    onError: (err) => toast.error(`PITR setup failed: ${err.message}`),
+  })
+}
+
+export function useRunRestoreDrill() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.runRestoreDrill(id, backupId),
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Isolated restore drill queued') },
+    onError: (err) => toast.error(`Drill failed: ${err.message}`),
   })
 }
 
@@ -331,10 +372,38 @@ export function useLinkedByServices(id: string) {
 }
 
 export function useBackupService() {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.services.backup(id),
-    onSuccess: () => toast.success('Backup created'),
+    mutationFn: (input: string | { id: string; backupDestinationId?: string }) => {
+      const { id, backupDestinationId } = typeof input === 'string' ? { id: input, backupDestinationId: undefined } : input
+      return backupDestinationId ? api.services.backup(id, backupDestinationId) : api.services.backup(id)
+    },
+    onSuccess: (_, input) => {
+      const id = typeof input === 'string' ? input : input.id
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
+      toast.success('Backup queued')
+    },
     onError: (err) => toast.error(`Backup failed: ${err.message}`),
+  })
+}
+
+export function useRestoreBackup() {
+  return useMutation({
+    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.restoreBackup(id, backupId),
+    onSuccess: () => toast.success('Restore completed'),
+    onError: (err) => toast.error(`Restore failed: ${err.message}`),
+  })
+}
+
+export function useDeleteBackup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.deleteBackup(id, backupId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
+      toast.success('Backup deleted')
+    },
+    onError: (err) => toast.error(`Delete failed: ${err.message}`),
   })
 }
 

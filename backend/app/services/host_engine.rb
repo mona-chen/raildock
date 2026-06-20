@@ -43,6 +43,78 @@ class HostEngine
     end
   end
 
+  def run_to_file(command, path)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    exit_code = nil
+    error_output = +""
+    File.open(path, "wb", 0o600) do |file|
+      execute_on_session do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            return { success: false, output: "Failed to execute command" } unless success
+
+            ch.on_data { |_, data| file.write(data) }
+            ch.on_extended_data { |_, _, data| error_output << data }
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+          end
+        end
+        channel.wait
+      end
+    end
+    { success: exit_code == 0, output: error_output }
+  rescue => error
+    File.delete(path) if File.exist?(path)
+    { success: false, output: "SSH error: #{error.message}" }
+  end
+
+  def run_with_file(command, path)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    exit_code = nil
+    output = +""
+    File.open(path, "rb") do |file|
+      execute_on_session do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            return { success: false, output: "Failed to execute command" } unless success
+
+            ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
+            ch.eof!
+            ch.on_data { |_, data| output << data }
+            ch.on_extended_data { |_, _, data| output << data }
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+          end
+        end
+        channel.wait
+      end
+    end
+    { success: exit_code == 0, output: output }
+  rescue => error
+    { success: false, output: "SSH error: #{error.message}" }
+  end
+
+  def volume_export_to(host_path, path)
+    source = Shellwords.escape(host_path)
+    command = if host_path.start_with?("/")
+      "tar -C #{source} -czf - ."
+    else
+      "docker run --rm -v #{source}:/source:ro alpine:3.20 tar -C /source -czf - ."
+    end
+    run_to_file(command, path)
+  end
+
+  def volume_import_from(host_path, path)
+    source = Shellwords.escape(host_path)
+    command = if host_path.start_with?("/")
+      "mkdir -p #{source} && find #{source} -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && tar -C #{source} -xzf -"
+    else
+      restore = Shellwords.escape("find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && tar -C /target -xzf -")
+      "docker volume create #{source} >/dev/null && docker run --rm -i -v #{source}:/target alpine:3.20 sh -c #{restore}"
+    end
+    run_with_file(command, path)
+  end
+
   # Open a reusable SSH session for the current thread. All run calls made
   # inside the block reuse this single connection, eliminating the connection
   # storm that causes sshd to drop connections during template deploys.

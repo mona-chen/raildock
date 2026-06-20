@@ -47,6 +47,7 @@ module Api
             started_at: Time.current,
             branch: branch,
             commit_sha: commit_sha,
+            commit_message: (params.dig(:head_commit, :message) || params.dig(:commits, -1, :message)).to_s.lines.first&.strip,
             triggered_by: "webhook"
           }
         )

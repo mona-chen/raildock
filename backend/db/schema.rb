@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_20_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
     t.index ["project_id"], name: "index_activity_events_on_project_id"
   end
 
+  create_table "backup_destinations", force: :cascade do |t|
+    t.text "access_key_id_ciphertext"
+    t.string "bucket", null: false
+    t.datetime "created_at", null: false
+    t.text "encryption_key_ciphertext"
+    t.string "endpoint"
+    t.text "last_error"
+    t.datetime "last_verified_at"
+    t.string "name", null: false
+    t.string "path_prefix"
+    t.string "provider", default: "s3", null: false
+    t.string "region", default: "auto", null: false
+    t.text "secret_access_key_ciphertext"
+    t.bigint "server_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_id", "name"], name: "index_backup_destinations_on_server_id_and_name", unique: true
+    t.index ["server_id"], name: "index_backup_destinations_on_server_id"
+  end
+
   create_table "backup_schedules", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "frequency"
@@ -33,17 +53,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
     t.integer "retention_count"
     t.bigint "service_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["next_run_at"], name: "index_backup_schedules_on_next_run_at"
     t.index ["service_id"], name: "index_backup_schedules_on_service_id"
   end
 
   create_table "backups", force: :cascade do |t|
+    t.bigint "backup_destination_id"
+    t.string "backup_kind", default: "database", null: false
     t.datetime "created_at", null: false
+    t.boolean "encrypted", default: false, null: false
     t.string "file_path"
     t.jsonb "metadata"
     t.bigint "service_id", null: false
-    t.integer "size"
+    t.bigint "size"
     t.string "status"
+    t.string "storage_key"
     t.datetime "updated_at", null: false
+    t.index ["backup_destination_id"], name: "index_backups_on_backup_destination_id"
     t.index ["service_id"], name: "index_backups_on_service_id"
   end
 
@@ -179,6 +205,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
+  create_table "postgres_pitr_configs", force: :cascade do |t|
+    t.bigint "backup_destination_id", null: false
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "last_base_backup_at"
+    t.text "last_error"
+    t.datetime "last_wal_archived_at"
+    t.integer "retention_days", default: 7, null: false
+    t.bigint "service_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["backup_destination_id"], name: "index_postgres_pitr_configs_on_backup_destination_id"
+    t.index ["service_id"], name: "index_postgres_pitr_configs_on_service_id", unique: true
+  end
+
   create_table "process_types", force: :cascade do |t|
     t.string "command"
     t.datetime "created_at", null: false
@@ -209,6 +250,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
     t.index ["organization_id"], name: "index_projects_on_organization_id"
     t.index ["server_id"], name: "index_projects_on_server_id"
     t.index ["user_id"], name: "index_projects_on_user_id"
+  end
+
+  create_table "restore_drills", force: :cascade do |t|
+    t.bigint "backup_id", null: false
+    t.boolean "checksum_verified", default: false, null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "isolated_resource_name"
+    t.text "log"
+    t.datetime "started_at"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["backup_id", "created_at"], name: "index_restore_drills_on_backup_id_and_created_at"
+    t.index ["backup_id"], name: "index_restore_drills_on_backup_id"
   end
 
   create_table "servers", force: :cascade do |t|
@@ -330,7 +385,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
   end
 
   add_foreign_key "activity_events", "projects"
+  add_foreign_key "backup_destinations", "servers"
   add_foreign_key "backup_schedules", "services"
+  add_foreign_key "backups", "backup_destinations"
   add_foreign_key "backups", "services"
   add_foreign_key "deploy_keys", "git_sources"
   add_foreign_key "deploy_keys", "organizations"
@@ -344,10 +401,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_000000) do
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organizations", "users", column: "owner_id"
+  add_foreign_key "postgres_pitr_configs", "backup_destinations"
+  add_foreign_key "postgres_pitr_configs", "services"
   add_foreign_key "process_types", "services"
   add_foreign_key "projects", "organizations"
   add_foreign_key "projects", "servers"
   add_foreign_key "projects", "users"
+  add_foreign_key "restore_drills", "backups"
   add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"
   add_foreign_key "service_links", "services", column: "to_service_id"
