@@ -67,11 +67,11 @@ class TerminalChannel < ApplicationCable::Channel
     end
 
     engine = DokkuEngine.new(server)
-    shell = params["shell"].presence || "/bin/sh"
+    requested_shell = @requested_shell || params["shell"].presence || "/bin/sh"
     @session = engine.interactive_shell(
       @service.dokku_app_name,
       process_type: @service.service_type == "database" ? @service.subtype : "web",
-      shell: shell,
+      shell: requested_shell,
       database: @service.service_type == "database"
     )
 
@@ -94,7 +94,15 @@ class TerminalChannel < ApplicationCable::Channel
     end
 
     @session.on_error do |message|
-      transmit({ type: "error", data: message })
+      transmit({ type: "error", data: message, shell: @session.shell })
+      # If the user's selected shell is missing in the container, retry
+      # once with /bin/sh so the user gets a working session instead of
+      # an endless spinner.
+      if @fallback_attempted.nil? && @session.shell != "/bin/sh" && shell_missing_error?(message)
+        @fallback_attempted = true
+        Rails.logger.info "[TerminalChannel] retrying with /bin/sh after shell error: #{message}"
+        retry_with_shell("/bin/sh")
+      end
     end
 
     unless @session.open
@@ -105,6 +113,18 @@ class TerminalChannel < ApplicationCable::Channel
   rescue => e
     Rails.logger.error "[TerminalChannel] open_terminal_session error: #{e.message}"
     transmit({ type: "error", data: "Failed to open terminal: #{e.message}" })
+  end
+
+  def shell_missing_error?(message)
+    message.to_s.match?(/not available in this container|stat .* no such file|Shell exited with status/)
+  end
+
+  def retry_with_shell(shell)
+    close_terminal_session
+    @requested_shell = shell
+    open_terminal_session
+  rescue => e
+    Rails.logger.error "[TerminalChannel] retry_with_shell error: #{e.message}"
   end
 
   def close_terminal_session

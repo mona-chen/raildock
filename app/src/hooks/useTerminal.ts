@@ -148,9 +148,11 @@ export function useTerminal(
             setError(null)
             term.clear()
           } else if (msg.type === 'closed') {
+            window.clearTimeout(connectionWatchdog)
             setIsConnected(false)
             term.write('\r\n\r\n[Session closed]\r\n')
           } else if (msg.type === 'error' && msg.data) {
+            window.clearTimeout(connectionWatchdog)
             setError(msg.data)
             term.write(`\r\n\r\n[Error: ${msg.data}]\r\n`)
           }
