@@ -166,6 +166,15 @@ class DokkuEngine
         channel.wait
       end
 
+      if exit_code.nil? && cancelled&.call != true
+        return {
+          success: false,
+          output: output,
+          error: "Remote build session ended before Dokku reported an exit status. Check host memory, SSH, and Docker daemon logs.",
+          cancelled: false
+        }
+      end
+
       { success: exit_code == 0, output: output, cancelled: cancelled&.call == true }
     end
   end

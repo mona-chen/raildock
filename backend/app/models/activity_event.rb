@@ -32,5 +32,7 @@ class ActivityEvent < ApplicationRecord
   private
     def broadcast_created
       ProjectChannel.broadcast_to(project, { type: "activity", project_id: project_id, event: as_json, timestamp: Time.current.iso8601 })
+    rescue => error
+      Rails.logger.warn "Activity realtime broadcast failed for #{id}: #{error.message}"
     end
 end

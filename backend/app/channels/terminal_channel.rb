@@ -3,7 +3,7 @@ class TerminalChannel < ApplicationCable::Channel
     @service = Service.find(params[:service_id])
 
     # Authorization: terminal access is equivalent to command execution.
-    reject unless current_user
+    reject and return unless current_user
     unless terminal_allowed?(@service)
       reject
       return
@@ -16,6 +16,9 @@ class TerminalChannel < ApplicationCable::Channel
     open_terminal_session
   rescue ActiveRecord::RecordNotFound
     Rails.logger.warn "[ActionCable] TerminalChannel subscription rejected: service #{params[:service_id]} not found"
+    reject
+  rescue => error
+    Rails.logger.error "[ActionCable] TerminalChannel subscription failed: #{error.class}: #{error.message}"
     reject
   end
 
@@ -51,7 +54,7 @@ class TerminalChannel < ApplicationCable::Channel
       return project.user_id == current_user.id
     end
 
-    membership = current_user.memberships.find_by(organization_id: project.organization_id)
+    membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
     membership&.owner? || membership&.admin?
   end
 
