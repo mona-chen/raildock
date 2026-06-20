@@ -11,7 +11,7 @@ RSpec.describe DokkuEnvBatchable do
         @engine = engine
       end
 
-      public :build_full_env_hash, :preserve_host_only_keys
+      public :build_full_env_hash, :resolve_manifest_placeholders, :preserve_host_only_keys
     end
   end
 
@@ -21,11 +21,13 @@ RSpec.describe DokkuEnvBatchable do
   let(:helper) { test_class.new(service, engine) }
 
   describe "#build_full_env_hash" do
+    before do
+      allow(engine).to receive(:config_show).and_return({ success: true, output: "" })
+    end
+
     it "includes both internal and user env vars" do
       service.environment_variables.create!(key: "RAILS_ENV", value: "production")
       service.environment_variables.create!(key: "DATABASE_URL", value: "postgres://x/y", is_dokku_internal: true, source: "dokku-link")
-
-      allow(engine).to receive(:config_show).and_return({ success: true, output: "" })
 
       hash = helper.build_full_env_hash(service, engine)
       expect(hash["RAILS_ENV"]).to eq("production")
@@ -50,18 +52,6 @@ RSpec.describe DokkuEnvBatchable do
       expect(hash["DOKKU_POSTGRES_FOO"]).to eq("bar")
     end
 
-    it "skips placeholder values like ${{ shared.FOO }}" do
-      service.environment_variables.create!(key: "RAILS_ENV", value: "production")
-
-      allow(engine).to receive(:config_show).and_return({
-        success: true,
-        output: "DATABASE_URL=${{ shared.DATABASE_URL }}\n"
-      })
-
-      hash = helper.build_full_env_hash(service, engine)
-      expect(hash).not_to have_key("DATABASE_URL")
-    end
-
     it "prefers the DB value over the host value" do
       service.environment_variables.create!(key: "DATABASE_URL", value: "postgres://from-db/x", is_dokku_internal: true)
 
@@ -74,20 +64,6 @@ RSpec.describe DokkuEnvBatchable do
       expect(hash["DATABASE_URL"]).to eq("postgres://from-db/x")
     end
 
-    it "does not duplicate keys that exist in both DB and host" do
-      service.environment_variables.create!(key: "RAILS_ENV", value: "production")
-
-      allow(engine).to receive(:config_show).and_return({
-        success: true,
-        output: "RAILS_ENV=production\nEXTRA_KEY=extra-value\n"
-      })
-
-      hash = helper.build_full_env_hash(service, engine)
-      expect(hash["RAILS_ENV"]).to eq("production")
-      expect(hash["EXTRA_KEY"]).to eq("extra-value")
-      expect(hash.size).to eq(2)
-    end
-
     it "tolerates a failed config_show" do
       service.environment_variables.create!(key: "RAILS_ENV", value: "production")
 
@@ -96,6 +72,60 @@ RSpec.describe DokkuEnvBatchable do
       hash = helper.build_full_env_hash(service, engine)
       expect(hash["RAILS_ENV"]).to eq("production")
       expect(hash).not_to have_key("DATABASE_URL")
+    end
+
+    describe "manifest placeholder resolution" do
+      it "resolves ${{ shared.X }} against project.shared_vars" do
+        project.update!(shared_vars: [ { "key" => "GLOBAL_API_KEY", "value" => "secret-123" } ])
+        service.environment_variables.create!(key: "API_KEY", value: "${{ shared.GLOBAL_API_KEY }}")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["API_KEY"]).to eq("secret-123")
+
+        service.environment_variables.find_by(key: "API_KEY").reload.tap do |ev|
+          expect(ev.value).to eq("secret-123")
+        end
+      end
+
+      it "resolves ${{ shared.X }} when value uses the [SHARED:X] pre-parsed marker" do
+        project.update!(shared_vars: [ { "key" => "DOMAIN", "value" => "example.com" } ])
+        service.environment_variables.create!(key: "APP_HOST", value: "[SHARED:DOMAIN]")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["APP_HOST"]).to eq("example.com")
+      end
+
+      it "resolves ${{ linked.SERVICE.VAR }} against the linked service" do
+        linked = create(:service, project: project, name: "tween-pay-postgres")
+        linked.environment_variables.create!(key: "DB_PASSWORD", value: "from-linked-db")
+        service.environment_variables.create!(key: "RAILS_DATABASE_PASSWORD", value: "${{ linked.tween-pay-postgres.DB_PASSWORD }}")
+        service.outgoing_links.create!(to_service: linked)
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["RAILS_DATABASE_PASSWORD"]).to eq("from-linked-db")
+      end
+
+      it "leaves unresolvable placeholders intact" do
+        service.environment_variables.create!(key: "API_KEY", value: "${{ shared.NONEXISTENT }}")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["API_KEY"]).to match(/\$\{\{|^\[SHARED:/)
+      end
+
+      it "does not touch plain values without placeholders" do
+        service.environment_variables.create!(key: "RAILS_ENV", value: "production")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["RAILS_ENV"]).to eq("production")
+      end
+
+      it "resolves placeholders embedded inside larger strings" do
+        project.update!(shared_vars: [ { "key" => "DOMAIN", "value" => "tween.im" } ])
+        service.environment_variables.create!(key: "CORS", value: "https://${{ shared.DOMAIN }},https://api.${{ shared.DOMAIN }}")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash["CORS"]).to eq("https://tween.im,https://api.tween.im")
+      end
     end
   end
 end

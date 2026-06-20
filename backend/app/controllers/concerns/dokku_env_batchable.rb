@@ -2,53 +2,73 @@
 
 # Builds the full env hash to write to a Dokku app during a sync.
 #
-# We always include every EnvironmentVariable row (including the ones
-# flagged is_dokku_internal — those are the Dokku-injected link URLs
-# like DATABASE_URL / REDIS_URL that were originally set by
-# `postgres:link` and friends).
+# This concern is the canonical entry point for any code path that
+# writes a service's env to the host. It understands the full set of
+# env-var sources RailDock manages, plus the Dokku-level sources we
+# don't directly control:
 #
-# Safety net: any key currently set on the host that isn't in our DB
-# hash is preserved across the clear. This covers every category of
-# Dokku-injected value we don't actively manage:
+#   - User env:        EnvironmentVariable rows set via the UI or API.
+#   - Shared vars:     Project.shared_vars referenced as ${{ shared.X }}
+#                      in env values. Resolved here using
+#                      ManifestParser.resolve_runtime so the literal
+#                      ${{ shared.X }} never reaches the host.
+#   - Linked vars:     ${{ linked.SERVICE.VAR }} references, resolved
+#                      against the linked service's EnvironmentVariable
+#                      rows.
+#   - Dokku link URLs: EnvironmentVariable rows flagged
+#                      is_dokku_internal=true (DATABASE_URL, REDIS_URL,
+#                      etc. — set at link-time by `postgres:link`).
+#   - Host-only keys:  Anything currently set on the host that isn't
+#                      in our DB hash (DOKKU_* plugin vars, etc.). We
+#                      preserve these across the clear so we never
+#                      silently strip something we don't manage.
 #
-#   - Linked-service URLs (DATABASE_URL / REDIS_URL / MONGO_URL /
-#     MYSQL_URL and their _PRIVATE_URL variants). Dokku only sets these
-#     at link-time (`postgres:link`); it does not re-inject them on
-#     restart or deploy, so config:clear would silently strip them.
-#
-#   - Shared vars (Dokku >= 0.34's `config:set --shared`). Stored at
-#     the host level and inherited by every app. config:clear at the
-#     app level does not touch them, but if any copy ends up in the
-#     per-app ENV file we want to keep it.
-#
-#   - Plugin-injected keys (DOKKU_*, etc.) that some Dokku plugins
-#     write into the per-app env.
-#
-# Global vars (`config:set --global`) are intentionally NOT preserved
-# here — they live in `/var/lib/dokku/config/--global/ENV` and are
-# merged into containers at start time by Dokku itself, never by
-# config:clear at the app level. Including them would duplicate them
-# into the per-app file and break the "global is global" contract.
+# Global vars (`config:set --global`) are intentionally NOT touched —
+# they live in `/var/lib/dokku/config/--global/ENV` and Dokku injects
+# them at container start, never via the per-app file. Including them
+# here would duplicate them and break the "global is global" contract.
 module DokkuEnvBatchable
   extend ActiveSupport::Concern
-
-  LINK_URL_KEYS = %w[
-    DATABASE_URL REDIS_URL MONGO_URL MYSQL_URL
-    DATABASE_PRIVATE_URL REDIS_PRIVATE_URL
-  ].freeze
 
   private
 
   def build_full_env_hash(service, engine)
     env_hash = service.environment_variables.pluck(:key, :value).to_h
+    resolve_manifest_placeholders(service, env_hash)
     preserve_host_only_keys(service, engine, env_hash)
     env_hash
   end
 
+  # Walk every value in env_hash and substitute ${{ shared.X }} /
+  # ${{ linked.SERVICE.VAR }} markers. This mirrors what the manifest
+  # reconciler does at deploy time, but here we do it inline so the
+  # batched config:set call never writes a literal placeholder.
+  #
+  # If a marker can't be resolved (shared var missing, linked service
+  # unreachable), the placeholder is left intact. Dokku treats it as an
+  # opaque string and the user can fix the underlying project state.
+  #
+  # Also persists the resolved value back to the DB row so subsequent
+  # writes (and the UI) see the resolved value, not the placeholder.
+  def resolve_manifest_placeholders(service, env_hash)
+    project = service.project
+    return unless project
+
+    linked_services = service.linked_services.to_a
+
+    service.environment_variables.each do |ev|
+      original = ev.value.to_s
+      resolved = ManifestParser.resolve_runtime(original, project, service, linked_services)
+      next if resolved == original
+
+      env_hash[ev.key] = resolved
+      ev.update!(value: resolved)
+    end
+  end
+
   # For every key present on the host's per-app ENV that is NOT in
-  # the DB hash and NOT a placeholder (${{ shared.X }}), carry it
-  # forward into the new write. This is the only way config:clear
-  # becomes safe for env vars we don't directly manage.
+  # the DB hash, carry it forward into the new write. Preserves any
+  # Dokku plugin-injected key (DOKKU_*, etc.) we don't track.
   def preserve_host_only_keys(service, engine, env_hash)
     show = engine.config_show(service.dokku_app_name)
     return unless show[:success]
