@@ -1343,6 +1343,8 @@ class DokkuTerminalSession
     combined.match?(/OCI runtime exec failed/i) ||
       combined.match?(/no such file or directory/i) ||
       combined.match?(/command not found/i) ||
+      combined.match?(/does not exist/i) ||
+      combined.match?(/has not been deployed/i) ||
       @exit_status == 127
   end
 
@@ -1361,6 +1363,10 @@ class DokkuTerminalSession
       "Selected shell failed to start (#{command_not_found[2]}). Try /bin/sh instead."
     elsif buf.match?(/connection (refused|reset|closed)/i)
       "SSH connection lost while opening the shell. Check the server status and retry."
+    elsif (m = buf.match(/^ ! \s+(.*service\s+\S+.*(?:does not exist|has not been deployed))/i))
+      "Dokku reports: #{m[1].strip}"
+    elsif (m = buf.match(/^ ! \s+App\s+(\S+)\s+has not been deployed/))
+      "App #{m[1]} has not been deployed yet. Deploy it from the Deploy tab first."
     elsif status && status != 0
       "Shell exited with status #{status} before becoming interactive. Try /bin/sh instead."
     end

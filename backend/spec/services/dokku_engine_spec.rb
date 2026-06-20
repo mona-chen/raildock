@@ -571,5 +571,32 @@ RSpec.describe DokkuEngine, type: :service do
 
       expect(session.send(:quick_close_with_startup_error?)).to be(false)
     end
+
+    it "surfaces the dokku 'service does not exist' message" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@opened, true)
+      session.instance_variable_set(:@opened_at, Time.now - 0.1)
+      session.instance_variable_set(:@error_buffer, "")
+      session.instance_variable_set(:@data_buffer, " !     Postgres service alexandrie-postgres-5e5018f0 does not exist\r\n")
+      session.instance_variable_set(:@exit_status, 1)
+
+      expect(session.send(:quick_close_with_startup_error?)).to be(true)
+      message = session.send(:classify_pre_open_failure)
+      expect(message).to include("does not exist")
+      expect(message).to include("alexandrie-postgres-5e5018f0")
+    end
+
+    it "surfaces the dokku 'app has not been deployed' message" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@opened, true)
+      session.instance_variable_set(:@opened_at, Time.now - 0.1)
+      session.instance_variable_set(:@error_buffer, "")
+      session.instance_variable_set(:@data_buffer, " !     App tween-face-verification has not been deployed\r\n")
+      session.instance_variable_set(:@exit_status, 1)
+
+      message = session.send(:classify_pre_open_failure)
+      expect(message).to include("tween-face-verification")
+      expect(message).to include("Deploy tab")
+    end
   end
 end
