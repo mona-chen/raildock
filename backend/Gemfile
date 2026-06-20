@@ -44,6 +44,7 @@ gem "lockbox", "~> 2.0"
 gem "octokit", "~> 9.0"
 gem "rack-attack"
 gem "concurrent-ruby"
+gem "aws-sdk-s3", "~> 1.0"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"

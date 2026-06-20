@@ -92,7 +92,7 @@ module Api
       return nil unless @service.project&.server&.ssh_key.present?
 
       idempotency_key = "env-restart:#{@service.id}:#{SecureRandom.hex(4)}"
-      RestartJob.perform_later(@service.id, idempotency_key: idempotency_key)
+      RestartJob.perform_later(@service.id, idempotency_key: idempotency_key, kind: "env_sync", triggered_by: "configuration")
       Deployment.find_by(idempotency_key: idempotency_key)&.id
     end
   end

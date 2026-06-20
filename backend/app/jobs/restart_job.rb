@@ -6,7 +6,7 @@
 class RestartJob < ApplicationJob
   queue_as :default
 
-  def perform(service_id, idempotency_key: nil)
+  def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
     service = Service.find(service_id)
     project = service.project
     server = project.server
@@ -17,10 +17,11 @@ class RestartJob < ApplicationJob
       service: service,
       key: idempotency_key,
       attributes: {
-        kind: "restart",
+        kind: kind,
         status: "building",
+        started_at: Time.current,
         branch: service.branch,
-        triggered_by: "manual",
+        triggered_by: triggered_by,
         build_log: "",
         deploy_log: ""
       }
@@ -29,7 +30,7 @@ class RestartJob < ApplicationJob
     if is_new
       DeploymentsChannel.broadcast_to(service, {
         deployment_id: deployment.id,
-        kind: "restart",
+        kind: kind,
         status: "building",
         message: "Restart started",
         started_at: deployment.created_at.iso8601
@@ -46,7 +47,7 @@ class RestartJob < ApplicationJob
         deployment.update!(deploy_log: (deployment.deploy_log || "") + line)
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
-          kind: "restart",
+          kind: deployment.kind,
           status: "building",
           message: msg,
           log_chunk: line
@@ -89,7 +90,7 @@ class RestartJob < ApplicationJob
         deployment.update!(status: "succeeded", completed_at: Time.current)
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
-          kind: "restart",
+          kind: deployment.kind,
           status: "succeeded",
           message: "Restart completed",
           completed_at: deployment.completed_at.iso8601
@@ -105,7 +106,7 @@ class RestartJob < ApplicationJob
         deployment.update!(status: "failed", completed_at: Time.current)
         DeploymentsChannel.broadcast_to(service, {
           deployment_id: deployment.id,
-          kind: "restart",
+          kind: deployment.kind,
           status: "failed",
           message: "Restart failed: container not running",
           completed_at: deployment.completed_at.iso8601

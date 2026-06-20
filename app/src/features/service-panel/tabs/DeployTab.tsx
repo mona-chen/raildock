@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download } from 'lucide-react'
+import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound } from 'lucide-react'
 import {
   useScaleProcess,
   useRollbackService,
@@ -401,10 +401,13 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
         </div>
       )}
 
-      {/* Deployment History */}
-      <div>
+      {/* Deployment ledger */}
+      <section className="overflow-hidden border-y border-white/[0.06]">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-[14px] font-medium text-white/70">Deployment History</h4>
+          <div>
+            <h4 className="text-[14px] font-medium text-white/80">Deployments</h4>
+            <p className="mt-0.5 text-[11px] text-white/25">Build, release, restart, and rollback history.</p>
+          </div>
           {pendingCount > 1 && (
             <button
               onClick={handleCancelAllPending}
@@ -415,21 +418,19 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
             </button>
           )}
         </div>
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_110px_90px_90px] gap-3 border-b border-white/[0.06] px-3 py-2 text-[9px] uppercase tracking-[0.12em] text-white/20">
+          <span>Revision</span><span>Trigger</span><span>Started</span><span className="text-right">Duration</span>
+        </div>
+        <div className="divide-y divide-white/[0.05]">
           {deployments && deployments.length > 0 ? (
             deployments.map((d) => (
-              <div key={d.id} className="space-y-1">
+              <article key={d.id}>
                 <div
-                  className="flex items-center gap-3 px-3 py-2 bg-[#1a1a1e]/50 rounded-lg group cursor-pointer hover:bg-[#1a1a1e]"
+                  className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_110px_90px_90px] items-center gap-3 px-3 py-3 hover:bg-white/[0.025] focus-within:bg-white/[0.025]"
                   onClick={() => setExpandedDeployment(expandedDeployment === d.id ? null : d.id)}
                 >
-                  {expandedDeployment === d.id ? (
-                    <ChevronDown size={14} className="text-white/30 flex-shrink-0" />
-                  ) : (
-                    <ChevronRight size={14} className="text-white/30 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 grid grid-cols-[auto_1fr_auto] items-center gap-3 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {expandedDeployment === d.id ? <ChevronDown size={13} className="shrink-0 text-white/25" /> : <ChevronRight size={13} className="shrink-0 text-white/25" />}
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
                         d.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
                         d.status === 'failed' ? 'bg-red-500/10 text-red-400' :
@@ -445,39 +446,16 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                         </span>
                       )}
                       {d.kind === 'deploy' || !d.kind ? (
-                        <>
-                          <span className="text-white/30 font-mono text-[11px] shrink-0">
-                            {d.commit_sha ? d.commit_sha.slice(0, 7) : '-'}
-                          </span>
-                          <span className="text-white/60 truncate text-[12px]" title={d.commit_message || ''}>
-                            {d.commit_message || <span className="text-white/20">no commit message</span>}
-                          </span>
-                        </>
+                        <div className="min-w-0"><div className="truncate text-[12px] text-white/70" title={d.commit_message || ''}>{d.commit_message || 'Manual deployment'}</div><div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/25"><span className="flex items-center gap-1 font-mono"><GitCommit size={10} />{d.commit_sha ? d.commit_sha.slice(0, 7) : 'working tree'}</span><span className="flex items-center gap-1"><GitBranch size={10} />{d.branch || svc.branch || 'main'}</span></div></div>
                       ) : (
-                        <span className="text-white/50 truncate text-[12px]">
+                        <span className="truncate text-[12px] text-white/50">
                           {d.deploy_log?.split("\n").filter(Boolean).pop() || `${d.kind} operation`}
                         </span>
                       )}
-                    </div>
-                    <div />
-                    <div className="flex items-center gap-2 text-white/30 text-[11px] font-mono shrink-0">
-                      {d.created_at && <span>{timeAgo(d.created_at)}</span>}
-                      {d.started_at && d.completed_at && (
-                        <>
-                          <span className="text-white/15">·</span>
-                          <span>{Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s</span>
-                        </>
-                      )}
-                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                      d.triggered_by === 'webhook'
-                        ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
-                        : 'bg-white/5 text-white/40'
-                    }`}>
-                      {d.triggered_by === 'webhook' ? 'auto' : 'manual'}
-                    </span>
+                  <div className="flex items-center gap-1.5 text-[10px] text-white/35"><UserRound size={11} /><span className="truncate">{d.triggered_by?.replace('_', ' ') || 'manual'}</span></div>
+                  <span className="text-[10px] text-white/30">{d.created_at ? timeAgo(d.created_at) : '—'}</span>
+                  <div className="flex items-center justify-end gap-1 text-[10px] font-mono text-white/30"><Timer size={10} />{d.started_at && d.completed_at ? `${Math.round((new Date(d.completed_at).getTime() - new Date(d.started_at).getTime()) / 1000)}s` : d.status === 'building' || d.status === 'deploying' ? 'live' : '—'}
                     {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (!d.kind || d.kind === 'deploy') && (
                       <button
                         onClick={(e) => {
@@ -485,7 +463,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                           handleCancel(d.id)
                         }}
                         disabled={cancelDeployment.isPending}
-                        className="text-[10px] px-2 py-0.5 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                        className="ml-1 rounded bg-red-500/10 px-1.5 py-0.5 text-[9px] text-red-400 hover:bg-red-500/20 disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -497,7 +475,7 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                           setRollbackTarget(d.id)
                         }}
                         disabled={rollbackService.isPending}
-                        className="text-[10px] px-2 py-0.5 bg-white/[0.06] text-white/40 rounded hover:bg-white/[0.1] hover:text-white/70 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                        className="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-white/40 hover:bg-white/[0.1] hover:text-white/70 disabled:opacity-50"
                       >
                         Rollback
                       </button>
@@ -505,15 +483,15 @@ export default function DeployTab({ svc, serviceId }: DeployTabProps) {
                   </div>
                 </div>
                 {expandedDeployment === d.id && (
-                  <DeploymentLogPanel deploymentId={d.id} liveLog={logMap[d.id]} />
+                  <div className="border-t border-white/[0.04] bg-black/10 px-3 py-3"><DeploymentLogPanel deploymentId={d.id} liveLog={logMap[d.id]} /></div>
                 )}
-              </div>
+              </article>
             ))
           ) : (
             <div className="text-[12px] text-white/30 py-4 text-center">No deployment history</div>
           )}
         </div>
-      </div>
+      </section>
 
       {/* Rollback confirmation dialog */}
       {rollbackTarget && (

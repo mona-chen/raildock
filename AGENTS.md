@@ -60,6 +60,17 @@ The external Traefik itself is never started, stopped, or reconfigured by RailDo
 
 When changing code that touches Rails credentials, ensure fresh installs still work without a pre-existing `credentials.yml.enc`.
 
+## Backups
+
+- Service backup artifacts are stored under `${BACKUPS_DIR:-./data/backups}` and mounted at `/rails/storage/backups` in production.
+- `RunDueBackupsJob` scans due schedules every minute through Solid Queue recurring tasks.
+- A backup is only marked completed after its artifact is persisted and SHA-256 verified.
+- Keep the backup directory on durable storage and include it in host-level disaster recovery.
+- S3-compatible and Cloudflare R2 destinations encrypt artifacts with AES-256-GCM before multipart upload; save the one-time recovery key off-host.
+- Docker named volumes and host-path mounts support snapshots, destructive verified restores, and isolated restore drills.
+- PostgreSQL PITR uses daily physical base backups plus continuous WAL archiving. `RunPostgresPitrJob` uploads WAL every minute and applies the configured retention window.
+- `RunRecoveryDrillsJob` restores the latest artifacts into disposable databases/volumes each week and always removes the isolated resource afterward.
+
 ## CI / release
 
 - `.github/workflows/ci.yml` — lint, test, security audits (Brakeman, bundler-audit, npm audit).

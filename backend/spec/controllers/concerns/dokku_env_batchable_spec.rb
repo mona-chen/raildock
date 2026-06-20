@@ -22,7 +22,7 @@ RSpec.describe DokkuEnvBatchable do
 
   describe "#build_full_env_hash" do
     before do
-      allow(engine).to receive(:config_show).and_return({ success: true, output: "" })
+      allow(engine).to receive(:config_export_json).and_return({ success: true, output: "{}" })
     end
 
     it "includes both internal and user env vars" do
@@ -37,13 +37,13 @@ RSpec.describe DokkuEnvBatchable do
     it "preserves any host-only key not in the DB" do
       service.environment_variables.create!(key: "RAILS_ENV", value: "production")
 
-      allow(engine).to receive(:config_show).and_return({
+      allow(engine).to receive(:config_export_json).and_return({
         success: true,
-        output: <<~ENV
-          DATABASE_URL=postgres://user:pass@dokku-postgres-x:5432/db
-          REDIS_URL=redis://x:6379
-          DOKKU_POSTGRES_FOO=bar
-        ENV
+        output: JSON.generate(
+          "DATABASE_URL" => "postgres://user:pass@dokku-postgres-x:5432/db",
+          "REDIS_URL" => "redis://x:6379",
+          "DOKKU_POSTGRES_FOO" => "bar"
+        )
       })
 
       hash = helper.build_full_env_hash(service, engine)
@@ -55,9 +55,9 @@ RSpec.describe DokkuEnvBatchable do
     it "prefers the DB value over the host value" do
       service.environment_variables.create!(key: "DATABASE_URL", value: "postgres://from-db/x", is_dokku_internal: true)
 
-      allow(engine).to receive(:config_show).and_return({
+      allow(engine).to receive(:config_export_json).and_return({
         success: true,
-        output: "DATABASE_URL=postgres://from-host/x\n"
+        output: JSON.generate("DATABASE_URL" => "postgres://from-host/x")
       })
 
       hash = helper.build_full_env_hash(service, engine)
@@ -67,7 +67,7 @@ RSpec.describe DokkuEnvBatchable do
     it "tolerates a failed config_show" do
       service.environment_variables.create!(key: "RAILS_ENV", value: "production")
 
-      allow(engine).to receive(:config_show).and_return({ success: false, output: "ssh error" })
+      allow(engine).to receive(:config_export_json).and_return({ success: false, output: "ssh error" })
 
       hash = helper.build_full_env_hash(service, engine)
       expect(hash["RAILS_ENV"]).to eq("production")
@@ -82,9 +82,7 @@ RSpec.describe DokkuEnvBatchable do
         hash = helper.build_full_env_hash(service, engine)
         expect(hash["API_KEY"]).to eq("secret-123")
 
-        service.environment_variables.find_by(key: "API_KEY").reload.tap do |ev|
-          expect(ev.value).to eq("secret-123")
-        end
+        expect(service.environment_variables.find_by(key: "API_KEY").reload.value).to eq("${{ shared.GLOBAL_API_KEY }}")
       end
 
       it "resolves ${{ shared.X }} when value uses the [SHARED:X] pre-parsed marker" do

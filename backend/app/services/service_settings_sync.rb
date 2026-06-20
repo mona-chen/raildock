@@ -66,17 +66,21 @@ class ServiceSettingsSync
     old_checks = old_config["checks"] || {}
     new_checks = new_config["checks"] || {}
 
-    if old_checks["enabled"] != new_checks["enabled"]
-      if new_checks["enabled"]
-        @engine.checks_enable(@app_name)
-      else
-        @engine.checks_disable(@app_name)
-      end
+    return if old_checks == new_checks
+
+    mode = new_checks["mode"].presence || (new_checks["enabled"] == false ? "skipped" : "enabled")
+    case mode
+    when "disabled" then @engine.checks_disable(@app_name)
+    when "skipped" then @engine.checks_skip(@app_name, *Array(new_checks["skipList"]))
+    else @engine.checks_enable(@app_name)
     end
 
-    if new_checks["skipList"].present? && new_checks["skipList"] != old_checks["skipList"]
-      @engine.checks_skip(@app_name, *new_checks["skipList"])
-    end
+    {
+      "wait" => new_checks["wait"],
+      "timeout" => new_checks["timeout"],
+      "attempts" => new_checks["attempts"],
+      "wait-to-retire" => new_checks["waitToRetire"]
+    }.compact.each { |property, value| @engine.checks_set(@app_name, property, value) }
   end
 
   # ── Cron ─────────────────────────────────────

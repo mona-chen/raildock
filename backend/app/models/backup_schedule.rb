@@ -11,7 +11,7 @@ class BackupSchedule < ApplicationRecord
   }.freeze
 
   def calculate_next_run
-    base = last_run_at || created_at || Time.current
+    base = [ last_run_at, Time.current ].compact.max
     base + FREQUENCY_INTERVALS[frequency]
   end
 

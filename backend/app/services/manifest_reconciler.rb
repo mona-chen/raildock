@@ -817,15 +817,23 @@ class ManifestReconciler
   end
 
   def apply_checks_change(engine, service, change)
-    checks = change.new_value || {}
+    checks = (change.new_value || {}).symbolize_keys
     service.config = (service.config || {}).merge("checks" => checks.deep_stringify_keys)
     service.save!
 
-    if checks[:enabled] == false
-      engine.run("checks:disable #{engine.escape(service.dokku_app_name)}")
-    else
-      engine.run("checks:enable #{engine.escape(service.dokku_app_name)}")
+    app_name = service.dokku_app_name
+    mode = checks[:mode].presence || (checks[:enabled] == false ? "skipped" : "enabled")
+
+    case mode
+    when "disabled" then engine.checks_disable(app_name)
+    when "skipped" then engine.checks_skip(app_name, *Array(checks[:skip]))
+    else engine.checks_enable(app_name)
     end
+
+    %i[ wait timeout attempts ].each do |property|
+      engine.checks_set(app_name, property.to_s, checks[property]) if checks[property].present?
+    end
+    engine.checks_set(app_name, "wait-to-retire", checks[:wait_to_retire]) if checks[:wait_to_retire].present?
     { success: true }
   end
 
@@ -947,7 +955,6 @@ class ManifestReconciler
 
       result = engine.config_set(service.dokku_app_name, environment_variable.key, resolved)
       raise "Failed to resolve #{environment_variable.key}: #{result[:output]}" unless result[:success]
-      environment_variable.update!(value: resolved)
     end
   end
 
@@ -962,6 +969,7 @@ class ManifestReconciler
     config["traefik"] = svc[:traefik_labels] if svc[:traefik_labels]
     config["letsencrypt"] = svc[:letsencrypt] if svc[:letsencrypt]
     config["depends_on"] = svc[:depends_on] if svc[:depends_on].present?
+    config["scripts"] = svc[:scripts] if svc[:scripts]&.values&.any?(&:present?)
     config
   end
 end

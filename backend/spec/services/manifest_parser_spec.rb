@@ -163,7 +163,7 @@ RSpec.describe ManifestParser do
           startCommand = "npm start"
           healthcheckPath = "/healthz"
           healthcheckTimeout = 30
-          restartPolicyType = "on-failure"
+          restartPolicyType = "ON_FAILURE"
 
           [vars]
           NODE_ENV = "production"
@@ -187,9 +187,9 @@ RSpec.describe ManifestParser do
         expect(svc[:env]).to eq({ "NODE_ENV" => "production" })
       end
 
-      it 'warns that buildCommand is not yet supported' do
+      it 'records buildCommand for lifecycle visibility' do
         result = described_class.parse(toml, filename: "railway.toml")
-        expect(result.warnings).to include(a_string_matching(/buildCommand is not yet supported/))
+        expect(result.services.first.dig(:scripts, :build)).to eq("echo building!")
       end
 
       it 'warns that single-service config cannot do links or storage' do
@@ -207,7 +207,7 @@ RSpec.describe ManifestParser do
             "deploy": {
               "startCommand": ["npm", "run", "start"],
               "healthcheckPath": "/",
-              "restartPolicyType": "always"
+              "restartPolicyType": "ALWAYS"
             },
             "env": {
               "API_KEY": "${{ secrets.API_KEY }}",
@@ -289,7 +289,7 @@ RSpec.describe ManifestParser do
     end
 
     context 'with preDeployCommand' do
-      it 'warns that preDeployCommand is not yet supported' do
+      it 'records preDeployCommand for lifecycle visibility' do
         json = <<~JSON
           {
             "deploy": {
@@ -299,7 +299,7 @@ RSpec.describe ManifestParser do
           }
         JSON
         result = described_class.parse(json, filename: "railway.json")
-        expect(result.warnings).to include(a_string_matching(/preDeployCommand is not yet supported/))
+        expect(result.services.first.dig(:scripts, :predeploy)).to eq("npm && run && migrate")
       end
     end
 

@@ -81,6 +81,60 @@ class DokkuEngine
     end
   end
 
+  def run_to_file(command, path)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    FileUtils.mkdir_p(File.dirname(path))
+    error_output = +""
+    exit_code = nil
+
+    with_ssh_retry do
+      File.open(path, "wb") do |file|
+        execute_on_session do |ssh|
+          channel = ssh.open_channel do |ch|
+            ch.exec(command) do |_, success|
+              return { success: false, output: "Failed to execute command" } unless success
+
+              ch.on_data { |_, data| file.write(data) }
+              ch.on_extended_data { |_, _, data| error_output << data }
+              ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+            end
+          end
+          channel.wait
+        end
+      end
+    end
+
+    File.delete(path) if exit_code != 0 && File.exist?(path)
+    { success: exit_code == 0, output: error_output }
+  end
+
+  def run_with_file(command, path)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    output = +""
+    exit_code = nil
+    with_ssh_retry do
+      File.open(path, "rb") do |file|
+        execute_on_session do |ssh|
+          channel = ssh.open_channel do |ch|
+            ch.exec(command) do |_, success|
+              return { success: false, output: "Failed to execute command" } unless success
+
+              ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
+              ch.eof!
+              ch.on_data { |_, data| output << data }
+              ch.on_extended_data { |_, _, data| output << data }
+              ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+            end
+          end
+          channel.wait
+        end
+      end
+    end
+    { success: exit_code == 0, output: output }
+  end
+
   # Run a command and yield each line of output in real-time
   def run_streaming(command, cancelled: nil)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
@@ -227,6 +281,10 @@ class DokkuEngine
     run("config:show --merged #{escape(app_name)}")
   end
 
+  def config_export_json(app_name)
+    run("config:export --format json #{escape(app_name)}")
+  end
+
   def config_clear(app_name)
     run("config:clear #{escape(app_name)}")
   end
@@ -259,14 +317,18 @@ class DokkuEngine
   # Dokku's godotenv-based read is lenient on partial corruption (more so
   # than bash), so even a file with tail fragments gets replaced cleanly.
   def config_replace_all(app_name, env_hash)
-    clear_result = config_clear(app_name)
-    return { success: false, output: clear_result[:output], error: "config:clear failed" } unless clear_result[:success]
+    normalized = env_hash.reject { |key, _| key.blank? }
+    return run("config:clear --no-restart #{escape(app_name)}") if normalized.empty?
 
-    set_result = config_set_many(app_name, env_hash)
-    return set_result unless set_result[:success]
+    payload = JSON.generate(normalized.transform_values(&:to_s))
+    result = run_with_stdin(
+      "config:import --replace --no-restart --format json #{escape(app_name)} -",
+      payload
+    )
 
-    { success: true, output: clear_result[:output].to_s + "
-" + set_result[:output].to_s }
+    return result if result[:success]
+
+    result.merge(error: "Atomic config import failed")
   end
   def config_export(app_name)
     run("config:export #{escape(app_name)}")
@@ -486,6 +548,10 @@ class DokkuEngine
 
   def checks_skip(app_name, *process_types)
     run("checks:skip #{escape(app_name)} #{process_types.map { |pt| escape(pt) }.join(" ")}")
+  end
+
+  def checks_set(app_name, property, value)
+    run("checks:set #{escape(app_name)} #{escape(property)} #{escape(value.to_s)}")
   end
 
   # ── Docker Options ───────────────────────────
@@ -786,6 +852,30 @@ class DokkuEngine
 
   def mongo_export(service_name)
     run("mongo:export #{escape(service_name)}")
+  end
+
+  def datastore_export_to(service, path)
+    command = case service.subtype
+    when "postgres" then "postgres:export"
+    when "redis" then "redis:export"
+    when "mysql", "mariadb" then "mysql:export"
+    when "mongo" then "mongo:export"
+    else return { success: false, output: "Unsupported database type for backup" }
+    end
+
+    run_to_file("#{command} #{escape(service.dokku_app_name)}", path)
+  end
+
+  def datastore_import_from(service, path)
+    command = case service.subtype
+    when "postgres" then "postgres:import"
+    when "redis" then "redis:import"
+    when "mysql", "mariadb" then "mysql:import"
+    when "mongo" then "mongo:import"
+    else return { success: false, output: "Unsupported database type for restore" }
+    end
+
+    run_with_file("#{command} #{escape(service.dokku_app_name)}", path)
   end
 
   def postgres_import(service_name, data)

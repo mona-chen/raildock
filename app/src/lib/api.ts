@@ -21,6 +21,11 @@ import type {
   AppUpdateInfo,
   Deployment as ApiDeployment,
   DeploymentDetail as ApiDeploymentDetail,
+  RecoveryOverview,
+  BackupDestination,
+  PostgresPitrConfig,
+  RestoreDrill,
+  Backup,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -268,7 +273,7 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/deployments`)
   },
 
-  backups: async (id: string): Promise<{ id: string; status: string; size: number; createdAt: string }[]> => {
+  backups: async (id: string): Promise<Backup[]> => {
     return fetchJson(`/api/services/${id}/backups`)
   },
 
@@ -305,8 +310,45 @@ export const servicesApi = {
     return data.map(normalizeService)
   },
 
-  backup: async (id: string): Promise<{ success: boolean }> => {
-    return fetchJson(`/api/services/${id}/backup`, { method: 'POST' })
+  backup: async (id: string, backupDestinationId?: string): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/services/${id}/backup`, { method: 'POST', body: JSON.stringify({ backup_destination_id: backupDestinationId }) })
+  },
+
+  recovery: async (id: string): Promise<RecoveryOverview> => fetchJson(`/api/services/${id}/recovery`),
+
+  createBackupDestination: async (id: string, data: Record<string, string>): Promise<BackupDestination> =>
+    fetchJson(`/api/services/${id}/recovery/destinations`, { method: 'POST', body: JSON.stringify(data) }),
+
+  verifyBackupDestination: async (id: string, destinationId: string): Promise<BackupDestination> =>
+    fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}/verify`, { method: 'POST' }),
+
+  deleteBackupDestination: async (id: string, destinationId: string): Promise<void> =>
+    fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}`, { method: 'DELETE' }),
+
+  snapshotVolume: async (id: string, storageMountId: string, backupDestinationId?: string): Promise<void> =>
+    fetchJson(`/api/services/${id}/recovery/volumes/${storageMountId}/snapshot`, { method: 'POST', body: JSON.stringify({ backup_destination_id: backupDestinationId }) }),
+
+  configurePitr: async (id: string, backupDestinationId: string, retentionDays: number): Promise<PostgresPitrConfig> =>
+    fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'PUT', body: JSON.stringify({ backup_destination_id: backupDestinationId, retention_days: retentionDays }) }),
+
+  disablePitr: async (id: string): Promise<PostgresPitrConfig> =>
+    fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'DELETE' }),
+
+  runRestoreDrill: async (id: string, backupId: string): Promise<RestoreDrill> =>
+    fetchJson(`/api/services/${id}/recovery/backups/${backupId}/drills`, { method: 'POST' }),
+
+  downloadBackup: async (id: string, backupId: string): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/api/services/${id}/backups/${backupId}/download`, { headers: getAuthHeaders() })
+    if (!res.ok) throw new Error('Backup artifact is unavailable')
+    return res.blob()
+  },
+
+  restoreBackup: async (id: string, backupId: string): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/services/${id}/backups/${backupId}/restore`, { method: 'POST' })
+  },
+
+  deleteBackup: async (id: string, backupId: string): Promise<void> => {
+    await fetchJson(`/api/services/${id}/backups/${backupId}`, { method: 'DELETE' })
   },
 
   restore: async (id: string, file?: File): Promise<{ success: boolean }> => {

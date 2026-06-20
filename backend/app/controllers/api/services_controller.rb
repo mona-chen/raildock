@@ -13,7 +13,8 @@ module Api
     before_action :set_and_authorize_service!, only: [
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
-      :metrics, :backup, :restore, :database_info, :backups, :backup_schedules,
+      :metrics, :backup, :restore, :restore_backup, :download_backup, :destroy_backup,
+      :database_info, :backups, :backup_schedules,
       :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
       :generate_domain
     ]
@@ -145,7 +146,9 @@ module Api
         status: :pending,
         started_at: Time.current,
         branch: params[:branch] || @service.branch || "main",
-        commit_sha: params[:commit_sha]
+        commit_sha: params[:commit_sha],
+        commit_message: params[:commit_message],
+        triggered_by: "manual"
       )
 
       DeploymentJob.perform_later(@service.id, deployment.id)
@@ -176,7 +179,9 @@ module Api
         status: :pending,
         started_at: Time.current,
         branch: target.branch || @service.branch || "main",
-        commit_sha: target.commit_sha
+        commit_sha: target.commit_sha,
+        commit_message: "Rollback: #{target.commit_message.presence || target.commit_sha.to_s.first(7)}",
+        triggered_by: "rollback"
       )
 
       DeploymentJob.perform_later(@service.id, deployment.id)
@@ -491,48 +496,33 @@ module Api
 
     def backup
       authorize_service!(@service, action: :update)
+      return render json: { error: "Backups are only available for databases" }, status: :unprocessable_entity unless @service.service_type_database?
+      return render json: { error: "No server configured" }, status: :unprocessable_entity unless @service.project.server&.ssh_key.present?
 
-      with_dokku_engine(@service) do |engine|
-        backup_record = @service.backups.create!(status: "pending")
-
-        result = case @service.subtype
-        when "postgres" then engine.postgres_export(@service.dokku_app_name)
-        when "redis" then engine.redis_export(@service.dokku_app_name)
-        when "mysql", "mariadb" then engine.mysql_export(@service.dokku_app_name)
-        when "mongo" then engine.mongo_export(@service.dokku_app_name)
-        else { success: false, output: "Unsupported database type for backup" }
-        end
-
-        if result[:success]
-          backup_record.update!(status: "completed", size: result[:output]&.bytesize || 0)
-          ActivityEvent.create!(
-            project: @service.project,
-            service_name: @service.name,
-            action: :created,
-            message: "Backup created for #{@service.name}"
-          )
-          return render json: { success: true, backup: backup_record }
-        else
-          backup_record.update!(status: "failed", metadata: { error: result[:output] })
-          return render json: { success: false, error: result[:output] }, status: :unprocessable_entity
-        end
-      end
-
-      render json: { success: false, error: "No server configured" }, status: :unprocessable_entity
+      destination = @service.project.server.backup_destinations.find_by(id: params[:backup_destination_id]) if params[:backup_destination_id].present?
+      backup_record = @service.backups.create!(status: "pending", backup_destination: destination, metadata: { "trigger" => "manual" })
+      BackupJob.perform_later(backup_record.id)
+      render json: { success: true, backup: backup_record }, status: :accepted
     end
 
     def restore
       authorize_service!(@service, action: :update)
+      return render json: { error: "Restores are only available for databases" }, status: :unprocessable_entity unless @service.service_type_database?
+
+      max_bytes = ENV.fetch("RAILDOCK_MAX_RESTORE_BYTES", 10.gigabytes).to_i
+      if request.content_length.to_i > max_bytes
+        return render json: { error: "Restore artifact exceeds the configured size limit" }, status: :content_too_large
+      end
 
       with_dokku_engine(@service) do |engine|
-        data = request.body.read
-
-        result = case @service.subtype
-        when "postgres" then engine.postgres_import(@service.dokku_app_name, data)
-        when "redis" then engine.redis_import(@service.dokku_app_name, data)
-        when "mysql", "mariadb" then engine.mysql_import(@service.dokku_app_name, data)
-        when "mongo" then engine.mongo_import(@service.dokku_app_name, data)
-        else { success: false, output: "Unsupported database type for restore" }
+        result = Tempfile.create([ "raildock-restore", ".dump" ], binmode: true) do |file|
+          IO.copy_stream(request.body, file, max_bytes + 1)
+          if file.size > max_bytes
+            { success: false, output: "Restore artifact exceeds the configured size limit" }
+          else
+            file.flush
+            engine.datastore_import_from(@service, file.path)
+          end
         end
 
         if result[:success]
@@ -552,7 +542,60 @@ module Api
     end
 
     def backups
-      render json: @service.backups.recent
+      render json: @service.backups.where.not(backup_kind: "wal").recent.limit(100)
+    end
+
+    def download_backup
+      backup = @service.backups.find(params[:backup_id])
+      return render json: { error: "Backup artifact is unavailable" }, status: :not_found unless backup.available?
+
+      response.headers["Content-Type"] = "application/octet-stream"
+      response.headers["Content-Disposition"] = %(attachment; filename="#{@service.name}-#{backup.id}.backup")
+      self.response_body = Enumerator.new do |stream|
+        BackupArtifactStore.new.materialize(backup) do |path|
+          File.open(path, "rb") do |file|
+            while (chunk = file.read(1.megabyte))
+              stream << chunk
+            end
+          end
+        end
+      end
+    end
+
+    def restore_backup
+      authorize_service!(@service, action: :update)
+      backup = @service.backups.find(params[:backup_id])
+      return render json: { error: "Backup artifact is unavailable" }, status: :not_found unless backup.available?
+
+      result = case backup.backup_kind
+      when "database"
+        outcome = nil
+        BackupArtifactStore.new.materialize(backup) do |path|
+          outcome = DokkuEngine.new(@service.project.server).datastore_import_from(@service, path)
+        end
+        outcome
+      when "volume"
+        host_path = backup.metadata&.fetch("host_path", nil)
+        return render json: { error: "Volume snapshot is missing its target mount" }, status: :unprocessable_entity if host_path.blank?
+
+        outcome = nil
+        BackupArtifactStore.new.materialize(backup) do |path|
+          outcome = HostEngine.new(@service.project.server).volume_import_from(host_path, path)
+        end
+        outcome
+      else
+        return render json: { error: "This recovery artifact cannot be restored directly" }, status: :unprocessable_entity
+      end
+      return render json: { error: result[:output] }, status: :unprocessable_entity unless result[:success]
+
+      ActivityEvent.create!(project: @service.project, service_name: @service.name, action: :created, message: "Restored #{@service.name} from verified backup", metadata: { backup_id: backup.id })
+      render json: { success: true }
+    end
+
+    def destroy_backup
+      authorize_service!(@service, action: :delete)
+      @service.backups.find(params[:backup_id]).remove_file!
+      head :no_content
     end
 
     def backup_schedules
@@ -733,7 +776,7 @@ module Api
     private
 
     def set_and_authorize_service!
-      @service = Service.find(params[:id])
+      @service = Service.find(params[:id] || params[:service_id])
       authorize_service!(@service)
     end
 
@@ -909,7 +952,7 @@ module Api
         dockerOptions: [ :phase, :option ],
         resourceLimits: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
         resourceReservations: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
-        checks: [ :enabled, :wait, :timeout, { skipList: [] } ],
+        checks: [ :enabled, :mode, :wait, :timeout, :attempts, :waitToRetire, { skipList: [] } ],
         letsencrypt: [ :enabled, :email, :staging, :autoRenew ],
         git: [ :deployBranch, :keepGitDir, :revEnvVar ],
         traefik: [ :labels, :properties ]

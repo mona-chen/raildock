@@ -65,7 +65,7 @@ RSpec.describe Service, type: :model do
     end
 
     it "defines restart_policy enum" do
-      expect(described_class.restart_policies.keys).to contain_exactly("on_failure", "always", "unless_stopped")
+      expect(described_class.restart_policies.keys).to contain_exactly("never", "on_failure", "always", "unless_stopped")
     end
   end
 

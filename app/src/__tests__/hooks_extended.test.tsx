@@ -110,7 +110,7 @@ describe('useBackupService', () => {
     result.current.mutate('svc-1')
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(api.services.backup).toHaveBeenCalledWith('svc-1')
-    expect(toast.success).toHaveBeenCalledWith('Backup created')
+    expect(toast.success).toHaveBeenCalledWith('Backup queued')
   })
 })
 

@@ -65,7 +65,7 @@ export function normalizeService(data: unknown): Service {
     dockerOptions: [],
     resourceLimits: [],
     resourceReservations: [],
-    checks: { enabled: true, wait: 10, timeout: 60, skipList: [] },
+    checks: { enabled: true, mode: 'enabled', wait: 5, timeout: 30, attempts: 5, waitToRetire: 60, skipList: [] },
     letsencrypt: { enabled: false, email: '', staging: false, autoRenew: true },
     git: { deployBranch: 'main', keepGitDir: false, revEnvVar: true },
     traefik: { labels: {}, properties: {} },

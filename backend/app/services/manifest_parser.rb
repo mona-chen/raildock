@@ -268,8 +268,7 @@ class ManifestParser
     warnings << "railway.toml: builder '#{build["builder"]}' is not in RailDock's enum; falling back to nil" if build["builder"].present? && builder.nil?
 
     start_command = normalize_railway_command(deploy["startCommand"])
-    warnings << "railway.toml: buildCommand is not yet supported by RailDock" if build["buildCommand"].present?
-    warnings << "railway.toml: preDeployCommand is not yet supported by RailDock" if deploy["preDeployCommand"].present?
+    warnings << "railway.toml: buildCommand is recorded but cannot override Dockerfile builds" if build["buildCommand"].present? && builder == "dockerfile"
 
     svc = {
       name: "app",
@@ -291,7 +290,11 @@ class ManifestParser
       traefik_labels: {},
       letsencrypt: { enabled: false },
       maintenance: false,
-      scripts: { predeploy: nil, postdeploy: nil }
+      scripts: {
+        build: normalize_railway_command(build["buildCommand"]),
+        predeploy: normalize_railway_command(deploy["preDeployCommand"]),
+        postdeploy: nil
+      }
     }
 
     services << svc
@@ -315,8 +318,13 @@ class ManifestParser
   def normalize_railway_builder(value)
     return nil if value.blank?
 
-    downcased = value.to_s.downcase
-    ManifestSchema::BUILDERS.include?(downcased) ? downcased : nil
+    {
+      "HEROKU" => "herokuish",
+      "PAKETO" => "pack"
+    }.fetch(value.to_s.upcase) do
+      downcased = value.to_s.downcase
+      ManifestSchema::BUILDERS.include?(downcased) ? downcased : nil
+    end
   end
 
   # Railway's startCommand can be a string OR an array of strings
@@ -376,7 +384,11 @@ class ManifestParser
   def normalize_railway_restart_policy(value)
     return nil if value.blank?
 
-    %w[never on-failure always].include?(value.to_s) ? value.to_s : nil
+    {
+      "NEVER" => "never",
+      "ON_FAILURE" => "on-failure",
+      "ALWAYS" => "always"
+    }[value.to_s.upcase]
   end
 
   # ── raildock.toml / raildock.json ───────────────────────────
@@ -540,12 +552,15 @@ class ManifestParser
   end
 
   def normalize_checks(checks)
-    defaults = { enabled: true, wait: 5, timeout: 30, skip: [] }
+    defaults = { enabled: true, mode: "enabled", wait: 5, timeout: 30, attempts: 5, wait_to_retire: 60, skip: [] }
     return defaults unless checks.is_a?(Hash)
     {
       enabled: checks["enabled"] != false && checks[:enabled] != false,
+      mode: (checks["mode"] || checks[:mode] || "enabled").to_s,
       wait: (checks["wait"] || checks[:wait] || 5).to_i,
       timeout: (checks["timeout"] || checks[:timeout] || 30).to_i,
+      attempts: (checks["attempts"] || checks[:attempts] || 5).to_i,
+      wait_to_retire: (checks["wait_to_retire"] || checks[:wait_to_retire] || 60).to_i,
       skip: Array(checks["skip"] || checks[:skip] || [])
     }
   end

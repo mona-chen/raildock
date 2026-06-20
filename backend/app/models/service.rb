@@ -7,6 +7,7 @@ class Service < ApplicationRecord
   has_many :process_types, dependent: :destroy
   has_many :backups, dependent: :destroy
   has_many :backup_schedules, dependent: :destroy
+  has_one :postgres_pitr_config, dependent: :destroy
 
   has_many :outgoing_links, class_name: "ServiceLink", foreign_key: "from_service_id", dependent: :destroy
   has_many :incoming_links, class_name: "ServiceLink", foreign_key: "to_service_id", dependent: :destroy
@@ -45,6 +46,7 @@ class Service < ApplicationRecord
   }
 
   enum :restart_policy, {
+    never: "never",
     on_failure: "on-failure",
     always: "always",
     unless_stopped: "unless-stopped"

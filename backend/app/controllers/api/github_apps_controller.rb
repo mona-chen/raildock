@@ -322,6 +322,7 @@ module Api
             started_at: Time.current,
             branch: branch,
             commit_sha: commit_sha,
+            commit_message: data.dig("head_commit", "message").to_s.lines.first&.strip,
             triggered_by: triggered_by
           }
         )

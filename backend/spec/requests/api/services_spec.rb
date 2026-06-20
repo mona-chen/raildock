@@ -163,7 +163,7 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key blank" do
         let(:server_without_key) { create(:server, ssh_key: nil) }
         let(:project_no_key) { create(:project, server: server_without_key) }
-        let!(:service_no_key) { create(:service, project: project_no_key) }
+        let!(:service_no_key) { create(:service, :database, project: project_no_key) }
 
         it "destroys the service without calling DokkuEngine" do
           expect_any_instance_of(DokkuEngine).not_to receive(:app_destroy)
@@ -590,39 +590,30 @@ RSpec.describe "Api::ServicesController", type: :request do
 
     context "when authenticated" do
       context "with server ssh_key present" do
-        it "returns success when backup succeeds" do
-          allow_any_instance_of(DokkuEngine).to receive(:run).and_return(
-            { success: true, output: "backup_data" }
-          )
-
+        it "queues a durable backup" do
           expect {
             post "/api/services/#{database_service.id}/backup", headers: auth_headers(user)
-          }.to change(ActivityEvent, :count).by(1)
+          }.to change(Backup, :count).by(1)
+            .and have_enqueued_job(BackupJob)
 
-          expect(response).to have_http_status(:ok)
+          expect(response).to have_http_status(:accepted)
           json = JSON.parse(response.body)
           expect(json["success"]).to be true
-          expect(json["backup"]["status"]).to eq("completed")
+          expect(json["backup"]["status"]).to eq("pending")
         end
 
-        it "returns 422 when backup fails" do
-          allow_any_instance_of(DokkuEngine).to receive(:run).and_return(
-            { success: false, output: "export failed" }
-          )
-
-          post "/api/services/#{database_service.id}/backup", headers: auth_headers(user)
+        it "rejects backups for application services" do
+          post "/api/services/#{service.id}/backup", headers: auth_headers(user)
 
           expect(response).to have_http_status(:unprocessable_entity)
-          json = JSON.parse(response.body)
-          expect(json["success"]).to be false
-          expect(json["error"]).to eq("export failed")
+          expect(JSON.parse(response.body)["error"]).to match(/only available for databases/)
         end
       end
 
       context "with server ssh_key blank" do
         let(:server_without_key) { create(:server, ssh_key: nil) }
         let(:project_no_key) { create(:project, server: server_without_key) }
-        let!(:service_no_key) { create(:service, project: project_no_key) }
+        let!(:service_no_key) { create(:service, :database, project: project_no_key) }
 
         it "returns 422 without calling DokkuEngine" do
           expect_any_instance_of(DokkuEngine).not_to receive(:run)
@@ -656,7 +647,7 @@ RSpec.describe "Api::ServicesController", type: :request do
     context "when authenticated" do
       context "with server ssh_key present" do
         it "returns success and creates an activity event" do
-          allow_any_instance_of(DokkuEngine).to receive(:postgres_import).and_return({ success: true, output: "ok" })
+          allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).and_return({ success: true, output: "ok" })
 
           expect {
             post "/api/services/#{database_service.id}/restore", headers: auth_headers(user)
@@ -672,7 +663,7 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key blank" do
         let(:server_without_key) { create(:server, ssh_key: nil) }
         let(:project_no_key) { create(:project, server: server_without_key) }
-        let!(:service_no_key) { create(:service, project: project_no_key) }
+        let!(:service_no_key) { create(:service, :database, project: project_no_key) }
 
         it "returns 422 without calling DokkuEngine" do
           expect_any_instance_of(DokkuEngine).not_to receive(:run)
