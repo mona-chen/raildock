@@ -506,4 +506,44 @@ RSpec.describe DokkuEngine, type: :service do
       engine.app_report("myapp")
     end
   end
+
+  describe "DokkuTerminalSession pre-open failure classification" do
+    subject(:session) { DokkuTerminalSession.allocate }
+
+    it "reports a missing shell with the OCI 'no such file' stderr and exit 127" do
+      session.instance_variable_set(:@shell, "/bin/zsh")
+      session.instance_variable_set(:@error_buffer, "OCI runtime exec failed: exec failed: unable to start container process: exec: \"/bin/zsh\": stat /bin/zsh: no such file or directory\n")
+      session.instance_variable_set(:@exit_status, 127)
+
+      message = session.send(:classify_pre_open_failure)
+      expect(message).to include("/bin/zsh")
+      expect(message).to include("not available in this container")
+    end
+
+    it "reports a non-zero exit before on_open as a generic shell failure" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@error_buffer, "")
+      session.instance_variable_set(:@exit_status, 2)
+
+      message = session.send(:classify_pre_open_failure)
+      expect(message).to include("status 2")
+    end
+
+    it "returns nil for a clean close (exit 0, no error buffer)" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@error_buffer, "")
+      session.instance_variable_set(:@exit_status, 0)
+
+      expect(session.send(:classify_pre_open_failure)).to be_nil
+    end
+
+    it "detects SSH connection issues from the error buffer" do
+      session.instance_variable_set(:@shell, "/bin/sh")
+      session.instance_variable_set(:@error_buffer, "ssh: connect to host: Connection refused\n")
+      session.instance_variable_set(:@exit_status, 255)
+
+      message = session.send(:classify_pre_open_failure)
+      expect(message).to include("SSH connection lost")
+    end
+  end
 end

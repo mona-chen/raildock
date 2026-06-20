@@ -1122,8 +1122,13 @@ class DokkuTerminalSession
     @callbacks = {}
     @closed = false
     @close_called = false
+    @opened = false
+    @exit_status = nil
+    @error_buffer = +""
     @mutex = Mutex.new
   end
+
+  attr_reader :shell
 
   def open
     return false if @server.ssh_key.blank?
@@ -1157,6 +1162,7 @@ class DokkuTerminalSession
             return
           end
 
+          @opened = true
           @callbacks[:on_open]&.call
         end
       end
@@ -1166,7 +1172,13 @@ class DokkuTerminalSession
       end
 
       ch.on_extended_data do |_, type, data|
+        @error_buffer << data
         @callbacks[:on_data]&.call(data)
+      end
+
+      ch.on_request("exit-status") do |_, data|
+        @exit_status = data.read_long
+        Rails.logger.debug "[DokkuTerminalSession] exit-status=#{@exit_status}"
       end
 
       ch.on_eof do |ch|
@@ -1174,7 +1186,8 @@ class DokkuTerminalSession
       end
 
       ch.on_close do |_, data|
-        Rails.logger.debug "[DokkuTerminalSession] on_close received"
+        Rails.logger.debug "[DokkuTerminalSession] on_close received exit=#{@exit_status.inspect} opened=#{@opened}"
+        report_pre_open_failure
         close
       end
 
@@ -1283,6 +1296,43 @@ class DokkuTerminalSession
       return if @close_called
       @close_called = true
     end
+    report_pre_open_failure
     @callbacks[:on_close]&.call
+  end
+
+  # When the SSH channel closes before the interactive shell reaches
+  # on_open, the user only sees a generic "closed" message and an
+  # endlessly-spinning terminal. Surface the actual Dokku/OCI failure
+  # so the UI can explain what went wrong and offer a safe fallback.
+  def report_pre_open_failure
+    return if @opened
+    return if @close_called && @pre_open_error_reported
+
+    message = classify_pre_open_failure
+    return if message.nil?
+
+    @pre_open_error_reported = true
+    Rails.logger.warn "[DokkuTerminalSession] pre-open failure for shell=#{@shell}: #{message}"
+    @callbacks[:on_error]&.call(message)
+  end
+
+  def classify_pre_open_failure
+    buf = @error_buffer.to_s
+    status = @exit_status
+
+    missing_shell_match = buf.match(/exec:\s*("?)([^\s":]+)\1:\s*stat\s+([^\s:]+):\s*no such file or directory/)
+    oci_exec_match = buf.match(/OCI runtime exec failed/i)
+    command_not_found = buf.match(/([\w\/-]+):\s*(?:line\s+\d+:\s*)?(command not found|Permission denied)/)
+
+    if missing_shell_match || (status == 127 && oci_exec_match) || (status == 127 && missing_shell_match)
+      target = missing_shell_match ? missing_shell_match[2] : @shell
+      "Shell #{target} is not available in this container. Try /bin/sh or /bin/bash instead."
+    elsif status == 126 || (status && status >= 126) && command_not_found
+      "Selected shell failed to start (#{command_not_found[2]}). Try /bin/sh instead."
+    elsif buf.match?(/connection (refused|reset|closed)/i)
+      "SSH connection lost while opening the shell. Check the server status and retry."
+    elsif status && status != 0
+      "Shell exited with status #{status} before becoming interactive. Try /bin/sh instead."
+    end
   end
 end
