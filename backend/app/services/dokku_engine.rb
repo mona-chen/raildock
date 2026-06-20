@@ -1126,6 +1126,7 @@ class DokkuTerminalSession
     @opened_at = nil
     @exit_status = nil
     @error_buffer = +""
+    @data_buffer = +""
     @mutex = Mutex.new
   end
 
@@ -1170,6 +1171,7 @@ class DokkuTerminalSession
       end
 
       ch.on_data do |_, data|
+        @data_buffer << data
         @callbacks[:on_data]&.call(data)
       end
 
@@ -1337,15 +1339,15 @@ class DokkuTerminalSession
     elapsed = Time.now - @opened_at
     return false if elapsed > 2.0
 
-    buf = @error_buffer.to_s
-    buf.match?(/OCI runtime exec failed/i) ||
-      buf.match?(/no such file or directory/i) ||
-      buf.match?(/command not found/i) ||
+    combined = "#{@error_buffer}#{@data_buffer}"
+    combined.match?(/OCI runtime exec failed/i) ||
+      combined.match?(/no such file or directory/i) ||
+      combined.match?(/command not found/i) ||
       @exit_status == 127
   end
 
   def classify_pre_open_failure
-    buf = @error_buffer.to_s
+    buf = "#{@error_buffer}#{@data_buffer}"
     status = @exit_status
 
     missing_shell_match = buf.match(/exec:\s*("?)([^\s":]+)\1:\s*stat\s+([^\s:]+):\s*no such file or directory/)
