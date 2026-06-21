@@ -3,14 +3,14 @@ module Api
     before_action :set_organization, only: [ :show, :update, :destroy ]
 
     def index
-      organizations = current_user.organizations.includes(:owner).order(:name)
-      render json: organizations.as_json(include: { owner: { only: [ :id, :name, :email ] } })
+      organizations = current_user.organizations.includes(:owner, :memberships).order(:name)
+      render json: organizations.map { |org| serialize(org) }
     end
 
     def show
       authorize_organization_access!(@organization)
       return if performed?
-      render json: @organization.as_json(include: { owner: { only: [ :id, :name, :email ] } })
+      render json: serialize(@organization)
     end
 
     def create
@@ -20,7 +20,7 @@ module Api
       if organization.save
         # Owner automatically becomes a member with owner role
         OrganizationMembership.create!(user: current_user, organization: organization, role: :owner)
-        render json: organization, status: :created
+        render json: serialize(organization), status: :created
       else
         render json: { errors: organization.errors.full_messages }, status: :unprocessable_entity
       end
@@ -36,7 +36,7 @@ module Api
       end
 
       if @organization.update(organization_params)
-        render json: @organization
+        render json: serialize(@organization)
       else
         render json: { errors: @organization.errors.full_messages }, status: :unprocessable_entity
       end
@@ -66,6 +66,26 @@ module Api
 
     def current_user_membership
       @current_user_membership ||= @organization.memberships.find_by(user: current_user)
+    end
+
+    def serialize(org)
+      membership = current_user_membership_for(org)
+      {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        avatar_url: org.avatar_url,
+        owner_id: org.owner_id,
+        member_count: org.memberships.size,
+        role: membership&.role,
+        created_at: org.created_at,
+        owner: org.owner.as_json(only: [ :id, :name, :email ])
+      }
+    end
+
+    def current_user_membership_for(org)
+      return @current_user_membership if org == @organization && @current_user_membership
+      org.memberships.find_by(user: current_user)
     end
   end
 end

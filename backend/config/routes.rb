@@ -108,8 +108,13 @@ Rails.application.routes.draw do
         end
       end
       resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
+      resources :invitations, controller: "organization_invitations", only: [ :index, :create, :destroy ]
       resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
     end
+
+    # Standalone invitation endpoints (token is the credential, no JWT required).
+    get  "invitations/:token", to: "invitations#show",   constraints: { token: /[^\/]+/ }
+    post "invitations/:token/accept", to: "invitations#accept", constraints: { token: /[^\/]+/ }
 
     resources :git_sources, path: "git-sources" do
       member do

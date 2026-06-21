@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
+import MembersTab from '@/features/settings/MembersTab'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { AppUpdateInfo } from '@/types'
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'integrations', label: 'Integrations', icon: Puzzle },
   { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
   { key: 'organizations', label: 'Organizations', icon: Building2 },
+  { key: 'members', label: 'Members', icon: Users },
   { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
   { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
 ]
@@ -90,6 +92,7 @@ export default function SettingsPage() {
 
         {activeTab === 'git-sources' && <GitSourcesTab />}
         {activeTab === 'organizations' && <OrganizationsTab />}
+        {activeTab === 'members' && <MembersTab />}
         {activeTab === 'deploy-keys' && <DeployKeysTab />}
         {activeTab === 'updates' && <UpdatesTab />}
       </div>

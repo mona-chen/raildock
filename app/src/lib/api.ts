@@ -17,6 +17,9 @@ import type {
   ActivityEvent,
   Template,
   Organization,
+  OrganizationMembership,
+  OrganizationInvitation,
+  InvitationDetails,
   Domain,
   AppUpdateInfo,
   Deployment as ApiDeployment,
@@ -546,6 +549,89 @@ export const organizationsApi = {
   destroy: async (id: string): Promise<void> => {
     await fetchJson(`/api/organizations/${id}`, { method: 'DELETE' })
   },
+
+  members: {
+    list: async (organizationId: string): Promise<OrganizationMembership[]> => {
+      return fetchJson<OrganizationMembership[]>(`/api/organizations/${organizationId}/members`)
+    },
+
+    // Add an existing user by email OR, when the user does not yet exist,
+    // create a pending invitation and return its details.
+    create: async (organizationId: string, data: { email: string; role?: 'admin' | 'member' }): Promise<{
+      membership?: OrganizationMembership
+      invitation?: OrganizationInvitation
+      acceptUrl?: string
+      existingUser: boolean
+    }> => {
+      return fetchJson(`/api/organizations/${organizationId}/members`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+
+    updateRole: async (organizationId: string, userId: string, role: 'owner' | 'admin' | 'member'): Promise<OrganizationMembership> => {
+      return fetchJson<OrganizationMembership>(`/api/organizations/${organizationId}/members/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      })
+    },
+
+    remove: async (organizationId: string, userId: string): Promise<void> => {
+      await fetchJson(`/api/organizations/${organizationId}/members/${userId}`, { method: 'DELETE' })
+    },
+  },
+
+  invitations: {
+    list: async (organizationId: string): Promise<OrganizationInvitation[]> => {
+      return fetchJson<OrganizationInvitation[]>(`/api/organizations/${organizationId}/invitations`)
+    },
+
+    create: async (organizationId: string, data: { email: string; role?: 'admin' | 'member' }): Promise<{
+      invitation: OrganizationInvitation
+      acceptUrl: string
+      existingUser: boolean
+    }> => {
+      return fetchJson(`/api/organizations/${organizationId}/invitations`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+
+    revoke: async (organizationId: string, invitationId: string): Promise<void> => {
+      await fetchJson(`/api/organizations/${organizationId}/invitations/${invitationId}`, { method: 'DELETE' })
+    },
+  },
+}
+
+// ── Invitations (token-based, no JWT) ──────────────
+
+export const invitationsApi = {
+  show: async (token: string): Promise<{ invitation: InvitationDetails }> => {
+    return fetchJson<{ invitation: InvitationDetails }>(`/api/invitations/${token}`)
+  },
+
+  accept: async (token: string, data: { name?: string; password: string }): Promise<{
+    token: string
+    user: { id: number; email: string; name: string; admin: boolean }
+    organization: { id: string; name: string; slug: string; role: string }
+    newAccount: boolean
+  }> => {
+    const res = await fetch(`${API_BASE}/api/invitations/${token}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to accept invitation')
+    }
+    return camelizeKeys(await res.json()) as {
+      token: string
+      user: { id: number; email: string; name: string; admin: boolean }
+      organization: { id: string; name: string; slug: string; role: string }
+      newAccount: boolean
+    }
+  },
 }
 
 // ── Activity API ─────────────────────────────
@@ -682,8 +768,32 @@ export const networksApi = {
 
 // ── Auth API ─────────────────────────────────
 
+export interface AuthSession {
+  token: string
+  user: {
+    id: number
+    email: string
+    name: string
+    admin: boolean
+    organizations: {
+      id: string
+      name: string
+      slug: string
+      role: 'owner' | 'admin' | 'member'
+      memberCount: number
+    }[]
+  }
+  organization?: {
+    id: string
+    name: string
+    slug: string
+    role: string
+    memberCount: number
+  }
+}
+
 export const authApi = {
-  login: async (email: string, password: string): Promise<{ token: string; user: { id: number; email: string; name: string } }> => {
+  login: async (email: string, password: string): Promise<AuthSession> => {
     const res = await fetch(`${API_BASE}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -693,18 +803,18 @@ export const authApi = {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error || 'Login failed')
     }
-    return res.json()
+    return camelizeKeys(await res.json()) as AuthSession
   },
 
-  me: async (): Promise<{ id: number; email: string; name: string } | null> => {
+  me: async (): Promise<AuthSession['user'] | null> => {
     try {
-      return await fetchJson('/api/me')
+      return await fetchJson<AuthSession['user']>('/api/me')
     } catch {
       return null
     }
   },
 
-  register: async (data: { name: string; email: string; password: string }): Promise<{ token: string; user: { id: number; email: string; name: string } }> => {
+  register: async (data: { name: string; email: string; password: string }): Promise<AuthSession> => {
     const res = await fetch(`${API_BASE}/api/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -714,7 +824,7 @@ export const authApi = {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error || 'Registration failed')
     }
-    return camelizeKeys(await res.json()) as { token: string; user: { id: number; email: string; name: string } }
+    return camelizeKeys(await res.json()) as AuthSession
   },
 }
 

@@ -1,0 +1,8 @@
+Join <%= @organization.name %> on RailDock
+
+<%= @invited_by.name %> has invited you to collaborate on <%= @organization.name %> as a <%= @invitation.role %>.
+
+Accept the invitation: <%= @accept_url %>
+
+This invitation expires on <%= @expires_at.strftime("%B %-d, %Y at %H:%M %Z") %>.
+If you weren't expecting this email, you can safely ignore it.

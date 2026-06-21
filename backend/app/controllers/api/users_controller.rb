@@ -14,8 +14,13 @@ module Api
 
       user = User.new(user_params.merge(admin: true))
       if user.save
+        organization = ensure_personal_organization(user)
         ensure_local_dokku_server
-        render json: { token: user.generate_jwt, user: user.as_json(only: [ :id, :email, :name ]) }, status: :created
+        render json: {
+          token: user.generate_jwt,
+          user: user_payload_with_orgs(user),
+          organization: organization_payload(organization)
+        }, status: :created
       else
         render json: { error: user.errors.full_messages.join(", ") }, status: :unprocessable_entity
       end
@@ -25,6 +30,17 @@ module Api
 
     def user_params
       params.require(:user).permit(:name, :email, :password)
+    end
+
+    def organization_payload(organization)
+      return nil unless organization
+      {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        role: "owner",
+        member_count: 1
+      }
     end
 
     def ensure_local_dokku_server

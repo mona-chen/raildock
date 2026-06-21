@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { authApi } from '@/lib/api'
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { token, user, setUser, setLoading, isLoading, logout } = useAuthStore()
+  const { token, user, setUser, setCurrentOrganizationId, setLoading, isLoading, logout } = useAuthStore()
   const location = useLocation()
 
   // Verify token on mount
@@ -14,10 +14,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
+    const currentOrgId = useAuthStore.getState().currentOrganizationId
+
     authApi.me()
       .then((me) => {
         if (me) {
           setUser(me)
+          if (!currentOrgId && me.organizations?.length) {
+            setCurrentOrganizationId(me.organizations[0].id)
+          }
         } else {
           logout()
         }

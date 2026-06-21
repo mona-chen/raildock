@@ -418,6 +418,36 @@ export interface Organization {
   ownerId: string
   memberCount?: number
   createdAt?: string
+  role?: 'owner' | 'admin' | 'member'
+}
+
+export interface OrganizationMembership {
+  id: string
+  userId: string
+  role: 'owner' | 'admin' | 'member'
+  user: { id: number; name: string; email: string }
+  createdAt: string
+  isYou: boolean
+}
+
+export interface OrganizationInvitation {
+  id: string
+  email: string
+  role: 'owner' | 'admin' | 'member'
+  token: string
+  expiresAt: string
+  acceptedAt: string | null
+  createdAt: string
+  invitedBy?: { id: number; name: string; email: string }
+}
+
+export interface InvitationDetails {
+  email: string
+  role: 'admin' | 'member'
+  organization: { id: string; name: string; slug: string }
+  invitedBy: { name: string; email: string }
+  expiresAt: string
+  existingUser: boolean
 }
 
 // ───────────────────────────────────────────────

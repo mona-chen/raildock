@@ -56,5 +56,26 @@ module Backend
     config.active_record.encryption.primary_key = ENV["ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
     config.active_record.encryption.deterministic_key = ENV["ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
     config.active_record.encryption.key_derivation_salt = ENV["ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
+
+    # Public app URL used to build invitation links. Falls back to localhost.
+    config.x.app_url = ENV["APP_URL"].presence
+    config.action_mailer.default_url_options = {
+      host: ENV.fetch("APP_HOST", "localhost"),
+      port: ENV["APP_PORT"].presence&.to_i,
+      protocol: ENV.fetch("APP_PROTOCOL", "http")
+    }.compact
+    config.action_mailer.delivery_method = (ENV["SMTP_ADDRESS"].present? ? :smtp : :test)
+    config.action_mailer.raise_delivery_errors = ENV.fetch("MAIL_RAISE_DELIVERY_ERRORS", "false") == "true"
+    if ENV["SMTP_ADDRESS"].present?
+      config.action_mailer.smtp_settings = {
+        address: ENV["SMTP_ADDRESS"],
+        port: ENV.fetch("SMTP_PORT", 587).to_i,
+        user_name: ENV["SMTP_USERNAME"],
+        password: ENV["SMTP_PASSWORD"],
+        domain: ENV["SMTP_DOMAIN"].presence || ENV.fetch("APP_HOST", "localhost"),
+        authentication: ENV.fetch("SMTP_AUTH", "plain").to_sym,
+        enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
+      }
+    end
   end
 end

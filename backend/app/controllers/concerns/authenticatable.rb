@@ -46,5 +46,6 @@ module Authenticatable
     return true if organization.nil?
     return true if current_user.organizations.include?(organization)
     render json: { error: "Forbidden" }, status: :forbidden
+    nil
   end
 end

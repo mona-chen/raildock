@@ -4,6 +4,7 @@ class User < ApplicationRecord
   has_many :organization_memberships, dependent: :destroy
   has_many :organizations, through: :organization_memberships
   has_many :owned_organizations, class_name: "Organization", foreign_key: "owner_id", dependent: :destroy
+  has_many :invitations, class_name: "OrganizationInvitation", foreign_key: "invited_by_id", dependent: :nullify
   has_many :projects, dependent: :nullify
   has_many :servers, dependent: :nullify
 

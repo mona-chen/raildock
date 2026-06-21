@@ -42,7 +42,23 @@ RSpec.describe "Api::UsersController", type: :request do
         json = JSON.parse(response.body)
         expect(json["token"]).to be_present
         expect(json["user"]["email"]).to eq("admin@example.com")
+        expect(json["user"]["admin"]).to be true
         expect(User.count).to eq(1)
+      end
+
+      it "auto-creates a personal organization the user owns" do
+        post "/api/users", params: valid_params
+
+        json = JSON.parse(response.body)
+        org_payload = json["organization"]
+        expect(org_payload).to be_present
+        expect(org_payload["role"]).to eq("owner")
+        expect(org_payload["name"]).to include("Admin User")
+
+        user = User.find_by(email: "admin@example.com")
+        org = Organization.find(org_payload["id"])
+        expect(org.owner).to eq(user)
+        expect(org.memberships.find_by(user: user).role).to eq("owner")
       end
 
       it "returns 422 with invalid data" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_20_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -182,6 +182,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_20_110000) do
     t.index ["project_id", "service_name"], name: "index_manifest_changes_on_project_id_and_service_name"
     t.index ["project_id", "status"], name: "index_manifest_changes_on_project_id_and_status"
     t.index ["project_id"], name: "index_manifest_changes_on_project_id"
+  end
+
+  create_table "organization_invitations", force: :cascade do |t|
+    t.datetime "accepted_at"
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.datetime "expires_at", null: false
+    t.bigint "invited_by_id", null: false
+    t.bigint "organization_id", null: false
+    t.string "role", default: "member", null: false
+    t.string "token", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["expires_at"], name: "index_organization_invitations_on_expires_at"
+    t.index ["invited_by_id"], name: "index_organization_invitations_on_invited_by_id"
+    t.index ["organization_id", "email"], name: "index_organization_invitations_on_organization_id_and_email"
+    t.index ["organization_id"], name: "index_organization_invitations_on_organization_id"
+    t.index ["token"], name: "index_organization_invitations_on_token", unique: true
+    t.index ["user_id"], name: "index_organization_invitations_on_user_id"
   end
 
   create_table "organization_memberships", force: :cascade do |t|
@@ -399,6 +418,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_20_110000) do
   add_foreign_key "git_sources", "organizations"
   add_foreign_key "git_sources", "users"
   add_foreign_key "manifest_changes", "projects"
+  add_foreign_key "organization_invitations", "organizations"
+  add_foreign_key "organization_invitations", "users"
+  add_foreign_key "organization_invitations", "users", column: "invited_by_id"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organizations", "users", column: "owner_id"

@@ -29,7 +29,7 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isSetup = location.pathname === '/setup'
-  const { setToken, setUser, isAuthenticated } = useAuthStore()
+  const { setToken, setUser, setCurrentOrganizationId, isAuthenticated } = useAuthStore()
 
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -81,6 +81,9 @@ export default function AuthPage() {
       const data = await authApi.login(emailValue, passwordValue)
       setToken(data.token)
       setUser(data.user)
+      // Auto-select the user's first org if they have one
+      const firstOrg = data.user.organizations?.[0]
+      if (firstOrg) setCurrentOrganizationId(firstOrg.id)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Invalid credentials')
@@ -111,6 +114,8 @@ export default function AuthPage() {
       const data = await authApi.register({ name: nameValue, email: emailValue, password: passwordValue })
       setToken(data.token)
       setUser(data.user)
+      // Bootstrap auto-creates a personal org; land directly in it.
+      if (data.organization) setCurrentOrganizationId(data.organization.id)
       toast.success(`Welcome to RailDock, ${nameValue}!`)
       navigate('/dashboard')
     } catch (err: any) {

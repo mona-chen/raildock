@@ -9,6 +9,7 @@ import RootRedirect from '@/components/RootRedirect'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
 
 const AuthPage = lazy(() => import('./pages/AuthPage'))
+const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage'))
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'))
 const ProjectCanvas = lazy(() => import('./pages/ProjectCanvas'))
 const ServerPage = lazy(() => import('./pages/ServerPage'))
@@ -26,6 +27,7 @@ function App() {
               <Route path="/" element={<RootRedirect />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/setup" element={<AuthPage />} />
+              <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
               <Route path="/dashboard" element={
                 <AuthGuard>
                   <DashboardLayout />
