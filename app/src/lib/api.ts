@@ -529,6 +529,10 @@ export const adminSettingsApi = {
   deleteGitHubAppInstallation: async (installationId: string): Promise<{ success: boolean; message: string }> => {
     return fetchJson(`/api/github-apps/installations/${installationId}`, { method: 'DELETE' })
   },
+
+  testSmtp: async (email?: string): Promise<{ success: boolean; email: string }> => {
+    return fetchJson('/api/admin/settings/test-smtp', { method: 'POST', body: JSON.stringify({ email }) })
+  },
 }
 
 // ── Organizations API ──────────────────────────

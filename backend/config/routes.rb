@@ -136,6 +136,7 @@ Rails.application.routes.draw do
       get "settings", to: "settings#index"
       patch "settings", to: "settings#update"
       post "settings/test-github-app", to: "settings#test_github_app"
+      post "settings/test-smtp", to: "settings#test_smtp"
 
       get "github-app-manifest", to: "github_app_manifests#manifest"
       get "github-app-manifest/callback", to: "github_app_manifests#callback"

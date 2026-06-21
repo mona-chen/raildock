@@ -62,4 +62,50 @@ RSpec.describe "Api::Admin::SettingsController", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
   end
+
+  describe "POST /api/admin/settings/test-smtp" do
+    context "when SMTP is enabled" do
+      before do
+        SystemSetting.create!(key: "smtp_enabled", value: "true")
+        SystemSetting.create!(key: "smtp_address", value: "smtp.example.com")
+        SmtpService.apply_from_db!
+      end
+
+      it "sends a test email to the specified address" do
+        post "/api/admin/settings/test-smtp",
+             params: { email: "test@example.com" },
+             headers: auth_headers(admin)
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["success"]).to be(true)
+        expect(json["email"]).to eq("test@example.com")
+      end
+
+      it "falls back to current user email when no email param" do
+        post "/api/admin/settings/test-smtp",
+             headers: auth_headers(admin)
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["email"]).to eq(admin.email)
+      end
+
+      it "returns 403 for non-admin" do
+        post "/api/admin/settings/test-smtp",
+             params: { email: "test@example.com" },
+             headers: auth_headers(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context "when SMTP is not enabled" do
+      it "returns 400" do
+        post "/api/admin/settings/test-smtp",
+             params: { email: "test@example.com" },
+             headers: auth_headers(admin)
+        expect(response).to have_http_status(:bad_request)
+        json = JSON.parse(response.body)
+        expect(json["error"]).to eq("SMTP is not configured")
+      end
+    end
+  end
 end

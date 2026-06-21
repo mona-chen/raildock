@@ -3,30 +3,40 @@ module Api
     class SettingsController < BaseController
       before_action :authorize_admin!
 
-      GITHUB_APP_KEYS = %w[
-        github_app_slug
-        github_app_id
-        github_client_id
-        github_webhook_secret
-        github_app_pem
-        github_client_secret
-      ].freeze
+      ALLOWED_KEYS = (SystemSetting::GITHUB_APP_KEYS + SystemSetting::SMTP_KEYS).freeze
 
       # GET /api/admin/settings
       def index
-        settings = SystemSetting.where(key: GITHUB_APP_KEYS)
-        render json: settings.map { |s| { key: s.key, value: s.value } }
+        settings = SystemSetting.where(key: ALLOWED_KEYS)
+        render json: settings.map { |s| { key: s.key, value: s.read_value } }
       end
 
       # PATCH /api/admin/settings
       def update
         settings_params.each do |key, value|
-          next unless GITHUB_APP_KEYS.include?(key)
+          next unless ALLOWED_KEYS.include?(key)
           SystemSetting.set!(key, value.presence)
         end
 
+        SmtpService.apply_from_db!
+
         render json: { success: true }
       rescue ActiveRecord::RecordInvalid => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/admin/settings/test-smtp
+      def test_smtp
+        unless SystemSetting.smtp_enabled
+          return render json: { error: "SMTP is not configured" }, status: :bad_request
+        end
+
+        test_email = params[:email].presence || current_user.email
+
+        SmtpMailer.test_email(to: test_email).deliver_now
+
+        render json: { success: true, email: test_email }
+      rescue => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
@@ -63,7 +73,7 @@ module Api
       private
 
       def settings_params
-        params.permit(*GITHUB_APP_KEYS)
+        params.permit(*ALLOWED_KEYS)
       end
 
       def authorize_admin!

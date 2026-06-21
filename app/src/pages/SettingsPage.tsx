@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
 import MembersTab from '@/features/settings/MembersTab'
+import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { AppUpdateInfo } from '@/types'
@@ -30,6 +31,7 @@ const TABS = [
   { key: 'organizations', label: 'Organizations', icon: Building2 },
   { key: 'members', label: 'Members', icon: Users },
   { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
+  { key: 'email', label: 'Email', icon: Mail },
   { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
 ]
 
@@ -94,6 +96,7 @@ export default function SettingsPage() {
         {activeTab === 'organizations' && <OrganizationsTab />}
         {activeTab === 'members' && <MembersTab />}
         {activeTab === 'deploy-keys' && <DeployKeysTab />}
+        {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}
         {activeTab === 'updates' && <UpdatesTab />}
       </div>
     </div>

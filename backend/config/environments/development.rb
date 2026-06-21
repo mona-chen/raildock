@@ -35,9 +35,8 @@ Rails.application.configure do
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
-  # In dev, fall back to :test delivery and print the rendered message to the log
-  # so the invitation URL is easy to copy without configuring SMTP.
-  config.action_mailer.delivery_method = :test unless ENV["SMTP_ADDRESS"].present?
+  # In dev, use :test delivery by default (overridden by DB SMTP settings or SMTP_ADDRESS env in application.rb).
+  config.action_mailer.delivery_method = :test
 
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "localhost"), port: ENV.fetch("APP_PORT", 3000).to_i }

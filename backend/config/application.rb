@@ -64,18 +64,25 @@ module Backend
       port: ENV["APP_PORT"].presence&.to_i,
       protocol: ENV.fetch("APP_PROTOCOL", "http")
     }.compact
-    config.action_mailer.delivery_method = (ENV["SMTP_ADDRESS"].present? ? :smtp : :test)
+    config.action_mailer.delivery_method = :test
     config.action_mailer.raise_delivery_errors = ENV.fetch("MAIL_RAISE_DELIVERY_ERRORS", "false") == "true"
-    if ENV["SMTP_ADDRESS"].present?
-      config.action_mailer.smtp_settings = {
-        address: ENV["SMTP_ADDRESS"],
-        port: ENV.fetch("SMTP_PORT", 587).to_i,
-        user_name: ENV["SMTP_USERNAME"],
-        password: ENV["SMTP_PASSWORD"],
-        domain: ENV["SMTP_DOMAIN"].presence || ENV.fetch("APP_HOST", "localhost"),
-        authentication: ENV.fetch("SMTP_AUTH", "plain").to_sym,
-        enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
-      }
+
+    # Prefer database SMTP settings over env vars after boot.
+    config.after_initialize do
+      if ActiveRecord::Base.connection.data_source_exists?("system_settings")
+        SmtpService.apply_from_db!
+      elsif ENV["SMTP_ADDRESS"].present?
+        ActionMailer::Base.delivery_method = :smtp
+        ActionMailer::Base.smtp_settings = {
+          address: ENV["SMTP_ADDRESS"],
+          port: ENV.fetch("SMTP_PORT", 587).to_i,
+          user_name: ENV["SMTP_USERNAME"],
+          password: ENV["SMTP_PASSWORD"],
+          domain: ENV["SMTP_DOMAIN"].presence || ENV.fetch("APP_HOST", "localhost"),
+          authentication: ENV.fetch("SMTP_AUTH", "plain").to_sym,
+          enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
+        }
+      end
     end
   end
 end
