@@ -19,6 +19,10 @@ class SmtpService
           authentication: (SystemSetting.smtp_auth.presence || :plain).to_sym,
           enable_starttls_auto: SystemSetting.smtp_starttls != "false"
         }
+
+        from = SystemSetting.mail_from.presence || ENV.fetch("MAIL_FROM", "no-reply@localhost")
+        ApplicationMailer.default from: from
+
         Rails.logger.info "[SMTP] Configured from database settings → #{address}:#{SystemSetting.smtp_port || 587}"
       else
         delivery = ENV["SMTP_ADDRESS"].present? ? :smtp : :test

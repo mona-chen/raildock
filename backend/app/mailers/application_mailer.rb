@@ -1,5 +1,5 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: ENV.fetch("MAIL_FROM", "no-reply@localhost")
+  default from: -> { self.default_from_address }
   layout "mailer"
 
   after_action :log_delivery_fallback
@@ -19,5 +19,9 @@ class ApplicationMailer < ActionMailer::Base
 
   def delivered_via_smtp?
     message.delivery_method.is_a?(Mail::SMTP)
+  end
+
+  def default_from_address
+    SystemSetting.mail_from.presence || ENV.fetch("MAIL_FROM", "no-reply@localhost")
   end
 end

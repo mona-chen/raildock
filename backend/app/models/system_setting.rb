@@ -27,6 +27,7 @@ class SystemSetting < ApplicationRecord
     smtp_domain
     smtp_auth
     smtp_starttls
+    mail_from
   ].freeze
 
   # GitHub App settings
@@ -46,6 +47,7 @@ class SystemSetting < ApplicationRecord
   def self.smtp_domain = find_by(key: "smtp_domain")&.read_value
   def self.smtp_auth = find_by(key: "smtp_auth")&.read_value&.to_sym
   def self.smtp_starttls = find_by(key: "smtp_starttls")&.read_value
+  def self.mail_from = find_by(key: "mail_from")&.read_value
 
   # Read value from either plain or encrypted field
   def read_value

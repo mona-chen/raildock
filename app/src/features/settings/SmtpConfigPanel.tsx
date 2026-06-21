@@ -7,7 +7,7 @@ import { adminSettingsApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { SystemSetting } from '@/types'
 
-const SMTP_KEYS = ['smtp_enabled', 'smtp_address', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_domain', 'smtp_auth', 'smtp_starttls'] as const
+const SMTP_KEYS = ['smtp_enabled', 'smtp_address', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_domain', 'smtp_auth', 'smtp_starttls', 'mail_from'] as const
 
 function settingValue(settings: SystemSetting[], key: string): string {
   return settings.find(s => s.key === key)?.value ?? ''
@@ -106,6 +106,10 @@ export default function SmtpConfigPanel() {
               <option value="cram_md5">cram_md5</option>
             </select>
           </div>
+        </div>
+
+        <div className="mt-3">
+          <Field label="Sender Address (from)" value={form.mail_from ?? ''} onChange={v => setForm(f => ({ ...f, mail_from: v }))} placeholder="no-reply@yourdomain.com" />
         </div>
 
         <div className="flex items-center gap-3 mt-4">

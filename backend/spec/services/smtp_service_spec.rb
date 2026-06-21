@@ -20,6 +20,7 @@ RSpec.describe SmtpService do
         SystemSetting.set!("smtp_domain", "example.com")
         SystemSetting.set!("smtp_auth", "login")
         SystemSetting.set!("smtp_starttls", "false")
+        SystemSetting.set!("mail_from", "alerts@example.com")
       end
 
       it "configures ActionMailer with DB settings" do
@@ -32,6 +33,7 @@ RSpec.describe SmtpService do
         expect(ActionMailer::Base.smtp_settings[:domain]).to eq("example.com")
         expect(ActionMailer::Base.smtp_settings[:authentication]).to eq(:login)
         expect(ActionMailer::Base.smtp_settings[:enable_starttls_auto]).to be(false)
+        expect(ApplicationMailer.default[:from]).to eq("alerts@example.com")
       end
     end
 

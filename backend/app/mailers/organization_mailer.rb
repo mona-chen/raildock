@@ -17,7 +17,7 @@ class OrganizationMailer < ApplicationMailer
   private
 
   def default_from_address
-    ENV.fetch("MAIL_FROM", "no-reply@#{ENV.fetch('APP_HOST', 'localhost')}")
+    SystemSetting.mail_from.presence || ENV.fetch("MAIL_FROM", "no-reply@#{ENV.fetch('APP_HOST', 'localhost')}")
   end
 
   def accept_url_for(invitation)

@@ -12,7 +12,7 @@ RSpec.describe SmtpMailer, type: :mailer do
       expect(mail.to).to eq(["admin@example.com"])
     end
 
-    it "renders the sender" do
+    it "renders the sender from default" do
       expect(mail.from).to eq(["no-reply@localhost"])
     end
 
