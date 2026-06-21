@@ -18,6 +18,6 @@ class ApplicationMailer < ActionMailer::Base
   end
 
   def delivered_via_smtp?
-    message.delivery_method == :smtp
+    message.delivery_method.is_a?(Mail::SMTP)
   end
 end
