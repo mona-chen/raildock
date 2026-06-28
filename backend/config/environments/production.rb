@@ -56,8 +56,11 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
+  # Use SMTP for outgoing mail in production. Settings are applied from
+  # database-backed SystemSettings or from SMTP_* environment variables in
+  # config/application.rb after_initialize. If no SMTP is configured, the
+  # after_initialize hook falls back to :test delivery and logs a warning.
+  config.action_mailer.delivery_method = :smtp
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

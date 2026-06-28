@@ -356,5 +356,15 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
         params: { name: "Again", password: "password123" }
       expect(response).to have_http_status(:gone)
     end
+
+    it "enqueues an invitation email when inviting a new user" do
+      expect {
+        post "/api/organizations/#{org.id}/members",
+          params: { email: "newmember@example.com", role: "member" },
+          headers: headers
+      }.to have_enqueued_job.on_queue("default")
+
+      expect(response).to have_http_status(:created)
+    end
   end
 end

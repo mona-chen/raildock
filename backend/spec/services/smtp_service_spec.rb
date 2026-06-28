@@ -61,6 +61,20 @@ RSpec.describe SmtpService do
       ensure
         ENV["SMTP_ADDRESS"] = env_backup
       end
+
+      it "uses env SMTP_ADDRESS when present" do
+        env_backup = ENV["SMTP_ADDRESS"]
+        ENV["SMTP_ADDRESS"] = "smtp.env.example.com"
+        ENV["SMTP_USERNAME"] = "env-user"
+        ENV["SMTP_PASSWORD"] = "env-pass"
+        SmtpService.apply_from_db!
+        expect(ActionMailer::Base.delivery_method).to eq(:smtp)
+        expect(ActionMailer::Base.smtp_settings[:address]).to eq("smtp.env.example.com")
+        expect(ActionMailer::Base.smtp_settings[:user_name]).to eq("env-user")
+        expect(ActionMailer::Base.smtp_settings[:password]).to eq("env-pass")
+      ensure
+        ENV["SMTP_ADDRESS"] = env_backup
+      end
     end
   end
 
