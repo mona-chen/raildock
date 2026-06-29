@@ -192,42 +192,63 @@ class DokkuEngine
   # ── Server Validation ────────────────────────
 
   def validate_connection
-    result = run("version")
-    if result[:success]
-      dokku_version = result[:output].match(DokkuEngineConstants::DOKKU_VERSION_REGEX)&.[](1) || "unknown"
-      docker_result = run("docker --version")
-      docker_version = docker_result[:output].match(DokkuEngineConstants::DOCKER_VERSION_REGEX)&.[](1) || "unknown"
-
-      # Detect public IP for magic domain support (sslip.io, nip.io, etc.)
-      #
-      # When the server host is already an IP address, use it directly.
-      # Otherwise try to detect via an external service. Note: the dokku SSH
-      # user only accepts dokku commands, so we detect from the backend host.
-      public_ip = server.host if server.host.to_s.match?(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)
-
-      if public_ip.blank?
-        begin
-          require "open-uri"
-          public_ip = URI.open("https://ifconfig.me/ip", read_timeout: 5).read.strip
-        rescue
-          public_ip = nil
-        end
-      end
-
-      {
-        success: true,
-        dokku_version: dokku_version,
-        docker_version: docker_version,
-        os: "Ubuntu (detected)",
-        uptime: "unknown",
-        public_ip: public_ip
-      }
+    dokku_result = run(dokku_version_command)
+    if dokku_result[:success]
+      dokku_version = dokku_result[:output].match(DokkuEngineConstants::DOKKU_VERSION_REGEX)&.[](1) || "unknown"
     else
-      { success: false, output: result[:output] }
+      # The dokku user accepts bare commands like "version"; other users need
+      # "dokku version". If neither works, Dokku is probably not installed yet.
+      fallback_result = run(server.ssh_user.to_s == "dokku" ? "dokku version" : "version")
+      if fallback_result[:success]
+        dokku_result = fallback_result
+        dokku_version = dokku_result[:output].match(DokkuEngineConstants::DOKKU_VERSION_REGEX)&.[](1) || "unknown"
+      end
     end
+
+    docker_result = run("docker --version")
+    docker_version = docker_result[:output].match(DokkuEngineConstants::DOCKER_VERSION_REGEX)&.[](1) || "unknown"
+
+    unless dokku_result&.dig(:success)
+      output = dokku_result&.dig(:output).to_s.presence || "Dokku command failed"
+      if docker_result[:success]
+        output = "#{output}\nDocker is installed but Dokku was not detected. Run the bootstrap script on the host first."
+      end
+      return { success: false, output: output.strip, docker_version: docker_version }
+    end
+
+    # Detect public IP for magic domain support (sslip.io, nip.io, etc.)
+    #
+    # When the server host is already an IP address, use it directly.
+    # Otherwise try to detect via an external service. Note: the dokku SSH
+    # user only accepts dokku commands, so we detect from the backend host.
+    public_ip = server.host if server.host.to_s.match?(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)
+
+    if public_ip.blank?
+      begin
+        require "open-uri"
+        public_ip = URI.open("https://ifconfig.me/ip", read_timeout: 5).read.strip
+      rescue
+        public_ip = nil
+      end
+    end
+
+    {
+      success: true,
+      dokku_version: dokku_version,
+      docker_version: docker_version,
+      os: "Ubuntu (detected)",
+      uptime: "unknown",
+      public_ip: public_ip
+    }
   end
 
   # ── App Lifecycle ────────────────────────────
+
+  def dokku_version_command
+    # The dokku SSH user is restricted to dokku subcommands, so "version" maps
+    # to "dokku version". Other users must invoke the dokku binary explicitly.
+    server.ssh_user.to_s == "dokku" ? "version" : "dokku version"
+  end
 
   def app_create(app_name)
     run("apps:create #{escape(app_name)}")

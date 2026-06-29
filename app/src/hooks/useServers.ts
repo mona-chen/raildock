@@ -30,7 +30,7 @@ export function useTestServer() {
 }
 
 export function useProvisionServer() {
-  return useMutation<{ setupId: string }, Error, { host: string; adminUser?: string; setupId: string }>({
+  return useMutation<{ setupId: string }, Error, { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external' }>({
     mutationFn: api.servers.provision,
   })
 }

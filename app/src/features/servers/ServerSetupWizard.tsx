@@ -31,6 +31,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [host, setHost] = useState('')
   const [sshUser, setSshUser] = useState('dokku')
   const [adminUser, setAdminUser] = useState('root')
+  const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [baseDomain, setBaseDomain] = useState('')
   const [autoDomains, setAutoDomains] = useState(true)
   const [testResult, setTestResult] = useState<ServerTestResult | null>(null)
@@ -40,7 +41,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const scriptUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const bootstrapCommand =
     bootstrap?.publicKey && scriptUrl
-      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
+      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | ${proxyMode === 'external' ? "PROXY_MODE='external' " : ''}bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
       : bootstrap?.command || ''
 
   const provisionServer = useProvisionServer()
@@ -59,6 +60,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setHost('')
     setSshUser('dokku')
     setAdminUser('root')
+    setProxyMode('managed')
     setBaseDomain('')
     setAutoDomains(true)
     setTestResult(null)
@@ -112,6 +114,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
         autoDomains,
         hostKey: testResult.hostKey,
         hostKeyFingerprint: testResult.hostKeyFingerprint,
+        proxyMode,
       },
       {
         onSuccess: (server) => {
@@ -130,7 +133,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     }
     const id = crypto.randomUUID()
     setSetupId(id)
-    provisionServer.mutate({ host: host.trim(), adminUser: adminUser.trim() || 'root', setupId: id })
+    provisionServer.mutate({ host: host.trim(), adminUser: adminUser.trim() || 'root', setupId: id, proxyMode })
   }
 
   const renderStepIndicator = () => (
@@ -195,6 +198,24 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               <p className="text-[11px] text-[#6B6B7B] mb-3">
                 Run the command below as <strong>root</strong> to install Docker, Dokku, and authorize this key automatically. Or add the key manually to the admin user&apos;s <code className="text-white">~/.ssh/authorized_keys</code>.
               </p>
+
+              <div className="mb-3">
+                <label htmlFor="wizard-proxy-mode" className="text-[10px] text-[#6B6B7B] block mb-1.5">Proxy mode</label>
+                <select
+                  id="wizard-proxy-mode"
+                  value={proxyMode}
+                  onChange={(e) => setProxyMode(e.target.value as 'managed' | 'external')}
+                  className="w-full px-3 py-2 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-xs text-white outline-none"
+                >
+                  <option value="managed">RailDock managed (default)</option>
+                  <option value="external">Existing Traefik / Coolify</option>
+                </select>
+                {proxyMode === 'external' && (
+                  <p className="text-[10px] text-[#4A4A55] mt-1.5">
+                    Use this when the host already runs Traefik or Coolify on port 80/443. The bootstrap will skip nginx and set Dokku proxy to none.
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-3">
                 <div>

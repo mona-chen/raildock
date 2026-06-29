@@ -64,7 +64,8 @@ module Api
         current_organization.id,
         provision_params[:host].to_s.strip,
         provision_params[:admin_user].presence || "root",
-        Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}"
+        Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}",
+        proxy_mode: provision_params[:proxy_mode].to_s.presence || "managed"
       )
 
       audit_log(
@@ -176,9 +177,9 @@ module Api
     end
 
     def provision_params
-      params.require(:server).permit(:host, :admin_user)
+      params.require(:server).permit(:host, :admin_user, :proxy_mode)
     rescue ActionController::ParameterMissing
-      params.permit(:host, :admin_user)
+      params.permit(:host, :admin_user, :proxy_mode)
     end
 
     def build_server_from_params

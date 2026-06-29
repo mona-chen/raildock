@@ -125,10 +125,47 @@ RSpec.describe DokkuEngine, type: :service do
       allow(engine).to receive(:run).with("version").and_return(
         { success: false, output: "connection refused" }
       )
+      allow(engine).to receive(:run).with("dokku version").and_return(
+        { success: false, output: "dokku: command not found" }
+      )
+      allow(engine).to receive(:run).with("docker --version").and_return(
+        { success: false, output: "" }
+      )
 
       result = engine.validate_connection
       expect(result[:success]).to be false
-      expect(result[:output]).to eq("connection refused")
+      expect(result[:output]).to include("connection refused")
+    end
+
+    it "detects Docker when Dokku is missing" do
+      allow(engine).to receive(:run).with("version").and_return(
+        { success: false, output: "bash: line 1: version: command not found" }
+      )
+      allow(engine).to receive(:run).with("dokku version").and_return(
+        { success: false, output: "bash: line 1: dokku: command not found" }
+      )
+      allow(engine).to receive(:run).with("docker --version").and_return(
+        { success: true, output: "Docker version 27.0.0" }
+      )
+
+      result = engine.validate_connection
+      expect(result[:success]).to be false
+      expect(result[:docker_version]).to eq("27.0.0")
+      expect(result[:output]).to include("Docker is installed but Dokku was not detected")
+    end
+
+    it "uses the dokku binary for non-dokku ssh users" do
+      engine.server.ssh_user = "root"
+      allow(engine).to receive(:run).with("dokku version").and_return(
+        { success: true, output: "dokku version 0.38.1" }
+      )
+      allow(engine).to receive(:run).with("docker --version").and_return(
+        { success: true, output: "Docker version 27.0.0" }
+      )
+
+      result = engine.validate_connection
+      expect(result[:success]).to be true
+      expect(result[:dokku_version]).to eq("0.38.1")
     end
   end
 

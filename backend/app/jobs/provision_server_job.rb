@@ -3,7 +3,7 @@ require "net/ssh"
 class ProvisionServerJob < ApplicationJob
   queue_as :default
 
-  def perform(setup_id, organization_id, host, admin_user, base_url)
+  def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed")
     organization = Organization.find(organization_id)
     org_key = organization.ensure_ssh_key!
 
@@ -14,8 +14,9 @@ class ProvisionServerJob < ApplicationJob
 
     public_key = org_key.public_key
     private_key = org_key.private_key
+    proxy_mode = proxy_mode.to_s.presence || "managed"
 
-    broadcast(setup_id, type: "log", line: "Starting automated provisioning for #{host}")
+    broadcast(setup_id, type: "log", line: "Starting automated provisioning for #{host} (PROXY_MODE=#{proxy_mode})")
 
     admin_server = build_admin_server(host, admin_user, private_key)
     builder = SshConnectionBuilder.new(admin_server, user: admin_user)
@@ -23,7 +24,7 @@ class ProvisionServerJob < ApplicationJob
     begin
       Net::SSH.start(host, admin_user, builder.options) do |ssh|
         broadcast(setup_id, type: "log", line: "Connected to #{host} as #{admin_user}")
-        run_remote_bootstrap(ssh, setup_id, base_url, public_key)
+        run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
       end
     ensure
       builder.cleanup
@@ -53,7 +54,8 @@ class ProvisionServerJob < ApplicationJob
       os: result[:os],
       uptime: result[:uptime],
       public_ip: result[:public_ip],
-      default_proxy: "traefik"
+      default_proxy: "traefik",
+      proxy_mode: proxy_mode
     )
 
     broadcast(setup_id, type: "completed", server_id: server.id, host: server.host)
@@ -72,10 +74,10 @@ class ProvisionServerJob < ApplicationJob
     server
   end
 
-  def run_remote_bootstrap(ssh, setup_id, base_url, public_key)
+  def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
     script_url = "#{base_url.chomp('/')}/bootstrap.sh"
     escaped_key = public_key.gsub("'", "'\"'\"'")
-    command = "curl -fsSL #{script_url} | bash -s -- '#{escaped_key}'"
+    command = "curl -fsSL #{script_url} | PROXY_MODE='#{proxy_mode}' bash -s -- '#{escaped_key}'"
 
     broadcast(setup_id, type: "log", line: "$ #{command}")
 
