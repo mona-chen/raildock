@@ -81,7 +81,8 @@ class ServerTestService
   end
 
   def capture_host_key!(server, session)
-    key = session.host_keys.first
+    transport = session.respond_to?(:transport) ? session.transport : session
+    key = transport.host_keys.first
     return unless key
 
     server.host_key = key.ssh_type + " " + [ key.to_blob ].pack("m0")

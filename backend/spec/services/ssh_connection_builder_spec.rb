@@ -32,7 +32,8 @@ RSpec.describe SshConnectionBuilder do
     it "stores the host key and fingerprint from the session" do
       builder = described_class.new(server, user: "root")
       fake_key = double("key", ssh_type: "ssh-ed25519", to_blob: "fake-blob")
-      session = double("session", host_keys: [ fake_key ])
+      transport = double("transport", host_keys: [ fake_key ])
+      session = double("session", transport: transport)
 
       builder.capture_host_key!(session)
 
@@ -43,7 +44,8 @@ RSpec.describe SshConnectionBuilder do
     it "is a no-op when a host key is already stored" do
       server.update!(host_key: "ssh-ed25519 existing")
       builder = described_class.new(server, user: "root")
-      session = double("session", host_keys: [ double("key") ])
+      transport = double("transport", host_keys: [ double("key") ])
+      session = double("session", transport: transport)
 
       builder.capture_host_key!(session)
       expect(server.reload.host_key).to eq("ssh-ed25519 existing")

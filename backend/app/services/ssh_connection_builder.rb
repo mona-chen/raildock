@@ -38,7 +38,8 @@ class SshConnectionBuilder
   def capture_host_key!(session)
     return if server.host_key.present?
 
-    key = session.host_keys.first
+    transport = session.respond_to?(:transport) ? session.transport : session
+    key = transport.host_keys.first
     return unless key
 
     server.update!(

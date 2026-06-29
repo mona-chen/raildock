@@ -24,11 +24,12 @@ RSpec.describe DokkuEngine, type: :service do
     allow(channel).to receive(:wait)
 
     ssh = double("ssh_session")
+    transport = double("transport", host_keys: [])
     allow(ssh).to receive(:open_channel).and_yield(channel).and_return(channel)
     allow(ssh).to receive(:loop)
     allow(ssh).to receive(:closed?).and_return(false)
     allow(ssh).to receive(:close)
-    allow(ssh).to receive(:host_keys).and_return([])
+    allow(ssh).to receive(:transport).and_return(transport)
 
     allow(Net::SSH).to receive(:start)
       .with(server.host, "dokku", hash_including(key_data: [ server.ssh_key ], non_interactive: true))
