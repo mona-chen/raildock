@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import type { ServerTestResult } from '@/lib/api'
 
 export function useServers() {
   return useQuery({
@@ -18,6 +19,12 @@ export function useCreateServer() {
       toast.success('Server added')
     },
     onError: (err) => toast.error(`Failed to add server: ${err.message}`),
+  })
+}
+
+export function useTestServer() {
+  return useMutation<ServerTestResult, Error, { host: string; sshUser?: string }>({
+    mutationFn: api.servers.test,
   })
 }
 

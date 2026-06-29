@@ -42,7 +42,9 @@ The installer also provisions Nixpacks and Railpack. Railpack uses a managed,
 restartable BuildKit container and configures Dokku's `BUILDKIT_HOST`; deployment
 preflight reports a clear error when a selected external builder is unavailable.
 
-Use `BUILD_FROM_SOURCE=1` or `INSTALL_DOKKU=0` (to skip Dokku install) as needed.
+Use `BUILD_FROM_SOURCE=1` to build the image locally. Use `INSTALL_DOKKU=0` to
+skip Dokku installation when managing only remote hosts. Use `SKIP_DOKKU_CHECK=1`
+to bypass the Dokku presence check entirely.
 
 To use an existing Traefik instance on the Dokku host instead of Dokku's
 managed proxy, install with `PROXY_MODE=external` and set

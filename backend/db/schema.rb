@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_28_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -214,6 +214,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
     t.index ["user_id"], name: "index_organization_memberships_on_user_id"
   end
 
+  create_table "organization_ssh_keys", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "fingerprint", null: false
+    t.bigint "organization_id", null: false
+    t.text "private_key_ciphertext", null: false
+    t.text "public_key", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_organization_ssh_keys_on_organization_id", unique: true
+  end
+
   create_table "organizations", force: :cascade do |t|
     t.string "avatar_url"
     t.datetime "created_at", null: false
@@ -304,9 +314,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
     t.string "external_proxy_network"
     t.string "external_proxy_redirect_middleware"
     t.string "host"
+    t.text "host_key"
+    t.string "host_key_fingerprint"
     t.integer "memory_total"
     t.integer "memory_used"
     t.string "name"
+    t.bigint "organization_id"
     t.string "os"
     t.string "proxy_mode", default: "managed", null: false
     t.string "public_ip"
@@ -316,6 +329,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
     t.datetime "updated_at", null: false
     t.string "uptime"
     t.bigint "user_id"
+    t.index ["organization_id"], name: "index_servers_on_organization_id"
     t.index ["user_id"], name: "index_servers_on_user_id"
   end
 
@@ -423,6 +437,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
   add_foreign_key "organization_invitations", "users", column: "invited_by_id"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
+  add_foreign_key "organization_ssh_keys", "organizations"
   add_foreign_key "organizations", "users", column: "owner_id"
   add_foreign_key "postgres_pitr_configs", "backup_destinations"
   add_foreign_key "postgres_pitr_configs", "services"
@@ -431,6 +446,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_000001) do
   add_foreign_key "projects", "servers"
   add_foreign_key "projects", "users"
   add_foreign_key "restore_drills", "backups"
+  add_foreign_key "servers", "organizations"
   add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"
   add_foreign_key "service_links", "services", column: "to_service_id"

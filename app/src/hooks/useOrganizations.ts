@@ -35,6 +35,14 @@ export function useDeleteOrganization() {
   })
 }
 
+export function useServerBootstrap(organizationId: string | null) {
+  return useQuery({
+    queryKey: ['organizations', organizationId, 'server-bootstrap'],
+    queryFn: () => api.organizations.serverBootstrap(organizationId!),
+    enabled: !!organizationId,
+  })
+}
+
 // ── Members ─────────────────────────────────────
 
 export function useOrganizationMembers(organizationId: string | null) {

@@ -43,9 +43,23 @@ vi.mock('@/hooks/useWebSocketDeployments', () => ({
 vi.mock('@/hooks/useServers', () => ({
   useServers: vi.fn(),
   useCreateServer: () => ({ mutate: vi.fn(), isPending: false }),
+  useTestServer: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useDestroyServer: () => ({ mutate: vi.fn() }),
   useValidateServer: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateServer: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/useOrganizations', () => ({
+  useOrganizations: () => ({ data: [], isLoading: false }),
+  useCreateOrganization: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteOrganization: () => ({ mutate: vi.fn(), isPending: false }),
+  useServerBootstrap: () => ({
+    data: {
+      publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample raildock',
+      command: 'curl -fsSL http://localhost/bootstrap.sh | bash -s -- ssh-ed25519...',
+    },
+    isLoading: false,
+  }),
 }))
 
 vi.mock('@/hooks/useModules', () => ({
@@ -54,11 +68,16 @@ vi.mock('@/hooks/useModules', () => ({
 }))
 
 vi.mock('@/stores/useAuthStore', () => ({
-  useAuthStore: () => ({
-    setToken: vi.fn(),
-    setUser: vi.fn(),
-    isAuthenticated: () => false,
-  }),
+  useAuthStore: (selector?: (state: unknown) => unknown) => {
+    const state = {
+      setToken: vi.fn(),
+      setUser: vi.fn(),
+      isAuthenticated: () => false,
+      currentOrganizationId: 'org-1',
+      currentOrganization: () => ({ id: 'org-1', name: 'Acme', slug: 'acme', role: 'owner' }),
+    }
+    return selector ? selector(state) : state
+  },
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -243,7 +262,7 @@ describe('ServerPage', () => {
     expect(screen.getByText(/Ubuntu 22\.04/)).toBeInTheDocument()
   })
 
-  it('shows add server modal when button is clicked', () => {
+  it('shows add server wizard when button is clicked', () => {
     ;(useServers as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [],
       isLoading: false,
@@ -252,7 +271,11 @@ describe('ServerPage', () => {
     render(<ServerPage />)
 
     fireEvent.click(screen.getByText('Add Server'))
-    expect(screen.getByText('Connect a Dokku host via SSH')).toBeInTheDocument()
+    expect(screen.getByText('Connect a remote Dokku host')).toBeInTheDocument()
+    expect(screen.getByText('Organization public key')).toBeInTheDocument()
+    expect(screen.getByText('Bootstrap command')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Continue'))
     expect(screen.getByPlaceholderText('dokku-prod-01')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('192.168.1.100')).toBeInTheDocument()
   })

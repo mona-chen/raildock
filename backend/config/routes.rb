@@ -98,6 +98,9 @@ Rails.application.routes.draw do
         get :networks, to: "networks#index"
         post "networks/validate", to: "networks#validate", as: :validate_network
       end
+      collection do
+        post :test
+      end
     end
 
     resources :organizations do

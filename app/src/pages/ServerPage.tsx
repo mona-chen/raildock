@@ -2,23 +2,21 @@ import { Server, HardDrive, Activity, Plus, Trash2, Settings } from 'lucide-reac
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
-import { useServers, useCreateServer, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
+import { useServers, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
 import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
+import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export default function ServerPage() {
   const { data: servers = [], isLoading } = useServers()
-  const createServer = useCreateServer()
   const destroyServer = useDestroyServer()
   const validateServer = useValidateServer()
   const updateServer = useUpdateServer()
   const validateNetwork = useValidateNetwork()
+  const organization = useAuthStore((s) => s.currentOrganization())
+  const canCreateServer = organization?.role === 'owner'
 
   const [showAdd, setShowAdd] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newHost, setNewHost] = useState('')
-  const [newSshKey, setNewSshKey] = useState('')
-  const [newBaseDomain, setNewBaseDomain] = useState('')
-  const [newAutoDomains, setNewAutoDomains] = useState(true)
   const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [proxyNetwork, setProxyNetwork] = useState('')
@@ -28,26 +26,6 @@ export default function ServerPage() {
   const [redirectMiddleware, setRedirectMiddleware] = useState('')
   const [defaultLabels, setDefaultLabels] = useState('{}')
   const { data: networks = [], isLoading: networksLoading } = useNetworks(settingsServer?.id)
-
-  const handleAdd = () => {
-    if (!newName.trim() || !newHost.trim()) return
-    createServer.mutate({
-      name: newName,
-      host: newHost,
-      sshKey: newSshKey,
-      baseDomain: newBaseDomain || undefined,
-      autoDomains: newAutoDomains,
-    }, {
-      onSuccess: () => {
-        setNewName('')
-        setNewHost('')
-        setNewSshKey('')
-        setNewBaseDomain('')
-        setNewAutoDomains(true)
-        setShowAdd(false)
-      },
-    })
-  }
 
   const openSettings = (server: ServerRecord) => {
     setSettingsServer(server)
@@ -94,12 +72,14 @@ export default function ServerPage() {
           <Server size={18} className="text-rail-purple" />
           <h1 className="text-base font-semibold text-white">Servers</h1>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-xs font-medium hover:bg-rail-purple/25 transition-all"
-        >
-          <Plus size={14} /> Add Server
-        </button>
+        {canCreateServer && (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-xs font-medium hover:bg-rail-purple/25 transition-all"
+          >
+            <Plus size={14} /> Add Server
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -210,70 +190,19 @@ export default function ServerPage() {
             <div className="text-center py-16 text-[#4A4A55]">
               <Server size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-sm">No servers connected</p>
-              <button onClick={() => setShowAdd(true)} className="mt-3 text-rail-purple text-sm hover:underline">
-                Connect your first server
-              </button>
+              {canCreateServer ? (
+                <button onClick={() => setShowAdd(true)} className="mt-3 text-rail-purple text-sm hover:underline">
+                  Connect your first server
+                </button>
+              ) : (
+                <p className="mt-3 text-[11px]">Only organization owners can connect servers.</p>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {showAdd && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowAdd(false)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white mb-1">Add Server</h3>
-            <p className="text-xs text-[#4A4A55] mb-4">Connect a Dokku host via SSH</p>
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="server-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Server Name</label>
-                <input id="server-name" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="dokku-prod-01" />
-              </div>
-              <div>
-                <label htmlFor="server-host" className="text-[11px] text-[#6B6B7B] block mb-1.5">Host / IP</label>
-                <input id="server-host" value={newHost} onChange={(e) => setNewHost(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="192.168.1.100" />
-              </div>
-              <div>
-                <label htmlFor="server-ssh-key" className="text-[11px] text-[#6B6B7B] block mb-1.5">SSH Private Key</label>
-                <textarea id="server-ssh-key" value={newSshKey} onChange={(e) => setNewSshKey(e.target.value)} rows={4} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple font-mono text-[11px]" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..." />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="server-base-domain" className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
-                  <button
-                    type="button"
-                    onClick={() => setNewBaseDomain('sslip.io')}
-                    className="text-[10px] px-2 py-0.5 bg-rail-purple/10 text-rail-purple rounded-full hover:bg-rail-purple/20 transition-all"
-                  >
-                    Use sslip.io
-                  </button>
-                </div>
-                <input id="server-base-domain" value={newBaseDomain} onChange={(e) => setNewBaseDomain(e.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple" placeholder="example.com" />
-                <p className="text-[10px] text-[#4A4A55] mt-1">
-                  {newBaseDomain === 'sslip.io'
-                    ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)'
-                    : 'Auto-assigns subdomains like app-name.example.com'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="auto-domains"
-                  type="checkbox"
-                  checked={newAutoDomains}
-                  onChange={(e) => setNewAutoDomains(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-[rgba(255,255,255,0.15)] bg-[#0B0B0D] text-rail-purple focus:ring-rail-purple"
-                />
-                <label htmlFor="auto-domains" className="text-[11px] text-[#6B6B7B]">Auto-assign temporary domains for new services</label>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]">Cancel</button>
-              <button onClick={handleAdd} disabled={createServer.isPending} className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50">
-                {createServer.isPending ? 'Adding...' : 'Add Server'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showAdd && <ServerSetupWizard isOpen={showAdd} onClose={() => setShowAdd(false)} />}
 
       {settingsServer && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setSettingsServer(null)}>

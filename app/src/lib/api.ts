@@ -431,15 +431,33 @@ export const servicesApi = {
 
 // ── Servers API ──────────────────────────────
 
+export interface ServerTestResult {
+  success: boolean
+  error?: string
+  host?: string
+  sshUser?: string
+  hostKey?: string
+  hostKeyFingerprint?: string
+  dokkuVersion?: string
+  dockerVersion?: string
+  os?: string
+  uptime?: string
+  publicIp?: string
+}
+
 export const serversApi = {
   list: async (): Promise<Server[]> => {
     const data = await fetchJson<unknown[]>('/api/servers')
     return data.map(normalizeServer)
   },
 
-  create: async (data: { name: string; host: string; sshKey?: string; sshUser?: string; baseDomain?: string; autoDomains?: boolean }): Promise<Server> => {
+  create: async (data: { name: string; host: string; sshKey?: string; sshUser?: string; baseDomain?: string; autoDomains?: boolean; hostKey?: string; hostKeyFingerprint?: string }): Promise<Server> => {
     const res = await fetchJson<unknown>('/api/servers', { method: 'POST', body: wrapBody('server', data) })
     return normalizeServer(res)
+  },
+
+  test: async (data: { host: string; sshUser?: string }): Promise<ServerTestResult> => {
+    return fetchJson('/api/servers/test', { method: 'POST', body: wrapBody('server', data) })
   },
 
   update: async (id: string, data: Partial<Server>): Promise<Server> => {
@@ -552,6 +570,10 @@ export const organizationsApi = {
 
   destroy: async (id: string): Promise<void> => {
     await fetchJson(`/api/organizations/${id}`, { method: 'DELETE' })
+  },
+
+  serverBootstrap: async (id: string): Promise<{ publicKey: string; command: string }> => {
+    return fetchJson(`/api/organizations/${id}/server_bootstrap`)
   },
 
   members: {

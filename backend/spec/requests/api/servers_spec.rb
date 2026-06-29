@@ -3,6 +3,9 @@ require "rails_helper"
 RSpec.describe "Api::ServersController", type: :request do
   let(:user) { create(:user) }
   let!(:server) { create(:server) }
+  let(:organization) { server.organization }
+  let!(:membership) { create(:organization_membership, user: user, organization: organization, role: :owner) }
+  let(:org_headers) { auth_headers(user).merge("X-Organization-ID" => organization.id.to_s) }
 
   describe "GET /api/servers" do
     context "when unauthenticated" do
@@ -13,8 +16,8 @@ RSpec.describe "Api::ServersController", type: :request do
     end
 
     context "when authenticated" do
-      it "returns all servers" do
-        get "/api/servers", headers: auth_headers(user)
+      it "returns organization servers" do
+        get "/api/servers", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -30,7 +33,6 @@ RSpec.describe "Api::ServersController", type: :request do
         server: {
           name: "Production Server",
           host: "192.168.1.100",
-          ssh_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----",
           default_proxy: "traefik"
         }
       }
@@ -44,19 +46,69 @@ RSpec.describe "Api::ServersController", type: :request do
     end
 
     context "when authenticated" do
-      it "creates a server with disconnected status" do
+      it "creates an organization server with disconnected status" do
         expect {
-          post "/api/servers", params: valid_params, headers: auth_headers(user)
+          post "/api/servers", params: valid_params, headers: org_headers
         }.to change(Server, :count).by(1)
 
         expect(response).to have_http_status(:created)
         json = JSON.parse(response.body)
         expect(json["name"]).to eq("Production Server")
         expect(json["status"]).to eq("disconnected")
+
+        created = Server.order(:id).last
+        expect(created.organization_id).to eq(organization.id)
+        expect(created.user_id).to be_nil
       end
 
       it "returns 422 with invalid data" do
-        post "/api/servers", params: { server: { name: "", host: "" } }, headers: auth_headers(user)
+        post "/api/servers", params: { server: { name: "", host: "" } }, headers: org_headers
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it "returns 403 without an organization for non-admins" do
+        regular_user = create(:user, admin: false)
+
+        post "/api/servers", params: valid_params, headers: auth_headers(regular_user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+  end
+
+  describe "POST /api/servers/test" do
+    let(:test_params) { { server: { host: "192.168.1.100" } } }
+
+    context "when unauthenticated" do
+      it "returns 401" do
+        post "/api/servers/test", params: test_params
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "when authenticated" do
+      it "returns test result" do
+        result = {
+          success: true,
+          host: "192.168.1.100",
+          host_key_fingerprint: "SHA256:abc",
+          dokku_version: "0.35.0",
+          docker_version: "26.0.0"
+        }
+        service = instance_double(ServerTestService, test: result)
+        allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.100", ssh_user: nil).and_return(service)
+
+        post "/api/servers/test", params: test_params, headers: org_headers
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json["success"]).to be true
+        expect(json["host_key_fingerprint"]).to eq("SHA256:abc")
+      end
+
+      it "returns 422 without an organization" do
+        post "/api/servers/test", params: test_params, headers: auth_headers(user)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -82,7 +134,7 @@ RSpec.describe "Api::ServersController", type: :request do
           { success: true, output: "nginx" }
         )
 
-        post "/api/servers/#{server.id}/validate", headers: auth_headers(user)
+        post "/api/servers/#{server.id}/validate", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -101,7 +153,7 @@ RSpec.describe "Api::ServersController", type: :request do
           { success: false, output: "Connection refused" }
         )
 
-        post "/api/servers/#{server.id}/validate", headers: auth_headers(user)
+        post "/api/servers/#{server.id}/validate", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -112,7 +164,7 @@ RSpec.describe "Api::ServersController", type: :request do
       end
 
       it "returns 404 for non-existent server" do
-        post "/api/servers/999999/validate", headers: auth_headers(user)
+        post "/api/servers/999999/validate", headers: org_headers
 
         expect(response).to have_http_status(:not_found)
       end
@@ -141,7 +193,7 @@ RSpec.describe "Api::ServersController", type: :request do
           { success: true, output: "38" }
         )
 
-        get "/api/servers/#{server.id}/metrics", headers: auth_headers(user)
+        get "/api/servers/#{server.id}/metrics", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -151,9 +203,9 @@ RSpec.describe "Api::ServersController", type: :request do
       end
 
       it "returns zeroed metrics when ssh_key is blank" do
-        server_without_key = create(:server, ssh_key: nil)
+        server_without_key = create(:server, ssh_key: nil, organization: organization)
 
-        get "/api/servers/#{server_without_key.id}/metrics", headers: auth_headers(user)
+        get "/api/servers/#{server_without_key.id}/metrics", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -163,7 +215,7 @@ RSpec.describe "Api::ServersController", type: :request do
       end
 
       it "returns 404 for non-existent server" do
-        get "/api/servers/999999/metrics", headers: auth_headers(user)
+        get "/api/servers/999999/metrics", headers: org_headers
 
         expect(response).to have_http_status(:not_found)
       end
@@ -181,14 +233,14 @@ RSpec.describe "Api::ServersController", type: :request do
     context "when authenticated" do
       it "destroys the server" do
         expect {
-          delete "/api/servers/#{server.id}", headers: auth_headers(user)
+          delete "/api/servers/#{server.id}", headers: org_headers
         }.to change(Server, :count).by(-1)
 
         expect(response).to have_http_status(:no_content)
       end
 
       it "returns 404 for non-existent server" do
-        delete "/api/servers/999999", headers: auth_headers(user)
+        delete "/api/servers/999999", headers: org_headers
 
         expect(response).to have_http_status(:not_found)
       end

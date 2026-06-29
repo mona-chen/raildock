@@ -103,17 +103,19 @@ module Authorizable
   def authorize_server!(action: :read)
     return true if current_user.admin?
 
-    # Server authorization is based on organization role when an org is selected.
-    return false unless current_organization
+    if current_organization
+      membership = current_user.organization_memberships.find_by(organization_id: current_organization.id)
+      unless membership
+        render json: { error: "Forbidden" }, status: :forbidden and return
+      end
 
-    membership = current_user.organization_memberships.find_by(organization_id: current_organization.id)
-    unless membership
-      render json: { error: "Forbidden" }, status: :forbidden and return
-    end
-
-    allowed_roles = PERMISSIONS.dig(:server, action) || []
-    unless allowed_roles.include?(membership.role.to_sym)
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      allowed_roles = PERMISSIONS.dig(:server, action) || []
+      unless allowed_roles.include?(membership.role.to_sym)
+        render json: { error: "Forbidden" }, status: :forbidden and return
+      end
+    else
+      # Personal servers are only accessible by their owner; create requires an organization.
+      render json: { error: "Forbidden" }, status: :forbidden and return if action == :create
     end
   end
 
@@ -131,7 +133,11 @@ module Authorizable
   def scoped_servers
     return Server.all if current_user.admin?
 
-    Server.where(user_id: current_user.id)
+    if current_organization
+      Server.where(organization: current_organization)
+    else
+      Server.where(organization_id: nil, user_id: current_user.id)
+    end
   end
 
   # Get current user's role in the organization

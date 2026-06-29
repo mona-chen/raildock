@@ -18,6 +18,26 @@ RSpec.describe Server, type: :model do
   describe "validations" do
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_presence_of(:host) }
+
+    it "rejects a duplicate host within the same organization" do
+      existing = create(:server)
+      duplicate = build(:server, host: existing.host, organization: existing.organization)
+
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:host]).to be_present
+    end
+
+    it "rejects an invalid SSH key" do
+      server = build(:server, ssh_key: "not-a-key")
+
+      expect(server).not_to be_valid
+      expect(server.errors[:ssh_key]).to be_present
+    end
+
+    it "accepts a valid SSH key" do
+      server = build(:server)
+      expect(server).to be_valid
+    end
   end
 
   describe "associations" do

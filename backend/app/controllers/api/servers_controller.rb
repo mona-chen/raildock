@@ -23,8 +23,31 @@ module Api
       authorize_server!(action: :create)
       return if performed?
 
-      server = Server.create!(server_params.merge(status: :disconnected, user: current_user))
+      server = build_server_from_params
+      server.save!
+      audit_log(action: "server.create", server: server, metadata: { host: server.host })
       render json: server, status: :created
+    end
+
+    def test
+      authorize_server!(action: :create)
+      return if performed?
+
+      unless current_organization
+        return render json: { error: "Organization required" }, status: :unprocessable_entity
+      end
+
+      result = ServerTestService.new(
+        organization: current_organization,
+        host: test_params[:host],
+        ssh_user: test_params[:ssh_user]
+      ).test
+
+      audit_log(
+        action: "server.test",
+        metadata: { host: test_params[:host], ssh_user: test_params[:ssh_user], success: result[:success] }
+      )
+      render json: result
     end
 
     def update
@@ -32,6 +55,7 @@ module Api
       return if performed?
 
       @server.update!(server_params)
+      audit_log(action: "server.update", server: @server, metadata: { host: @server.host })
       render json: @server
     end
 
@@ -61,6 +85,7 @@ module Api
         @server.update!(status: :error)
       end
 
+      audit_log(action: "server.validate", server: @server, metadata: { host: @server.host, success: result[:success] })
       render json: result.merge(default_proxy: @server.default_proxy)
     end
 
@@ -96,6 +121,7 @@ module Api
       authorize_server_record!(@server, action: :delete)
       return if performed?
 
+      audit_log(action: "server.destroy", server: @server, metadata: { host: @server.host })
       @server.destroy!
       head :no_content
     end
@@ -107,26 +133,48 @@ module Api
     end
 
     def server_params
-      params.require(:server).permit(
+      permitted = [
         :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
         :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
-        :external_proxy_redirect_middleware,
+        :external_proxy_redirect_middleware, :host_key, :host_key_fingerprint,
         external_proxy_default_labels: {}
-      )
+      ]
+      params.require(:server).permit(permitted)
     rescue ActionController::ParameterMissing
-      params.permit(
-        :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
-        :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
-        :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
-        :external_proxy_redirect_middleware,
-        external_proxy_default_labels: {}
-      )
+      params.permit(permitted)
+    end
+
+    def test_params
+      params.require(:server).permit(:host, :ssh_user)
+    rescue ActionController::ParameterMissing
+      params.permit(:host, :ssh_user)
+    end
+
+    def build_server_from_params
+      server = Server.new(server_params.merge(status: :disconnected))
+
+      if current_organization
+        server.organization = current_organization
+        server.user = nil
+        server.ssh_key ||= current_organization.ensure_ssh_key!.private_key
+      else
+        server.user = current_user
+      end
+
+      server
     end
 
     def authorize_server_record!(server, action:)
       return true if current_user.admin?
-      return true if server.user_id == current_user.id
+
+      if server.organization_id.present?
+        membership = current_user.organization_memberships.find_by(organization_id: server.organization_id)
+        allowed = PERMISSIONS.dig(:server, action) || []
+        return true if membership && allowed.include?(membership.role.to_sym)
+      elsif server.user_id == current_user.id
+        return true
+      end
 
       render json: { error: "Forbidden" }, status: :forbidden
     end
@@ -138,6 +186,18 @@ module Api
         return p if output.downcase.include?(p)
       end
       "nginx"
+    end
+
+    def audit_log(action:, server: nil, metadata: {})
+      Rails.logger.info({
+        event: "audit",
+        action: action,
+        user_id: current_user&.id,
+        organization_id: current_organization&.id || server&.organization_id,
+        server_id: server&.id,
+        ip: request.remote_ip,
+        metadata: metadata
+      }.to_json)
     end
   end
 end

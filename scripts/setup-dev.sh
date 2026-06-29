@@ -220,13 +220,18 @@ inject_server() {
     exit 1
   fi
 
+  local tmp_key
+  tmp_key=$(mktemp /tmp/raildock-dev-key.XXXXXX)
+  chmod 600 "$tmp_key"
+  trap 'rm -f "$tmp_key"' EXIT
+
   # Copy SSH key into container
-  docker cp "$SSH_KEY_DIR/id_ed25519" "$BACKEND_CONTAINER:/tmp/id_ed25519"
-  docker exec --user root "$BACKEND_CONTAINER" chmod 644 /tmp/id_ed25519
+  docker cp "$SSH_KEY_DIR/id_ed25519" "$BACKEND_CONTAINER:$tmp_key"
+  docker exec --user root "$BACKEND_CONTAINER" chmod 600 "$tmp_key"
 
   # Inline Ruby to create/update server and assign to projects
   docker exec "$BACKEND_CONTAINER" bin/rails runner "
-    privkey = File.read('/tmp/id_ed25519')
+    privkey = File.read('$tmp_key')
     server = Server.first
 
     if server
@@ -260,6 +265,8 @@ inject_server() {
       puts \"Assigned server to project: #{project.name}\"
     end
   "
+
+  docker exec --user root "$BACKEND_CONTAINER" rm -f "$tmp_key"
 
   log_ok "Local Dokku server configured"
 }

@@ -6,6 +6,9 @@ class Server < ApplicationRecord
 
   validates :name, presence: true
   validates :host, presence: true
+  validates :host, uniqueness: { scope: :organization_id, case_sensitive: false }, if: :organization_id?
+  validates :host, uniqueness: { scope: :user_id, case_sensitive: false }, if: -> { organization_id.blank? && user_id.present? }
+  validate :ssh_key_format, if: -> { ssh_key.present? }
 
   enum :status, {
     connected: "connected",
@@ -98,5 +101,12 @@ class Server < ApplicationRecord
       methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains ],
       except: [ :ssh_key_ciphertext, :host_key ]
     ))
+  end
+
+  private
+
+  def ssh_key_format
+    result = SshKeyValidator.validate(ssh_key)
+    errors.add(:ssh_key, result[:error]) unless result[:valid]
   end
 end

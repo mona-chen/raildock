@@ -11,6 +11,9 @@ set -e
 
 # ── Config ────────────────────────────────────
 RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
+INSTALL_DOKKU="${INSTALL_DOKKU:-1}"
+SKIP_DOKKU_CHECK="${SKIP_DOKKU_CHECK:-0}"
+
 case "${1:-}" in
   update|upgrade) INSTALL_DIR="$(pwd)" ;;
   *)              INSTALL_DIR="${1:-$(pwd)}" ;;
@@ -120,8 +123,18 @@ is_dokku_installed() {
 }
 
 check_dokku() {
+  if [ "$SKIP_DOKKU_CHECK" = "1" ]; then
+    log_info "SKIP_DOKKU_CHECK=1 — skipping Dokku presence check"
+    return 0
+  fi
+
   if is_dokku_installed; then
     log_ok "Dokku $(dokku version | head -1) is installed"
+    return 0
+  fi
+
+  if [ "$INSTALL_DOKKU" != "1" ]; then
+    log_warn "Dokku is not installed and INSTALL_DOKKU=0 — continuing without Dokku"
     return 0
   fi
 
@@ -414,21 +427,24 @@ create_local_server_record() {
     return 0
   fi
 
-  local dokku_host
+  local dokku_host tmp_key
   dokku_host=$(detect_dokku_host)
+  tmp_key=$(mktemp /tmp/raildock-dokku-key.XXXXXX)
+  chmod 600 "$tmp_key"
+  trap 'rm -f "$tmp_key"' EXIT
 
   log_step "Creating local Dokku server record..."
 
   # Copy the key into the container temporarily so Rails can read it
-  docker compose -f "$COMPOSE_FILE" cp "$SSH_KEY_DIR/id_ed25519" "raildock:/tmp/raildock-dokku-key" >/dev/null 2>&1 || {
+  docker compose -f "$COMPOSE_FILE" cp "$SSH_KEY_DIR/id_ed25519" "raildock:$tmp_key" >/dev/null 2>&1 || {
     log_warn "Could not copy SSH key into RailDock container"
     return 1
   }
 
-  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock chmod 644 /tmp/raildock-dokku-key
+  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock chmod 600 "$tmp_key"
 
   docker compose -f "$COMPOSE_FILE" exec -T raildock bin/rails runner "
-    privkey = File.read('/tmp/raildock-dokku-key')
+    privkey = File.read('$tmp_key')
     server = Server.find_by(host: '$dokku_host')
 
     if server
@@ -490,7 +506,7 @@ create_local_server_record() {
     end
   "
 
-  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock rm -f /tmp/raildock-dokku-key
+  docker compose -f "$COMPOSE_FILE" exec -T --user root raildock rm -f "$tmp_key"
 
   log_ok "Local Dokku server record created"
 }

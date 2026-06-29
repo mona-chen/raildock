@@ -2,11 +2,7 @@ require "rails_helper"
 
 RSpec.describe DokkuEngine, type: :service do
   let(:server) do
-    create(
-      :server,
-      host: "192.168.1.10",
-      ssh_key: "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
-    )
+    create(:server, host: "192.168.1.10")
   end
 
   subject(:engine) { described_class.new(server) }
