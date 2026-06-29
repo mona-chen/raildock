@@ -280,7 +280,7 @@ describe('ServerPage', () => {
     fireEvent.click(screen.getByText('Add Server'))
     expect(screen.getByText('Connect a remote Dokku host')).toBeInTheDocument()
     expect(screen.getByText('Organization public key')).toBeInTheDocument()
-    expect(screen.getByText('Bootstrap command')).toBeInTheDocument()
+    expect(screen.getByText('Bootstrap command (run as root)')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Continue'))
     expect(screen.getByPlaceholderText('dokku-prod-01')).toBeInTheDocument()

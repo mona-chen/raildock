@@ -187,10 +187,35 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
             <div className="p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
               <h4 className="text-xs font-medium text-white mb-1">1. Authorize RailDock</h4>
               <p className="text-[11px] text-[#6B6B7B] mb-3">
-                Copy the public key below and add it to the remote host, or run the bootstrap script as root to install Docker, Dokku, and authorize the key automatically.
+                Run the command below as <strong>root</strong> to install Docker, Dokku, and authorize this key automatically. Or add the key manually to the admin user&apos;s <code className="text-white">~/.ssh/authorized_keys</code>.
               </p>
 
               <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
+                      <Terminal size={11} /> Bootstrap command (run as root)
+                    </label>
+                    {bootstrap?.command && (
+                      <button
+                        onClick={() => copy(bootstrap.command, 'command')}
+                        className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
+                      >
+                        {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
+                        {copiedKey === 'command' ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    readOnly
+                    value={bootstrap?.command || ''}
+                    placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
+                    rows={3}
+                    style={{ whiteSpace: 'nowrap' }}
+                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+                  />
+                </div>
+
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
@@ -214,31 +239,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     style={{ whiteSpace: 'nowrap' }}
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
                   />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
-                      <Terminal size={11} /> Bootstrap command
-                    </label>
-                    {bootstrap?.command && (
-                      <button
-                        onClick={() => copy(bootstrap.command, 'command')}
-                        className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
-                      >
-                        {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
-                        {copiedKey === 'command' ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    readOnly
-                    value={bootstrap?.command || ''}
-                    placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
-                    rows={3}
-                    style={{ whiteSpace: 'nowrap' }}
-                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
-                  />
+                  <p className="text-[10px] text-[#4A4A55] mt-1.5">
+                    Add this to <code className="text-[#6B6B7B]">~/.ssh/authorized_keys</code> on the remote host. If you plan to connect as the <code className="text-[#6B6B7B]">dokku</code> user, also add it to <code className="text-[#6B6B7B]">/home/dokku/.ssh/authorized_keys</code> after Dokku is installed.
+                  </p>
                 </div>
               </div>
             </div>
@@ -246,9 +249,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
             <div className="flex justify-between items-center">
               <button
                 onClick={() => setStep('connect')}
-                className="text-[11px] text-[#6B6B7B] hover:text-white transition-all"
+                className="text-[11px] text-rail-purple hover:text-rail-purple-light transition-all underline underline-offset-2"
               >
-                I already added the key →
+                I&apos;ll add the key manually →
               </button>
               <button
                 onClick={() => setStep('connect')}
