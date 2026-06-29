@@ -6,6 +6,7 @@ class Organization < ApplicationRecord
   has_many :projects, dependent: :destroy
   has_many :git_sources, dependent: :destroy
   has_many :deploy_keys, dependent: :destroy
+  has_one :ssh_key, class_name: "OrganizationSshKey", dependent: :destroy
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true
@@ -28,5 +29,9 @@ class Organization < ApplicationRecord
 
   def owner_membership
     memberships.find_by(role: :owner)
+  end
+
+  def ensure_ssh_key!
+    ssh_key || OrganizationSshKeyService.generate(self)
   end
 end
