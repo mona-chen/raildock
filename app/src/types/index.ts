@@ -308,6 +308,22 @@ export interface Server {
   publicIp?: string
 }
 
+export interface DockerContainer {
+  id: string
+  name: string
+  image: string
+  status: string
+  running: boolean
+  created: string
+  command?: string
+  ports: Array<{ containerPort: string; hostPort?: string; hostIp?: string }>
+  env: Record<string, string>
+  mounts: Array<{ source: string; destination: string; type: string; mode?: string }>
+  labels: Record<string, string>
+  serviceType: 'app' | 'database'
+  subtype?: string
+}
+
 // ───────────────────────────────────────────────
 // Git Sources
 // ───────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import type { ServerTestResult } from '@/lib/api'
+import type { DockerContainer } from '@/types'
 
 export function useServers() {
   return useQuery({
@@ -62,5 +63,28 @@ export function useDestroyServer() {
       toast.success('Server removed')
     },
     onError: (err) => toast.error(`Failed to remove server: ${err.message}`),
+  })
+}
+
+export function useServerDockerContainers(serverId: string | undefined) {
+  return useQuery({
+    queryKey: ['servers', serverId, 'docker-imports'],
+    queryFn: () => api.servers.dockerImports.list(serverId!),
+    enabled: !!serverId,
+  })
+}
+
+export function useImportDockerContainers(serverId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ containers, projectId }: { containers: DockerContainer[]; projectId?: string }) =>
+      api.servers.dockerImports.import(serverId!, { containers, projectId }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'docker-imports'] })
+      const imported = result.results.filter((r) => r.success).length
+      toast.success(`Imported ${imported} container${imported === 1 ? '' : 's'} into ${result.projectName}`)
+    },
+    onError: (err) => toast.error(`Import failed: ${err.message}`),
   })
 }

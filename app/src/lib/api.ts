@@ -30,6 +30,7 @@ import type {
   RestoreDrill,
   Backup,
   RepositoryImportPreview,
+  DockerContainer,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -476,6 +477,23 @@ export const serversApi = {
 
   destroy: async (id: string): Promise<void> => {
     await fetchJson(`/api/servers/${id}`, { method: 'DELETE' })
+  },
+
+  dockerImports: {
+    list: async (serverId: string): Promise<DockerContainer[]> => {
+      return fetchJson(`/api/servers/${serverId}/docker_imports`)
+    },
+    import: async (serverId: string, data: { containers: DockerContainer[]; projectId?: string }): Promise<{
+      success: boolean
+      projectId: string
+      projectName: string
+      results: Array<{ success: boolean; serviceId?: string; name?: string; error?: string }>
+    }> => {
+      return fetchJson(`/api/servers/${serverId}/docker_imports`, {
+        method: 'POST',
+        body: JSON.stringify({ containers: data.containers, project_id: data.projectId }),
+      })
+    },
   },
 }
 

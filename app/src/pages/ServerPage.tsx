@@ -1,10 +1,11 @@
-import { Server, HardDrive, Activity, Plus, Trash2, Settings } from 'lucide-react'
+import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
 import { useServers, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
 import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
+import ServerDockerImportModal from '@/features/servers/ServerDockerImportModal'
 import { useAuthStore } from '@/stores/useAuthStore'
 
 export default function ServerPage() {
@@ -18,6 +19,7 @@ export default function ServerPage() {
 
   const [showAdd, setShowAdd] = useState(false)
   const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
+  const [importServer, setImportServer] = useState<ServerRecord | null>(null)
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [proxyNetwork, setProxyNetwork] = useState('')
   const [httpEntrypoint, setHttpEntrypoint] = useState('web')
@@ -121,6 +123,13 @@ export default function ServerPage() {
                         </button>
                       )}
                       <button
+                        onClick={() => setImportServer(srv)}
+                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        title="Import Docker containers"
+                      >
+                        <Container size={14} />
+                      </button>
+                      <button
                         onClick={() => openSettings(srv)}
                         className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
                         title="Proxy settings"
@@ -203,6 +212,14 @@ export default function ServerPage() {
       </div>
 
       {showAdd && <ServerSetupWizard isOpen={showAdd} onClose={() => setShowAdd(false)} />}
+
+      {importServer && (
+        <ServerDockerImportModal
+          serverId={importServer.id}
+          serverName={importServer.name}
+          onClose={() => setImportServer(null)}
+        />
+      )}
 
       {settingsServer && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setSettingsServer(null)}>
