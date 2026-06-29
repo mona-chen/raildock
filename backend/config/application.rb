@@ -58,7 +58,7 @@ module Backend
     config.active_record.encryption.key_derivation_salt = ENV["ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"].presence || ENV["RAILS_MASTER_KEY"].presence || SecureRandom.hex(32)
 
     # Public app URL used to build invitation links. Falls back to localhost.
-    config.x.app_url = ENV["APP_URL"].presence
+    config.x.app_url = ENV["APP_URL"].presence || ENV["RAILDOCK_PUBLIC_URL"].presence
     config.action_mailer.default_url_options = {
       host: ENV.fetch("APP_HOST", "localhost"),
       port: ENV["APP_PORT"].presence&.to_i,

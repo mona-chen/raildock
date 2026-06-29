@@ -37,6 +37,12 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [showLogs, setShowLogs] = useState(false)
   const [setupId, setSetupId] = useState<string | null>(null)
 
+  const scriptUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const bootstrapCommand =
+    bootstrap?.publicKey && scriptUrl
+      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
+      : bootstrap?.command || ''
+
   const provisionServer = useProvisionServer()
   const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
 
@@ -196,9 +202,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
                       <Terminal size={11} /> Bootstrap command (run as root)
                     </label>
-                    {bootstrap?.command && (
+                    {bootstrapCommand && (
                       <button
-                        onClick={() => copy(bootstrap.command, 'command')}
+                        onClick={() => copy(bootstrapCommand, 'command')}
                         className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
                       >
                         {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
@@ -208,7 +214,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   </div>
                   <textarea
                     readOnly
-                    value={bootstrap?.command || ''}
+                    value={bootstrapCommand}
                     placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
                     rows={3}
                     style={{ whiteSpace: 'nowrap' }}

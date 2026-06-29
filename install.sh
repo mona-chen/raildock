@@ -651,6 +651,7 @@ RAILS_ENV=production
 PORT=${APP_PORT}
 FRONTEND_URL=${public_url}
 RAILDOCK_PUBLIC_URL=${public_url}
+APP_URL=${public_url}
 RAILDOCK_PUBLIC_HOST=${public_host}
 DOKKU_HOST=${dokku_host}
 TRAEFIK_ENABLE=${TRAEFIK_ENABLE:-false}
