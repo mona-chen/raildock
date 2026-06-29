@@ -210,7 +210,8 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     readOnly
                     value={bootstrap?.publicKey || ''}
                     placeholder={bootstrapLoading ? 'Loading public key...' : 'Public key unavailable'}
-                    rows={3}
+                    rows={2}
+                    style={{ whiteSpace: 'nowrap' }}
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
                   />
                 </div>
@@ -235,6 +236,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     value={bootstrap?.command || ''}
                     placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
                     rows={3}
+                    style={{ whiteSpace: 'nowrap' }}
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
                   />
                 </div>

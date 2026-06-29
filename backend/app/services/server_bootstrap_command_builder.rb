@@ -17,8 +17,8 @@ class ServerBootstrapCommandBuilder
   attr_reader :organization, :base_url
 
   def command_for(public_key)
-    escaped_key = Shellwords.escape(public_key.strip)
-    "curl -fsSL #{script_url} | bash -s -- #{escaped_key}"
+    key = public_key.strip.gsub("'", "'\"'\"'")
+    "curl -fsSL #{script_url} | bash -s -- '#{key}'"
   end
 
   def script_url
