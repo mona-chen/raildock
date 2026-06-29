@@ -42,6 +42,11 @@ The installer also provisions Nixpacks and Railpack. Railpack uses a managed,
 restartable BuildKit container and configures Dokku's `BUILDKIT_HOST`; deployment
 preflight reports a clear error when a selected external builder is unavailable.
 
+Team invitations require outgoing SMTP. Set `SMTP_ADDRESS`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_PASSWORD`, and `MAIL_FROM` in `.env` (or configure SMTP
+in `SystemSetting` after install). Until SMTP is configured, invitations are
+still created but the UI warns that the invite link must be shared manually.
+
 Use `BUILD_FROM_SOURCE=1` to build the image locally. Use `INSTALL_DOKKU=0` to
 skip Dokku installation when managing only remote hosts. Use `SKIP_DOKKU_CHECK=1`
 to bypass the Dokku presence check entirely.
@@ -56,6 +61,16 @@ External mode stops Dokku's managed Traefik and sets the global proxy to
 `none` so it does not conflict with the external Traefik. RailDock applies
 process-scoped Docker labels directly through Dokku's `docker-options` plugin.
 The external Traefik itself is never started, stopped, or reconfigured by RailDock.
+
+## Remote server setup
+
+Remote hosts are bootstrapped via the script returned by
+`GET /api/organizations/:id/server_bootstrap`. Run it as root; it installs
+Docker, Dokku, the datastore plugins, and the Nixpacks/Railpack builders,
+authorizes the organization's public key for both `root` and `dokku`, and
+raises `sshd` connection limits. For fully automated provisioning, add the
+organization public key to an admin user's `~/.ssh/authorized_keys` first so
+`ProvisionServerJob` can connect and run the bootstrap for you.
 
 ## Credentials & secrets
 
