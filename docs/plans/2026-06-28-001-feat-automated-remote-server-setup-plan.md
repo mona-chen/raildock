@@ -2,7 +2,7 @@
 title: "Automated Remote Dokku Server Setup"
 type: feat
 date: 2026-06-28
-status: active
+status: implemented
 ---
 
 # Automated Remote Dokku Server Setup
