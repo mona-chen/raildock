@@ -234,7 +234,7 @@ ensure_builder_binaries() {
   if ! command -v railpack >/dev/null 2>&1; then
     log_info "Installing railpack..."
     if curl -fsSL https://railpack.com/install.sh -o /tmp/raildock-railpack-install.sh \
-      && sh /tmp/raildock-railpack-install.sh --bin-dir /usr/local/bin; then
+      && bash /tmp/raildock-railpack-install.sh --bin-dir /usr/local/bin --yes; then
       log_ok "railpack installed"
     else
       log_warn "Failed to install railpack — Dockerfile and other available builders remain usable"
