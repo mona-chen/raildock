@@ -28,6 +28,12 @@ export function useTestServer() {
   })
 }
 
+export function useProvisionServer() {
+  return useMutation<{ setupId: string }, Error, { host: string; adminUser?: string; setupId: string }>({
+    mutationFn: api.servers.provision,
+  })
+}
+
 export function useValidateServer() {
   return useMutation({
     mutationFn: api.servers.validate,

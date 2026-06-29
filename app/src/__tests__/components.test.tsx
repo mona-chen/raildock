@@ -44,9 +44,14 @@ vi.mock('@/hooks/useServers', () => ({
   useServers: vi.fn(),
   useCreateServer: () => ({ mutate: vi.fn(), isPending: false }),
   useTestServer: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  useProvisionServer: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useDestroyServer: () => ({ mutate: vi.fn() }),
   useValidateServer: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateServer: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/useServerSetupLogs', () => ({
+  useServerSetupLogs: () => ({ logs: [], state: 'idle', error: null, serverId: null }),
 }))
 
 vi.mock('@/hooks/useOrganizations', () => ({

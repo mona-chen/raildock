@@ -50,6 +50,30 @@ module Api
       render json: result
     end
 
+    def provision
+      authorize_server!(action: :create)
+      return if performed?
+
+      unless current_organization
+        return render json: { error: "Organization required" }, status: :unprocessable_entity
+      end
+
+      setup_id = SecureRandom.uuid
+      ProvisionServerJob.perform_later(
+        setup_id,
+        current_organization.id,
+        provision_params[:host].to_s.strip,
+        provision_params[:admin_user].presence || "root",
+        Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}"
+      )
+
+      audit_log(
+        action: "server.provision",
+        metadata: { host: provision_params[:host], admin_user: provision_params[:admin_user] || "root", setup_id: setup_id }
+      )
+      render json: { setup_id: setup_id }
+    end
+
     def update
       authorize_server_record!(@server, action: :update)
       return if performed?
@@ -149,6 +173,12 @@ module Api
       params.require(:server).permit(:host, :ssh_user)
     rescue ActionController::ParameterMissing
       params.permit(:host, :ssh_user)
+    end
+
+    def provision_params
+      params.require(:server).permit(:host, :admin_user)
+    rescue ActionController::ParameterMissing
+      params.permit(:host, :admin_user)
     end
 
     def build_server_from_params

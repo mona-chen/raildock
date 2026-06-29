@@ -461,6 +461,10 @@ export const serversApi = {
     return fetchJson('/api/servers/test', { method: 'POST', body: wrapBody('server', data) })
   },
 
+  provision: async (data: { host: string; adminUser?: string; setupId: string }): Promise<{ setupId: string }> => {
+    return fetchJson('/api/servers/provision', { method: 'POST', body: wrapBody('server', data) })
+  },
+
   update: async (id: string, data: Partial<Server>): Promise<Server> => {
     const res = await fetchJson<unknown>(`/api/servers/${id}`, { method: 'PATCH', body: wrapBody('server', data) })
     return normalizeServer(res)

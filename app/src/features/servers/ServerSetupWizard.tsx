@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, Check, Copy, KeyRound, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
-import { useCreateServer, useTestServer, useValidateServer } from '@/hooks/useServers'
+import { useCreateServer, useTestServer, useProvisionServer, useValidateServer } from '@/hooks/useServers'
+import { useServerSetupLogs } from '@/hooks/useServerSetupLogs'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
 import type { ServerTestResult } from '@/lib/api'
@@ -29,19 +30,27 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [name, setName] = useState('')
   const [host, setHost] = useState('')
   const [sshUser, setSshUser] = useState('dokku')
+  const [adminUser, setAdminUser] = useState('root')
   const [baseDomain, setBaseDomain] = useState('')
   const [autoDomains, setAutoDomains] = useState(true)
   const [testResult, setTestResult] = useState<ServerTestResult | null>(null)
   const [showLogs, setShowLogs] = useState(false)
+  const [setupId, setSetupId] = useState<string | null>(null)
+
+  const provisionServer = useProvisionServer()
+  const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
 
   const reset = () => {
     setStep('bootstrap')
     setName('')
     setHost('')
     setSshUser('dokku')
+    setAdminUser('root')
     setBaseDomain('')
     setAutoDomains(true)
     setTestResult(null)
+    setShowLogs(false)
+    setSetupId(null)
   }
 
   useEffect(() => {
@@ -100,6 +109,23 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       }
     )
   }
+
+  const handleProvision = () => {
+    if (!host.trim()) {
+      toast.error('Host / IP is required')
+      return
+    }
+    const id = crypto.randomUUID()
+    setSetupId(id)
+    provisionServer.mutate({ host: host.trim(), adminUser: adminUser.trim() || 'root', setupId: id })
+  }
+
+  useEffect(() => {
+    if (provisionState === 'completed') {
+      toast.success('Server provisioned and added')
+      setTimeout(onClose, 1500)
+    }
+  }, [provisionState, onClose])
 
   const renderStepIndicator = () => (
     <div className="flex items-center gap-2 mb-6">
@@ -271,6 +297,30 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   placeholder="dokku"
                 />
               </div>
+
+              <div className="col-span-2 p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
+                <h4 className="text-xs font-medium text-white mb-2">Automatic provisioning</h4>
+                <p className="text-[10px] text-[#6B6B7B] mb-3">
+                  If you already added the organization key to an admin user (e.g. root), RailDock can connect and run the bootstrap for you.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={adminUser}
+                    onChange={(e) => setAdminUser(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                    placeholder="root"
+                  />
+                  <button
+                    onClick={handleProvision}
+                    disabled={!host.trim() || !canCreate || provisionState === 'live' || provisionState === 'connecting'}
+                    className="px-4 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {(provisionState === 'live' || provisionState === 'connecting') && <Loader2 size={12} className="animate-spin" />}
+                    {provisionState === 'live' || provisionState === 'connecting' ? 'Provisioning...' : 'Provision'}
+                  </button>
+                </div>
+              </div>
+
               <div className="col-span-2">
                 <div className="flex items-center justify-between mb-1.5">
                   <label htmlFor="wizard-base-domain" className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
@@ -332,7 +382,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   onClick={() => setShowLogs((s) => !s)}
                   className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0] hover:text-white"
                 >
-                  <span>Setup logs</span>
+                  <span>Connection test logs</span>
                   <span className="text-[10px]">{showLogs ? 'Hide' : 'Show'}</span>
                 </button>
                 {showLogs && (
@@ -341,6 +391,29 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     {testServer.error && <div className="text-rail-red">{testServer.error.message}</div>}
                   </div>
                 )}
+              </div>
+            )}
+
+            {setupId && (
+              <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
+                <div className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0]">
+                  <span>Provisioning logs</span>
+                  <span className="text-[10px]">
+                    {provisionState === 'completed' && 'Completed'}
+                    {provisionState === 'failed' && 'Failed'}
+                    {(provisionState === 'live' || provisionState === 'connecting') && 'Streaming...'}
+                  </span>
+                </div>
+                <div className="p-3 bg-[#161618] max-h-48 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
+                  {provisionLogs.length === 0 && <div className="text-[#4A4A55]">Waiting for logs...</div>}
+                  {provisionLogs.map((log, i) => (
+                    <div key={i} className={log.stream === 'stderr' ? 'text-rail-red' : ''}>{log.line}</div>
+                  ))}
+                  {provisionError && <div className="text-rail-red">{provisionError}</div>}
+                  {provisionServerId && (
+                    <div className="text-rail-green">Server added (ID: {provisionServerId})</div>
+                  )}
+                </div>
               </div>
             )}
 

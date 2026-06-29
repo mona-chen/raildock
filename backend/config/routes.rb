@@ -100,6 +100,7 @@ Rails.application.routes.draw do
       end
       collection do
         post :test
+        post :provision
       end
     end
 
