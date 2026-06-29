@@ -9,6 +9,11 @@ RSpec.describe "Storage Mounts API", type: :request do
   let(:service) { create(:service, project: project) }
   let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}", "X-Organization-ID" => organization.id.to_s } }
 
+  before do
+    allow_any_instance_of(DokkuEngine).to receive(:storage_mount).and_return({ success: true, output: "" })
+    allow_any_instance_of(DokkuEngine).to receive(:storage_unmount).and_return({ success: true, output: "" })
+  end
+
   describe "POST /api/services/:service_id/storage" do
     it "creates a storage mount" do
       post "/api/services/#{service.id}/storage",
