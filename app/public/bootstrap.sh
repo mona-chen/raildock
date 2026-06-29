@@ -139,6 +139,34 @@ install_docker() {
   systemctl start docker || true
 }
 
+prepare_port_80() {
+  # Dokku's package installs nginx and tries to start it on port 80.
+  # If another service is already bound to port 80, dpkg will fail.
+  local listener
+  listener=$(ss -tlnp 2>/dev/null | awk '/:80 / {print $0}' | head -1)
+  if [ -z "$listener" ]; then
+    return 0
+  fi
+
+  if echo "$listener" | grep -qE '"nginx"'; then
+    log_info "Port 80 already in use by nginx; continuing"
+    return 0
+  fi
+
+  local proc
+  proc=$(echo "$listener" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+  log_warn "Port 80 is in use by $proc; stopping it so Dokku's nginx can start"
+
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl stop "$proc" 2>/dev/null || true
+    systemctl disable "$proc" 2>/dev/null || true
+  fi
+
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k 80/tcp 2>/dev/null || true
+  fi
+}
+
 install_dokku() {
   if command -v dokku >/dev/null 2>&1; then
     log_info "Dokku already installed: $(dokku version)"
@@ -151,6 +179,7 @@ install_dokku() {
   fi
 
   log_info "Installing Dokku..."
+  export DEBIAN_FRONTEND=noninteractive
   export DOKKU_TAG="${DOKKU_TAG:-v0.38.1}"
   export DOKKU_VHOST_ENABLE="${DOKKU_VHOST_ENABLE:-false}"
   export DOKKU_SKIP_KEY_FILE="true"
@@ -160,6 +189,7 @@ install_dokku() {
 configure_sshd
 ensure_user_and_key root
 install_docker
+prepare_port_80
 install_dokku
 ensure_dokku_plugins
 ensure_builder_binaries
