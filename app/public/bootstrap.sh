@@ -13,6 +13,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 PUBLIC_KEY="${1:-}"
+PROXY_MODE="${PROXY_MODE:-managed}"
 
 if [ -z "$PUBLIC_KEY" ]; then
   echo "Usage: $0 '<ssh-public-key>'" >&2
@@ -155,6 +156,22 @@ prepare_port_80() {
 
   local proc
   proc=$(echo "$listener" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+
+  # Existing reverse proxies (Coolify/Traefik/Caddy) should not be killed.
+  if echo "$proc" | grep -qiE 'traefik|caddy'; then
+    if [ "$PROXY_MODE" = "external" ]; then
+      log_info "Port 80 is in use by $proc; external proxy mode enabled, leaving it in place"
+      return 0
+    fi
+    log_warn "Port 80 is in use by $proc. Run with PROXY_MODE=external to reuse it, or stop it first."
+    exit 1
+  fi
+
+  if [ "$PROXY_MODE" = "external" ]; then
+    log_info "Port 80 is in use by $proc; external proxy mode does not need port 80"
+    return 0
+  fi
+
   log_warn "Port 80 is in use by $proc; stopping it so Dokku's nginx can start"
 
   if command -v systemctl >/dev/null 2>&1; then
@@ -165,6 +182,17 @@ prepare_port_80() {
   if command -v fuser >/dev/null 2>&1; then
     fuser -k 80/tcp 2>/dev/null || true
   fi
+}
+
+block_service_starts() {
+  # Prevent dpkg from starting nginx (or any other service) during package install.
+  # This is needed when an existing reverse proxy already owns port 80/443.
+  printf '%s\n' '#!/bin/sh' 'exit 101' > /usr/sbin/policy-rc.d
+  chmod +x /usr/sbin/policy-rc.d
+}
+
+unblock_service_starts() {
+  rm -f /usr/sbin/policy-rc.d
 }
 
 install_dokku() {
@@ -178,12 +206,39 @@ install_dokku() {
     return 0
   fi
 
-  log_info "Installing Dokku..."
+  log_info "Installing Dokku (PROXY_MODE=$PROXY_MODE)..."
   export DEBIAN_FRONTEND=noninteractive
   export DOKKU_TAG="${DOKKU_TAG:-v0.38.1}"
   export DOKKU_VHOST_ENABLE="${DOKKU_VHOST_ENABLE:-false}"
   export DOKKU_SKIP_KEY_FILE="true"
+
+  if [ "$PROXY_MODE" = "external" ]; then
+    block_service_starts
+  fi
+
   curl -fsSL "https://raw.githubusercontent.com/dokku/dokku/${DOKKU_TAG}/bootstrap.sh" | bash
+
+  if [ "$PROXY_MODE" = "external" ]; then
+    unblock_service_starts
+  fi
+}
+
+configure_dokku_proxy() {
+  if ! command -v dokku >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ "$PROXY_MODE" = "external" ]; then
+    log_info "Configuring external proxy mode — Dokku will not manage nginx/Traefik"
+    # Stop and mask nginx so it does not try to bind port 80/443.
+    systemctl stop nginx 2>/dev/null || true
+    systemctl mask nginx 2>/dev/null || true
+    dokku proxy:set --global none 2>/dev/null || true
+    return 0
+  fi
+
+  # Default managed mode: ensure nginx is unmasked so Dokku can use it.
+  systemctl unmask nginx 2>/dev/null || true
 }
 
 configure_sshd
@@ -191,6 +246,7 @@ ensure_user_and_key root
 install_docker
 prepare_port_80
 install_dokku
+configure_dokku_proxy
 ensure_dokku_plugins
 ensure_builder_binaries
 # Dokku must be installed before the dokku user exists, so add the key after.
