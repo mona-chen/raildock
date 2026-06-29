@@ -7,6 +7,11 @@ set -e
 # Usage:
 #   curl -fsSL https://<raildock-host>/bootstrap.sh | bash -s -- '<org-public-key>'
 
+if [ "$(id -u)" -ne 0 ]; then
+  echo "This script must be run as root" >&2
+  exit 1
+fi
+
 PUBLIC_KEY="${1:-}"
 
 if [ -z "$PUBLIC_KEY" ]; then
@@ -77,8 +82,9 @@ install_dokku() {
 }
 
 ensure_user_and_key root
-ensure_user_and_key dokku
 install_docker
 install_dokku
+# Dokku must be installed before the dokku user exists, so add the key after.
+ensure_user_and_key dokku
 
 log_info "Bootstrap complete. Return to RailDock and click Validate Server."
