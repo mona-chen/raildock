@@ -1,6 +1,6 @@
 module Api
   class OrganizationsController < BaseController
-    before_action :set_organization, only: [ :show, :update, :destroy ]
+    before_action :set_organization, only: [ :show, :update, :destroy, :server_bootstrap ]
 
     def index
       organizations = current_user.organizations.includes(:owner, :memberships).order(:name)
@@ -52,6 +52,21 @@ module Api
 
       @organization.destroy
       head :no_content
+    end
+
+    def server_bootstrap
+      authorize_organization_access!(@organization)
+      return if performed?
+
+      unless current_user_membership&.admin? || current_user_membership&.owner?
+        return render json: { error: "Forbidden" }, status: :forbidden
+      end
+
+      builder = ServerBootstrapCommandBuilder.new(
+        @organization,
+        base_url: Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}"
+      )
+      render json: builder.build
     end
 
     private

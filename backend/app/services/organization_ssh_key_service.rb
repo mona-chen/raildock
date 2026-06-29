@@ -50,7 +50,7 @@ class OrganizationSshKeyService
 
         {
           private_key: private_key,
-          public_key: public_key,
+          public_key: public_key.strip,
           fingerprint: fingerprint
         }
       ensure

@@ -110,6 +110,9 @@ Rails.application.routes.draw do
       resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
       resources :invitations, controller: "organization_invitations", only: [ :index, :create, :destroy ]
       resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
+      member do
+        get :server_bootstrap
+      end
     end
 
     # Standalone invitation endpoints (token is the credential, no JWT required).
