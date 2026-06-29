@@ -2,6 +2,7 @@ class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
   has_many :backup_destinations, dependent: :destroy
   belongs_to :user, optional: true
+  belongs_to :organization, optional: true
 
   validates :name, presence: true
   validates :host, presence: true
@@ -95,7 +96,7 @@ class Server < ApplicationRecord
   def as_json(options = {})
     super(options.merge(
       methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains ],
-      except: [ :ssh_key_ciphertext ]
+      except: [ :ssh_key_ciphertext, :host_key ]
     ))
   end
 end

@@ -274,35 +274,23 @@ class HostEngine
     owns_session = session.nil?
 
     if owns_session
-      session = Net::SSH.start(
-        server.public_ip || server.host,
-        SSH_USER,
-        key_data: [ server.ssh_key ],
-        non_interactive: true,
-        timeout: SSH_TIMEOUT,
-        verify_host_key: :never,
-        host_key_alias: "#{server.host}-root"
-      )
+      session = Net::SSH.start(server.public_ip || server.host, SSH_USER, ssh_connection_options)
+      ssh_connection_builder.capture_host_key!(session)
     end
 
     yield session
   ensure
     session.close if owns_session && session && !session.closed?
+    ssh_connection_builder.cleanup if owns_session
   end
 
   def open_session
     close_session
     retries = 0
     begin
-      Thread.current[:host_engine_session] = Net::SSH.start(
-        server.public_ip || server.host,
-        SSH_USER,
-        key_data: [ server.ssh_key ],
-        non_interactive: true,
-        timeout: SSH_TIMEOUT,
-        verify_host_key: :never,
-        host_key_alias: "#{server.host}-root"
-      )
+      session = Net::SSH.start(server.public_ip || server.host, SSH_USER, ssh_connection_options)
+      ssh_connection_builder.capture_host_key!(session)
+      Thread.current[:host_engine_session] = session
     rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
       retries += 1
       raise if retries > 3
@@ -310,6 +298,14 @@ class HostEngine
       sleep(retries * 2)
       retry
     end
+  end
+
+  def ssh_connection_options
+    ssh_connection_builder.options
+  end
+
+  def ssh_connection_builder
+    @ssh_connection_builder ||= SshConnectionBuilder.new(server, user: SSH_USER)
   end
 
   def close_session

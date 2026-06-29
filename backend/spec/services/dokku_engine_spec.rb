@@ -32,6 +32,7 @@ RSpec.describe DokkuEngine, type: :service do
     allow(ssh).to receive(:loop)
     allow(ssh).to receive(:closed?).and_return(false)
     allow(ssh).to receive(:close)
+    allow(ssh).to receive(:host_keys).and_return([])
 
     allow(Net::SSH).to receive(:start)
       .with(server.host, "dokku", hash_including(key_data: [ server.ssh_key ], non_interactive: true))

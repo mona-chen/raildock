@@ -13,5 +13,6 @@ FactoryBot.define do
     memory_used { 62 }
     memory_total { 128 }
     default_proxy { "traefik" }
+    organization
   end
 end

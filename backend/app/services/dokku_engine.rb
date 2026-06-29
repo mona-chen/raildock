@@ -1002,18 +1002,22 @@ class DokkuEngine
 
     if owns_session
       session = Net::SSH.start(*ssh_connection_options)
+      ssh_connection_builder.capture_host_key!(session)
     end
 
     yield session
   ensure
     session.close if owns_session && session && !session.closed?
+    ssh_connection_builder.cleanup if owns_session
   end
 
   def open_session
     close_session
     retries = 0
     begin
-      Thread.current[:dokku_engine_session] = Net::SSH.start(*ssh_connection_options)
+      session = Net::SSH.start(*ssh_connection_options)
+      ssh_connection_builder.capture_host_key!(session)
+      Thread.current[:dokku_engine_session] = session
     rescue Net::SSH::Exception, Errno::ECONNRESET, Errno::EPIPE, IOError => e
       retries += 1
       raise if retries > 3
@@ -1046,19 +1050,12 @@ class DokkuEngine
 
   # Build SSH connection options with timeouts and security settings
   def ssh_connection_options
-    [
-      server.host,
-      server.ssh_user || DokkuEngineConstants::SSH_USER,
-      {
-        key_data: [ server.ssh_key ],
-        non_interactive: true,
-        timeout: DokkuEngineConstants::SSH_TIMEOUT,
-        verify_host_key: :never,
-        keepalive: true,
-        keepalive_interval: 15,
-        keepalive_maxcount: 3
-      }
-    ]
+    builder = ssh_connection_builder
+    [ server.host, server.ssh_user || DokkuEngineConstants::SSH_USER, builder.options ]
+  end
+
+  def ssh_connection_builder
+    @ssh_connection_builder ||= SshConnectionBuilder.new(server, user: server.ssh_user || DokkuEngineConstants::SSH_USER)
   end
 
   # Parse Dokku datastore plugin info output into structured hash.
