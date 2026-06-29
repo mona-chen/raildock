@@ -59,6 +59,8 @@ vi.mock('@/hooks/useOrganizations', () => ({
       command: 'curl -fsSL http://localhost/bootstrap.sh | bash -s -- ssh-ed25519...',
     },
     isLoading: false,
+    isError: false,
+    error: null,
   }),
 }))
 

@@ -40,7 +40,7 @@ WORKDIR /rails
 # Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-        curl nginx supervisor libjemalloc2 postgresql-client \
+        curl nginx supervisor libjemalloc2 postgresql-client openssh-client \
     && apt-get install -y libcap2-bin \
     && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \

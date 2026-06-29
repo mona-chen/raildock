@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Copy, KeyRound, Loader2, Server, Terminal } from 'lucide-react'
+import { AlertCircle, Check, Copy, KeyRound, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
 import { useCreateServer, useTestServer, useValidateServer } from '@/hooks/useServers'
@@ -19,7 +19,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const organization = useAuthStore((s) => s.currentOrganization())
   const canCreate = organization?.role === 'owner'
 
-  const { data: bootstrap, isLoading: bootstrapLoading } = useServerBootstrap(organizationId)
+  const { data: bootstrap, isLoading: bootstrapLoading, isError: bootstrapError, error: bootstrapErrorDetail } = useServerBootstrap(organizationId)
   const testServer = useTestServer()
   const createServer = useCreateServer()
   const validateServer = useValidateServer()
@@ -146,6 +146,15 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
 
         {step === 'bootstrap' && (
           <div className="space-y-4">
+            {bootstrapError && (
+              <div className="p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 flex items-start gap-2">
+                <AlertCircle size={14} className="text-rail-red mt-0.5 shrink-0" />
+                <div className="text-[11px] text-rail-red">
+                  <p className="font-medium">Could not load setup credentials</p>
+                  <p className="opacity-90">{bootstrapErrorDetail?.message || 'Please check your connection and try again.'}</p>
+                </div>
+              </div>
+            )}
             <div className="p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
               <h4 className="text-xs font-medium text-white mb-1">1. Authorize RailDock</h4>
               <p className="text-[11px] text-[#6B6B7B] mb-3">
