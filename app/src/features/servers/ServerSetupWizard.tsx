@@ -40,6 +40,13 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const provisionServer = useProvisionServer()
   const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
 
+  useEffect(() => {
+    if (provisionState === 'completed') {
+      toast.success('Server provisioned and added')
+      setTimeout(onClose, 1500)
+    }
+  }, [provisionState, onClose])
+
   const reset = () => {
     setStep('bootstrap')
     setName('')
@@ -119,13 +126,6 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setSetupId(id)
     provisionServer.mutate({ host: host.trim(), adminUser: adminUser.trim() || 'root', setupId: id })
   }
-
-  useEffect(() => {
-    if (provisionState === 'completed') {
-      toast.success('Server provisioned and added')
-      setTimeout(onClose, 1500)
-    }
-  }, [provisionState, onClose])
 
   const renderStepIndicator = () => (
     <div className="flex items-center gap-2 mb-6">

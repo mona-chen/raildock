@@ -105,7 +105,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
       get "/api/me", headers: bob_headers
       expect(response).to have_http_status(:ok)
       bob_me = JSON.parse(response.body)
-      orgs = bob_me["organizations"].map { |o| [o["id"], o["role"]] }.to_h
+      orgs = bob_me["organizations"].map { |o| [ o["id"], o["role"] ] }.to_h
       expect(orgs[org_id]).to eq("admin")
 
       # ── 10. Change Bob's role to member ────────────────────────────────────

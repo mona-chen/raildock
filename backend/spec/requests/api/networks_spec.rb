@@ -2,8 +2,10 @@ require 'rails_helper'
 
 RSpec.describe "Networks API", type: :request do
   let(:user) { create(:user, admin: false) }
-  let(:server) { create(:server, user: user) }
-  let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
+  let(:organization) { create(:organization, owner: user) }
+  let!(:membership) { create(:organization_membership, user: user, organization: organization, role: :owner) }
+  let(:server) { create(:server, organization: organization) }
+  let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}", "X-Organization-ID" => organization.id.to_s } }
   let(:host_engine) { instance_double(HostEngine) }
 
   before do

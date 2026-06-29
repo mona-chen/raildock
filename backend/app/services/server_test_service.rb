@@ -89,6 +89,6 @@ class ServerTestService
   end
 
   def error(message)
-    { success: false, error: message, logs: [message] }
+    { success: false, error: message, logs: [ message ] }
   end
 end

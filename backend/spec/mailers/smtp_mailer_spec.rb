@@ -9,11 +9,11 @@ RSpec.describe SmtpMailer, type: :mailer do
     end
 
     it "renders the receiver" do
-      expect(mail.to).to eq(["admin@example.com"])
+      expect(mail.to).to eq([ "admin@example.com" ])
     end
 
     it "renders the sender from default" do
-      expect(mail.from).to eq(["no-reply@localhost"])
+      expect(mail.from).to eq([ "no-reply@localhost" ])
     end
 
     it "includes the success indicator in HTML part" do

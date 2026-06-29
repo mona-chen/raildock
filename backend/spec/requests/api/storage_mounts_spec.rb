@@ -2,10 +2,12 @@ require 'rails_helper'
 
 RSpec.describe "Storage Mounts API", type: :request do
   let(:user) { create(:user) }
-  let(:server) { create(:server) }
-  let(:project) { create(:project, server: server) }
+  let(:organization) { create(:organization, owner: user) }
+  let!(:membership) { create(:organization_membership, user: user, organization: organization, role: :owner) }
+  let(:server) { create(:server, organization: organization) }
+  let(:project) { create(:project, server: server, organization: organization) }
   let(:service) { create(:service, project: project) }
-  let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
+  let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}", "X-Organization-ID" => organization.id.to_s } }
 
   describe "POST /api/services/:service_id/storage" do
     it "creates a storage mount" do
