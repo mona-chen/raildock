@@ -593,6 +593,7 @@ export const organizationsApi = {
       invitation?: OrganizationInvitation
       acceptUrl?: string
       existingUser: boolean
+      emailEnqueued?: boolean
     }> => {
       return fetchJson(`/api/organizations/${organizationId}/members`, {
         method: 'POST',

@@ -55,6 +55,7 @@ export default function MembersTab() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null)
+  const [lastInviteEmailEnqueued, setLastInviteEmailEnqueued] = useState<boolean>(false)
 
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin'
   const isOwner = currentUserRole === 'owner'
@@ -82,6 +83,7 @@ export default function MembersTab() {
           setInviteEmail('')
           if (result.acceptUrl && !result.existingUser) {
             setLastInviteUrl(result.acceptUrl)
+            setLastInviteEmailEnqueued(result.emailEnqueued ?? false)
           } else {
             setInviteOpen(false)
           }
@@ -93,6 +95,7 @@ export default function MembersTab() {
   const closeInviteDialog = () => {
     setInviteOpen(false)
     setLastInviteUrl(null)
+    setLastInviteEmailEnqueued(false)
     setInviteEmail('')
   }
 
@@ -136,7 +139,7 @@ export default function MembersTab() {
                 <DialogDescription className="text-[11px] text-[#4A4A55]">
                   {lastInviteUrl
                     ? 'Share this link with your teammate. It expires in 7 days.'
-                    : 'Enter an email address. If they already have a RailDock account they\'ll be added immediately; otherwise we\'ll send an invitation.'}
+                    : 'Enter an email address. If they already have a RailDock account they\'ll be added immediately; otherwise we\'ll create an invitation.'}
                 </DialogDescription>
               </DialogHeader>
 
@@ -155,9 +158,15 @@ export default function MembersTab() {
                       {copiedKey === 'invite' ? <><Check size={12} className="mr-1 text-[#22c55e]" /> Copied</> : <><Copy size={12} className="mr-1" /> Copy</>}
                     </Button>
                   </div>
-                  <p className="text-[10px] text-[#4A4A55]">
-                    We also tried to send an email. If it didn't go out, share this link directly.
-                  </p>
+                  {lastInviteEmailEnqueued ? (
+                    <p className="text-[10px] text-[#4A4A55]">
+                      We also sent an email with this link.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-rail-red">
+                      Email delivery is not configured, so the invite was not emailed. Copy and share this link directly.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3 py-2">

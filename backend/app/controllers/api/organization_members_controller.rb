@@ -25,11 +25,12 @@ module Api
           role: params[:role].presence || "member"
         )
         if invitation.save
-          OrganizationMailer.invitation_email(invitation).deliver_later
+          email_enqueued = deliver_invitation_email(invitation)
           render json: {
             invitation: invitation.as_json(include: { invited_by: { only: [ :id, :name, :email ] } }),
             accept_url: accept_url_for(invitation),
-            existing_user: false
+            existing_user: false,
+            email_enqueued: email_enqueued
           }, status: :created
         else
           render json: { error: invitation.errors.full_messages.join(", ") },
@@ -135,6 +136,22 @@ module Api
       base = Rails.application.config.x.app_url.presence ||
         "#{request.protocol}#{request.host_with_port}"
       "#{base}/invitations/#{invitation.token}"
+    end
+
+    def deliver_invitation_email(invitation)
+      return false unless mailer_configured?
+
+      OrganizationMailer.invitation_email(invitation).deliver_later
+      true
+    rescue => e
+      Rails.logger.error("[Invitation] Failed to enqueue email to #{invitation.email}: #{e.message}")
+      false
+    end
+
+    def mailer_configured?
+      # The SmtpService switches ActiveMailer to :smtp when DB or env SMTP is configured.
+      # Only enqueue real email when we have a real delivery backend.
+      ActionMailer::Base.delivery_method == :smtp
     end
   end
 end

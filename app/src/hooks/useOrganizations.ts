@@ -63,8 +63,12 @@ export function useAddOrganizationMember(organizationId: string | null) {
       queryClient.invalidateQueries({ queryKey: ['organizations', organizationId, 'invitations'] })
       if (result.existingUser) {
         toast.success(`Added ${result.membership?.user.email}`)
-      } else {
+      } else if (result.emailEnqueued) {
         toast.success(`Invitation sent to ${result.invitation?.email}`)
+      } else {
+        toast.success(`Invitation created for ${result.invitation?.email}`, {
+          description: 'Email is not configured, so copy the invite link and share it directly.',
+        })
       }
     },
     onError: (err: Error) => toast.error(`Failed to add member: ${err.message}`),

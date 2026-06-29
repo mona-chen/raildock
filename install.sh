@@ -652,6 +652,8 @@ PORT=${APP_PORT}
 FRONTEND_URL=${public_url}
 RAILDOCK_PUBLIC_URL=${public_url}
 APP_URL=${public_url}
+APP_HOST=${public_host}
+APP_PROTOCOL=http
 RAILDOCK_PUBLIC_HOST=${public_host}
 DOKKU_HOST=${dokku_host}
 TRAEFIK_ENABLE=${TRAEFIK_ENABLE:-false}
@@ -672,6 +674,16 @@ LOCKBOX_MASTER_KEY=${lockbox_key}
 ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ar_primary_key}
 ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=${ar_deterministic_key}
 ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ar_key_derivation_salt}
+
+# Email (required for team invitations)
+# SMTP_ADDRESS=smtp.example.com
+# SMTP_PORT=587
+# SMTP_USERNAME=your-smtp-user
+# SMTP_PASSWORD=your-smtp-password
+# SMTP_DOMAIN=your-domain.com
+# SMTP_AUTH=plain
+# SMTP_STARTTLS=true
+# MAIL_FROM=no-reply@your-domain.com
 EOF
 
   chmod 600 "$ENV_FILE"
@@ -840,6 +852,31 @@ fill_missing_env_vars() {
     echo "CABLE_DATABASE_URL=postgres://raildock:${pg_pass}@db:5432/raildock_production_cable" >> "$ENV_FILE"
     added=1
     log_info "Generated missing auxiliary database URLs"
+  fi
+
+  if ! grep -q "^APP_HOST=" "$ENV_FILE" 2>/dev/null && grep -q "^RAILDOCK_PUBLIC_URL=" "$ENV_FILE" 2>/dev/null; then
+    local public_url public_host
+    public_url=$(grep "^RAILDOCK_PUBLIC_URL=" "$ENV_FILE" | cut -d= -f2-)
+    public_host=$(get_public_host "$public_url")
+    echo "APP_HOST=${public_host}" >> "$ENV_FILE"
+    echo "APP_PROTOCOL=http" >> "$ENV_FILE"
+    added=1
+    log_info "Added missing APP_HOST/APP_PROTOCOL"
+  fi
+
+  if ! grep -q "^SMTP_ADDRESS=" "$ENV_FILE" 2>/dev/null; then
+    echo "" >> "$ENV_FILE"
+    echo "# Email / SMTP (required for team invitations)" >> "$ENV_FILE"
+    echo "# SMTP_ADDRESS=smtp.example.com" >> "$ENV_FILE"
+    echo "# SMTP_PORT=587" >> "$ENV_FILE"
+    echo "# SMTP_USERNAME=your-smtp-user" >> "$ENV_FILE"
+    echo "# SMTP_PASSWORD=your-smtp-password" >> "$ENV_FILE"
+    echo "# SMTP_DOMAIN=your-domain.com" >> "$ENV_FILE"
+    echo "# SMTP_AUTH=plain" >> "$ENV_FILE"
+    echo "# SMTP_STARTTLS=true" >> "$ENV_FILE"
+    echo "# MAIL_FROM=no-reply@your-domain.com" >> "$ENV_FILE"
+    added=1
+    log_info "Added SMTP placeholders"
   fi
 
   if [ "$added" = "1" ]; then

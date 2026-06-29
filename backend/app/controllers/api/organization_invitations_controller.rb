@@ -36,8 +36,8 @@ module Api
       end
 
       if invitation.save
-        deliver_invitation(invitation, existing_user)
-        render json: invitation_payload(invitation, existing_user: existing_user),
+        email_enqueued = deliver_invitation(invitation, existing_user)
+        render json: invitation_payload(invitation, existing_user: existing_user, email_enqueued: email_enqueued),
                status: :created
       else
         render json: { error: invitation.errors.full_messages.join(", ") },
@@ -71,20 +71,29 @@ module Api
     end
 
     def deliver_invitation(invitation, existing_user)
+      return false unless mailer_configured?
+
       OrganizationMailer.invitation_email(invitation).deliver_later
       Rails.logger.info(
         "[Invitation] #{invitation.email} invited to org=#{@organization.id} " \
         "by user=#{current_user.id} role=#{invitation.role} existing=#{existing_user.present?}"
       )
+      true
     rescue => e
       Rails.logger.error("[Invitation] Failed to enqueue mailer: #{e.message}")
+      false
     end
 
-    def invitation_payload(invitation, existing_user:)
+    def mailer_configured?
+      ActionMailer::Base.delivery_method == :smtp
+    end
+
+    def invitation_payload(invitation, existing_user:, email_enqueued: false)
       base = invitation.as_json(include: { invited_by: { only: [ :id, :name, :email ] } })
       base.merge(
         "accept_url" => accept_url_for(invitation),
-        "existing_user" => existing_user.present?
+        "existing_user" => existing_user.present?,
+        "email_enqueued" => email_enqueued
       )
     end
 
