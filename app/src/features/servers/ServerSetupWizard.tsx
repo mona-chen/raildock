@@ -32,6 +32,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [baseDomain, setBaseDomain] = useState('')
   const [autoDomains, setAutoDomains] = useState(true)
   const [testResult, setTestResult] = useState<ServerTestResult | null>(null)
+  const [showLogs, setShowLogs] = useState(false)
 
   const reset = () => {
     setStep('bootstrap')
@@ -55,6 +56,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       return
     }
     setTestResult(null)
+    setShowLogs(true)
     testServer.mutate(
       { host: host.trim(), sshUser: sshUser.trim() || 'dokku' },
       {
@@ -63,6 +65,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
             setTestResult(result)
             toast.success('Connection test succeeded')
           } else {
+            setTestResult(result)
             toast.error(result.error || 'Connection test failed')
           }
         },
@@ -212,7 +215,13 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => setStep('connect')}
+                className="text-[11px] text-[#6B6B7B] hover:text-white transition-all"
+              >
+                I already added the key →
+              </button>
               <button
                 onClick={() => setStep('connect')}
                 className="px-4 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark transition-all"
@@ -314,6 +323,24 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
             {testServer.error && !testResult && (
               <div className="p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 text-[11px] text-rail-red">
                 {testServer.error.message}
+              </div>
+            )}
+
+            {(testResult?.logs || testServer.error) && (
+              <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowLogs((s) => !s)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0] hover:text-white"
+                >
+                  <span>Setup logs</span>
+                  <span className="text-[10px]">{showLogs ? 'Hide' : 'Show'}</span>
+                </button>
+                {showLogs && (
+                  <div className="p-3 bg-[#161618] max-h-40 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
+                    {testResult?.logs?.map((line, i) => <div key={i}>{line}</div>)}
+                    {testServer.error && <div className="text-rail-red">{testServer.error.message}</div>}
+                  </div>
+                )}
               </div>
             )}
 

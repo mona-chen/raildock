@@ -443,6 +443,7 @@ export interface ServerTestResult {
   os?: string
   uptime?: string
   publicIp?: string
+  logs?: string[]
 }
 
 export const serversApi = {

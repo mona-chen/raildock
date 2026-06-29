@@ -28,6 +28,16 @@ class ServerTestService
     result = DokkuEngine.new(server).validate_connection
 
     if result[:success]
+      logs = [
+        "Connected to #{server.host} as #{server.ssh_user}",
+        "Host key fingerprint: #{server.host_key_fingerprint}",
+        "OS: #{result[:os]}",
+        "Uptime: #{result[:uptime]}",
+        "Docker: #{result[:docker_version]}",
+        "Dokku: #{result[:dokku_version]}"
+      ]
+      logs << "Public IP: #{result[:public_ip]}" if result[:public_ip].present?
+
       {
         success: true,
         host: server.host,
@@ -38,7 +48,8 @@ class ServerTestService
         docker_version: result[:docker_version],
         os: result[:os],
         uptime: result[:uptime],
-        public_ip: result[:public_ip]
+        public_ip: result[:public_ip],
+        logs: logs
       }
     else
       error(result[:output] || "Connection test failed")
@@ -78,6 +89,6 @@ class ServerTestService
   end
 
   def error(message)
-    { success: false, error: message }
+    { success: false, error: message, logs: [message] }
   end
 end
