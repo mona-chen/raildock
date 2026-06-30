@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -22,6 +22,36 @@ interface AddServiceModalProps {
 }
 
 type Step = 'type' | 'app' | 'database' | 'service'
+
+function suggestNameFromRepo(repo?: string, rootDirectory?: string): string {
+  const dir = rootDirectory?.trim().replace(/\/$/, '')
+  if (dir && dir !== '.' && dir !== './') {
+    const parts = dir.split(/[/\\]/).filter(Boolean)
+    const last = parts[parts.length - 1]
+    if (last) return slugifyName(last)
+  }
+  if (!repo) return 'app'
+  const clean = repo.replace(/\.git$/i, '')
+  const urlMatch = clean.match(/[:/]([^/]+\/([^/]+))$/)
+  if (urlMatch) return slugifyName(urlMatch[2])
+  const parts = clean.split('/').filter(Boolean)
+  return slugifyName(parts[parts.length - 1] || 'app')
+}
+
+function suggestNameFromDockerImage(image?: string): string {
+  if (!image) return 'app'
+  const clean = image.split(':')[0].split('@')[0]
+  const parts = clean.split('/').filter(Boolean)
+  return slugifyName(parts[parts.length - 1] || 'app')
+}
+
+function slugifyName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'app'
+}
 
 const DB_TYPES = [
   { subtype: 'postgres', name: 'PostgreSQL', description: 'Relational database', defaultVersion: '16' },
@@ -76,6 +106,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
   // Common
   const [name, setName] = useState('')
+  const [nameTouched, setNameTouched] = useState(false)
 
   // App
   const [sourceType, setSourceType] = useState<'git' | 'docker'>('git')
@@ -92,6 +123,20 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [builderOverrides, setBuilderOverrides] = useState<Record<string, string>>({})
   const queryClient = useQueryClient()
+
+  const suggestedName = useMemo(() => {
+    if (step === 'app') {
+      if (sourceType === 'git') return suggestNameFromRepo(gitRepo, rootDirectory)
+      if (sourceType === 'docker') return suggestNameFromDockerImage(dockerImage)
+    }
+    return ''
+  }, [step, sourceType, gitRepo, rootDirectory, dockerImage])
+
+  useEffect(() => {
+    if (!nameTouched && suggestedName) {
+      setName(suggestedName)
+    }
+  }, [suggestedName, nameTouched])
 
   // Database
   const [dbType, setDbType] = useState('postgres')
@@ -114,6 +159,9 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const handleSelectRepo = (repo: GitRepo) => {
     setGitRepo(repo.cloneUrl || repo.fullName)
     if (repo.defaultBranch) setGitBranch(repo.defaultBranch)
+    if (!nameTouched) {
+      setName(suggestNameFromRepo(repo.fullName, rootDirectory))
+    }
   }
 
   const handleCreateApp = () => {
@@ -284,15 +332,15 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
         </button>
 
         <div className="space-y-4">
-          {(!selectedGitSource || sourceType === 'docker') && <div>
+          <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Name</label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setNameTouched(true) }}
               placeholder="my-app"
               className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
             />
-          </div>}
+          </div>
 
           <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Source</label>

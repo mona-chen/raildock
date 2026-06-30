@@ -135,6 +135,10 @@ function GeneralSettings({ svc }: { svc: Service }) {
 
   return (
     <div className="space-y-5">
+      <SettingCard title="Display Name" description="Renames the service in RailDock. The underlying Dokku app name does not change.">
+        <TextField label="Name" value={svc.name} placeholder="my-app" onChange={(v) => setField('name', v)} />
+      </SettingCard>
+
       {isApp && (
         <>
           <div>

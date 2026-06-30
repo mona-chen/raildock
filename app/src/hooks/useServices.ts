@@ -55,6 +55,7 @@ export function useUpdateService() {
       api.services.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
     },
   })
 }
