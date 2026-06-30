@@ -230,45 +230,52 @@ class DeploymentJob < ApplicationJob
         return if result[:cancelled] || abort_if_cancelled(deployment)
       end
     elsif service.git_repo.present?
-      # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
-      # Run git:sync first (non-streaming, usually short)
       git_repo = git_repo_for_deploy(service)
       git_ref = deployment.commit_sha.presence || deployment.branch.presence || service.branch.presence || "main"
-      sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}")
-      if sync_result[:output].present?
-        redacted_sync = deployment.append_log_chunk!(sync_result[:output])
-        deploy_output += redacted_sync
-        safely_broadcast_deployment(service, {
-          deployment_id: deployment.id,
-          status: "building",
-          log_chunk: redacted_sync,
-          sequence: deployment.event_sequence,
-          started_at: deployment.started_at.iso8601
-        })
-      end
 
-      if !sync_result[:success]
-        return mark_failed(deployment, service, "Git sync failed", sync_result[:output])
-      end
+      if subdirectory_deploy?(service)
+        result = deploy_from_subdirectory(service, deployment, engine, host_engine, git_repo, git_ref, deploy_output)
+        return if result.nil?
+        return if result[:cancelled] || abort_if_cancelled(deployment)
+      else
+        # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
+        # Run git:sync first (non-streaming, usually short)
+        sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}")
+        if sync_result[:output].present?
+          redacted_sync = deployment.append_log_chunk!(sync_result[:output])
+          deploy_output += redacted_sync
+          safely_broadcast_deployment(service, {
+            deployment_id: deployment.id,
+            status: "building",
+            log_chunk: redacted_sync,
+            sequence: deployment.event_sequence,
+            started_at: deployment.started_at.iso8601
+          })
+        end
 
-      return if abort_if_cancelled(deployment)
+        if !sync_result[:success]
+          return mark_failed(deployment, service, "Git sync failed", sync_result[:output])
+        end
 
-      # Stream the actual build output from ps:rebuild
-      result = engine.run_streaming(
-        "ps:rebuild #{service.dokku_app_name}",
-        cancelled: -> { deployment.reload.cancelled? }
-      ) do |chunk|
-        redacted_chunk = deployment.append_log_chunk!(chunk)
-        deploy_output += redacted_chunk
-        safely_broadcast_deployment(service, {
-          deployment_id: deployment.id,
-          status: "building",
-          log_chunk: redacted_chunk,
-          sequence: deployment.event_sequence,
-          started_at: deployment.started_at.iso8601
-        })
+        return if abort_if_cancelled(deployment)
+
+        # Stream the actual build output from ps:rebuild
+        result = engine.run_streaming(
+          "ps:rebuild #{service.dokku_app_name}",
+          cancelled: -> { deployment.reload.cancelled? }
+        ) do |chunk|
+          redacted_chunk = deployment.append_log_chunk!(chunk)
+          deploy_output += redacted_chunk
+          safely_broadcast_deployment(service, {
+            deployment_id: deployment.id,
+            status: "building",
+            log_chunk: redacted_chunk,
+            sequence: deployment.event_sequence,
+            started_at: deployment.started_at.iso8601
+          })
+        end
+        return if result[:cancelled] || abort_if_cancelled(deployment)
       end
-      return if result[:cancelled] || abort_if_cancelled(deployment)
     else
       return mark_failed(deployment, service, "No Git repository or Docker image configured for this service")
     end
@@ -497,6 +504,98 @@ class DeploymentJob < ApplicationJob
   rescue => e
     Rails.logger.warn "GitHub App deploy token resolution failed for service #{service.id}: #{e.message}"
     service.git_repo
+  end
+
+  def subdirectory_deploy?(service)
+    root = service.root_directory.to_s.strip
+    root.present? && root != '.' && root != './'
+  end
+
+  def deploy_from_subdirectory(service, deployment, engine, host_engine, repo_url, git_ref, deploy_output)
+    root = service.root_directory.to_s.strip.sub(%r{^/+}, '').sub(%r{/$}, '')
+    if root.blank?
+      return mark_failed(deployment, service, "Invalid root directory configured")
+    end
+
+    cache_base = "/var/cache/raildock/repos"
+    cache_dir = "#{cache_base}/#{service.dokku_app_name}"
+    archive_path = "/tmp/raildock-#{service.dokku_app_name}-#{deployment.id}.tar.gz"
+
+    log_and_broadcast = ->(chunk) {
+      redacted = deployment.append_log_chunk!(chunk)
+      deploy_output << redacted
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: "building",
+        log_chunk: redacted,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at.iso8601
+      })
+    }
+
+    begin
+      clone_ref, checkout_sha = git_clone_ref_and_sha(git_ref, service, deployment)
+
+      log_and_broadcast.call("Cloning repository to build root directory '#{root}'...\n")
+      clone_result = host_engine.run("mkdir -p #{cache_base} && rm -rf #{cache_dir} && git clone --depth 1 -b #{clone_ref} #{repo_url} #{cache_dir}")
+      log_and_broadcast.call(clone_result[:output]) if clone_result[:output].present?
+      unless clone_result[:success]
+        return { success: false, error: "Clone failed", output: deploy_output }
+      end
+
+      if checkout_sha
+        checkout_result = host_engine.run("cd #{cache_dir} && git fetch --depth 1 origin #{checkout_sha} && git checkout #{checkout_sha}")
+        log_and_broadcast.call(checkout_result[:output]) if checkout_result[:output].present?
+        unless checkout_result[:success]
+          return { success: false, error: "Checkout failed", output: deploy_output }
+        end
+      end
+
+      return nil if abort_if_cancelled(deployment)
+
+      # Resolve the exact SHA so GIT_REV is still meaningful for archive deploys.
+      sha_result = host_engine.run("cd #{cache_dir} && git rev-parse HEAD")
+      commit_sha = sha_result[:output].to_s.strip if sha_result[:success]
+      if commit_sha.present?
+        engine.run("config:set --no-restart #{service.dokku_app_name} GIT_REV=#{commit_sha}")
+      end
+
+      log_and_broadcast.call("Packing '#{root}' into archive...\n")
+      tar_result = host_engine.run("tar -czf #{archive_path} -C #{cache_dir}/#{root} .")
+      log_and_broadcast.call(tar_result[:output]) if tar_result[:output].present?
+      unless tar_result[:success]
+        return { success: false, error: "Archive failed", output: deploy_output }
+      end
+
+      return nil if abort_if_cancelled(deployment)
+
+      log_and_broadcast.call("Deploying archive to Dokku...\n")
+      result = engine.run_streaming(
+        "git:from-archive --archive-type tar #{service.dokku_app_name} #{archive_path}",
+        cancelled: -> { deployment.reload.cancelled? }
+      ) do |chunk|
+        redacted_chunk = deployment.append_log_chunk!(chunk)
+        deploy_output << redacted_chunk
+        safely_broadcast_deployment(service, {
+          deployment_id: deployment.id,
+          status: "building",
+          log_chunk: redacted_chunk,
+          sequence: deployment.event_sequence,
+          started_at: deployment.started_at.iso8601
+        })
+      end
+
+      result
+    ensure
+      host_engine.run("rm -rf #{cache_dir} #{archive_path}")
+    end
+  end
+
+  def git_clone_ref_and_sha(git_ref, service, deployment)
+    return [git_ref, nil] unless git_ref.match?(/\A[0-9a-f]{40}\z/)
+
+    branch = deployment.branch.presence || service.branch.presence || "main"
+    [branch, git_ref]
   end
 
   def github_source_for_service(service)
