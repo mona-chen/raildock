@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, Folder, ExternalLink } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { Service } from '@/types'
+import type { GitSource, Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import { api } from '@/lib/api'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useGitSources, useGitSourceBranches, useGitSourceDirectories } from '@/hooks/useGitSources'
 
 const tabs = [
   { key: 'general', label: 'General', icon: Server },
@@ -109,24 +110,45 @@ function useConfigUpdater(svc: Service) {
   return { setConfigPath, setField, isPending: updateConfig.isPending || updateService.isPending }
 }
 
+// ── Git helpers ────────────────────────────────────────────
+function parseRepoFullName(repo?: string): string | null {
+  if (!repo) return null
+  const urlMatch = repo.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/)
+  if (urlMatch) return `${urlMatch[1]}/${urlMatch[2]}`
+  const parts = repo.split('/').filter(Boolean)
+  if (parts.length === 2) return `${parts[0]}/${parts[1].replace(/\.git$/, '')}`
+  return null
+}
+
+function findGitSourceForRepo(sources: GitSource[] | undefined, repo?: string): GitSource | undefined {
+  const fullName = parseRepoFullName(repo)
+  if (!fullName || !sources) return undefined
+  return sources.find((source) =>
+    source.repos.some((r) => r.fullName === fullName || parseRepoFullName(r.fullName) === fullName)
+  )
+}
+
 // ── General Settings ───────────────────────────────────────
 function GeneralSettings({ svc }: { svc: Service }) {
   const { setConfigPath, setField } = useConfigUpdater(svc)
   const isApp = svc.type === 'app'
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>General</SectionTitle>
-
+    <div className="space-y-5">
       {isApp && (
         <>
+          <div>
+            <SectionTitle>Source</SectionTitle>
+            <SourceSection svc={svc} setField={setField} />
+          </div>
+
           <SettingCard title="Builder" description="How your app is built">
-            <div className="space-y-2">
-              {(['nixpacks', 'dockerfile', 'herokuish', 'pack', 'railpack'] as const).map((b) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {(['railpack', 'nixpacks', 'dockerfile', 'herokuish', 'pack'] as const).map((b) => (
                 <label
                   key={b}
                   className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    svc.builder === b ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5' : 'border-white/[0.06] bg-[#1a1a1e]'
+                    svc.builder === b ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5' : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.12]'
                   }`}
                 >
                   <input
@@ -142,18 +164,8 @@ function GeneralSettings({ svc }: { svc: Service }) {
             </div>
           </SettingCard>
 
-          <SettingCard title="Source">
-            <div className="space-y-3">
-              <TextField label="Git Repository" value={svc.gitRepo || ''} placeholder="https://github.com/user/repo" onChange={(v) => setField('gitRepo', v)} />
-              <TextField label="Docker Image" value={svc.dockerImage || ''} placeholder="nginx:alpine" onChange={(v) => setField('dockerImage', v)} />
-              <TextField label="Root Directory" value={svc.rootDirectory || ''} placeholder="./" onChange={(v) => setField('rootDirectory', v)} />
-              <TextField label="Start Command" value={svc.startCommand || ''} placeholder="bundle exec puma" onChange={(v) => setField('startCommand', v)} />
-              <TextField label="Deploy Branch" value={svc.branch || 'main'} onChange={(v) => setField('branch', v)} />
-            </div>
-          </SettingCard>
-
           <SettingCard title="Deploy Options">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between">
               <div>
                 <div className="text-[13px] text-white/70">Auto-deploy</div>
                 <div className="text-[11px] text-white/40">Automatically deploy on git push</div>
@@ -161,7 +173,7 @@ function GeneralSettings({ svc }: { svc: Service }) {
               <AccessibleToggle checked={svc.autoDeploy} onChange={(v) => setField('autoDeploy', v)} label="Auto-deploy" />
             </div>
             {svc.webhookUrl && (
-              <div className="border-t border-white/[0.06] pt-4">
+              <div className="border-t border-white/[0.06] pt-4 mt-4">
                 <div className="text-[13px] text-white/70 mb-1">Deploy Webhook</div>
                 <div className="text-[11px] text-white/40 mb-2">Use this URL in your CI/CD pipeline to trigger deployments.</div>
                 <div className="flex items-center gap-2">
@@ -181,6 +193,149 @@ function GeneralSettings({ svc }: { svc: Service }) {
           <TextField label="Docker Image" value={svc.dockerImage || ''} placeholder="postgres:15" onChange={(v) => setField('dockerImage', v)} />
           <TextField label="Version" value={svc.version || ''} onChange={(v) => setField('version', v)} />
         </SettingCard>
+      )}
+    </div>
+  )
+}
+
+function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyof Service, value: unknown) => void }) {
+  const { data: sources } = useGitSources()
+  const source = useMemo(() => findGitSourceForRepo(sources, svc.gitRepo), [sources, svc.gitRepo])
+  const repoFullName = parseRepoFullName(svc.gitRepo) || svc.gitRepo || ''
+
+  return (
+    <div className="space-y-4">
+      {svc.gitRepo ? (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+                <Github size={18} className="text-white/70" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-medium text-white/80 truncate">{repoFullName}</div>
+                <a
+                  href={svc.gitRepo}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-white/40 hover:text-[#8b5cf6] flex items-center gap-1"
+                >
+                  View repository <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+            <button
+              onClick={() => setField('gitRepo', '')}
+              className="px-3 py-1.5 text-[12px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-lg transition-all border border-white/[0.08] flex-shrink-0"
+            >
+              Disconnect
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/[0.06]">
+            <BranchField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} onChange={(v) => setField('branch', v)} />
+            <DirectoryField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} directory={svc.rootDirectory || '.'} onChange={(v) => setField('rootDirectory', v)} />
+          </div>
+        </div>
+      ) : (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4 space-y-3">
+          <TextField
+            label="Git Repository"
+            value={svc.gitRepo || ''}
+            placeholder="https://github.com/user/repo"
+            onChange={(v) => setField('gitRepo', v)}
+          />
+          <div className="text-[11px] text-white/40">Connect a GitHub repository to enable branch and directory selectors.</div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SettingCard title="Docker Image" description="Override the deployed image (optional)">
+          <TextField label="Image" value={svc.dockerImage || ''} placeholder="nginx:alpine" onChange={(v) => setField('dockerImage', v)} />
+        </SettingCard>
+        <SettingCard title="Start Command" description="Override the container start command (optional)">
+          <TextField label="Command" value={svc.startCommand || ''} placeholder="bundle exec puma" onChange={(v) => setField('startCommand', v)} />
+        </SettingCard>
+      </div>
+    </div>
+  )
+}
+
+function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullName: string; sourceId?: string; branch: string; onChange: (v: string) => void }) {
+  const { data, isLoading, error } = useGitSourceBranches(sourceId, repoFullName)
+  const branches = data?.branches || []
+  const canSelect = !!sourceId && branches.length > 0
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <GitBranch size={13} className="text-white/40" />
+        <span className="text-[12px] text-white/60">Deploy Branch</span>
+      </div>
+      <div className="text-[11px] text-white/35 mb-2">Changes pushed to this branch will deploy automatically.</div>
+      {canSelect ? (
+        <Select value={branch} onValueChange={onChange}>
+          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+            <SelectValue placeholder="Select branch" />
+          </SelectTrigger>
+          <SelectContent>
+            {branches.map((b) => (
+              <SelectItem key={b} value={b}>{b}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="relative">
+          <input
+            type="text"
+            value={branch}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            placeholder="main"
+          />
+          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 animate-spin" />}
+          {error && <div className="text-[10px] text-red-300/70 mt-1">Could not load branches</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }: { repoFullName: string; sourceId?: string; branch: string; directory: string; onChange: (v: string) => void }) {
+  const { data, isLoading, error } = useGitSourceDirectories(sourceId, repoFullName, branch)
+  const directories = data?.directories || []
+  const canSelect = !!sourceId && directories.length > 0
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Folder size={13} className="text-white/40" />
+        <span className="text-[12px] text-white/60">Root Directory</span>
+      </div>
+      <div className="text-[11px] text-white/35 mb-2">Where your app code lives inside the repository.</div>
+      {canSelect ? (
+        <Select value={directory || '.'} onValueChange={onChange}>
+          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+            <SelectValue placeholder="Select directory" />
+          </SelectTrigger>
+          <SelectContent className="max-h-[240px]">
+            {directories.map((d) => (
+              <SelectItem key={d} value={d}>{d === '.' ? '/' : `/${d}`}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="relative">
+          <input
+            type="text"
+            value={directory}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            placeholder="./"
+          />
+          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 animate-spin" />}
+          {error && <div className="text-[10px] text-red-300/70 mt-1">Could not load directories</div>}
+        </div>
       )}
     </div>
   )

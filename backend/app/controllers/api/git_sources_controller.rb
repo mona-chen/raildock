@@ -50,13 +50,7 @@ module Api
     end
 
     def repos
-      source = GitSource.find(params[:id])
-
-      if source.organization
-        authorize_organization_access!(source.organization)
-      elsif source.user && source.user != current_user
-        return render json: { error: "Forbidden" }, status: :forbidden
-      end
+      source = find_source
 
       metadata = source.metadata || {}
       has_repos = source.repos.present?
@@ -78,7 +72,63 @@ module Api
       head :not_found
     end
 
+    def branches
+      source = find_source
+      return render json: { error: "Git source is not a GitHub App" }, status: :unprocessable_entity unless source.github_app?
+
+      repo = Service.repo_full_name(params.require(:repository))
+      return render json: { error: "Repository not accessible" }, status: :forbidden unless repository_allowed?(source, repo)
+
+      client = GithubAppService.installation_client(source.installation_id)
+      client.auto_paginate = true
+      names = client.branches(repo).map(&:name)
+      render json: { branches: names }
+    rescue Octokit::NotFound => e
+      render json: { error: e.message }, status: :not_found
+    rescue Octokit::Error => e
+      render json: { error: e.message }, status: :bad_gateway
+    end
+
+    def directories
+      source = find_source
+      return render json: { error: "Git source is not a GitHub App" }, status: :unprocessable_entity unless source.github_app?
+
+      repo = Service.repo_full_name(params.require(:repository))
+      return render json: { error: "Repository not accessible" }, status: :forbidden unless repository_allowed?(source, repo)
+
+      branch = params[:branch].presence || "main"
+      client = GithubAppService.installation_client(source.installation_id)
+      sha = client.branch(repo, branch).commit.sha
+      tree = client.tree(repo, sha, recursive: true)
+
+      dirs = tree.tree.filter_map { |entry| entry.type == "tree" ? entry.path : nil }.sort
+      dirs.unshift(".") unless dirs.include?(".")
+      render json: { directories: dirs }
+    rescue Octokit::NotFound => e
+      render json: { error: e.message }, status: :not_found
+    rescue Octokit::Error => e
+      render json: { error: e.message }, status: :bad_gateway
+    end
+
     private
+
+    def find_source
+      source = GitSource.find(params[:id])
+
+      if source.organization
+        authorize_organization_access!(source.organization)
+      elsif source.user && source.user != current_user
+        raise ActiveRecord::RecordNotFound
+      end
+
+      source
+    end
+
+    def repository_allowed?(source, repo)
+      source.repos.any? do |r|
+        Service.repo_full_name(r["full_name"] || r[:full_name] || r["clone_url"] || r[:clone_url]) == repo
+      end
+    end
 
     def git_source_params
       params.permit(:provider, :access_token, :username)

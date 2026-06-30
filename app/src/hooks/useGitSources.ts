@@ -45,6 +45,24 @@ export function useGitSourceRepos(sourceId: string | undefined) {
   })
 }
 
+export function useGitSourceBranches(sourceId: string | undefined, repository: string | undefined) {
+  return useQuery({
+    queryKey: ['git-source-branches', sourceId, repository],
+    queryFn: () => api.gitSources.branches(sourceId!, repository!),
+    enabled: !!sourceId && !!repository,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useGitSourceDirectories(sourceId: string | undefined, repository: string | undefined, branch: string | undefined) {
+  return useQuery({
+    queryKey: ['git-source-directories', sourceId, repository, branch],
+    queryFn: () => api.gitSources.directories(sourceId!, repository!, branch),
+    enabled: !!sourceId && !!repository && !!branch,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
 export function useGitHubAppConfig() {
   return useQuery({
     queryKey: ['github-app-config'],

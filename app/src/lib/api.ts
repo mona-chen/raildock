@@ -531,6 +531,16 @@ export const gitSourcesApi = {
     return fetchJson(`/api/git-sources/${id}/repos`)
   },
 
+  branches: async (id: string, repository: string): Promise<{ branches: string[] }> => {
+    return fetchJson(`/api/git-sources/${id}/branches?repository=${encodeURIComponent(repository)}`)
+  },
+
+  directories: async (id: string, repository: string, branch?: string): Promise<{ directories: string[] }> => {
+    const qs = new URLSearchParams({ repository })
+    if (branch) qs.set('branch', branch)
+    return fetchJson(`/api/git-sources/${id}/directories?${qs.toString()}`)
+  },
+
   config: async (): Promise<{ githubApp: GitHubAppConfig }> => {
     return fetchJson('/api/config')
   },

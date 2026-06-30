@@ -111,6 +111,8 @@ Rails.application.routes.draw do
       resources :git_sources, path: "git-sources", only: [ :index, :create, :destroy ] do
         member do
           get :repos
+          get :branches
+          get :directories
         end
       end
       resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
@@ -128,6 +130,8 @@ Rails.application.routes.draw do
     resources :git_sources, path: "git-sources" do
       member do
         get :repos
+        get :branches
+        get :directories
       end
     end
     resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
