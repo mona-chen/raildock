@@ -281,6 +281,7 @@ RSpec.describe DeploymentJob, type: :job do
       before do
         service.update!(root_directory: "apps/web")
         allow(host_engine).to receive(:run).and_return({ success: true, output: "" })
+        allow(host_engine).to receive(:run).with(/git rev-parse HEAD/).and_return({ success: true, output: "temprepohead\n" })
       end
 
       it "deploys from a subdirectory-only git repository" do
@@ -288,15 +289,15 @@ RSpec.describe DeploymentJob, type: :job do
 
         expect(host_engine).to have_received(:run).with(/git clone --depth 1 -b feature .*\/var\/cache\/raildock\/repos\/#{service.dokku_app_name}/)
         expect(host_engine).to have_received(:run).with(/cp -a .*\/apps\/web\/\. .*\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id}/)
-        expect(engine).to have_received(:run).with("git:sync --skip-deploy-branch #{service.dokku_app_name} file:\/\/\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id} main")
+        expect(engine).to have_received(:run).with(/git:sync --skip-deploy-branch #{service.dokku_app_name} file:\/\/\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id} \S+/)
         expect(engine).to have_received(:run_streaming).with(
           "ps:rebuild #{service.dokku_app_name}",
           cancelled: kind_of(Proc)
         )
       end
 
-      it "sets GIT_REV from the cloned commit" do
-        allow(host_engine).to receive(:run).with(/git rev-parse HEAD/).and_return({ success: true, output: "abc123def456\n" })
+      it "sets GIT_REV from the source repository after the build" do
+        allow(host_engine).to receive(:run).with(/cd \/var\/cache\/raildock\/repos\/#{service.dokku_app_name} && git rev-parse HEAD/).and_return({ success: true, output: "abc123def456\n" })
 
         DeploymentJob.perform_now(service.id, deployment.id)
 

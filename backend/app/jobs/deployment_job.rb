@@ -553,12 +553,9 @@ class DeploymentJob < ApplicationJob
 
       return nil if abort_if_cancelled(deployment)
 
-      # Resolve the exact SHA so GIT_REV is still meaningful for deploys.
+      # Resolve the exact SHA from the source repository so GIT_REV stays meaningful.
       sha_result = host_engine.run("cd #{cache_dir} && git rev-parse HEAD")
-      commit_sha = sha_result[:output].to_s.strip if sha_result[:success]
-      if commit_sha.present?
-        engine.run("config:set --no-restart #{service.dokku_app_name} GIT_REV=#{commit_sha}")
-      end
+      source_sha = sha_result[:output].to_s.strip if sha_result[:success]
 
       log_and_broadcast.call("Preparing deploy repository from '#{root}'...\n")
       prep_result = host_engine.run(<<~SH.squish)
@@ -566,7 +563,7 @@ class DeploymentJob < ApplicationJob
         mkdir -p #{deploy_repo} &&
         cp -a #{cache_dir}/#{root}/. #{deploy_repo}/ &&
         cd #{deploy_repo} &&
-        git init -q &&
+        git init -q -b main &&
         git config user.email "raildock@localhost" &&
         git config user.name "RailDock" &&
         git add -A &&
@@ -578,9 +575,15 @@ class DeploymentJob < ApplicationJob
         return { success: false, error: "Failed to prepare deploy repository", output: deploy_output }
       end
 
+      temp_sha_result = host_engine.run("cd #{deploy_repo} && git rev-parse HEAD")
+      temp_sha = temp_sha_result[:output].to_s.strip if temp_sha_result[:success]
+      if temp_sha.blank?
+        return { success: false, error: "Failed to resolve deploy repository SHA", output: deploy_output }
+      end
+
       return nil if abort_if_cancelled(deployment)
 
-      sync_result = engine.run("git:sync --skip-deploy-branch #{service.dokku_app_name} file://#{deploy_repo} main")
+      sync_result = engine.run("git:sync --skip-deploy-branch #{service.dokku_app_name} file://#{deploy_repo} #{temp_sha}")
       if sync_result[:output].present?
         redacted_sync = deployment.append_log_chunk!(sync_result[:output])
         deploy_output << redacted_sync
@@ -612,6 +615,10 @@ class DeploymentJob < ApplicationJob
           sequence: deployment.event_sequence,
           started_at: deployment.started_at.iso8601
         })
+      end
+
+      if result[:success] && source_sha.present?
+        engine.run("config:set --no-restart #{service.dokku_app_name} GIT_REV=#{source_sha}")
       end
 
       result
