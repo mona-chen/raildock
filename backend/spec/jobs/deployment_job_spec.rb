@@ -289,7 +289,7 @@ RSpec.describe DeploymentJob, type: :job do
         expect(host_engine).to have_received(:run).with(/git clone --depth 1 -b feature .*\/var\/cache\/raildock\/repos\/#{service.dokku_app_name}/)
         expect(host_engine).to have_received(:run).with(/tar -czf .* -C .*\/apps\/web \./)
         expect(engine).to have_received(:run_streaming).with(
-          /git:from-archive --archive-type tar #{service.dokku_app_name}/,
+          /bash -lc 'cat .* \| dokku git:from-archive --archive-type tar #{service.dokku_app_name} -'/,
           cancelled: kind_of(Proc)
         )
       end
