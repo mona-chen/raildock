@@ -280,8 +280,7 @@ RSpec.describe DeploymentJob, type: :job do
     context "when a root directory is configured" do
       before do
         service.update!(root_directory: "apps/web")
-        allow(host_engine).to receive(:run).and_return({ success: true, output: "" })
-        allow(host_engine).to receive(:run).with(/git rev-parse HEAD/).and_return({ success: true, output: "temprepohead\n" })
+        allow(host_engine).to receive(:run).and_return({ success: true, output: "RAILDOCK_DEPLOY_SHA=deadbeef\n" })
       end
 
       it "deploys from a subdirectory-only git repository" do
@@ -289,7 +288,7 @@ RSpec.describe DeploymentJob, type: :job do
 
         expect(host_engine).to have_received(:run).with(/git clone --depth 1 -b feature .*\/var\/cache\/raildock\/repos\/#{service.dokku_app_name}/)
         expect(host_engine).to have_received(:run).with(/cp -a .*\/apps\/web\/\. .*\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id}/)
-        expect(engine).to have_received(:run).with(/git:sync --skip-deploy-branch #{service.dokku_app_name} file:\/\/\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id} \S+/)
+        expect(engine).to have_received(:run).with("git:sync --skip-deploy-branch #{service.dokku_app_name} file:\/\/\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id} deadbeef")
         expect(engine).to have_received(:run_streaming).with(
           "ps:rebuild #{service.dokku_app_name}",
           cancelled: kind_of(Proc)

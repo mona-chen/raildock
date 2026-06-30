@@ -567,16 +567,16 @@ class DeploymentJob < ApplicationJob
         git config user.email "raildock@localhost" &&
         git config user.name "RailDock" &&
         git add -A &&
-        git commit -q -m "deploy" &&
+        git commit -m "deploy" &&
+        echo "RAILDOCK_DEPLOY_SHA=$(git rev-parse HEAD)" &&
         chown -R dokku:dokku #{deploy_repo}
       SH
-      log_and_broadcast.call(prep_result[:output]) if prep_result[:output].present?
+      log_and_broadcast.call(prep_result[:output])
       unless prep_result[:success]
         return { success: false, error: "Failed to prepare deploy repository", output: deploy_output }
       end
 
-      temp_sha_result = host_engine.run("cd #{deploy_repo} && git rev-parse HEAD")
-      temp_sha = temp_sha_result[:output].to_s.strip if temp_sha_result[:success]
+      temp_sha = prep_result[:output].to_s[/RAILDOCK_DEPLOY_SHA=([0-9a-f]+)/, 1]
       if temp_sha.blank?
         return { success: false, error: "Failed to resolve deploy repository SHA", output: deploy_output }
       end
