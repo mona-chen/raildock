@@ -570,7 +570,7 @@ class DeploymentJob < ApplicationJob
       return nil if abort_if_cancelled(deployment)
 
       log_and_broadcast.call("Deploying archive to Dokku...\n")
-      result = engine.run_streaming(
+      result = host_engine.run_streaming(
         "bash -lc 'cat #{archive_path} | dokku git:from-archive --archive-type tar #{service.dokku_app_name} -'",
         cancelled: -> { deployment.reload.cancelled? }
       ) do |chunk|

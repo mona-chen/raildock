@@ -281,14 +281,17 @@ RSpec.describe DeploymentJob, type: :job do
       before do
         service.update!(root_directory: "apps/web")
         allow(host_engine).to receive(:run).and_return({ success: true, output: "" })
+        allow(host_engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
       end
 
       it "deploys from a tarball of the subdirectory" do
+        allow(host_engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
+
         DeploymentJob.perform_now(service.id, deployment.id)
 
         expect(host_engine).to have_received(:run).with(/git clone --depth 1 -b feature .*\/var\/cache\/raildock\/repos\/#{service.dokku_app_name}/)
         expect(host_engine).to have_received(:run).with(/tar -czf .* -C .*\/apps\/web \./)
-        expect(engine).to have_received(:run_streaming).with(
+        expect(host_engine).to have_received(:run_streaming).with(
           /bash -lc 'cat .* \| dokku git:from-archive --archive-type tar #{service.dokku_app_name} -'/,
           cancelled: kind_of(Proc)
         )

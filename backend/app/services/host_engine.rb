@@ -94,6 +94,50 @@ class HostEngine
     { success: false, output: "SSH error: #{error.message}" }
   end
 
+  # Run a command on the host as root, yielding each output chunk as it arrives.
+  def run_streaming(command, cancelled: nil)
+    return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
+
+    with_ssh_retry do
+      output = +""
+      exit_code = nil
+
+      execute_on_session do |ssh|
+        channel = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            unless success
+              return { success: false, output: "Failed to execute command" }
+            end
+
+            ch.on_data do |_, data|
+              output << data
+              yield(data) if block_given?
+              ch.close if cancelled&.call
+            end
+            ch.on_extended_data do |_, _, data|
+              output << data
+              yield(data) if block_given?
+              ch.close if cancelled&.call
+            end
+            ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+          end
+        end
+        channel.wait
+      end
+
+      if exit_code.nil? && cancelled&.call != true
+        return {
+          success: false,
+          output: output,
+          error: "Remote build session ended before the command reported an exit status.",
+          cancelled: false
+        }
+      end
+
+      { success: exit_code == 0, output: output, cancelled: cancelled&.call == true }
+    end
+  end
+
   def volume_export_to(host_path, path)
     source = Shellwords.escape(host_path)
     command = if host_path.start_with?("/")
