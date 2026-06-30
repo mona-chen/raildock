@@ -279,8 +279,10 @@ describe('ServerPage', () => {
 
     fireEvent.click(screen.getByText('Add Server'))
     expect(screen.getByText('Connect a remote host to RailDock')).toBeInTheDocument()
+    expect(screen.getByText('Prepare server')).toBeInTheDocument()
     expect(screen.getByText('Manual setup')).toBeInTheDocument()
     expect(screen.getByText('Organization public key')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Continue'))
     expect(screen.getByPlaceholderText('raildock-prod-01')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('192.168.1.100')).toBeInTheDocument()
     expect(screen.getByText('Validate Server')).toBeInTheDocument()
