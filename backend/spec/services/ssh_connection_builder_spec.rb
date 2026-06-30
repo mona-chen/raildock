@@ -5,19 +5,19 @@ RSpec.describe SshConnectionBuilder do
   let(:server) { create(:server, organization: organization, host: "192.168.1.1") }
 
   describe "#options" do
-    it "accepts new host keys when no host key is stored" do
-      builder = described_class.new(server, user: "root")
-      expect(builder.options[:verify_host_key]).to eq(:accept_new)
+    it "uses the host-key verifier when no host key is stored" do
+      builder = SshConnectionBuilder.new(server, user: "root")
+      expect(builder.options[:verify_host_key]).to be_a(SshConnectionBuilder::HostKeyVerifier)
     end
 
-    it "verifies against stored host key fingerprint when a key is stored" do
+    it "uses the host-key verifier when a host key is stored" do
       server.update!(host_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHZXwtgEdpUYsSkf7K9p7+CdMGU7wyFjuMoUohqLKaZW test")
-      builder = described_class.new(server, user: "root")
-      expect(builder.options[:verify_host_key]).to be_a(SshConnectionBuilder::StoredHostKeyVerifier)
+      builder = SshConnectionBuilder.new(server, user: "root")
+      expect(builder.options[:verify_host_key]).to be_a(SshConnectionBuilder::HostKeyVerifier)
     end
 
     it "sets a host_key_alias for root user" do
-      builder = described_class.new(server, user: "root")
+      builder = SshConnectionBuilder.new(server, user: "root")
       expect(builder.options[:host_key_alias]).to eq("#{server.host}-root")
     end
 
@@ -29,7 +29,7 @@ RSpec.describe SshConnectionBuilder do
 
   describe "#capture_host_key!" do
     it "stores the host key and fingerprint from the session" do
-      builder = described_class.new(server, user: "root")
+      builder = SshConnectionBuilder.new(server, user: "root")
       fake_key = double("key", ssh_type: "ssh-ed25519", to_blob: "fake-blob")
       transport = double("transport", host_keys: [ fake_key ])
       session = double("session", transport: transport)
@@ -41,7 +41,7 @@ RSpec.describe SshConnectionBuilder do
     end
 
     it "captures multiple host keys when available" do
-      builder = described_class.new(server, user: "root")
+      builder = SshConnectionBuilder.new(server, user: "root")
       key1 = double("key1", ssh_type: "ssh-ed25519", to_blob: "blob-1")
       key2 = double("key2", ssh_type: "ssh-rsa", to_blob: "blob-2")
       transport = double("transport", host_keys: [ key1, key2 ])
@@ -56,33 +56,41 @@ RSpec.describe SshConnectionBuilder do
 
     it "is a no-op when a host key is already stored" do
       server.update!(host_key: "ssh-ed25519 existing")
-      builder = described_class.new(server, user: "root")
+      builder = SshConnectionBuilder.new(server, user: "root")
       transport = double("transport", host_keys: [ double("key") ])
       session = double("session", transport: transport)
 
       builder.capture_host_key!(session)
-      expect(server.reload.host_key).to eq("ssh-ed25519 existing")
+      expect(server.host_key).to eq("ssh-ed25519 existing")
     end
   end
 
-  describe SshConnectionBuilder::StoredHostKeyVerifier do
-    let(:blob) { [ OpenSSL::PKey::RSA.new(2048).public_key.to_blob ].pack("m0") }
-    let(:fingerprint) { "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(OpenSSL::PKey::RSA.new(2048).public_key.to_blob)) }
+  describe SshConnectionBuilder::HostKeyVerifier do
+    let(:rsa_key) { OpenSSL::PKey::RSA.new(2048) }
+    let(:fingerprint) { "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(rsa_key.public_key.to_blob)) }
+    let(:net_ssh_key) { double("key", ssh_type: "ssh-rsa", to_blob: rsa_key.public_key.to_blob) }
+
+    it "accepts and captures a new key when none is stored" do
+      builder = SshConnectionBuilder.new(server, user: "root")
+      verifier = builder.options[:verify_host_key]
+
+      expect { verifier.verify(key: net_ssh_key, fingerprint: fingerprint) }.not_to raise_error
+      expect(server.host_key).to start_with("ssh-rsa ")
+      expect(server.host_key_fingerprint).to eq(fingerprint)
+    end
 
     it "accepts a matching stored key" do
-      key = OpenSSL::PKey::RSA.new(2048)
-      server.update!(host_key: "ssh-rsa #{[ key.public_key.to_blob ].pack("m0")}")
-      fp = "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(key.public_key.to_blob))
-      verifier = described_class.new(server)
+      server.update!(host_key: "ssh-rsa #{[ rsa_key.public_key.to_blob ].pack("m0")}")
+      verifier = SshConnectionBuilder.new(server, user: "root").options[:verify_host_key]
 
-      expect { verifier.verify(fingerprint: fp) }.not_to raise_error
+      expect { verifier.verify(key: net_ssh_key, fingerprint: fingerprint) }.not_to raise_error
     end
 
     it "rejects a non-matching key" do
-      server.update!(host_key: "ssh-rsa #{blob}")
-      verifier = described_class.new(server)
+      server.update!(host_key: "ssh-rsa #{[ rsa_key.public_key.to_blob ].pack("m0")}")
+      verifier = SshConnectionBuilder.new(server, user: "root").options[:verify_host_key]
 
-      expect { verifier.verify(fingerprint: "SHA256:bbbb") }.to raise_error(Net::SSH::HostKeyMismatch)
+      expect { verifier.verify(key: net_ssh_key, fingerprint: "SHA256:bbbb") }.to raise_error(Net::SSH::HostKeyMismatch)
     end
   end
 end

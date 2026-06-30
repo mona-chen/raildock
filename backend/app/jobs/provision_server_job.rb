@@ -113,7 +113,10 @@ class ProvisionServerJob < ApplicationJob
   end
 
   def broadcast(setup_id, payload)
-    ActionCable.server.broadcast("server_setup:#{setup_id}", payload)
-    SetupProgress.update(setup_id, payload)
+    sanitized = payload.transform_values do |value|
+      value.is_a?(String) ? value.encode("UTF-8", invalid: :replace, undef: :replace, replace: "�") : value
+    end
+    ActionCable.server.broadcast("server_setup:#{setup_id}", sanitized)
+    SetupProgress.update(setup_id, sanitized)
   end
 end

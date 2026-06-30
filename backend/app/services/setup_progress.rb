@@ -24,12 +24,12 @@ class SetupProgress
 
       case payload[:type]
       when "log", "error"
-        entry = { line: payload[:line] || payload[:error] || "", stream: payload[:stream], timestamp: Time.current.iso8601 }
+        entry = { line: sanitize(payload[:line] || payload[:error] || ""), stream: sanitize(payload[:stream]), timestamp: Time.current.iso8601 }
         current[:logs] = (current[:logs] || []).last(MAX_LOGS - 1) + [ entry ]
         current[:state] = "live"
       when "failed"
         current[:state] = "failed"
-        current[:error] = payload[:error]
+        current[:error] = sanitize(payload[:error])
       when "completed"
         current[:state] = "completed"
         current[:server_id] = payload[:server_id]&.to_s
@@ -55,6 +55,12 @@ class SetupProgress
 
     def cache_key(setup_id)
       "server_setup:#{setup_id}"
+    end
+
+    def sanitize(value)
+      return value unless value.is_a?(String)
+
+      value.encode("UTF-8", invalid: :replace, undef: :replace, replace: "�")
     end
   end
 end
