@@ -3,7 +3,7 @@ require "net/ssh"
 class ProvisionServerJob < ApplicationJob
   queue_as :default
 
-  def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed")
+  def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed", server_name: nil, base_domain: nil, auto_domains: true)
     organization = Organization.find(organization_id)
     org_key = organization.ensure_ssh_key!
 
@@ -42,7 +42,7 @@ class ProvisionServerJob < ApplicationJob
 
     server = Server.create!(
       organization: organization,
-      name: "Dokku #{host}",
+      name: server_name.presence || "RailDock #{host}",
       host: host,
       ssh_user: "dokku",
       ssh_key: private_key,
@@ -54,6 +54,8 @@ class ProvisionServerJob < ApplicationJob
       os: result[:os],
       uptime: result[:uptime],
       public_ip: result[:public_ip],
+      base_domain: base_domain,
+      auto_domains: auto_domains,
       default_proxy: "traefik",
       proxy_mode: proxy_mode
     )

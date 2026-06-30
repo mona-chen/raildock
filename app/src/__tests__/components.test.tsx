@@ -278,13 +278,11 @@ describe('ServerPage', () => {
     render(<ServerPage />)
 
     fireEvent.click(screen.getByText('Add Server'))
-    expect(screen.getByText('Connect a remote Dokku host')).toBeInTheDocument()
-    expect(screen.getByText('Organization public key')).toBeInTheDocument()
-    expect(screen.getByText('Bootstrap command (run as root)')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('Continue'))
-    expect(screen.getByPlaceholderText('dokku-prod-01')).toBeInTheDocument()
+    expect(screen.getByText('Connect a remote host to RailDock')).toBeInTheDocument()
+    expect(screen.getByText('Manual bootstrap command')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('raildock-prod-01')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('192.168.1.100')).toBeInTheDocument()
+    expect(screen.getByText('Validate Server')).toBeInTheDocument()
   })
 
   it('shows external Traefik settings for a server', () => {

@@ -2,13 +2,10 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, Check, Copy, KeyRound, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
-import { useCreateServer, useTestServer, useProvisionServer, useValidateServer } from '@/hooks/useServers'
+import { useProvisionServer } from '@/hooks/useServers'
 import { useServerSetupLogs } from '@/hooks/useServerSetupLogs'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
-import type { ServerTestResult } from '@/lib/api'
-
-type Step = 'bootstrap' | 'connect'
 
 interface ServerSetupWizardProps {
   isOpen: boolean
@@ -21,12 +18,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const canCreate = organization?.role === 'owner'
 
   const { data: bootstrap, isLoading: bootstrapLoading, isError: bootstrapError, error: bootstrapErrorDetail } = useServerBootstrap(organizationId)
-  const testServer = useTestServer()
-  const createServer = useCreateServer()
-  const validateServer = useValidateServer()
+  const provisionServer = useProvisionServer()
   const { copiedKey, copy } = useCopy()
 
-  const [step, setStep] = useState<Step>('bootstrap')
   const [name, setName] = useState('')
   const [host, setHost] = useState('')
   const [sshUser, setSshUser] = useState('dokku')
@@ -34,28 +28,18 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [baseDomain, setBaseDomain] = useState('')
   const [autoDomains, setAutoDomains] = useState(true)
-  const [testResult, setTestResult] = useState<ServerTestResult | null>(null)
-  const [showLogs, setShowLogs] = useState(false)
   const [setupId, setSetupId] = useState<string | null>(null)
 
-  const scriptUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const bootstrapCommand =
-    bootstrap?.publicKey && scriptUrl
-      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | ${proxyMode === 'external' ? "PROXY_MODE='external' " : ''}bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
-      : bootstrap?.command || ''
-
-  const provisionServer = useProvisionServer()
   const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
 
   useEffect(() => {
     if (provisionState === 'completed') {
-      toast.success('Server provisioned and added')
+      toast.success('Server connected')
       setTimeout(onClose, 1500)
     }
   }, [provisionState, onClose])
 
   const reset = () => {
-    setStep('bootstrap')
     setName('')
     setHost('')
     setSshUser('dokku')
@@ -63,8 +47,6 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setProxyMode('managed')
     setBaseDomain('')
     setAutoDomains(true)
-    setTestResult(null)
-    setShowLogs(false)
     setSetupId(null)
   }
 
@@ -74,92 +56,36 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
 
   if (!isOpen) return null
 
-  const handleTest = () => {
-    if (!host.trim()) {
-      toast.error('Host / IP is required')
+  const scriptUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const bootstrapCommand =
+    bootstrap?.publicKey && scriptUrl
+      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | ${proxyMode === 'external' ? "PROXY_MODE='external' " : ''}bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
+      : bootstrap?.command || ''
+
+  const handleValidate = () => {
+    if (!canCreate) {
+      toast.error('Only organization owners can connect servers')
       return
     }
-    setTestResult(null)
-    setShowLogs(true)
-    testServer.mutate(
-      { host: host.trim(), sshUser: sshUser.trim() || 'dokku' },
-      {
-        onSuccess: (result) => {
-          if (result.success) {
-            setTestResult(result)
-            toast.success('Connection test succeeded')
-          } else {
-            setTestResult(result)
-            toast.error(result.error || 'Connection test failed')
-          }
-        },
-        onError: (err) => toast.error(`Connection test failed: ${err.message}`),
-      }
-    )
-  }
-
-  const handleAdd = () => {
-    if (!name.trim() || !host.trim()) return
-    if (!testResult?.success) {
-      toast.error('Test the connection before adding the server')
+    if (!name.trim() || !host.trim()) {
+      toast.error('Server name and host are required')
       return
     }
 
-    createServer.mutate(
-      {
-        name: name.trim(),
-        host: host.trim(),
-        sshUser: sshUser.trim() || 'dokku',
-        baseDomain: baseDomain.trim() || undefined,
-        autoDomains,
-        hostKey: testResult.hostKey,
-        hostKeyFingerprint: testResult.hostKeyFingerprint,
-        proxyMode,
-      },
-      {
-        onSuccess: (server) => {
-          validateServer.mutate(server.id)
-          toast.success('Server added')
-          onClose()
-        },
-      }
-    )
-  }
-
-  const handleProvision = () => {
-    if (!host.trim()) {
-      toast.error('Host / IP is required')
-      return
-    }
     const id = crypto.randomUUID()
     setSetupId(id)
-    provisionServer.mutate({ host: host.trim(), adminUser: adminUser.trim() || 'root', setupId: id, proxyMode })
+    provisionServer.mutate({
+      host: host.trim(),
+      adminUser: adminUser.trim() || 'root',
+      name: name.trim(),
+      baseDomain: baseDomain.trim() || undefined,
+      autoDomains,
+      proxyMode,
+      setupId: id,
+    })
   }
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center gap-2 mb-6">
-      <button
-        onClick={() => setStep('bootstrap')}
-        className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
-          step === 'bootstrap' ? 'bg-rail-purple/20 text-rail-purple' : 'text-[#6B6B7B] hover:text-white'
-        }`}
-      >
-        <span className={`w-4 h-4 rounded-full text-[9px] flex items-center justify-center ${step === 'bootstrap' ? 'bg-rail-purple text-white' : 'bg-white/10'}`}>1</span>
-        Prepare server
-      </button>
-      <div className="w-4 h-px bg-white/10" />
-      <button
-        onClick={() => testResult?.success && setStep('connect')}
-        disabled={!testResult?.success}
-        className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-all ${
-          step === 'connect' ? 'bg-rail-purple/20 text-rail-purple' : 'text-[#6B6B7B] hover:text-white'
-        }`}
-      >
-        <span className={`w-4 h-4 rounded-full text-[9px] flex items-center justify-center ${step === 'connect' ? 'bg-rail-purple text-white' : 'bg-white/10'}`}>2</span>
-        Connect
-      </button>
-    </div>
-  )
+  const isBusy = provisionState === 'live' || provisionState === 'connecting' || provisionServer.isPending
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
@@ -170,310 +96,195 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
           </div>
           <div>
             <h3 className="text-base font-semibold text-white">Add Server</h3>
-            <p className="text-[11px] text-[#6B6B7B]">Connect a remote Dokku host</p>
+            <p className="text-[11px] text-[#6B6B7B]">Connect a remote host to RailDock</p>
           </div>
         </div>
 
-        {renderStepIndicator()}
-
         {!canCreate && (
           <div className="mb-4 p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 text-[11px] text-rail-red">
-            Only organization owners can add servers.
+            Only organization owners can connect servers.
           </div>
         )}
 
-        {step === 'bootstrap' && (
-          <div className="space-y-4">
-            {bootstrapError && (
-              <div className="p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 flex items-start gap-2">
-                <AlertCircle size={14} className="text-rail-red mt-0.5 shrink-0" />
-                <div className="text-[11px] text-rail-red">
-                  <p className="font-medium">Could not load setup credentials</p>
-                  <p className="opacity-90">{bootstrapErrorDetail?.message || 'Please check your connection and try again.'}</p>
-                </div>
-              </div>
-            )}
-            <div className="p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
-              <h4 className="text-xs font-medium text-white mb-1">1. Authorize RailDock</h4>
-              <p className="text-[11px] text-[#6B6B7B] mb-3">
-                Run the command below as <strong>root</strong> to install Docker, Dokku, and authorize this key automatically. Or add the key manually to the admin user&apos;s <code className="text-white">~/.ssh/authorized_keys</code>.
-              </p>
-
-              <div className="mb-3">
-                <label htmlFor="wizard-proxy-mode" className="text-[10px] text-[#6B6B7B] block mb-1.5">Proxy mode</label>
-                <select
-                  id="wizard-proxy-mode"
-                  value={proxyMode}
-                  onChange={(e) => setProxyMode(e.target.value as 'managed' | 'external')}
-                  className="w-full px-3 py-2 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-xs text-white outline-none"
-                >
-                  <option value="managed">RailDock managed (default)</option>
-                  <option value="external">Existing Traefik / Coolify</option>
-                </select>
-                {proxyMode === 'external' && (
-                  <p className="text-[10px] text-[#4A4A55] mt-1.5">
-                    Use this when the host already runs Traefik or Coolify on port 80/443. The bootstrap will skip nginx and set Dokku proxy to none.
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
-                      <Terminal size={11} /> Bootstrap command (run as root)
-                    </label>
-                    {bootstrapCommand && (
-                      <button
-                        onClick={() => copy(bootstrapCommand, 'command')}
-                        className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
-                      >
-                        {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
-                        {copiedKey === 'command' ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    readOnly
-                    value={bootstrapCommand}
-                    placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
-                    rows={3}
-                    style={{ whiteSpace: 'nowrap' }}
-                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
-                      <KeyRound size={11} /> Organization public key
-                    </label>
-                    {bootstrap?.publicKey && (
-                      <button
-                        onClick={() => copy(bootstrap.publicKey, 'public-key')}
-                        className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
-                      >
-                        {copiedKey === 'public-key' ? <Check size={11} /> : <Copy size={11} />}
-                        {copiedKey === 'public-key' ? 'Copied' : 'Copy'}
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    readOnly
-                    value={bootstrap?.publicKey || ''}
-                    placeholder={bootstrapLoading ? 'Loading public key...' : 'Public key unavailable'}
-                    rows={2}
-                    style={{ whiteSpace: 'nowrap' }}
-                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
-                  />
-                  <p className="text-[10px] text-[#4A4A55] mt-1.5">
-                    Add this to <code className="text-[#6B6B7B]">~/.ssh/authorized_keys</code> on the remote host. If you plan to connect as the <code className="text-[#6B6B7B]">dokku</code> user, also add it to <code className="text-[#6B6B7B]">/home/dokku/.ssh/authorized_keys</code> after Dokku is installed.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <button
-                onClick={() => setStep('connect')}
-                className="text-[11px] text-rail-purple hover:text-rail-purple-light transition-all underline underline-offset-2"
-              >
-                I&apos;ll add the key manually →
-              </button>
-              <button
-                onClick={() => setStep('connect')}
-                className="px-4 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark transition-all"
-              >
-                Continue
-              </button>
+        {bootstrapError && (
+          <div className="mb-4 p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 flex items-start gap-2">
+            <AlertCircle size={14} className="text-rail-red mt-0.5 shrink-0" />
+            <div className="text-[11px] text-rail-red">
+              <p className="font-medium">Could not load setup credentials</p>
+              <p className="opacity-90">{bootstrapErrorDetail?.message || 'Please check your connection and try again.'}</p>
             </div>
           </div>
         )}
 
-        {step === 'connect' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label htmlFor="wizard-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Server Name</label>
-                <input
-                  id="wizard-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-                  placeholder="dokku-prod-01"
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label htmlFor="wizard-host" className="text-[11px] text-[#6B6B7B] block mb-1.5">Host / IP</label>
-                <input
-                  id="wizard-host"
-                  value={host}
-                  onChange={(e) => {
-                    setHost(e.target.value)
-                    setTestResult(null)
-                  }}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-                  placeholder="192.168.1.100"
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label htmlFor="wizard-ssh-user" className="text-[11px] text-[#6B6B7B] block mb-1.5">SSH User</label>
-                <input
-                  id="wizard-ssh-user"
-                  value={sshUser}
-                  onChange={(e) => {
-                    setSshUser(e.target.value)
-                    setTestResult(null)
-                  }}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-                  placeholder="dokku"
-                />
-              </div>
-
-              <div className="col-span-2 p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
-                <h4 className="text-xs font-medium text-white mb-2">Automatic provisioning</h4>
-                <p className="text-[10px] text-[#6B6B7B] mb-3">
-                  If you already added the organization key to an admin user (e.g. root), RailDock can connect and run the bootstrap for you.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    value={adminUser}
-                    onChange={(e) => setAdminUser(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-                    placeholder="root"
-                  />
-                  <button
-                    onClick={handleProvision}
-                    disabled={!host.trim() || !canCreate || provisionState === 'live' || provisionState === 'connecting'}
-                    className="px-4 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {(provisionState === 'live' || provisionState === 'connecting') && <Loader2 size={12} className="animate-spin" />}
-                    {provisionState === 'live' || provisionState === 'connecting' ? 'Provisioning...' : 'Provision'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="col-span-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="wizard-base-domain" className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
-                  <button
-                    type="button"
-                    onClick={() => setBaseDomain('sslip.io')}
-                    className="text-[10px] px-2 py-0.5 bg-rail-purple/10 text-rail-purple rounded-full hover:bg-rail-purple/20 transition-all"
-                  >
-                    Use sslip.io
-                  </button>
-                </div>
-                <input
-                  id="wizard-base-domain"
-                  value={baseDomain}
-                  onChange={(e) => setBaseDomain(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-                  placeholder="example.com"
-                />
-                <p className="text-[10px] text-[#4A4A55] mt-1">
-                  {baseDomain === 'sslip.io' ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)' : 'Auto-assigns subdomains like app-name.example.com'}
-                </p>
-              </div>
-              <div className="col-span-2 flex items-center gap-2">
-                <input
-                  id="wizard-auto-domains"
-                  type="checkbox"
-                  checked={autoDomains}
-                  onChange={(e) => setAutoDomains(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-[rgba(255,255,255,0.15)] bg-[#0B0B0D] text-rail-purple focus:ring-rail-purple"
-                />
-                <label htmlFor="wizard-auto-domains" className="text-[11px] text-[#6B6B7B]">Auto-assign temporary domains for new services</label>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label htmlFor="server-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Server Name</label>
+              <input
+                id="server-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                placeholder="raildock-prod-01"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label htmlFor="server-host" className="text-[11px] text-[#6B6B7B] block mb-1.5">Host / IP</label>
+              <input
+                id="server-host"
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                placeholder="192.168.1.100"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label htmlFor="admin-user" className="text-[11px] text-[#6B6B7B] block mb-1.5">Admin User</label>
+              <input
+                id="admin-user"
+                value={adminUser}
+                onChange={(e) => setAdminUser(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                placeholder="root"
+              />
+              <p className="text-[10px] text-[#4A4A55] mt-1">Must have passwordless sudo or root access.</p>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label htmlFor="ssh-user" className="text-[11px] text-[#6B6B7B] block mb-1.5">Deployment User</label>
+              <input
+                id="ssh-user"
+                value={sshUser}
+                onChange={(e) => setSshUser(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                placeholder="dokku"
+              />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label htmlFor="proxy-mode" className="text-[11px] text-[#6B6B7B] block mb-1.5">Proxy Mode</label>
+              <select
+                id="proxy-mode"
+                value={proxyMode}
+                onChange={(e) => setProxyMode(e.target.value as 'managed' | 'external')}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+              >
+                <option value="managed">RailDock managed</option>
+                <option value="external">Existing reverse proxy</option>
+              </select>
             </div>
 
-            {testResult?.success && (
-              <div className="p-3 rounded-lg bg-rail-green/10 border border-rail-green/20 space-y-2">
-                <div className="flex items-center gap-2 text-rail-green text-[11px] font-medium">
-                  <Check size={12} /> Connection verified
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="text-[#6B6B7B]">Dokku <span className="text-white ml-1">{testResult.dokkuVersion || 'unknown'}</span></div>
-                  <div className="text-[#6B6B7B]">Docker <span className="text-white ml-1">{testResult.dockerVersion || 'unknown'}</span></div>
-                  <div className="col-span-2 text-[#6B6B7B] truncate" title={testResult.hostKeyFingerprint}>
-                    Host key <span className="text-white ml-1 font-mono">{testResult.hostKeyFingerprint || 'unknown'}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {testServer.error && !testResult && (
-              <div className="p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 text-[11px] text-rail-red">
-                {testServer.error.message}
-              </div>
-            )}
-
-            {(testResult?.logs || testServer.error) && (
-              <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
+            <div className="col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="base-domain" className="text-[11px] text-[#6B6B7B]">Base Domain (optional)</label>
                 <button
-                  onClick={() => setShowLogs((s) => !s)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0] hover:text-white"
+                  type="button"
+                  onClick={() => setBaseDomain('sslip.io')}
+                  className="text-[10px] px-2 py-0.5 bg-rail-purple/10 text-rail-purple rounded-full hover:bg-rail-purple/20 transition-all"
                 >
-                  <span>Connection test logs</span>
-                  <span className="text-[10px]">{showLogs ? 'Hide' : 'Show'}</span>
+                  Use sslip.io
                 </button>
-                {showLogs && (
-                  <div className="p-3 bg-[#161618] max-h-40 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
-                    {testResult?.logs?.map((line, i) => <div key={i}>{line}</div>)}
-                    {testServer.error && <div className="text-rail-red">{testServer.error.message}</div>}
-                  </div>
-                )}
               </div>
-            )}
-
-            {setupId && (
-              <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
-                <div className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0]">
-                  <span>Provisioning logs</span>
-                  <span className="text-[10px]">
-                    {provisionState === 'completed' && 'Completed'}
-                    {provisionState === 'failed' && 'Failed'}
-                    {(provisionState === 'live' || provisionState === 'connecting') && 'Streaming...'}
-                  </span>
-                </div>
-                <div className="p-3 bg-[#161618] max-h-48 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
-                  {provisionLogs.length === 0 && <div className="text-[#4A4A55]">Waiting for logs...</div>}
-                  {provisionLogs.map((log, i) => (
-                    <div key={i} className={log.stream === 'stderr' ? 'text-rail-red' : ''}>{log.line}</div>
-                  ))}
-                  {provisionError && <div className="text-rail-red">{provisionError}</div>}
-                  {provisionServerId && (
-                    <div className="text-rail-green">Server added (ID: {provisionServerId})</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStep('bootstrap')}
-                className="px-4 py-2 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleTest}
-                disabled={!host.trim() || testServer.isPending}
-                className="flex-1 py-2 border border-rail-purple/30 text-rail-purple text-xs font-medium rounded-lg hover:bg-rail-purple/10 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {testServer.isPending && <Loader2 size={12} className="animate-spin" />}
-                {testServer.isPending ? 'Testing...' : testResult?.success ? 'Test Again' : 'Test Connection'}
-              </button>
-              <button
-                onClick={handleAdd}
-                disabled={!canCreate || !testResult?.success || createServer.isPending}
-                className="flex-1 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50"
-              >
-                {createServer.isPending ? 'Adding...' : 'Add Server'}
-              </button>
+              <input
+                id="base-domain"
+                value={baseDomain}
+                onChange={(e) => setBaseDomain(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                placeholder="example.com"
+              />
+              <p className="text-[10px] text-[#4A4A55] mt-1">
+                {baseDomain === 'sslip.io' ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)' : 'Auto-assigns subdomains like app-name.example.com'}
+              </p>
+            </div>
+            <div className="col-span-2 flex items-center gap-2">
+              <input
+                id="auto-domains"
+                type="checkbox"
+                checked={autoDomains}
+                onChange={(e) => setAutoDomains(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-[rgba(255,255,255,0.15)] bg-[#0B0B0D] text-rail-purple focus:ring-rail-purple"
+              />
+              <label htmlFor="auto-domains" className="text-[11px] text-[#6B6B7B]">Auto-assign temporary domains for new services</label>
             </div>
           </div>
-        )}
+
+          <div className="p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
+                <Terminal size={11} /> Manual bootstrap command
+              </label>
+              {bootstrapCommand && (
+                <button
+                  onClick={() => copy(bootstrapCommand, 'command')}
+                  className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
+                >
+                  {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
+                  {copiedKey === 'command' ? 'Copied' : 'Copy'}
+                </button>
+              )}
+            </div>
+            <textarea
+              readOnly
+              value={bootstrapCommand}
+              placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
+              rows={3}
+              style={{ whiteSpace: 'nowrap' }}
+              className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+            />
+            <p className="text-[10px] text-[#4A4A55] mt-1.5">
+              Run this as <strong>root</strong> if automated validation cannot SSH in. RailDock will otherwise connect as the admin user, install Docker/Dokku if needed, and authorize this organization key automatically.
+            </p>
+          </div>
+
+          {setupId && (
+            <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
+              <div className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0]">
+                <span>Validation logs</span>
+                <span className="text-[10px]">
+                  {provisionState === 'completed' && 'Completed'}
+                  {provisionState === 'failed' && 'Failed'}
+                  {(provisionState === 'live' || provisionState === 'connecting') && 'Streaming...'}
+                  {!provisionState && 'Waiting...'}
+                </span>
+              </div>
+              <div className="p-3 bg-[#161618] max-h-48 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
+                {provisionLogs.length === 0 && !provisionError && <div className="text-[#4A4A55]">Waiting for logs...</div>}
+                {provisionLogs.map((log, i) => (
+                  <div key={i} className={log.stream === 'stderr' ? 'text-rail-red' : ''}>{log.line}</div>
+                ))}
+                {provisionError && <div className="text-rail-red">{provisionError}</div>}
+                {provisionServerId && (
+                  <div className="text-rail-green">Server connected (ID: {provisionServerId})</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {provisionState === 'failed' && (
+            <div className="p-3 rounded-lg bg-rail-red/10 border border-rail-red/20 flex items-start gap-2">
+              <AlertCircle size={14} className="text-rail-red mt-0.5 shrink-0" />
+              <div className="text-[11px] text-rail-red">
+                <p className="font-medium">Validation failed</p>
+                <p className="opacity-90">Run the manual bootstrap command above as root, then try again.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleValidate}
+              disabled={!canCreate || !name.trim() || !host.trim() || isBusy}
+              className="flex-1 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isBusy && <Loader2 size={12} className="animate-spin" />}
+              {isBusy ? 'Connecting...' : 'Validate Server'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

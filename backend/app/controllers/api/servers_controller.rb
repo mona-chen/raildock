@@ -65,7 +65,10 @@ module Api
         provision_params[:host].to_s.strip,
         provision_params[:admin_user].presence || "root",
         Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}",
-        proxy_mode: provision_params[:proxy_mode].to_s.presence || "managed"
+        proxy_mode: provision_params[:proxy_mode].to_s.presence || "managed",
+        server_name: provision_params[:server_name].to_s.strip.presence,
+        base_domain: provision_params[:base_domain].to_s.strip.presence,
+        auto_domains: provision_params[:auto_domains] != false
       )
 
       audit_log(
@@ -177,9 +180,9 @@ module Api
     end
 
     def provision_params
-      params.require(:server).permit(:host, :admin_user, :proxy_mode)
+      params.require(:server).permit(:host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains)
     rescue ActionController::ParameterMissing
-      params.permit(:host, :admin_user, :proxy_mode)
+      params.permit(:host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains)
     end
 
     def build_server_from_params

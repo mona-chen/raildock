@@ -462,8 +462,8 @@ export const serversApi = {
     return fetchJson('/api/servers/test', { method: 'POST', body: wrapBody('server', data) })
   },
 
-  provision: async (data: { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external' }): Promise<{ setupId: string }> => {
-    return fetchJson('/api/servers/provision', { method: 'POST', body: wrapBody('server', { host: data.host, admin_user: data.adminUser, proxy_mode: data.proxyMode }) })
+  provision: async (data: { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external'; name?: string; baseDomain?: string; autoDomains?: boolean }): Promise<{ setupId: string }> => {
+    return fetchJson('/api/servers/provision', { method: 'POST', body: wrapBody('server', data) })
   },
 
   update: async (id: string, data: Partial<Server>): Promise<Server> => {

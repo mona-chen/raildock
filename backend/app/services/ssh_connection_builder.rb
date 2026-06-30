@@ -16,6 +16,8 @@ class SshConnectionBuilder
   def options
     base = {
       key_data: [ server.ssh_key ].compact,
+      keys_only: true,
+      use_agent: false,
       non_interactive: true,
       timeout: SSH_TIMEOUT,
       keepalive: true,
