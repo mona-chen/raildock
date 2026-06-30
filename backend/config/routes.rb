@@ -101,6 +101,7 @@ Rails.application.routes.draw do
       collection do
         post :test
         post :provision
+        get :provision_status
       end
       resources :docker_imports, only: [ :index, :create ], controller: "server_docker_imports"
     end

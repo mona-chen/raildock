@@ -44,8 +44,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     }
   }, [provisionState, onClose])
 
-  // If the WebSocket never connects or the job never produces a log, surface
-  // a timeout message so the dialog doesn't spin forever.
+  // If the job is still running after a while, surface a message so the user
+  // knows we are still working. With the polling fallback this is just
+  // informational; the dialog will still update when the job finishes.
   useEffect(() => {
     if (!setupId || provisionState === 'completed' || provisionState === 'failed') {
       setConnectionTimeout(false)
@@ -55,7 +56,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       if (provisionState === 'connecting' || provisionState === 'live' || !provisionState) {
         setConnectionTimeout(true)
       }
-    }, 20000)
+    }, 45000)
     return () => clearTimeout(timer)
   }, [setupId, provisionState])
 
@@ -399,7 +400,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     <>
                       <p className="font-medium">Taking longer than expected</p>
                       <p className="opacity-90">
-                        The background worker may not be running, or the host is unreachable. Run the bootstrap command manually as root, then try again.
+                        Large hosts can take a minute to bootstrap. Logs update automatically; if nothing changes, run the bootstrap command manually as root, then try again.
                       </p>
                     </>
                   )}

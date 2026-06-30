@@ -1,5 +1,4 @@
 require "net/ssh"
-require "tempfile"
 
 class ServerTestService
   class MissingOrganizationKey < StandardError; end
@@ -19,12 +18,6 @@ class ServerTestService
     return error("Organization SSH key is missing") if org_key.blank? || org_key.private_key.blank?
 
     server = build_temp_server(org_key.private_key)
-    builder = SshConnectionBuilder.new(server, user: server.ssh_user)
-
-    session = Net::SSH.start(server.host, server.ssh_user, builder.options)
-    capture_host_key!(server, session)
-    session.close
-
     result = DokkuEngine.new(server).validate_connection
 
     if result[:success]
@@ -63,8 +56,6 @@ class ServerTestService
   rescue => e
     Rails.logger.error "Server test failed for #{@host}: #{e.message}"
     error("Connection test failed: #{e.message}")
-  ensure
-    builder&.cleanup
   end
 
   private
@@ -78,15 +69,6 @@ class ServerTestService
     )
     server.ssh_key = private_key
     server
-  end
-
-  def capture_host_key!(server, session)
-    transport = session.respond_to?(:transport) ? session.transport : session
-    key = transport.host_keys.first
-    return unless key
-
-    server.host_key = key.ssh_type + " " + [ key.to_blob ].pack("m0")
-    server.host_key_fingerprint = "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(key.to_blob))
   end
 
   def error(message)

@@ -114,5 +114,6 @@ class ProvisionServerJob < ApplicationJob
 
   def broadcast(setup_id, payload)
     ActionCable.server.broadcast("server_setup:#{setup_id}", payload)
+    SetupProgress.update(setup_id, payload)
   end
 end

@@ -78,6 +78,15 @@ module Api
       render json: { setup_id: setup_id }
     end
 
+    def provision_status
+      setup_id = params[:setup_id].to_s.strip
+      if setup_id.blank?
+        return render json: { error: "setup_id required" }, status: :bad_request
+      end
+
+      render json: SetupProgress.get(setup_id)
+    end
+
     def update
       authorize_server_record!(@server, action: :update)
       return if performed?

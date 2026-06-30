@@ -466,6 +466,16 @@ export const serversApi = {
     return fetchJson('/api/servers/provision', { method: 'POST', body: wrapBody('server', data) })
   },
 
+  provisionStatus: async (setupId: string): Promise<{
+    setupId: string
+    state: 'connecting' | 'live' | 'completed' | 'failed'
+    logs: Array<{ line: string; stream?: string; timestamp: string }>
+    error?: string
+    serverId?: string
+  }> => {
+    return fetchJson(`/api/servers/provision_status?setup_id=${encodeURIComponent(setupId)}`)
+  },
+
   update: async (id: string, data: Partial<Server>): Promise<Server> => {
     const res = await fetchJson<unknown>(`/api/servers/${id}`, { method: 'PATCH', body: wrapBody('server', data) })
     return normalizeServer(res)
