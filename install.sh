@@ -1004,7 +1004,7 @@ update_raildock() {
 }
 
 # ── Entrypoint ────────────────────────────────
-case "${1:-install}" in
+case "${MODE_ARG:-install}" in
   update|upgrade)
     update_raildock
     ;;
