@@ -67,7 +67,7 @@ RSpec.describe SshConnectionBuilder do
 
   describe SshConnectionBuilder::HostKeyVerifier do
     let(:rsa_key) { OpenSSL::PKey::RSA.new(2048) }
-    let(:fingerprint) { "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(rsa_key.public_key.to_blob)) }
+    let(:fingerprint) { "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(rsa_key.public_key.to_blob)).delete("=") }
     let(:net_ssh_key) { double("key", ssh_type: "ssh-rsa", to_blob: rsa_key.public_key.to_blob) }
 
     it "accepts and captures a new key when none is stored" do

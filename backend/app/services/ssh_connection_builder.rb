@@ -56,7 +56,12 @@ class SshConnectionBuilder
   end
 
   def fingerprint_for(key)
-    "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(key.to_blob))
+    fingerprint_for_blob(key.to_blob)
+  end
+
+  def fingerprint_for_blob(blob)
+    # Match Net::SSH's SHA256 fingerprint format: base64, no padding.
+    "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(blob)).delete("=")
   end
 
   def local_host?
@@ -106,7 +111,7 @@ class SshConnectionBuilder
         _type, blob, = line.split(" ", 3)
         next if blob.blank?
 
-        "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(Base64.decode64(blob)))
+        "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(Base64.decode64(blob))).delete("=")
       rescue
         nil
       end.compact
