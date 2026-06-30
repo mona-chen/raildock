@@ -55,10 +55,12 @@ class PortDetector
   def detect_from_container(app_name)
     return unless @host_engine
 
-    container = @host_engine.dokku_container_name(app_name)
-    return unless container
+    # Dokku tags the built image as dokku/<app>:latest. The running container
+    # may still be named <app>.web.1.upcoming-<id> right after ps:rebuild, so
+    # inspect the image to avoid the rename race.
+    target = @host_engine.dokku_container_name(app_name) || "dokku/#{app_name}:latest"
 
-    result = @host_engine.docker_inspect(container, format: "{{json .Config.ExposedPorts}}")
+    result = @host_engine.docker_inspect(target, format: "{{json .Config.ExposedPorts}}")
     return unless result[:success]
 
     ports = JSON.parse(result[:output]).to_h.keys.filter_map { |mapping| mapping.to_s.split("/").first.to_i.presence }

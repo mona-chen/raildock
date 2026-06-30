@@ -32,6 +32,10 @@ RSpec.describe PortDetector do
     it "falls back to ports:report when no manifest port or domain target_port" do
       service = build(:service, dokku_app_name: "app", docker_image: "img", port: nil)
       allow(host_engine).to receive(:dokku_container_name).with("app").and_return(nil)
+      allow(host_engine).to receive(:docker_inspect).with(
+        "dokku/app:latest",
+        format: "{{json .Config.ExposedPorts}}"
+      ).and_return(success: false, output: "")
       allow(engine).to receive(:run).with("ports:report app").and_return(
         success: true,
         output: "Ports map detected: http:80:8200\n"
@@ -73,6 +77,10 @@ RSpec.describe PortDetector do
     it "falls back to Dokku port reporting when the container is unavailable" do
       service = build(:service, dokku_app_name: "app", docker_image: "img", port: nil)
       allow(host_engine).to receive(:dokku_container_name).with("app").and_return(nil)
+      allow(host_engine).to receive(:docker_inspect).with(
+        "dokku/app:latest",
+        format: "{{json .Config.ExposedPorts}}"
+      ).and_return(success: false, output: "")
       allow(engine).to receive(:run).with("ports:report app").and_return(
         success: true,
         output: "Ports map detected: http:80:8200\n"
@@ -81,6 +89,20 @@ RSpec.describe PortDetector do
       port = described_class.new(engine, host_engine: host_engine).detect(service)
 
       expect(port).to eq(8200)
+    end
+
+    it "detects from the built image while Dokku renames the container" do
+      service = build(:service, dokku_app_name: "app", docker_image: "img", port: nil)
+      allow(host_engine).to receive(:dokku_container_name).with("app").and_return(nil)
+      allow(host_engine).to receive(:docker_inspect).with(
+        "dokku/app:latest",
+        format: "{{json .Config.ExposedPorts}}"
+      ).and_return(success: true, output: '{"3000/tcp":{}}')
+      allow(engine).to receive(:run).with("ports:report app").and_return(success: false)
+
+      port = described_class.new(engine, host_engine: host_engine).detect(service)
+
+      expect(port).to eq(3000)
     end
   end
 end
