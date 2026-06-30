@@ -3,21 +3,58 @@
 # Usage:
 #   curl -sSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
 #   curl -sSL .../install.sh | bash -s -- /opt/raildock
+#   curl -sSL .../install.sh | bash -s -- --proxy-mode external \
+#                                          --external-proxy-network proxy \
+#                                          --external-proxy-http-entrypoint web \
+#                                          --external-proxy-https-entrypoint websecure \
+#                                          --external-proxy-cert-resolver letsencrypt \
+#                                          /opt/raildock
 #   ./install.sh [install-dir] [update]
 #
 # Requirements: Docker 20+ (with Buildx for source builds)
 
 set -e
 
+usage() {
+  cat <<'EOF'
+Usage: install.sh [options] [install-dir]
+
+Options:
+  --proxy-mode {managed|external}      How Dokku's proxy is configured (default: managed)
+  --external-proxy-network NAME        Existing Docker network for external Traefik/Coolify
+  --external-proxy-http-entrypoint EP  External proxy HTTP entrypoint (default: web)
+  --external-proxy-https-entrypoint EP External proxy HTTPS entrypoint (default: websecure)
+  --external-proxy-cert-resolver NAME  External proxy certificate resolver
+  --external-proxy-redirect-middleware NAME External proxy redirect middleware
+  update, upgrade                      Run in update mode using the current directory
+EOF
+}
+
 # ── Config ────────────────────────────────────
 RAILDOCK_VERSION="${RAILDOCK_VERSION:-latest}"
 INSTALL_DOKKU="${INSTALL_DOKKU:-1}"
 SKIP_DOKKU_CHECK="${SKIP_DOKKU_CHECK:-0}"
 
-case "${1:-}" in
-  update|upgrade) INSTALL_DIR="$(pwd)" ;;
-  *)              INSTALL_DIR="${1:-$(pwd)}" ;;
-esac
+INSTALL_DIR=""
+MODE_ARG=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --proxy-mode) PROXY_MODE="$2"; shift 2 ;;
+    --external-proxy-network) EXTERNAL_PROXY_NETWORK="$2"; shift 2 ;;
+    --external-proxy-http-entrypoint) EXTERNAL_PROXY_HTTP_ENTRYPOINT="$2"; shift 2 ;;
+    --external-proxy-https-entrypoint) EXTERNAL_PROXY_HTTPS_ENTRYPOINT="$2"; shift 2 ;;
+    --external-proxy-cert-resolver) EXTERNAL_PROXY_CERT_RESOLVER="$2"; shift 2 ;;
+    --external-proxy-redirect-middleware) EXTERNAL_PROXY_REDIRECT_MIDDLEWARE="$2"; shift 2 ;;
+    update|upgrade) MODE_ARG="update"; shift ;;
+    --help|-h) usage; exit 0 ;;
+    -*) log_error "Unknown option: $1"; usage; exit 1 ;;
+    *) INSTALL_DIR="$1"; shift ;;
+  esac
+done
+
+INSTALL_DIR="${INSTALL_DIR:-$(pwd)}"
+[ "$MODE_ARG" = "update" ] && INSTALL_DIR="$(pwd)"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 ENV_FILE="$INSTALL_DIR/.env"
 DATA_DIR="$INSTALL_DIR/data"
@@ -590,6 +627,21 @@ check_ports() {
     log_error "Port ${APP_PORT} is already in use"
     exit 1
   fi
+
+  if [ "${PROXY_MODE:-managed}" != "external" ]; then
+    local port80_in_use=false
+    if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ':80 '; then
+      port80_in_use=true
+    elif command -v lsof >/dev/null 2>&1 && lsof -Pi :80 -sTCP:LISTEN >/dev/null 2>&1; then
+      port80_in_use=true
+    fi
+
+    if [ "$port80_in_use" = "true" ]; then
+      log_warn "Port 80 is already in use"
+      log_warn "Set PROXY_MODE=external (or pass --proxy-mode external) to reuse your existing proxy"
+    fi
+  fi
+
   log_ok "Port ${APP_PORT} is available"
 }
 

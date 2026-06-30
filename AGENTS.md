@@ -62,6 +62,27 @@ External mode stops Dokku's managed Traefik and sets the global proxy to
 process-scoped Docker labels directly through Dokku's `docker-options` plugin.
 The external Traefik itself is never started, stopped, or reconfigured by RailDock.
 
+When piping the installer through `curl | bash`, either `export` the variables
+before the command or pass them as CLI flags:
+
+```bash
+export PROXY_MODE=external
+export EXTERNAL_PROXY_NETWORK=proxy
+curl -sSL .../install.sh | bash -s -- /opt/raildock
+```
+
+or
+
+```bash
+curl -sSL .../install.sh | bash -s -- \
+  --proxy-mode external \
+  --external-proxy-network proxy \
+  --external-proxy-http-entrypoint web \
+  --external-proxy-https-entrypoint websecure \
+  --external-proxy-cert-resolver letsencrypt \
+  /opt/raildock
+```
+
 ## Remote server setup
 
 Remote hosts are bootstrapped via the script returned by
