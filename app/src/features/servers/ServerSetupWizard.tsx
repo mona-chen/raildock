@@ -207,31 +207,63 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
           </div>
 
           <div className="p-3 rounded-lg bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)]">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[10px] text-[#6B6B7B] flex items-center gap-1.5">
-                <Terminal size={11} /> Manual bootstrap command
-              </label>
-              {bootstrapCommand && (
-                <button
-                  onClick={() => copy(bootstrapCommand, 'command')}
-                  className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
-                >
-                  {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
-                  {copiedKey === 'command' ? 'Copied' : 'Copy'}
-                </button>
-              )}
-            </div>
-            <textarea
-              readOnly
-              value={bootstrapCommand}
-              placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
-              rows={3}
-              style={{ whiteSpace: 'nowrap' }}
-              className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
-            />
-            <p className="text-[10px] text-[#4A4A55] mt-1.5">
-              Run this as <strong>root</strong> if automated validation cannot SSH in. RailDock will otherwise connect as the admin user, install Docker/Dokku if needed, and authorize this organization key automatically.
+            <p className="text-[11px] text-white font-medium mb-3 flex items-center gap-1.5">
+              <Terminal size={12} /> Manual setup
             </p>
+
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] text-[#6B6B7B]">Organization public key</label>
+                  {bootstrap?.publicKey && (
+                    <button
+                      onClick={() => copy(bootstrap.publicKey, 'public-key')}
+                      className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
+                    >
+                      {copiedKey === 'public-key' ? <Check size={11} /> : <Copy size={11} />}
+                      {copiedKey === 'public-key' ? 'Copied' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  readOnly
+                  value={bootstrap?.publicKey || ''}
+                  placeholder={bootstrapLoading ? 'Loading public key...' : 'Public key unavailable'}
+                  rows={2}
+                  style={{ whiteSpace: 'nowrap' }}
+                  className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+                />
+                <p className="text-[10px] text-[#4A4A55] mt-1">
+                  Add this to <code className="text-[#6B6B7B]">~/.ssh/authorized_keys</code> for the admin user and the deployment user (e.g. <code className="text-[#6B6B7B]">/home/dokku/.ssh/authorized_keys</code>).
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] text-[#6B6B7B]">Bootstrap command</label>
+                  {bootstrapCommand && (
+                    <button
+                      onClick={() => copy(bootstrapCommand, 'command')}
+                      className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
+                    >
+                      {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
+                      {copiedKey === 'command' ? 'Copied' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  readOnly
+                  value={bootstrapCommand}
+                  placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
+                  rows={3}
+                  style={{ whiteSpace: 'nowrap' }}
+                  className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+                />
+                <p className="text-[10px] text-[#4A4A55] mt-1">
+                  Or run this one-liner as <strong>root</strong> to install Docker/Dokku and authorize the key automatically.
+                </p>
+              </div>
+            </div>
           </div>
 
           {setupId && (
