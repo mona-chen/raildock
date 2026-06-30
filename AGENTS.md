@@ -63,7 +63,9 @@ process-scoped Docker labels directly through Dokku's `docker-options` plugin.
 The external Traefik itself is never started, stopped, or reconfigured by RailDock.
 
 When piping the installer through `curl | bash`, either `export` the variables
-before the command or pass them as CLI flags:
+before the command or pass them as CLI flags. The installer also auto-detects
+an existing Coolify or Traefik proxy container and switches to external mode
+automatically:
 
 ```bash
 export PROXY_MODE=external

@@ -645,6 +645,47 @@ check_ports() {
   log_ok "Port ${APP_PORT} is available"
 }
 
+detect_external_proxy() {
+  # If the user already chose a mode, respect it.
+  case "${PROXY_MODE:-}" in
+    managed|external) return 0 ;;
+  esac
+
+  local proxy_container=""
+  if docker ps --filter "name=^coolify-proxy$" --format "{{.Names}}" 2>/dev/null | grep -q "^coolify-proxy$"; then
+    proxy_container="coolify-proxy"
+  elif docker ps --filter "name=traefik" --format "{{.Names}}" 2>/dev/null | grep -q "traefik"; then
+    proxy_container=$(docker ps --filter "name=traefik" --format "{{.Names}}" 2>/dev/null | head -n1)
+  fi
+
+  [ -z "$proxy_container" ] && return 0
+
+  log_warn "Detected an existing proxy container: $proxy_container"
+  log_warn "Switching to PROXY_MODE=external to avoid port 80/443 conflicts"
+
+  PROXY_MODE="external"
+  EXTERNAL_PROXY_HTTP_ENTRYPOINT="${EXTERNAL_PROXY_HTTP_ENTRYPOINT:-web}"
+  EXTERNAL_PROXY_HTTPS_ENTRYPOINT="${EXTERNAL_PROXY_HTTPS_ENTRYPOINT:-websecure}"
+  EXTERNAL_PROXY_CERT_RESOLVER="${EXTERNAL_PROXY_CERT_RESOLVER:-letsencrypt}"
+
+  local networks
+  networks=$(docker inspect "$proxy_container" --format '{{range $n,$c := .NetworkSettings.Networks}}{{$n}} {{end}}' 2>/dev/null || true)
+  for net in $networks; do
+    case "$net" in
+      *proxy*|*traefik*) EXTERNAL_PROXY_NETWORK="$net"; break ;;
+    esac
+  done
+  EXTERNAL_PROXY_NETWORK="${EXTERNAL_PROXY_NETWORK:-$(echo "$networks" | awk '{print $1}')}"
+
+  if [ -z "${EXTERNAL_PROXY_NETWORK:-}" ]; then
+    log_error "Could not detect the Docker network for $proxy_container"
+    log_error "Set EXTERNAL_PROXY_NETWORK manually (e.g. --external-proxy-network coolify-proxy)"
+    exit 1
+  fi
+
+  log_info "Using external proxy network: $EXTERNAL_PROXY_NETWORK"
+}
+
 # ── Setup ─────────────────────────────────────
 ensure_repo_files() {
   if [ -f "$COMPOSE_FILE" ] && [ -f "$INSTALL_DIR/Dockerfile" ] && grep -q "raildock" "$COMPOSE_FILE" 2>/dev/null; then
@@ -803,6 +844,7 @@ install_raildock() {
   log_step "Generating SSH key for Dokku..."
   generate_ssh_key
   register_ssh_key_with_dokku
+  detect_external_proxy
   configure_dokku_proxy
 
   log_step "Generating credentials..."
