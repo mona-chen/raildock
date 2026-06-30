@@ -519,7 +519,7 @@ class DeploymentJob < ApplicationJob
 
     cache_base = "/var/cache/raildock/repos"
     cache_dir = "#{cache_base}/#{service.dokku_app_name}"
-    archive_path = "/tmp/raildock-#{service.dokku_app_name}-#{deployment.id}.tar.gz"
+    deploy_repo = "/tmp/raildock-deploy-#{service.dokku_app_name}-#{deployment.id}"
 
     log_and_broadcast = ->(chunk) {
       redacted = deployment.append_log_chunk!(chunk)
@@ -553,25 +553,54 @@ class DeploymentJob < ApplicationJob
 
       return nil if abort_if_cancelled(deployment)
 
-      # Resolve the exact SHA so GIT_REV is still meaningful for archive deploys.
+      # Resolve the exact SHA so GIT_REV is still meaningful for deploys.
       sha_result = host_engine.run("cd #{cache_dir} && git rev-parse HEAD")
       commit_sha = sha_result[:output].to_s.strip if sha_result[:success]
       if commit_sha.present?
         engine.run("config:set --no-restart #{service.dokku_app_name} GIT_REV=#{commit_sha}")
       end
 
-      log_and_broadcast.call("Packing '#{root}' into archive...\n")
-      tar_result = host_engine.run("tar -czf #{archive_path} -C #{cache_dir}/#{root} .")
-      log_and_broadcast.call(tar_result[:output]) if tar_result[:output].present?
-      unless tar_result[:success]
-        return { success: false, error: "Archive failed", output: deploy_output }
+      log_and_broadcast.call("Preparing deploy repository from '#{root}'...\n")
+      prep_result = host_engine.run(<<~SH.squish)
+        rm -rf #{deploy_repo} &&
+        mkdir -p #{deploy_repo} &&
+        cp -a #{cache_dir}/#{root}/. #{deploy_repo}/ &&
+        cd #{deploy_repo} &&
+        git init -q &&
+        git config user.email "raildock@localhost" &&
+        git config user.name "RailDock" &&
+        git add -A &&
+        git commit -q -m "deploy" &&
+        chown -R dokku:dokku #{deploy_repo}
+      SH
+      log_and_broadcast.call(prep_result[:output]) if prep_result[:output].present?
+      unless prep_result[:success]
+        return { success: false, error: "Failed to prepare deploy repository", output: deploy_output }
       end
 
       return nil if abort_if_cancelled(deployment)
 
-      log_and_broadcast.call("Deploying archive to Dokku...\n")
-      result = host_engine.run_streaming(
-        "bash -lc 'cat #{archive_path} | dokku git:from-archive --archive-type tar #{service.dokku_app_name} -'",
+      sync_result = engine.run("git:sync --skip-deploy-branch #{service.dokku_app_name} file://#{deploy_repo} main")
+      if sync_result[:output].present?
+        redacted_sync = deployment.append_log_chunk!(sync_result[:output])
+        deploy_output << redacted_sync
+        safely_broadcast_deployment(service, {
+          deployment_id: deployment.id,
+          status: "building",
+          log_chunk: redacted_sync,
+          sequence: deployment.event_sequence,
+          started_at: deployment.started_at.iso8601
+        })
+      end
+      unless sync_result[:success]
+        return { success: false, error: "Git sync failed", output: deploy_output }
+      end
+
+      return nil if abort_if_cancelled(deployment)
+
+      log_and_broadcast.call("Building from root directory '#{root}'...\n")
+      result = engine.run_streaming(
+        "ps:rebuild #{service.dokku_app_name}",
         cancelled: -> { deployment.reload.cancelled? }
       ) do |chunk|
         redacted_chunk = deployment.append_log_chunk!(chunk)
@@ -587,7 +616,7 @@ class DeploymentJob < ApplicationJob
 
       result
     ensure
-      host_engine.run("rm -rf #{cache_dir} #{archive_path}")
+      host_engine.run("rm -rf #{cache_dir} #{deploy_repo}")
     end
   end
 

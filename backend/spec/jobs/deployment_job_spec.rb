@@ -281,24 +281,21 @@ RSpec.describe DeploymentJob, type: :job do
       before do
         service.update!(root_directory: "apps/web")
         allow(host_engine).to receive(:run).and_return({ success: true, output: "" })
-        allow(host_engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
       end
 
-      it "deploys from a tarball of the subdirectory" do
-        allow(host_engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
-
+      it "deploys from a subdirectory-only git repository" do
         DeploymentJob.perform_now(service.id, deployment.id)
 
         expect(host_engine).to have_received(:run).with(/git clone --depth 1 -b feature .*\/var\/cache\/raildock\/repos\/#{service.dokku_app_name}/)
-        expect(host_engine).to have_received(:run).with(/tar -czf .* -C .*\/apps\/web \./)
-        expect(host_engine).to have_received(:run_streaming).with(
-          /bash -lc 'cat .* \| dokku git:from-archive --archive-type tar #{service.dokku_app_name} -'/,
+        expect(host_engine).to have_received(:run).with(/cp -a .*\/apps\/web\/\. .*\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id}/)
+        expect(engine).to have_received(:run).with("git:sync --skip-deploy-branch #{service.dokku_app_name} file:\/\/\/tmp\/raildock-deploy-#{service.dokku_app_name}-#{deployment.id} main")
+        expect(engine).to have_received(:run_streaming).with(
+          "ps:rebuild #{service.dokku_app_name}",
           cancelled: kind_of(Proc)
         )
       end
 
       it "sets GIT_REV from the cloned commit" do
-        allow(host_engine).to receive(:run).and_return({ success: true, output: "" })
         allow(host_engine).to receive(:run).with(/git rev-parse HEAD/).and_return({ success: true, output: "abc123def456\n" })
 
         DeploymentJob.perform_now(service.id, deployment.id)
@@ -306,7 +303,7 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:run).with("config:set --no-restart #{service.dokku_app_name} GIT_REV=abc123def456")
       end
 
-      it "checks out the requested commit SHA before archiving" do
+      it "checks out the requested commit SHA before preparing the deploy repo" do
         deployment.update!(commit_sha: "a" * 40)
 
         DeploymentJob.perform_now(service.id, deployment.id)
