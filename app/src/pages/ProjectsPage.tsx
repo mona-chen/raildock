@@ -5,6 +5,7 @@ import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/usePro
 
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
@@ -121,16 +122,16 @@ export default function ProjectsPage() {
               </div>
               <div>
                 <label htmlFor="project-environment" className="text-[11px] text-[#6B6B7B] block mb-1.5">Environment</label>
-                <select
-                  id="project-environment"
-                  value={newEnv}
-                  onChange={(e) => setNewEnv(e.target.value as 'production' | 'staging' | 'development')}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple appearance-none cursor-pointer"
-                >
-                  <option value="production">Production</option>
-                  <option value="staging">Staging</option>
-                  <option value="development">Development</option>
-                </select>
+                <Select value={newEnv} onValueChange={(value) => setNewEnv(value as 'production' | 'staging' | 'development')}>
+                  <SelectTrigger id="project-environment">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="staging">Staging</SelectItem>
+                    <SelectItem value="development">Development</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex gap-2 mt-5">

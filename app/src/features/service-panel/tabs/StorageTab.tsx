@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Archive, Database, FolderOpen, HardDrive, Link2, Plus, Trash2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAddStorageMount, useRecovery, useRemoveStorageMount, useSnapshotVolume } from '@/hooks/useServices'
 import type { Service } from '@/types'
 
@@ -34,7 +35,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
       </div>
 
       <section className="px-5 py-4">
-        <div className="mb-2 flex items-center justify-between"><h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Mounted paths</h3><div className="flex items-center gap-2"><select aria-label="Snapshot destination" value={snapshotDestination} onChange={(event) => setSnapshotDestination(event.target.value)} className="rounded border border-white/[0.07] bg-[#17171b] px-2 py-1 text-[10px] text-white/40"><option value="">Local snapshots</option>{recovery?.destinations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="text-[10px] text-white/20">{svc.storageMounts.length} attached</span></div></div>
+        <div className="mb-2 flex items-center justify-between"><h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Mounted paths</h3><div className="flex items-center gap-2"><Select value={snapshotDestination} onValueChange={(value) => setSnapshotDestination(value)}><SelectTrigger aria-label="Snapshot destination" className="rounded border border-white/[0.07] bg-[#17171b] px-2 py-1 text-[10px] text-white/40"><SelectValue placeholder="Local snapshots" /></SelectTrigger><SelectContent>{recovery?.destinations.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select><span className="text-[10px] text-white/20">{svc.storageMounts.length} attached</span></div></div>
         {svc.storageMounts.length ? (
           <div className="divide-y divide-white/[0.05] border-y border-white/[0.05]">
             {svc.storageMounts.map((mount) => (

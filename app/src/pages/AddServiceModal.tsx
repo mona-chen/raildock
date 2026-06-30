@@ -14,6 +14,7 @@ import type { GitRepo } from '@/types'
 import type { RepositoryImportPreview } from '@/types'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface AddServiceModalProps {
   projectId: string
@@ -248,7 +249,25 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
             <button type="button" onClick={() => setShowTechnicalDetails((value) => !value)} className="flex w-full items-center justify-between text-[11px] text-white/35 hover:text-white/60"><span>How RailDock decided</span><ChevronDown size={13} className={showTechnicalDetails ? 'rotate-180' : ''} /></button>
             {showTechnicalDetails && <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/15 p-3">
               {discovery.evidence.map((item) => <div key={item.path} className="flex items-start justify-between gap-3 text-[10px]"><div><div className="font-mono text-white/50">{item.path}</div><div className="mt-0.5 text-white/25">{item.decision}</div></div><span className="text-emerald-400/70">{item.confidence}</span></div>)}
-              <div className="border-t border-white/[0.06] pt-3"><div className="mb-2 text-[10px] text-white/30">Build method overrides</div>{discovery.services.filter((service) => service.category === 'app').map((service) => <label key={service.name} className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/45"><span className="truncate">{service.name}</span><select value={builderOverrides[service.name] ?? '__discovered__'} onChange={(event) => setBuilderOverrides((current) => { const next = { ...current }; if (event.target.value === '__discovered__') delete next[service.name]; else next[service.name] = event.target.value; return next })} className="rounded border border-white/[0.08] bg-[#18181d] px-2 py-1 text-white/55"><option value="__discovered__">Use discovered setting{service.builder ? ` (${service.builder})` : ''}</option>{builders.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>)}</div>
+              <div className="border-t border-white/[0.06] pt-3"><div className="mb-2 text-[10px] text-white/30">Build method overrides</div>{discovery.services.filter((service) => service.category === 'app').map((service) => <label key={service.name} className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/45"><span className="truncate">{service.name}</span><Select
+                        value={builderOverrides[service.name] ?? '__discovered__'}
+                        onValueChange={(value) => setBuilderOverrides((current) => {
+                          const next = { ...current }
+                          if (value === '__discovered__') delete next[service.name]
+                          else next[service.name] = value
+                          return next
+                        })}
+                      >
+                        <SelectTrigger size="sm" className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__discovered__">Use discovered setting{service.builder ? ` (${service.builder})` : ''}</SelectItem>
+                          {builders.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select></label>)}</div>
             </div>}
             <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : `Deploy ${discovery.services.length === 1 ? discovery.services[0].name : 'all services'}`}</button>
           </div>
@@ -288,21 +307,24 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
               {/* Git Source Selector */}
               <div>
                 <label className="text-[11px] text-white/40 block mb-1.5">Git Account</label>
-                <select
+                <Select
                   value={gitSourceId}
-                  onChange={(e) => {
-                    setGitSourceId(e.target.value)
+                  onValueChange={(value) => {
+                    setGitSourceId(value)
                     setGitRepo('')
                   }}
-                  className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40 appearance-none cursor-pointer"
                 >
-                  <option value="">— Select connected account —</option>
-                  {gitSources.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.provider} {s.username ? `(${s.username})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select connected account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gitSources.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.provider} {s.username ? `(${s.username})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {gitSources.length === 0 && (
                   <p className="text-[11px] text-white/30 mt-1">
                     No Git accounts connected.{" "}

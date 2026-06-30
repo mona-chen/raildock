@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Mail, Check } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { adminSettingsApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { SystemSetting } from '@/types'
@@ -95,16 +96,19 @@ export default function SmtpConfigPanel() {
           <Field label="Domain" value={form.smtp_domain ?? ''} onChange={v => setForm(f => ({ ...f, smtp_domain: v }))} placeholder="example.com" />
           <div className="space-y-1">
             <label htmlFor="smtp-auth" className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium">Auth</label>
-            <select
-              id="smtp-auth"
+            <Select
               value={form.smtp_auth ?? 'plain'}
-              onChange={e => setForm(f => ({ ...f, smtp_auth: e.target.value }))}
-              className="w-full h-9 px-2.5 text-xs text-white bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-rail-purple transition-colors"
+              onValueChange={v => setForm(f => ({ ...f, smtp_auth: v }))}
             >
-              <option value="plain">plain</option>
-              <option value="login">login</option>
-              <option value="cram_md5">cram_md5</option>
-            </select>
+              <SelectTrigger className="w-full h-9 px-2.5 text-xs text-white bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-rail-purple transition-colors">
+                <SelectValue placeholder="Auth" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="plain">plain</SelectItem>
+                <SelectItem value="login">login</SelectItem>
+                <SelectItem value="cram_md5">cram_md5</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

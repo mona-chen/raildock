@@ -6,6 +6,7 @@ import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/h
 import { useCopy } from '@/hooks/useCopy'
 import { api } from '@/lib/api'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const tabs = [
   { key: 'general', label: 'General', icon: Server },
@@ -203,16 +204,17 @@ function DeploySettings({ svc }: { svc: Service }) {
       <SectionTitle>Deploy</SectionTitle>
 
       <SettingCard title="Restart Policy">
-        <select
-          value={svc.restartPolicy}
-          onChange={(e) => setField('restartPolicy', e.target.value)}
-          className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-        >
-          <option value="on-failure">On Failure</option>
-          <option value="always">Always</option>
-          <option value="unless-stopped">Unless Stopped</option>
-          <option value="never">Never</option>
-        </select>
+        <Select value={svc.restartPolicy} onValueChange={(v) => setField('restartPolicy', v)}>
+          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
+            <SelectValue placeholder="Select restart policy" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="on-failure">On Failure</SelectItem>
+            <SelectItem value="always">Always</SelectItem>
+            <SelectItem value="unless-stopped">Unless Stopped</SelectItem>
+            <SelectItem value="never">Never</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="mt-2">
           <TextField label="Max Retries" type="number" value={String(svc.restartMaxRetries)} onChange={(v) => setField('restartMaxRetries', parseInt(v) || 0)} />
         </div>
@@ -221,11 +223,16 @@ function DeploySettings({ svc }: { svc: Service }) {
       <SettingCard title="Health Checks">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div><div className="text-[13px] text-white/70">Zero-downtime policy</div><div className="mt-0.5 text-[11px] leading-4 text-white/35">Keep the old container serving until the replacement is ready and connections drain.</div></div>
-          <select value={checks.mode} onChange={(e) => { setConfigPath('checks.mode', e.target.value); setConfigPath('checks.enabled', e.target.value === 'enabled') }} className="rounded border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-none focus:border-[#8b5cf6]/40">
-            <option value="enabled">Enabled</option>
-            <option value="skipped">Skip checks</option>
-            <option value="disabled">Disable rolling deploy</option>
-          </select>
+          <Select value={checks.mode} onValueChange={(v) => { setConfigPath('checks.mode', v); setConfigPath('checks.enabled', v === 'enabled') }}>
+            <SelectTrigger className="rounded border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-none focus:border-[#8b5cf6]/40">
+              <SelectValue placeholder="Select check mode" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="enabled">Enabled</SelectItem>
+              <SelectItem value="skipped">Skip checks</SelectItem>
+              <SelectItem value="disabled">Disable rolling deploy</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {checks.mode === 'disabled' && <div className="mb-3 rounded-md border border-red-500/15 bg-red-500/5 px-3 py-2 text-[11px] leading-4 text-red-300/70">Downtime expected: old containers stop before replacements start.</div>}
         {checks.mode === 'enabled' && (
@@ -296,17 +303,18 @@ function NetworkSettings({ svc }: { svc: Service }) {
           <>
             <div className="mb-3">
               <div className="text-[11px] text-white/40 mb-1">Proxy Type</div>
-              <select
-                value={proxy.proxyType}
-                onChange={(e) => setConfigPath('proxy.proxyType', e.target.value)}
-                className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-              >
-                <option value="traefik">Traefik</option>
-                <option value="nginx">Nginx</option>
-                <option value="caddy">Caddy</option>
-                <option value="haproxy">HAProxy</option>
-                <option value="openresty">OpenResty</option>
-              </select>
+              <Select value={proxy.proxyType} onValueChange={(v) => setConfigPath('proxy.proxyType', v)}>
+                <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
+                  <SelectValue placeholder="Select proxy type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="traefik">Traefik</SelectItem>
+                  <SelectItem value="nginx">Nginx</SelectItem>
+                  <SelectItem value="caddy">Caddy</SelectItem>
+                  <SelectItem value="haproxy">HAProxy</SelectItem>
+                  <SelectItem value="openresty">OpenResty</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </>
         )}
@@ -317,15 +325,16 @@ function NetworkSettings({ svc }: { svc: Service }) {
           <div className="space-y-2 mb-3">
             {proxy.portMappings.map((pm, i) => (
               <div key={i} className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2">
-                <select
-                  value={pm.scheme}
-                  onChange={(e) => updatePort(i, { scheme: e.target.value })}
-                  className="bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70"
-                >
-                  <option value="http">http</option>
-                  <option value="https">https</option>
-                  <option value="grpc">grpc</option>
-                </select>
+                <Select value={pm.scheme} onValueChange={(v) => updatePort(i, { scheme: v })}>
+                  <SelectTrigger className="bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70">
+                    <SelectValue placeholder="scheme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="http">http</SelectItem>
+                    <SelectItem value="https">https</SelectItem>
+                    <SelectItem value="grpc">grpc</SelectItem>
+                  </SelectContent>
+                </Select>
                 <input
                   type="number"
                   value={pm.hostPort}
@@ -495,15 +504,16 @@ function AdvancedSettings({ svc }: { svc: Service }) {
           <div className="text-[12px] text-white/30 mb-3">No docker options configured</div>
         )}
         <div className="flex gap-2">
-          <select
-            value={newPhase}
-            onChange={(e) => setNewPhase(e.target.value as 'build' | 'deploy' | 'run')}
-            className="bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70"
-          >
-            <option value="build">build</option>
-            <option value="deploy">deploy</option>
-            <option value="run">run</option>
-          </select>
+          <Select value={newPhase} onValueChange={(v) => setNewPhase(v as 'build' | 'deploy' | 'run')}>
+            <SelectTrigger className="bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70">
+              <SelectValue placeholder="phase" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="build">build</SelectItem>
+              <SelectItem value="deploy">deploy</SelectItem>
+              <SelectItem value="run">run</SelectItem>
+            </SelectContent>
+          </Select>
           <input
             type="text"
             placeholder="--add-host=host.docker.internal:host-gateway"

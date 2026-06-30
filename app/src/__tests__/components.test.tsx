@@ -313,9 +313,10 @@ describe('ServerPage', () => {
 
     render(<ServerPage />)
     fireEvent.click(screen.getByTitle('Proxy settings'))
-    fireEvent.change(screen.getByLabelText('Proxy Mode'), { target: { value: 'external' } })
+    fireEvent.click(screen.getByLabelText('Proxy Mode'))
+    fireEvent.click(screen.getByText('Existing reverse proxy'))
 
-    expect(screen.getByText('Existing Traefik')).toBeInTheDocument()
+    expect(screen.getByText('Existing reverse proxy')).toBeInTheDocument()
     expect(screen.getByLabelText('Traefik Docker Network')).toBeInTheDocument()
     expect(screen.getByLabelText('HTTP entrypoint')).toHaveValue('web')
     expect(screen.getByLabelText('HTTPS entrypoint')).toHaveValue('websecure')

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Check, Copy, KeyRound, Loader2, Server, Terminal } from 'lucide-react'
+import { AlertCircle, Check, Copy, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
 import { useProvisionServer } from '@/hooks/useServers'
 import { useServerSetupLogs } from '@/hooks/useServerSetupLogs'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ServerSetupWizardProps {
   isOpen: boolean
@@ -173,15 +174,15 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
             </div>
             <div className="col-span-2 sm:col-span-1">
               <label htmlFor="proxy-mode" className="text-[11px] text-[#6B6B7B] block mb-1.5">Proxy Mode</label>
-              <select
-                id="proxy-mode"
-                value={proxyMode}
-                onChange={(e) => setProxyMode(e.target.value as 'managed' | 'external')}
-                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
-              >
-                <option value="managed">RailDock managed</option>
-                <option value="external">Existing reverse proxy</option>
-              </select>
+              <Select value={proxyMode} onValueChange={(value) => setProxyMode(value as 'managed' | 'external')}>
+                <SelectTrigger id="proxy-mode">
+                  <SelectValue placeholder="Select proxy mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="managed">RailDock managed</SelectItem>
+                  <SelectItem value="external">Existing reverse proxy</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="col-span-2">

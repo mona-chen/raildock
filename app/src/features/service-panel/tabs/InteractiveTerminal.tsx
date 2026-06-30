@@ -6,6 +6,7 @@ import {
   Search, ChevronUp, ChevronDown, X, Shell,
   Maximize2, Minimize2
 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import '@xterm/xterm/css/xterm.css'
 
 const SHELL_OPTIONS = [
@@ -100,22 +101,18 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           {/* Shell selector */}
           <div className="flex items-center gap-1.5">
             <Shell size={12} className="text-white/30" />
-            <select
-              value={shell}
-              onChange={(e) => setShell(e.target.value)}
-              className="bg-transparent text-[11px] text-white/50 hover:text-white/70 cursor-pointer outline-none border border-white/10 rounded px-1.5 py-0.5 appearance-none pr-4"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 4px center',
-              }}
-            >
-              {SHELL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value} className="bg-[#0f0f13] text-white/70">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <Select value={shell} onValueChange={setShell}>
+              <SelectTrigger className="bg-transparent text-[11px] text-white/50 hover:text-white/70 hover:bg-transparent border-white/10 rounded px-1.5 py-0.5 h-auto w-auto gap-1 cursor-pointer outline-none focus:ring-0 focus:border-white/10 [&_svg]:size-3 [&_svg]:text-white/30">
+                <SelectValue placeholder="Select shell" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#0f0f13] border-white/10">
+                {SHELL_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-[11px] text-white/70 focus:bg-white/[0.06] focus:text-white/70">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <button

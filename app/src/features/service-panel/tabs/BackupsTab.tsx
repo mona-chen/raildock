@@ -30,6 +30,7 @@ import {
   useRecovery,
   useRunRestoreDrill,
 } from '@/hooks/useServices'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
 
@@ -103,10 +104,15 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
               if (file) restoreUpload.mutate({ id: serviceId, file })
               event.target.value = ''
             }} />
-            <select aria-label="Backup destination" value={selectedDestination} onChange={(event) => setSelectedDestination(event.target.value)} className="rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/55">
-              <option value="">Local encrypted host</option>
-              {recovery?.destinations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <Select value={selectedDestination || 'local'} onValueChange={(value) => setSelectedDestination(value === 'local' ? '' : value)}>
+              <SelectTrigger aria-label="Backup destination" className="rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/55">
+                <SelectValue placeholder="Local encrypted host" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">Local encrypted host</SelectItem>
+                {recovery?.destinations.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationId: selectedDestination || undefined })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]">
               {createBackup.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
               Create backup
@@ -140,7 +146,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
         </div>
         {showDestination && <form className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3" onSubmit={(event) => { event.preventDefault(); createDestination.mutate({ id: serviceId, data: destination }, { onSuccess: (item) => { setSelectedDestination(item.id); setRecoveryKey(item.recoveryKey || ''); setShowDestination(false) } }) }}>
           {(['name', 'bucket', 'region', 'endpoint', 'access_key_id', 'secret_access_key'] as const).map((key) => <label key={key} className="text-[10px] capitalize text-white/35">{key.replaceAll('_', ' ')}<input required={!['endpoint'].includes(key)} type={key.includes('secret') ? 'password' : 'text'} value={destination[key]} onChange={(event) => setDestination({ ...destination, [key]: event.target.value })} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70" /></label>)}
-          <label className="text-[10px] text-white/35">Provider<select value={destination.provider} onChange={(event) => setDestination({ ...destination, provider: event.target.value })} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70"><option value="s3">Amazon S3</option><option value="r2">Cloudflare R2</option></select></label>
+          <label className="text-[10px] text-white/35">Provider<Select value={destination.provider} onValueChange={(value) => setDestination({ ...destination, provider: value })}><SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70"><SelectValue placeholder="Select provider" /></SelectTrigger><SelectContent><SelectItem value="s3">Amazon S3</SelectItem><SelectItem value="r2">Cloudflare R2</SelectItem></SelectContent></Select></label>
           <button disabled={createDestination.isPending} className="self-end rounded-md bg-[#8b5cf6] px-3 py-2 text-[11px] text-white">Verify & save</button>
         </form>}
         {recoveryKey && <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.04] p-3"><div className="text-[10px] font-medium text-amber-300">Save this recovery key now — it is shown once.</div><code className="mt-2 block break-all select-all text-[10px] text-white/55">{recoveryKey}</code></div>}
@@ -162,9 +168,16 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
             createSchedule.mutate({ id: serviceId, data: { frequency, retentionCount } }, { onSuccess: () => setShowSchedule(false) })
           }}>
             <label className="flex-1 text-[10px] text-white/35">Frequency
-              <select value={frequency} onChange={(event) => setFrequency(event.target.value)} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
-                <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
-              </select>
+              <Select value={frequency} onValueChange={(value) => setFrequency(value)}>
+                <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
+                  <SelectValue placeholder="Frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="w-28 text-[10px] text-white/35">Keep latest
               <input type="number" min={1} max={30} value={retentionCount} onChange={(event) => setRetentionCount(Number(event.target.value))} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]" />

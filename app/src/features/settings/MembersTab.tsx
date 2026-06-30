@@ -11,6 +11,13 @@ import {
 } from '@/hooks/useOrganizations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCopy } from '@/hooks/useCopy'
 import { toast } from 'sonner'
 import {
@@ -265,16 +272,20 @@ export default function MembersTab() {
                 </div>
                 <div className="flex items-center gap-2">
                   {canManage && !m.isYou ? (
-                    <select
+                    <Select
                       value={role}
-                      onChange={(e) => handleRoleChange(m.userId, e.target.value as Role)}
+                      onValueChange={(value) => handleRoleChange(m.userId, value as Role)}
                       disabled={updateRole.isPending}
-                      className="h-7 px-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded text-[11px] text-white focus:outline-none focus:border-rail-purple"
                     >
-                      {(role === 'owner' || isOwner) && <option value="owner">Owner</option>}
-                      <option value="admin">Admin</option>
-                      <option value="member">Member</option>
-                    </select>
+                      <SelectTrigger className="h-7 px-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded text-[11px] text-white focus:outline-none focus:border-rail-purple">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(role === 'owner' || isOwner) && <SelectItem value="owner">Owner</SelectItem>}
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <span className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded ${info.color}`}>
                       <Icon size={10} />

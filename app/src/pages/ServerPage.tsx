@@ -7,6 +7,7 @@ import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
 import ServerDockerImportModal from '@/features/servers/ServerDockerImportModal'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export default function ServerPage() {
   const { data: servers = [], isLoading } = useServers()
@@ -230,10 +231,15 @@ export default function ServerPage() {
             <div className="space-y-4">
               <div>
                 <label htmlFor="proxy-mode" className="text-[11px] text-[#6B6B7B] block mb-1.5">Proxy Mode</label>
-                <select id="proxy-mode" value={proxyMode} onChange={(event) => setProxyMode(event.target.value as 'managed' | 'external')} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white">
-                  <option value="managed">RailDock managed</option>
-                  <option value="external">Existing Traefik</option>
-                </select>
+                <Select value={proxyMode} onValueChange={(value) => setProxyMode(value as 'managed' | 'external')}>
+                  <SelectTrigger id="proxy-mode">
+                    <SelectValue placeholder="Select proxy mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="managed">RailDock managed</SelectItem>
+                    <SelectItem value="external">Existing reverse proxy</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {proxyMode === 'external' && (
@@ -250,14 +256,18 @@ export default function ServerPage() {
                         {validateNetwork.isPending ? 'Checking...' : 'Verify network'}
                       </button>
                     </div>
-                    <select id="proxy-network" value={proxyNetwork} onChange={(event) => setProxyNetwork(event.target.value)} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white">
-                      <option value="">{networksLoading ? 'Discovering networks...' : 'Select a network'}</option>
-                      {networks.filter((network) => network.selectable).map((network) => (
-                        <option key={network.name} value={network.name}>
-                          {network.name}{network.recommended ? ' (Traefik detected)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={proxyNetwork} onValueChange={setProxyNetwork}>
+                      <SelectTrigger id="proxy-network">
+                        <SelectValue placeholder={networksLoading ? 'Discovering networks...' : 'Select a network'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {networks.filter((network) => network.selectable).map((network) => (
+                          <SelectItem key={network.name} value={network.name}>
+                            {network.name}{network.recommended ? ' (Traefik detected)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

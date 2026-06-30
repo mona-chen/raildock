@@ -7,6 +7,7 @@ import { copyToClipboard } from '@/lib/clipboard'
 import { useServiceLogs } from '@/hooks/useServices'
 import { useWebSocketLogs } from '@/hooks/useWebSocketLogs'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface LogLine {
   timestamp: string
@@ -438,28 +439,36 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
         {/* Filter row */}
         {showFilters && (
           <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
-            <select
+            <Select
               value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value as LogLevel | 'all')}
-              className="bg-black/30 border border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:outline-none focus:border-[#8b5cf6]/30"
+              onValueChange={(value) => setLevelFilter(value as LogLevel | 'all')}
             >
-              <option value="all">All levels</option>
-              {LEVEL_ORDER.map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl.charAt(0).toUpperCase() + lvl.slice(1)} ({levelCounts[lvl] || 0})
-                </option>
-              ))}
-            </select>
-            <select
+              <SelectTrigger className="bg-black/30 border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:border-[#8b5cf6]/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
+                <SelectValue placeholder="All levels" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a20] border-white/[0.06] text-white/60">
+                <SelectItem value="all" className="text-[11px]">All levels</SelectItem>
+                {LEVEL_ORDER.map((lvl) => (
+                  <SelectItem key={lvl} value={lvl} className="text-[11px]">
+                    {lvl.charAt(0).toUpperCase() + lvl.slice(1)} ({levelCounts[lvl] || 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={processFilter}
-              onChange={(e) => setProcessFilter(e.target.value)}
-              className="bg-black/30 border border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:outline-none focus:border-[#8b5cf6]/30"
+              onValueChange={(value) => setProcessFilter(value)}
             >
-              <option value="all">All processes</option>
-              {processTypes.map((pt) => (
-                <option key={pt} value={pt}>{pt}</option>
-              ))}
-            </select>
+              <SelectTrigger className="bg-black/30 border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:border-[#8b5cf6]/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
+                <SelectValue placeholder="All processes" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a20] border-white/[0.06] text-white/60">
+                <SelectItem value="all" className="text-[11px]">All processes</SelectItem>
+                {processTypes.map((pt) => (
+                  <SelectItem key={pt} value={pt} className="text-[11px]">{pt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {(levelFilter !== 'all' || processFilter !== 'all' || searchQuery) && (
               <button
                 type="button"

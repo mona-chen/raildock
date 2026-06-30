@@ -4,6 +4,7 @@ import { Activity, GitBranch, Database, ArrowUpRight, ArrowDownRight, Settings, 
 import { useActivity } from '@/hooks/useActivity'
 import { useProject } from '@/hooks/useProjects'
 import { useProjects } from '@/hooks/useProjects'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const ACTION_ICON: Record<string, React.ElementType> = {
   deployed: GitBranch,
@@ -61,7 +62,7 @@ export default function ActivityPage() {
         </div>
         <div className="mt-4 flex max-w-3xl items-center gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5 focus-within:border-[#8b5cf6]/50"><Search size={13} className="text-white/20" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" className="w-full bg-transparent text-[12px] text-white/65 placeholder:text-white/20 focus:outline-none" /></label>
-          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5"><Filter size={12} className="text-white/20" /><select value={action} onChange={(event) => setAction(event.target.value)} className="bg-transparent text-[11px] capitalize text-white/50 focus:outline-none"><option value="all">All actions</option>{actions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5"><Filter size={12} className="text-white/20" /><Select value={action} onValueChange={setAction}><SelectTrigger className="h-auto border-0 bg-transparent p-0 text-[11px] capitalize text-white/50 shadow-none focus:ring-0 [&_svg]:hidden"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all" className="text-[11px]">All actions</SelectItem>{actions.map((value) => <SelectItem key={value} value={value} className="capitalize text-[11px]">{value}</SelectItem>)}</SelectContent></Select></label>
         </div>
       </div>
 
