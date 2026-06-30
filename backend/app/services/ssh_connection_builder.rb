@@ -108,13 +108,20 @@ class SshConnectionBuilder
 
     def fingerprints_from(host_key)
       host_key.to_s.each_line.map do |line|
-        _type, blob, = line.split(" ", 3)
+        type, blob = parse_key_line(line)
         next if blob.blank?
 
         "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(Base64.decode64(blob))).delete("=")
       rescue
         nil
       end.compact
+    end
+
+    def parse_key_line(line)
+      match = line.to_s.match(/(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-\S+)\s+(\S+)/)
+      return nil unless match
+
+      [match[1], match[2]]
     end
   end
 end

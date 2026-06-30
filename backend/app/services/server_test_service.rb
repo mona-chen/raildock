@@ -4,10 +4,11 @@ class ServerTestService
   class MissingOrganizationKey < StandardError; end
   class NoOrganization < StandardError; end
 
-  def initialize(organization:, host:, ssh_user: nil)
+  def initialize(organization:, host:, ssh_user: nil, host_key: nil)
     @organization = organization
     @host = host.to_s.strip
     @ssh_user = ssh_user.presence || DokkuEngineConstants::SSH_USER
+    @host_key = host_key
   end
 
   def test
@@ -68,6 +69,7 @@ class ServerTestService
       status: :disconnected
     )
     server.ssh_key = private_key
+    server.host_key = @host_key if @host_key.present?
     server
   end
 

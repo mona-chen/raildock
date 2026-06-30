@@ -1,4 +1,6 @@
 require "net/ssh"
+require "base64"
+require "digest"
 
 class ProvisionServerJob < ApplicationJob
   queue_as :default
@@ -25,6 +27,12 @@ class ProvisionServerJob < ApplicationJob
       Net::SSH.start(host, admin_user, builder.options) do |ssh|
         broadcast(setup_id, type: "log", line: "Connected to #{host} as #{admin_user}")
         run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
+        host_keys = read_host_keys(ssh)
+        if host_keys.present?
+          admin_server.host_key = host_keys
+          admin_server.host_key_fingerprint = fingerprint_for_host_key_line(host_keys.lines.first)
+          broadcast(setup_id, type: "log", line: "Captured #{host_keys.lines.count} host key(s)")
+        end
       end
     ensure
       builder.cleanup
@@ -32,7 +40,7 @@ class ProvisionServerJob < ApplicationJob
 
     broadcast(setup_id, type: "log", line: "Bootstrap complete. Validating Dokku connection...")
 
-    result = ServerTestService.new(organization: organization, host: host, ssh_user: "dokku").test
+    result = ServerTestService.new(organization: organization, host: host, ssh_user: "dokku", host_key: admin_server.host_key).test
     unless result[:success]
       broadcast(setup_id, type: "failed", error: result[:error] || "Dokku validation failed")
       return
@@ -74,6 +82,33 @@ class ProvisionServerJob < ApplicationJob
     server = Server.new(host: host, ssh_user: admin_user, status: :disconnected)
     server.ssh_key = private_key
     server
+  end
+
+  def read_host_keys(ssh)
+    output = +""
+    exit_status = nil
+    ssh.open_channel do |channel|
+      channel.exec("cat /etc/ssh/ssh_host_*_key.pub") do |_, success|
+        return unless success
+
+        channel.on_data { |_, data| output << data }
+        channel.on_extended_data { |_, _, data| output << data }
+        channel.on_request("exit-status") { |_, data| exit_status = data.read_long }
+      end
+    end
+    ssh.loop
+
+    exit_status == 0 && output.present? ? output : nil
+  end
+
+  def fingerprint_for_host_key_line(line)
+    match = line.to_s.match(/(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-\S+)\s+(\S+)/)
+    return nil unless match
+
+    blob = match[2]
+    "SHA256:" + Base64.strict_encode64(Digest::SHA256.digest(Base64.decode64(blob))).delete("=")
+  rescue
+    nil
   end
 
   def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
