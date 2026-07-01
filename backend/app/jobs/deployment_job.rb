@@ -161,6 +161,14 @@ class DeploymentJob < ApplicationJob
       end
     end
 
+    # 8.75 Set the expected container port mapping before the build so Dokku
+    # injects the right PORT env var (e.g. 3000 for a Dockerfile EXPOSE 3000)
+    # instead of defaulting to 5000. Use explicit service.port, then any
+    # non-temporary domain target_port, then the last detected port.
+    expected_port = expected_container_port(service)
+    mapping_result = apply_container_port_mapping(service, engine, expected_port, deployment)
+    return mapping_result unless mapping_result[:success]
+
     # Check if cancelled before starting the build
     return if abort_if_cancelled(deployment)
 
@@ -335,16 +343,13 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "External proxy refresh failed", proxy_result[:output]) unless proxy_result[:success]
     end
 
-    # 11. Sync port mappings for all domains (routes public 80/443 → container target_port)
-    target = service.port || service.detected_port || 5000
+    # 11. Re-apply port mappings after the build using the actual detected port
+    # and any explicit per-domain target_port. Bulk-set both http and https in
+    # one call; calling ports:set one mapping at a time overwrites the previous.
+    target = service.port || domain_target_port(service) || service.detected_port || 5000
     unless server.external_proxy?
-      port_targets = service.domains.any? ? service.domains.map { |domain| domain.target_port || target }.uniq : [ target ]
-      port_targets.each do |domain_target|
-        %w[http https].zip([ 80, 443 ]).each do |scheme, host_port|
-          result = engine.ports_set(service.dokku_app_name, scheme, host_port, domain_target)
-          return mark_failed(deployment, service, "Port mapping failed for #{scheme}", result[:output]) unless result[:success]
-        end
-      end
+      result = apply_container_port_mapping(service, engine, target, deployment)
+      return result unless result[:success]
     end
 
     # 12. Scale processes (Dokku deploy already started the app)
@@ -722,6 +727,33 @@ class DeploymentJob < ApplicationJob
       .exists?
 
     service.update!(status: has_queued_deployment ? :deploying : (success ? :running : :error))
+  end
+
+  # Determine the container port we expect the app to listen on. Explicit
+  # service.port wins, then any non-temporary domain target_port, then the
+  # previously detected port, then Dokku's 5000 default.
+  def expected_container_port(service)
+    service.port || domain_target_port(service) || service.detected_port || 5000
+  end
+
+  # Prefer target_ports from user-added (non-temporary) domains so a custom
+  # domain like convert.ruut.chat:3000 overrides the auto-generated sslip.io
+  # domain that may have been created with the old 5000 default.
+  def domain_target_port(service)
+    service.domains.where(temporary: false).pick(:target_port) || service.domains.pick(:target_port)
+  end
+
+  def apply_container_port_mapping(service, engine, target, deployment)
+    return { success: true } if service.project.server&.external_proxy?
+
+    result = engine.ports_set(
+      service.dokku_app_name,
+      "http:80:#{target.to_i}",
+      "https:443:#{target.to_i}"
+    )
+    return mark_failed(deployment, service, "Port mapping failed", result[:output]) unless result[:success]
+
+    result
   end
 
   PASSWORD_VAR_NAMES = %w[

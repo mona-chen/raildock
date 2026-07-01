@@ -524,8 +524,15 @@ class DokkuEngine
     run("ports:clear #{escape(app_name)}")
   end
 
-  def ports_set(app_name, scheme, host_port, container_port)
-    run("ports:set #{escape(app_name)} #{escape(scheme)}:#{host_port.to_i}:#{container_port.to_i}")
+  def ports_set(app_name, *mappings)
+    # Bulk-friendly wrapper. Accepts one or more "scheme:host-port:container-port"
+    # strings, or a single array of them. Calling ports:set repeatedly with one
+    # mapping at a time overwrites previous mappings, so callers should always
+    # pass both http and https mappings in one call.
+    flattened = mappings.flatten
+    return { success: true, output: "" } if flattened.empty?
+
+    run("ports:set #{escape(app_name)} #{flattened.map { |m| escape(m.to_s) }.join(" ")}")
   end
 
   def ports_list(app_name)

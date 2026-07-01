@@ -83,6 +83,7 @@ module Api
         refresh_external_proxy(engine)
       else
         sync_port_mapping(domain, engine)
+        rebuild_for_port_change!(engine)
       end
     end
 
@@ -95,6 +96,25 @@ module Api
         rebuild_result = engine.ps_rebuild(@service.dokku_app_name)
         raise "External proxy rebuild failed: #{rebuild_result[:output]}" unless rebuild_result[:success]
       end
+    end
+
+    # When a domain changes the expected container port (e.g. user adds a custom
+    # domain pointing to 3000 on an app currently listening on 5000), rebuild so
+    # Dokku injects the matching PORT env var and the proxy routes correctly.
+    def rebuild_for_port_change!(engine)
+      return unless @service.running?
+
+      target = @service.port ||
+               @service.domains.where(temporary: false).pick(:target_port) ||
+               @service.domains.pick(:target_port) ||
+               @service.detected_port ||
+               5000
+      return if target == @service.detected_port
+
+      result = engine.ps_rebuild(@service.dokku_app_name)
+      raise "Port change rebuild failed: #{result[:output]}" unless result[:success]
+
+      @service.update!(detected_port: target)
     end
 
     def sync_standard_to_dokku(action, domain, engine)
@@ -131,8 +151,11 @@ module Api
 
     def sync_port_mapping(domain, engine)
       target = domain.target_port || @service.detected_port || 5000
-      engine.ports_set(@service.dokku_app_name, "http", 80, target)
-      engine.ports_set(@service.dokku_app_name, "https", 443, target)
+      engine.ports_set(
+        @service.dokku_app_name,
+        "http:80:#{target.to_i}",
+        "https:443:#{target.to_i}"
+      )
     end
 
     def escape(value)

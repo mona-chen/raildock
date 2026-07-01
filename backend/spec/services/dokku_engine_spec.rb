@@ -341,9 +341,14 @@ RSpec.describe DokkuEngine, type: :service do
       engine.ports_clear("myapp")
     end
 
-    it "#ports_set generates the correct command" do
+    it "#ports_set generates the correct command for a single mapping" do
       expect(engine).to receive(:run).with("ports:set myapp http:80:8080").and_return({ success: true, output: "" })
-      engine.ports_set("myapp", "http", 80, 8080)
+      engine.ports_set("myapp", "http:80:8080")
+    end
+
+    it "#ports_set generates the correct command for multiple mappings" do
+      expect(engine).to receive(:run).with("ports:set myapp http:80:8080 https:443:8080").and_return({ success: true, output: "" })
+      engine.ports_set("myapp", "http:80:8080", "https:443:8080")
     end
 
     it "#ports_list generates the correct command" do

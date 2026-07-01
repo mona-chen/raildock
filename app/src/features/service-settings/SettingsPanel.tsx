@@ -140,6 +140,18 @@ function GeneralSettings({ svc }: { svc: Service }) {
       </SettingCard>
 
       {isApp && (
+        <SettingCard title="Container Port" description="The port your app listens on inside the container. Leave blank to auto-detect (defaults to 5000). Set this when your app uses a fixed port like 3000.">
+          <TextField
+            label="Port"
+            type="number"
+            value={svc.port?.toString() ?? ''}
+            placeholder="3000"
+            onChange={(v) => setField('port', v ? parseInt(v, 10) : null)}
+          />
+        </SettingCard>
+      )}
+
+      {isApp && (
         <>
           <div>
             <SectionTitle>Source</SectionTitle>

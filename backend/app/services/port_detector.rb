@@ -1,4 +1,5 @@
 require "json"
+require "shellwords"
 
 class PortDetector
   def initialize(engine, host_engine: nil)
@@ -27,23 +28,28 @@ class PortDetector
     port = service.domains.pick(:target_port)
     return port if port.present? && port > 0
 
-    # Try 3: Dokku's ports:report (reflects actual runtime port mapping)
-    port = detect_from_ports_report(app_name)
+    # Try 3: Inspect the running container's actual listening sockets. This is
+    # more reliable than ports:report when RailDock previously fell back to 5000.
+    port = detect_from_listening_ports(app_name)
     return port if port
 
     # Try 4: Docker EXPOSE metadata (unreliable — often wrong)
     port = detect_from_container(app_name)
     return port if port
 
-    # Try 5: Datastore plugin info (for postgres, redis, etc.)
+    # Try 5: Dokku's ports:report (reflects configured mapping, which may be stale)
+    port = detect_from_ports_report(app_name)
+    return port if port
+
+    # Try 6: Datastore plugin info (for postgres, redis, etc.)
     port = detect_from_datastore_info(service, app_name)
     return port if port
 
-    # Try 6: Known default ports by service type
+    # Try 7: Known default ports by service type
     port = default_port_for_subtype(service.subtype)
     return port if port
 
-    # Try 7: Generic fallback based on deployment method
+    # Try 8: Generic fallback based on deployment method
     service.docker_image.present? ? 80 : 5000
   rescue => e
     Rails.logger.error "Port detection failed for #{app_name}: #{e.message}"
@@ -68,6 +74,50 @@ class PortDetector
   rescue JSON::ParserError => e
     Rails.logger.warn "Docker exposed-port parse failed for #{app_name}: #{e.message}"
     nil
+  end
+
+  # Read /proc/net/tcp from the running container to find the port the process
+  # is actually listening on. This avoids Dokku's 5000 fallback when the app
+  # listens on a different port (e.g. Dockerfile EXPOSE 3000 + Puma on PORT).
+  def detect_from_listening_ports(app_name)
+    return unless @host_engine
+
+    container = @host_engine.dokku_container_name(app_name)
+    return unless container.present?
+
+    result = @host_engine.run("docker exec #{Shellwords.escape(container)} sh -c 'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null'")
+    return unless result[:success]
+
+    ports = parse_proc_net_tcp(result[:output])
+    return nil if ports.empty?
+
+    # Prefer non-system ports (>1024). If only system ports are listening,
+    # fall back to the smallest one.
+    non_system = ports.select { |p| p > 1024 }
+    non_system.any? ? non_system.min : ports.min
+  rescue => e
+    Rails.logger.warn "Listening-port detection failed for #{app_name}: #{e.message}"
+    nil
+  end
+
+  def parse_proc_net_tcp(output)
+    ports = []
+    output.each_line do |line|
+      fields = line.split
+      next if fields.size < 4
+      next if fields[0] == "sl" # header
+
+      local_address = fields[1]
+      state = fields[3]
+      next unless state == "0A" # TCP_LISTEN
+
+      _ip_hex, port_hex = local_address.split(":", 2)
+      next if port_hex.blank?
+
+      port = port_hex.to_i(16)
+      ports << port if port > 0
+    end
+    ports.uniq
   end
 
   # Parse Dokku's `ports:report` output to extract the detected container port.
