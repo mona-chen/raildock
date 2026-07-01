@@ -513,11 +513,11 @@ class DeploymentJob < ApplicationJob
 
   def subdirectory_deploy?(service)
     root = service.root_directory.to_s.strip
-    root.present? && root != '.' && root != './'
+    root.present? && root != "." && root != "./"
   end
 
   def deploy_from_subdirectory(service, deployment, engine, host_engine, repo_url, git_ref, deploy_output)
-    root = service.root_directory.to_s.strip.sub(%r{^/+}, '').sub(%r{/$}, '')
+    root = service.root_directory.to_s.strip.sub(%r{^/+}, "").sub(%r{/$}, "")
     if root.blank?
       return mark_failed(deployment, service, "Invalid root directory configured")
     end
@@ -633,10 +633,10 @@ class DeploymentJob < ApplicationJob
   end
 
   def git_clone_ref_and_sha(git_ref, service, deployment)
-    return [git_ref, nil] unless git_ref.match?(/\A[0-9a-f]{40}\z/)
+    return [ git_ref, nil ] unless git_ref.match?(/\A[0-9a-f]{40}\z/)
 
     branch = deployment.branch.presence || service.branch.presence || "main"
-    [branch, git_ref]
+    [ branch, git_ref ]
   end
 
   def github_source_for_service(service)
