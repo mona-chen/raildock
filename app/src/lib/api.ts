@@ -233,7 +233,7 @@ export const servicesApi = {
   },
 
   removeDomain: async (id: string, hostname: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/domains/${hostname}`, { method: 'DELETE' })
+    await fetchJson(`/api/services/${id}/domains/${encodeURIComponent(hostname)}`, { method: 'DELETE' })
   },
 
   generateDomain: async (id: string): Promise<Domain> => {

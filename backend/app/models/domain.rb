@@ -1,7 +1,9 @@
 class Domain < ApplicationRecord
   belongs_to :service
 
-  validates :hostname, presence: true, uniqueness: { scope: :service_id }
+  before_validation :normalize_hostname
+
+  validates :hostname, presence: true, uniqueness: { scope: :service_id, case_sensitive: false }
   validates :port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }
   validates :target_port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }
   validates :ssl_status, inclusion: { in: %w[none pending active failed] }
@@ -14,6 +16,18 @@ class Domain < ApplicationRecord
 
   def wildcard?
     hostname.to_s.start_with?("*.")
+  end
+
+  private
+
+  def normalize_hostname
+    self.hostname = hostname.to_s
+      .strip
+      .sub(%r{\Ahttps?://}i, "")
+      .sub(%r{:\d+\z}, "")
+      .sub(%r{/.*\z}, "")
+      .downcase
+      .presence
   end
 
   def base_hostname

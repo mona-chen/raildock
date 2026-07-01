@@ -40,7 +40,8 @@ module Api
     end
 
     def destroy
-      domain = @service.domains.find_by!(hostname: params[:hostname])
+      hostname = normalize_hostname_param(params[:hostname])
+      domain = @service.domains.find_by!(hostname: hostname)
 
       domain.destroy!
       sync_to_dokku(:remove, domain)
@@ -56,6 +57,15 @@ module Api
 
     def domain_params
       params.permit(:hostname, :port, :target_port, :ssl, :letsencrypt)
+    end
+
+    def normalize_hostname_param(value)
+      value.to_s
+        .strip
+        .sub(/\Ahttps?:\/\//i, "")
+        .sub(/:\d+\z/, "")
+        .sub(/\/.*\z/, "")
+        .downcase
     end
 
     def sync_to_dokku(action, domain)

@@ -5,7 +5,7 @@ RSpec.describe Domain, type: :model do
     subject { build(:domain) }
 
     it { is_expected.to validate_presence_of(:hostname) }
-    it { is_expected.to validate_uniqueness_of(:hostname).scoped_to(:service_id) }
+    it { is_expected.to validate_uniqueness_of(:hostname).scoped_to(:service_id).case_insensitive }
     it { is_expected.to validate_numericality_of(:port).only_integer.is_greater_than(0).is_less_than_or_equal_to(65_535) }
   end
 
@@ -50,6 +50,46 @@ RSpec.describe Domain, type: :model do
       other_service = create(:service)
       other_domain = build(:domain, hostname: "example.com", service: other_service)
       expect(other_domain).to be_valid
+    end
+  end
+
+  describe "hostname normalization" do
+    let(:service) { create(:service) }
+
+    it "strips https://" do
+      domain = build(:domain, hostname: "https://example.com", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("example.com")
+    end
+
+    it "strips http://" do
+      domain = build(:domain, hostname: "http://example.com", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("example.com")
+    end
+
+    it "strips trailing paths" do
+      domain = build(:domain, hostname: "example.com/api/v1", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("example.com")
+    end
+
+    it "strips trailing ports" do
+      domain = build(:domain, hostname: "example.com:8443", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("example.com")
+    end
+
+    it "downcases hostnames" do
+      domain = build(:domain, hostname: "Example.COM", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("example.com")
+    end
+
+    it "preserves wildcards" do
+      domain = build(:domain, hostname: "*.example.com", service: service)
+      expect(domain).to be_valid
+      expect(domain.hostname).to eq("*.example.com")
     end
   end
 end

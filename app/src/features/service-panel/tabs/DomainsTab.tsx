@@ -3,6 +3,15 @@ import { Globe, Trash2, ShieldCheck, ShieldAlert, ShieldQuestion, Info } from 'l
 import { useAddDomain, useRemoveDomain, useGenerateDomain } from '@/hooks/useServices'
 import type { Service, Domain } from '@/types'
 
+function normalizeHostname(value: string): string {
+  return value
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/:\d+$/, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase()
+}
+
 function SslBadge({ domain }: { domain: Domain }) {
   const status = domain.sslStatus || (domain.ssl ? 'pending' : 'none')
 
@@ -100,7 +109,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
                   <span className="text-[10px] px-1.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">Auto</span>
                 )}
                 <button
-                  onClick={() => removeDomain.mutate({ id: svc.id, hostname: d.hostname })}
+                  onClick={() => removeDomain.mutate({ id: svc.id, hostname: normalizeHostname(d.hostname) })}
                   className="ml-auto p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 size={12} />
@@ -133,8 +142,9 @@ export default function DomainsTab({ svc }: { svc: Service }) {
           />
           <button
             onClick={() => {
-              if (newDomain) {
-                addDomain.mutate({ id: svc.id, hostname: newDomain, port: 443, targetPort })
+              const hostname = normalizeHostname(newDomain)
+              if (hostname) {
+                addDomain.mutate({ id: svc.id, hostname, port: 443, targetPort })
                 setNewDomain('')
               }
             }}
