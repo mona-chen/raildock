@@ -44,6 +44,7 @@ function mockDomain(overrides: Partial<Domain> = {}): Domain {
 function mockService(overrides = {}): Service {
   return {
     id: 'svc-1',
+    projectId: 'proj-1',
     name: 'Test Service',
     type: 'app',
     subtype: 'web',
@@ -67,6 +68,7 @@ function mockService(overrides = {}): Service {
       bindAddressIpv6: '[::]',
     },
     proxy: { enabled: true, proxyType: 'traefik', portMappings: [] },
+    traefik: { labels: {}, properties: {} },
     dockerOptions: [],
     resourceLimits: [],
     resourceReservations: [],
