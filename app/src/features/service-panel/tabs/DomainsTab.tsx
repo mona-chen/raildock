@@ -204,7 +204,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
   const detectedOrDefault = svc.detectedPort || svc.port || 80
 
   const handleAdd = () => {
-    if (!normalized.hostname || normalized.error) return
+    if (!normalized.hostname || normalized.error || addDomain.isPending) return
 
     const payload: { id: string; hostname: string; port: number; targetPort?: number } = {
       id: svc.id,
@@ -224,7 +224,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && normalized.hostname && !normalized.error) {
+    if (e.key === 'Enter' && normalized.hostname && !normalized.error && !addDomain.isPending) {
       handleAdd()
     }
   }

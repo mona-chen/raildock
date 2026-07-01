@@ -83,7 +83,7 @@ Rails.application.routes.draw do
       delete "recovery/pitr", to: "recovery#disable_pitr"
       post "recovery/backups/:backup_id/drills", to: "recovery#create_drill"
       delete "env-vars/:key", to: "environment_variables#destroy"
-      delete "domains/:hostname", to: "domains#destroy", constraints: { hostname: /[^\/]+/ }
+      delete "domains/*hostname", to: "domains#destroy", format: false
       delete "storage/*host_path", to: "storage_mounts#destroy", format: false
       delete "backup_schedules/:schedule_id", to: "services#destroy_backup_schedule"
       get "backups/:backup_id/download", to: "services#download_backup"

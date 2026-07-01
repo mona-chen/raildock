@@ -24,24 +24,8 @@ class Domain < ApplicationRecord
     ))
   end
 
-  private
-
-  def normalize_hostname
-    self.hostname = hostname.to_s
-      .strip
-      .sub(%r{\Ahttps?://}i, "")
-      .sub(%r{:\d+\z}, "")
-      .sub(%r{/.*\z}, "")
-      .downcase
-      .presence
-  end
-
   def base_hostname
     hostname.to_s.sub(/^\*\./, "")
-  end
-
-  def magic_domain?
-    MAGIC_DOMAINS.any? { |m| hostname.to_s.end_with?(".#{m}") }
   end
 
   def traefik_rule
@@ -51,6 +35,22 @@ class Domain < ApplicationRecord
     else
       "Host(`#{hostname}`)"
     end
+  end
+
+  private
+
+  def normalize_hostname
+    self.hostname = hostname.to_s
+      .strip
+      .sub(%r{\Ahttps?://?}i, "")
+      .sub(%r{:\d+\z}, "")
+      .sub(%r{/.*\z}, "")
+      .downcase
+      .presence
+  end
+
+  def magic_domain?
+    MAGIC_DOMAINS.any? { |m| hostname.to_s.end_with?("." + m) }
   end
 
   def ssl_active?
@@ -63,11 +63,5 @@ class Domain < ApplicationRecord
 
   def ssl_failed?
     ssl_status == "failed"
-  end
-
-  def as_json(options = {})
-    super(options.merge(
-      methods: [ :temporary, :wildcard, :base_hostname, :traefik_rule ]
-    ))
   end
 end

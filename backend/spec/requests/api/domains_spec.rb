@@ -66,5 +66,12 @@ RSpec.describe "Domains API", type: :request do
       delete "/api/services/#{service.id}/domains/missing.com", headers: auth_headers
       expect(response).to have_http_status(:not_found)
     end
+
+    it "destroys a domain whose hostname was saved with a protocol" do
+      bad_domain = create(:domain, service: service, hostname: "https://test.com")
+      delete "/api/services/#{service.id}/domains/#{CGI.escape(bad_domain.hostname)}", headers: auth_headers
+      expect(response).to have_http_status(:no_content)
+      expect(service.domains.count).to eq(0)
+    end
   end
 end

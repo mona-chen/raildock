@@ -62,7 +62,7 @@ module Api
     def normalize_hostname_param(value)
       value.to_s
         .strip
-        .sub(/\Ahttps?:\/\//i, "")
+        .sub(/\Ahttps?:\/\/?/i, "")
         .sub(/:\d+\z/, "")
         .sub(/\/.*\z/, "")
         .downcase
