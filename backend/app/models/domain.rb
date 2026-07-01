@@ -18,6 +18,12 @@ class Domain < ApplicationRecord
     hostname.to_s.start_with?("*.")
   end
 
+  def as_json(options = {})
+    super(options.merge(
+      methods: [ :temporary, :wildcard, :base_hostname, :traefik_rule ]
+    ))
+  end
+
   private
 
   def normalize_hostname
