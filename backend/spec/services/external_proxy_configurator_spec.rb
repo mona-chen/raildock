@@ -84,4 +84,20 @@ RSpec.describe ExternalProxyConfigurator do
     expect(engine).not_to have_received(:proxy_disable)
     expect(engine).not_to have_received(:ports_clear)
   end
+
+  it "prefers an explicit domain target_port over a stale detected_port" do
+    service.update!(detected_port: 5000)
+    service.domains.update_all(target_port: 3000)
+
+    described_class.new(service, engine, host_engine).apply!
+
+    expect(engine).to have_received(:docker_option_add).with(
+      service.dokku_app_name,
+      "deploy",
+      a_string_including('traefik.http.services.'),
+      process: "web"
+    ) do |_, _, label, _|
+      expect(label).to include('loadbalancer.server.port=3000')
+    end
+  end
 end
