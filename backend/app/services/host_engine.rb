@@ -159,6 +159,38 @@ class HostEngine
     run_with_file(command, path)
   end
 
+  # List the contents of a directory inside a host path or named Docker volume.
+  # Returns { success: bool, entries: [{ type: 'file'|'directory'|'other', name: string, size: integer? }] }
+  def volume_list_directory(host_path, relative_path = "/")
+    target = File.join(host_path, relative_path).gsub("//", "/")
+    source = Shellwords.escape(target)
+
+    command = if host_path.start_with?("/")
+      "find #{source} -mindepth 1 -maxdepth 1 -printf '%y\\t%s\\t%f\\n' 2>/dev/null"
+    else
+      docker_path = Shellwords.escape(File.join("/volume", relative_path).gsub("//", "/"))
+      "docker run --rm -v #{Shellwords.escape(host_path)}:/volume alpine:3.20 find #{docker_path} -mindepth 1 -maxdepth 1 -printf '%y\\t%s\\t%f\\n' 2>/dev/null"
+    end
+
+    result = run(command)
+    return result unless result[:success]
+
+    entries = result[:output].split("\n").filter_map do |line|
+      parts = line.split("\t", 3)
+      next if parts.length < 3
+
+      type = case parts[0]
+      when "d" then "directory"
+      when "f" then "file"
+      else "other"
+      end
+
+      { type: type, name: parts[2], size: parts[1].to_i }
+    end
+
+    { success: true, entries: entries }
+  end
+
   # Open a reusable SSH session for the current thread. All run calls made
   # inside the block reuse this single connection, eliminating the connection
   # storm that causes sshd to drop connections during template deploys.

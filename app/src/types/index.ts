@@ -121,6 +121,12 @@ export interface StorageMount {
   kind: StorageMountKind
 }
 
+export interface StorageMountEntry {
+  type: 'file' | 'directory' | 'other'
+  name: string
+  size: number
+}
+
 export interface LogEntry {
   timestamp: string
   processType: string

@@ -31,6 +31,16 @@ module Api
       head :no_content
     end
 
+    def browse
+      mount = @service.storage_mounts.find(params[:id])
+      relative = safe_relative_path(params[:path])
+
+      result = HostEngine.new(@service.project.server).volume_list_directory(mount.host_path, relative)
+      return render json: { error: result[:output] }, status: :unprocessable_entity if !result[:success]
+
+      render json: { entries: result[:entries], path: relative, mount: mount.container_path }
+    end
+
     private
 
     def set_and_authorize_service!
@@ -70,6 +80,13 @@ module Api
       return unless @service.project&.server&.ssh_key.present?
 
       StorageMountEnvSync.new(@service, DokkuEngine.new(@service.project.server)).sync!
+    end
+
+    def safe_relative_path(value)
+      return "/" if value.blank?
+
+      path = value.to_s.gsub("\\", "/").split("/").reject { |part| part.blank? || part == ".." || part == "." }.join("/")
+      path.start_with?("/") ? path : "/#{path}"
     end
   end
 end

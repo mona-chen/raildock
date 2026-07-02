@@ -62,4 +62,20 @@ RSpec.describe "Storage Mounts API", type: :request do
       expect(service.storage_mounts.count).to eq(0)
     end
   end
+
+  describe "GET /api/services/:service_id/storage/:id/browse" do
+    let!(:mount) { create(:storage_mount, :volume, service: service, host_path: "uploads-data", container_path: "/app/uploads") }
+
+    it "returns directory entries" do
+      expect_any_instance_of(HostEngine).to receive(:volume_list_directory)
+        .with("uploads-data", "/")
+        .and_return({ success: true, entries: [ { type: "file", name: "hello.txt", size: 12 } ] })
+
+      get "/api/services/#{service.id}/storage/#{mount.id}/browse", headers: auth_headers
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["entries"]).to eq([ { "type" => "file", "name" => "hello.txt", "size" => 12 } ])
+      expect(json["path"]).to eq("/")
+    end
+  end
 end

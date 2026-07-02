@@ -249,6 +249,10 @@ export const servicesApi = {
     await fetchJson(`/api/services/${id}/storage/${encodeURIComponent(hostPath)}`, { method: 'DELETE' })
   },
 
+  browseStorageMount: async (id: string, storageMountId: string, path?: string): Promise<{ entries: StorageMountEntry[]; path: string; mount: string }> => {
+    return fetchJson(`/api/services/${id}/storage/${storageMountId}/browse?path=${encodeURIComponent(path || '/')}`)
+  },
+
   logs: async (id: string): Promise<{ timestamp: string; processType: string; message: string }[]> => {
     return fetchJson(`/api/services/${id}/logs`)
   },

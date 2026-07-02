@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Archive, Database, FolderOpen, HardDrive, Link2, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Archive, Database, FolderOpen, HardDrive, Link2, Plus, Search, Trash2, X } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAddStorageMount, useRecovery, useRemoveStorageMount, useSnapshotVolume } from '@/hooks/useServices'
+import VolumeFileBrowser from './VolumeFileBrowser'
 import type { Service, StorageMount, StorageMountKind } from '@/types'
 
 const STORAGE_KINDS: { value: StorageMountKind; label: string; description: string }[] = [
@@ -39,6 +40,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
   const [hostPath, setHostPath] = useState('')
   const [containerPath, setContainerPath] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<StorageMount | null>(null)
+  const [browsingMount, setBrowsingMount] = useState<StorageMount | null>(null)
   const [snapshotDestination, setSnapshotDestination] = useState('')
 
   const generatedHostPath = useMemo(() => {
@@ -148,6 +150,14 @@ export default function StorageTab({ svc }: { svc: Service }) {
                     className="rounded p-1.5 text-white/25 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30"
                   >
                     <Archive size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBrowsingMount(mount)}
+                    aria-label={`Browse ${mount.hostPath}`}
+                    className="rounded p-1.5 text-white/25 hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
+                  >
+                    <Search size={13} />
                   </button>
                   <button
                     type="button"
@@ -263,6 +273,32 @@ export default function StorageTab({ svc }: { svc: Service }) {
                 Detach
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {browsingMount && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-xl rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-[14px] font-medium text-white/85">Browse volume</h3>
+                <p className="mt-0.5 text-[11px] text-white/35">
+                  {browsingMount.hostPath} → {browsingMount.containerPath}
+                </p>
+              </div>
+              <button
+                onClick={() => setBrowsingMount(null)}
+                className="rounded p-1.5 text-white/25 hover:bg-white/[0.05]"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <VolumeFileBrowser
+              serviceId={svc.id}
+              storageMountId={browsingMount.id}
+              containerPath={browsingMount.containerPath}
+            />
           </div>
         </div>
       )}

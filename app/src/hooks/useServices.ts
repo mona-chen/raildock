@@ -556,6 +556,14 @@ export function useStorageList(projectId: string, serviceId: string) {
   })
 }
 
+export function useBrowseStorageMount(id: string, storageMountId: string, path: string) {
+  return useQuery({
+    queryKey: ['services', id, 'storage_mounts', storageMountId, 'browse', path],
+    queryFn: () => api.services.browseStorageMount(id, storageMountId, path),
+    enabled: !!id && !!storageMountId,
+  })
+}
+
 export function useTemplates() {
   return useQuery({
     queryKey: ['templates'],

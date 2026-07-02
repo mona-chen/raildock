@@ -29,6 +29,7 @@ import {
   useCreateBackupDestination,
   useRecovery,
   useRunRestoreDrill,
+  useSnapshotVolume,
 } from '@/hooks/useServices'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '@/lib/api'
@@ -58,11 +59,15 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
   const createDestination = useCreateBackupDestination()
   const configurePitr = useConfigurePitr()
   const runDrill = useRunRestoreDrill()
+  const snapshotVolume = useSnapshotVolume()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [frequency, setFrequency] = useState('daily')
   const [retentionCount, setRetentionCount] = useState(7)
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
+  const [showSnapshot, setShowSnapshot] = useState(false)
+  const [snapshotMountId, setSnapshotMountId] = useState('')
+  const [snapshotDestination, setSnapshotDestination] = useState('')
   const [showDestination, setShowDestination] = useState(false)
   const [selectedDestination, setSelectedDestination] = useState('')
   const [destination, setDestination] = useState({ name: '', provider: 's3', endpoint: '', region: 'us-east-1', bucket: '', path_prefix: 'raildock', access_key_id: '', secret_access_key: '' })
@@ -113,6 +118,20 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
                 {recovery?.destinations.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            {svc.storageMounts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSnapshotMountId(svc.storageMounts[0]?.id || '')
+                  setShowSnapshot(true)
+                }}
+                disabled={snapshotVolume.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#17171b] px-3 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05] disabled:opacity-50"
+              >
+                {snapshotVolume.isPending ? <Loader2 size={12} className="animate-spin" /> : <DatabaseBackup size={12} />}
+                Snapshot volume
+              </button>
+            )}
             <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationId: selectedDestination || undefined })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]">
               {createBackup.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
               Create backup
@@ -220,6 +239,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
                       {ready ? <FileCheck2 size={14} className="text-emerald-400" /> : backup.status === 'failed' ? <AlertCircle size={14} className="text-red-400" /> : <Loader2 size={14} className="animate-spin text-amber-400" />}
                       <span className="font-mono text-[11px] text-white/65">{String(backup.id).slice(0, 8)}</span>
                       <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${ready ? 'bg-emerald-500/10 text-emerald-400' : backup.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-300'}`}>{ready ? 'verified' : backup.status}</span>
+                      <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-white/35 capitalize">{backup.backupKind === 'volume' ? 'volume' : backup.backupKind}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 pl-[22px] text-[10px] text-white/25">
                       <span>{formatDate(backup.createdAt)}</span><span>·</span><span>{formatSize(backup.size)}</span>
@@ -245,10 +265,71 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="restore-title">
           <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-300"><RotateCcw size={16} /><h3 id="restore-title" className="text-[14px] font-medium">Restore this recovery point?</h3></div>
-            <p className="mt-3 text-[12px] leading-5 text-white/40">Current {restoreTarget?.backupKind === 'volume' ? 'volume files' : 'database contents'} will be replaced. Create a fresh backup first if you may need to reverse this operation.</p>
+            {restoreTarget && (
+              <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
+                <div className="flex justify-between"><span className="text-white/30">Type</span><span className="text-white/65 capitalize">{restoreTarget.backupKind === 'volume' ? 'Volume snapshot' : restoreTarget.backupKind}</span></div>
+                <div className="flex justify-between"><span className="text-white/30">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
+                <div className="flex justify-between"><span className="text-white/30">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
+                {restoreTarget.metadata?.checksum && <div className="flex justify-between"><span className="text-white/30">Checksum</span><span className="font-mono text-white/65">sha256:{restoreTarget.metadata.checksum.slice(0, 10)}…</span></div>}
+              </div>
+            )}
+            <p className="mt-3 text-[12px] leading-5 text-white/40">
+              Current {restoreTarget?.backupKind === 'volume' ? 'volume files' : 'database contents'} will be replaced.
+              This operation cannot be undone. Create a fresh backup first if you may need to reverse it.
+            </p>
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setConfirmRestore(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
               <button onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore }, { onSuccess: () => setConfirmRestore(null) })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25"><Check size={12} /> Restore</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSnapshot && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+            <div className="flex items-center gap-2 text-emerald-300"><DatabaseBackup size={16} /><h3 className="text-[14px] font-medium">Snapshot volume</h3></div>
+            <p className="mt-3 text-[12px] leading-5 text-white/40">Create an encrypted point-in-time snapshot of a mounted volume.</p>
+            <div className="mt-4 space-y-3">
+              <label className="text-[10px] text-white/35">Mount
+                <Select value={snapshotMountId} onValueChange={(value) => setSnapshotMountId(value)}>
+                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70">
+                    <SelectValue placeholder="Select mount" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {svc.storageMounts.map((mount) => (
+                      <SelectItem key={mount.id} value={mount.id}>{mount.containerPath} ({mount.hostPath})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="text-[10px] text-white/35">Destination
+                <Select value={snapshotDestination} onValueChange={(value) => setSnapshotDestination(value)}>
+                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70">
+                    <SelectValue placeholder="Local encrypted host" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Local encrypted host</SelectItem>
+                    {recovery?.destinations.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShowSnapshot(false)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button
+                disabled={!snapshotMountId || snapshotVolume.isPending}
+                onClick={() =>
+                  snapshotVolume.mutate(
+                    { id: serviceId, storageMountId: snapshotMountId, backupDestinationId: snapshotDestination || undefined },
+                    { onSuccess: () => setShowSnapshot(false) }
+                  )
+                }
+                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-[11px] text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-30"
+              >
+                {snapshotVolume.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                Snapshot
+              </button>
             </div>
           </div>
         </div>
