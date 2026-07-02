@@ -243,7 +243,10 @@ export const servicesApi = {
   },
 
   addStorageMount: async (id: string, data: { hostPath?: string; containerPath: string; kind: StorageMountKind }): Promise<void> => {
-    await fetchJson(`/api/services/${id}/storage`, { method: 'POST', body: JSON.stringify(data) })
+    await fetchJson(`/api/services/${id}/storage`, {
+      method: 'POST',
+      body: JSON.stringify({ host_path: data.hostPath, container_path: data.containerPath, kind: data.kind }),
+    })
   },
 
   removeStorageMount: async (id: string, hostPath: string): Promise<void> => {
