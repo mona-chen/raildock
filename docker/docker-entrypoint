@@ -5,6 +5,12 @@ set -e
 # idempotent for derived images and bind-mounted deployments.
 mkdir -p /var/log/supervisor /var/log/nginx /tmp/nginx /tmp/pids
 
+# Bind mounts (e.g. ./data/backups:/rails/storage/backups) arrive with the
+# host's ownership. Ensure the rails user can write backup artifacts.
+if [ -d /rails/storage/backups ]; then
+  chown -R rails:rails /rails/storage/backups 2>/dev/null || true
+fi
+
 # The Rails credentials file must be created during install (see install.sh).
 # If it is missing here, fail fast with a clear message.
 if [ -n "$RAILS_MASTER_KEY" ] && [ ! -f /rails/config/credentials.yml.enc ]; then

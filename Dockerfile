@@ -81,13 +81,13 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chmod=755 docker/docker-entrypoint /usr/local/bin/raildock-entrypoint
 
 RUN mkdir -p /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids && \
-    mkdir -p /rails/tmp /rails/log /rails/storage && \
+    mkdir -p /rails/tmp /rails/log /rails/storage /rails/storage/backups && \
     chown -R rails:rails /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids /usr/share/nginx/html /rails
 
-# Run as non-root
-USER 1000:1000
 EXPOSE 80
 
 # Entrypoint: prepare DB then start supervisord
+# Note: entrypoint starts as root so it can fix ownership of bind-mounted
+# directories (e.g. backups), then supervisord drops to the rails user.
 ENTRYPOINT ["/usr/local/bin/raildock-entrypoint"]
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
