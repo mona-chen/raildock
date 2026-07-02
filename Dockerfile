@@ -37,10 +37,10 @@ FROM docker.io/library/ruby:${RUBY_VERSION}-slim AS base
 ARG RAILDOCK_VERSION=unknown
 WORKDIR /rails
 
-# Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc
+# Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc, gosu
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-        curl nginx supervisor libjemalloc2 postgresql-client openssh-client \
+        curl nginx supervisor gosu libjemalloc2 postgresql-client openssh-client \
     && apt-get install -y libcap2-bin \
     && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \
