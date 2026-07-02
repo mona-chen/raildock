@@ -379,9 +379,14 @@ export const servicesApi = {
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
     try {
+      const authHeaders = getAuthHeaders()
+      // Don't send application/json when uploading a raw binary dump;
+      // Rails would try to parse the PGDMP bytes as JSON.
+      delete authHeaders['Content-Type']
+
       const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: authHeaders,
         body: file || undefined,
         signal: controller.signal,
       })
