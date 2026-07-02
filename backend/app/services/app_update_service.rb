@@ -11,7 +11,7 @@ class AppUpdateService
     end
 
     def check_for_updates
-      response = Faraday.get(GITHUB_API, {
+      response = Faraday.get(GITHUB_API, nil, {
         "Accept" => "application/vnd.github+json",
         "User-Agent" => "RailDock/#{current_version}"
       })
@@ -203,7 +203,7 @@ class AppUpdateService
     end
 
     def local_ssh_target_present?
-      Server.where("ssh_key IS NOT NULL AND ssh_key != ''").exists?
+      Server.where.not(ssh_key_ciphertext: [ nil, "" ]).exists?
     end
 
     def run_command(cmd)
@@ -225,7 +225,7 @@ class AppUpdateService
     end
 
     def run_ssh_update
-      server = Server.where("ssh_key IS NOT NULL AND ssh_key != ''").order(:id).first
+      server = Server.where.not(ssh_key_ciphertext: [ nil, "" ]).order(:id).first
       return { success: false, error: "No SSH key configured" } unless server
 
       install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
