@@ -5,17 +5,6 @@ set -e
 # idempotent for derived images and bind-mounted deployments.
 mkdir -p /var/log/supervisor /var/log/nginx /tmp/nginx /tmp/pids
 
-# When started as root (default), fix ownership of bind-mounted directories
-# and then re-execute this script as the rails user. This lets us chown
-# host-owned paths like ./data/backups while still running the app as
-# non-root so /dev/stdout and other descriptors are owned by rails.
-if [ "$(id -u)" = "0" ]; then
-  if [ -d /rails/storage/backups ]; then
-    chown -R rails:rails /rails/storage/backups 2>/dev/null || true
-  fi
-  exec gosu rails "$0" "$@"
-fi
-
 # The Rails credentials file must be created during install (see install.sh).
 # If it is missing here, fail fast with a clear message.
 if [ -n "$RAILS_MASTER_KEY" ] && [ ! -f /rails/config/credentials.yml.enc ]; then

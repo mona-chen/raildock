@@ -336,6 +336,17 @@ generate_ssh_key() {
   chmod 644 "$SSH_KEY_DIR/id_ed25519.pub"
 }
 
+ensure_backup_dir_permissions() {
+  local backups_dir="${BACKUPS_DIR:-$DATA_DIR/backups}"
+  mkdir -p "$backups_dir"
+  # The Rails container runs as UID/GID 1000 and bind-mounts this directory
+  # for local backup artifacts. It must be writable by that user.
+  if ! chown -R 1000:1000 "$backups_dir" 2>/dev/null; then
+    chmod -R 755 "$backups_dir"
+    log_warn "Could not chown $backups_dir to UID 1000; opened permissions instead"
+  fi
+}
+
 register_ssh_key_with_dokku() {
   local pub_key="$SSH_KEY_DIR/id_ed25519.pub"
   if [ ! -f "$pub_key" ]; then
@@ -855,6 +866,8 @@ install_raildock() {
   log_step "Preparing Rails credentials..."
   create_credentials_file
 
+  ensure_backup_dir_permissions
+
   log_step "Starting RailDock..."
   if [ "$BUILD_FROM_SOURCE" = "1" ]; then
     log_info "BUILD_FROM_SOURCE=1 — building image locally"
@@ -994,6 +1007,7 @@ update_raildock() {
   backup_env
   fill_missing_env_vars
   ensure_builder_binaries
+  ensure_backup_dir_permissions
   if [ "$BUILD_FROM_SOURCE" = "1" ]; then
     docker compose -f "$COMPOSE_FILE" build --pull
   else

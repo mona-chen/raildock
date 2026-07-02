@@ -37,10 +37,10 @@ FROM docker.io/library/ruby:${RUBY_VERSION}-slim AS base
 ARG RAILDOCK_VERSION=unknown
 WORKDIR /rails
 
-# Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc, gosu
+# Install runtime dependencies: nginx, supervisor, curl, postgres client, jemalloc
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-        curl nginx supervisor gosu libjemalloc2 postgresql-client openssh-client \
+        curl nginx supervisor libjemalloc2 postgresql-client openssh-client \
     && apt-get install -y libcap2-bin \
     && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \
@@ -84,10 +84,11 @@ RUN mkdir -p /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/p
     mkdir -p /rails/tmp /rails/log /rails/storage /rails/storage/backups && \
     chown -R rails:rails /var/log/supervisor /var/log/nginx /var/lib/nginx /tmp/nginx /tmp/pids /usr/share/nginx/html /rails
 
+# Run as non-root. Bind-mounted host directories (e.g. backups) must be
+# writable by UID 1000 on the host; install.sh ensures this.
+USER 1000:1000
 EXPOSE 80
 
 # Entrypoint: prepare DB then start supervisord
-# Note: entrypoint starts as root so it can fix ownership of bind-mounted
-# directories (e.g. backups), then supervisord drops to the rails user.
 ENTRYPOINT ["/usr/local/bin/raildock-entrypoint"]
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
