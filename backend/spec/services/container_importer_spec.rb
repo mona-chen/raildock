@@ -35,7 +35,7 @@ RSpec.describe ContainerImporter do
 
   describe "#import" do
     it "creates a project and services from containers" do
-      result = importer.import([sample_container])
+      result = importer.import([ sample_container ])
 
       expect(result[:success]).to be true
       expect(result[:project_name]).to eq("Imported Containers")
@@ -56,14 +56,14 @@ RSpec.describe ContainerImporter do
 
     it "can import into an existing project" do
       project = create(:project, organization: organization, server: server)
-      result = importer.import([sample_container], project: project)
+      result = importer.import([ sample_container ], project: project)
 
       expect(result[:project_id]).to eq(project.id)
       expect(project.services.count).to eq(1)
     end
 
     it "sanitizes container names" do
-      result = importer.import([sample_container(name: "My Bad Name!!")])
+      result = importer.import([ sample_container(name: "My Bad Name!!") ])
       service = Project.find(result[:project_id]).services.first
       expect(service.name).to eq("my-bad-name")
     end
@@ -72,13 +72,13 @@ RSpec.describe ContainerImporter do
       project = create(:project, organization: organization, server: server)
       create(:service, project: project, name: "web-app")
 
-      result = importer.import([sample_container], project: project)
+      result = importer.import([ sample_container ], project: project)
       names = project.services.pluck(:name)
       expect(names).to include("web-app", "web-app-2")
     end
 
     it "reports failures for individual containers without aborting" do
-      result = importer.import([sample_container(name: "", image: "")])
+      result = importer.import([ sample_container(name: "", image: "") ])
       expect(result[:success]).to be false
       expect(result[:results].first[:success]).to be false
     end

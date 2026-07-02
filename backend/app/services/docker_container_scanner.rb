@@ -143,8 +143,8 @@ class DockerContainerScanner
   def classify_image(image)
     lower = image.downcase
     DB_IMAGE_SUBTYPES.each do |pattern, subtype|
-      return ["database", subtype] if lower.match?(pattern)
+      return [ "database", subtype ] if lower.match?(pattern)
     end
-    ["app", nil]
+    [ "app", nil ]
   end
 end

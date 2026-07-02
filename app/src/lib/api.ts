@@ -32,6 +32,7 @@ import type {
   RepositoryImportPreview,
   DockerContainer,
   StorageMountKind,
+  StorageMountEntry,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'

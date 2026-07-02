@@ -43,7 +43,7 @@ module Api
     def set_and_authorize_server!
       @server = scoped_servers.find(params[:server_id])
       authorize_server!(action: :update)
-      return if performed?
+      nil if performed?
     end
 
     def load_project_if_requested

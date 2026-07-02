@@ -121,7 +121,7 @@ class SshConnectionBuilder
       match = line.to_s.match(/(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-\S+)\s+(\S+)/)
       return nil unless match
 
-      [match[1], match[2]]
+      [ match[1], match[2] ]
     end
   end
 end

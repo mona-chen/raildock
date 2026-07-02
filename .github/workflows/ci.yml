@@ -78,6 +78,10 @@ jobs:
       JWT_SECRET_KEY: test_jwt_secret_key_for_ci_only_not_real_production_key
       RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY || 'test_master_key_for_ci' }}
       LOCKBOX_MASTER_KEY: ${{ secrets.LOCKBOX_MASTER_KEY || 'test_lockbox_master_key_for_ci_only_not_real' }}
+      # Bootsnap's ISeq compile cache is incompatible with SimpleCov coverage.
+      # db:test:prepare runs without coverage and primes the cache; subsequent
+      # rspec then fails to load cached ISeqs while coverage is active.
+      DISABLE_BOOTSNAP_COMPILE_CACHE: 1
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby

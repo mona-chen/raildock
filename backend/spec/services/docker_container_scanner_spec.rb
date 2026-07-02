@@ -13,20 +13,20 @@ RSpec.describe DockerContainerScanner do
   def container_json(attrs = {})
     {
       "Id" => SecureRandom.hex(32),
-      "Names" => ["/web-app"],
+      "Names" => [ "/web-app" ],
       "Created" => Time.current.iso8601,
       "State" => { "Status" => "running", "Running" => true },
       "Config" => {
         "Image" => "myapp/web:latest",
         "Hostname" => "web-app",
-        "Cmd" => ["node", "server.js"],
-        "Env" => ["PORT=3000", "NODE_ENV=production"],
+        "Cmd" => [ "node", "server.js" ],
+        "Env" => [ "PORT=3000", "NODE_ENV=production" ],
         "ExposedPorts" => { "3000/tcp" => {} },
         "Labels" => { "foo" => "bar" }
       },
       "HostConfig" => {
-        "PortBindings" => { "3000/tcp" => [{ "HostIp" => "0.0.0.0", "HostPort" => "8080" }] },
-        "Binds" => ["/data/uploads:/app/uploads:rw"]
+        "PortBindings" => { "3000/tcp" => [ { "HostIp" => "0.0.0.0", "HostPort" => "8080" } ] },
+        "Binds" => [ "/data/uploads:/app/uploads:rw" ]
       },
       "Mounts" => [
         { "Source" => "/data/uploads", "Destination" => "/app/uploads", "Type" => "bind", "Mode" => "rw" }
@@ -54,11 +54,11 @@ RSpec.describe DockerContainerScanner do
 
     it "classifies database images" do
       db_json = container_json(
-        "Names" => ["/postgres-db"],
+        "Names" => [ "/postgres-db" ],
         "Config" => {
           "Image" => "postgres:16-alpine",
           "Hostname" => "postgres-db",
-          "Env" => ["POSTGRES_PASSWORD=secret"],
+          "Env" => [ "POSTGRES_PASSWORD=secret" ],
           "ExposedPorts" => { "5432/tcp" => {} },
           "Labels" => {}
         },

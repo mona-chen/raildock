@@ -57,7 +57,7 @@ RSpec.describe "Server Docker imports API", type: :request do
         params: {
           containers: [
             { id: "abc", name: "web", image: "web:latest", status: "running", running: true, created: Time.current.iso8601,
-              ports: [{ container_port: "3000", host_port: "8080", host_ip: "0.0.0.0" }],
+              ports: [ { container_port: "3000", host_port: "8080", host_ip: "0.0.0.0" } ],
               env: { "PORT" => "3000" }, mounts: [], labels: {}, service_type: "app", subtype: nil }
           ]
         },
