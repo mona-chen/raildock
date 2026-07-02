@@ -13,7 +13,8 @@ class VolumeBackupJob < ApplicationJob
     result = HostEngine.new(backup.service.project.server).volume_export_to(mount.host_path, path)
     raise result[:output].presence || "Volume snapshot failed" unless result[:success]
 
-    BackupArtifactStore.new.persist!(backup, path)
+    destination_ids = backup.metadata&.fetch("destination_ids", [])
+    BackupArtifactStore.new.persist!(backup, path, destination_ids: destination_ids)
   rescue => error
     backup&.update!(status: "failed", metadata: (backup.metadata || {}).merge("error" => error.message))
     File.delete(path) if defined?(path) && path && File.exist?(path)

@@ -129,7 +129,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                       snapshotVolume.mutate({
                         id: svc.id,
                         storageMountId: mount.id,
-                        backupDestinationId: snapshotDestination || undefined,
+                        backupDestinationIds: snapshotDestination ? [snapshotDestination] : undefined,
                       })
                     }
                     aria-label={`Snapshot ${mount.hostPath}`}

@@ -18,4 +18,8 @@ class BackupSchedule < ApplicationRecord
   def update_next_run!
     update!(next_run_at: calculate_next_run)
   end
+
+  def destination_ids
+    metadata&.fetch("destination_ids", []) || []
+  end
 end

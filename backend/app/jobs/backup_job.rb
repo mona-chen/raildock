@@ -11,8 +11,10 @@ class BackupJob < ApplicationJob
     result = DokkuEngine.new(service.project.server).datastore_export_to(service, path)
     raise result[:output].presence || "Backup export failed" unless result[:success]
 
-    BackupArtifactStore.new.persist!(backup, path)
-    enforce_retention(service, schedule_id)
+    schedule = schedule_id ? service.backup_schedules.find_by(id: schedule_id) : nil
+    destination_ids = backup.metadata&.fetch("destination_ids", nil) || schedule&.metadata&.fetch("destination_ids", [])
+    BackupArtifactStore.new.persist!(backup, path, destination_ids: destination_ids)
+    enforce_retention(service, schedule)
     record_success(backup)
   rescue => e
     backup&.update!(status: "failed", metadata: (backup.metadata || {}).merge("error" => e.message))
@@ -26,8 +28,7 @@ class BackupJob < ApplicationJob
       File.join(root, backup.service_id.to_s, "#{backup.id}-#{Time.current.utc.strftime('%Y%m%d%H%M%S')}.dump")
     end
 
-    def enforce_retention(service, schedule_id)
-      schedule = service.backup_schedules.find_by(id: schedule_id)
+    def enforce_retention(service, schedule)
       return unless schedule
 
       service.backups.completed.order(created_at: :desc).offset(schedule.retention_count).find_each(&:remove_file!)
