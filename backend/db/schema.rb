@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_02_183000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
     t.index ["project_id"], name: "index_activity_events_on_project_id"
   end
 
+  create_table "backup_copies", force: :cascade do |t|
+    t.bigint "backup_destination_id"
+    t.bigint "backup_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", default: "local", null: false
+    t.jsonb "metadata", default: {}
+    t.bigint "size", default: 0, null: false
+    t.string "status", default: "pending", null: false
+    t.string "storage_key"
+    t.datetime "updated_at", null: false
+    t.index ["backup_destination_id"], name: "index_backup_copies_on_backup_destination_id"
+    t.index ["backup_id", "backup_destination_id"], name: "index_backup_copies_on_backup_and_destination", unique: true, where: "(backup_destination_id IS NOT NULL)"
+    t.index ["backup_id"], name: "index_backup_copies_on_backup_id"
+  end
+
   create_table "backup_destinations", force: :cascade do |t|
     t.text "access_key_id_ciphertext"
     t.string "bucket", null: false
@@ -34,13 +49,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
     t.text "last_error"
     t.datetime "last_verified_at"
     t.string "name", null: false
+    t.bigint "organization_id"
     t.string "path_prefix"
     t.string "provider", default: "s3", null: false
     t.string "region", default: "auto", null: false
     t.text "secret_access_key_ciphertext"
-    t.bigint "server_id", null: false
+    t.bigint "server_id"
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
+    t.index ["organization_id", "name"], name: "index_backup_destinations_on_organization_id_and_name", unique: true, where: "(organization_id IS NOT NULL)"
+    t.index ["organization_id"], name: "index_backup_destinations_on_organization_id"
     t.index ["server_id", "name"], name: "index_backup_destinations_on_server_id_and_name", unique: true
     t.index ["server_id"], name: "index_backup_destinations_on_server_id"
   end
@@ -49,6 +67,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
     t.datetime "created_at", null: false
     t.string "frequency"
     t.datetime "last_run_at"
+    t.jsonb "metadata", default: {}
     t.datetime "next_run_at"
     t.integer "retention_count"
     t.bigint "service_id", null: false
@@ -420,6 +439,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
   end
 
   add_foreign_key "activity_events", "projects"
+  add_foreign_key "backup_copies", "backup_destinations"
+  add_foreign_key "backup_copies", "backups"
+  add_foreign_key "backup_destinations", "organizations"
   add_foreign_key "backup_destinations", "servers"
   add_foreign_key "backup_schedules", "services"
   add_foreign_key "backups", "backup_destinations"

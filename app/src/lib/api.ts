@@ -295,7 +295,7 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/backup_schedules`)
   },
 
-  createBackupSchedule: async (id: string, data: { frequency: string; retentionCount: number }): Promise<void> => {
+  createBackupSchedule: async (id: string, data: { frequency: string; retentionCount: number; destinationIds?: string[] }): Promise<void> => {
     await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: data }) })
   },
 
@@ -324,8 +324,8 @@ export const servicesApi = {
     return data.map(normalizeService)
   },
 
-  backup: async (id: string, backupDestinationId?: string): Promise<{ success: boolean }> => {
-    return fetchJson(`/api/services/${id}/backup`, { method: 'POST', body: JSON.stringify({ backup_destination_id: backupDestinationId }) })
+  backup: async (id: string, backupDestinationIds?: string[]): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/services/${id}/backup`, { method: 'POST', body: JSON.stringify({ backup_destination_ids: backupDestinationIds }) })
   },
 
   recovery: async (id: string): Promise<RecoveryOverview> => fetchJson(`/api/services/${id}/recovery`),
@@ -339,8 +339,8 @@ export const servicesApi = {
   deleteBackupDestination: async (id: string, destinationId: string): Promise<void> =>
     fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}`, { method: 'DELETE' }),
 
-  snapshotVolume: async (id: string, storageMountId: string, backupDestinationId?: string): Promise<void> =>
-    fetchJson(`/api/services/${id}/recovery/volumes/${storageMountId}/snapshot`, { method: 'POST', body: JSON.stringify({ backup_destination_id: backupDestinationId }) }),
+  snapshotVolume: async (id: string, storageMountId: string, backupDestinationIds?: string[]): Promise<void> =>
+    fetchJson(`/api/services/${id}/recovery/volumes/${storageMountId}/snapshot`, { method: 'POST', body: JSON.stringify({ backup_destination_ids: backupDestinationIds }) }),
 
   configurePitr: async (id: string, backupDestinationId: string, retentionDays: number): Promise<PostgresPitrConfig> =>
     fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'PUT', body: JSON.stringify({ backup_destination_id: backupDestinationId, retention_days: retentionDays }) }),
@@ -678,6 +678,34 @@ export const organizationsApi = {
 
     revoke: async (organizationId: string, invitationId: string): Promise<void> => {
       await fetchJson(`/api/organizations/${organizationId}/invitations/${invitationId}`, { method: 'DELETE' })
+    },
+  },
+
+  backupDestinations: {
+    list: async (organizationId: string): Promise<BackupDestination[]> => {
+      return fetchJson<BackupDestination[]>(`/api/organizations/${organizationId}/backup-destinations`)
+    },
+
+    create: async (organizationId: string, data: Record<string, string>): Promise<BackupDestination & { recoveryKey?: string }> => {
+      return fetchJson<BackupDestination & { recoveryKey?: string }>(`/api/organizations/${organizationId}/backup-destinations`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+
+    update: async (organizationId: string, destinationId: string, data: Record<string, string>): Promise<BackupDestination> => {
+      return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+
+    destroy: async (organizationId: string, destinationId: string): Promise<void> => {
+      await fetchJson(`/api/organizations/${organizationId}/backup-destinations/${destinationId}`, { method: 'DELETE' })
+    },
+
+    verify: async (organizationId: string, destinationId: string): Promise<BackupDestination> => {
+      return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}/verify`, { method: 'POST' })
     },
   },
 }

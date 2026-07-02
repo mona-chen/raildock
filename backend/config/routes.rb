@@ -119,6 +119,11 @@ Rails.application.routes.draw do
       resources :members, controller: "organization_members", only: [ :index, :create, :destroy, :update ]
       resources :invitations, controller: "organization_invitations", only: [ :index, :create, :destroy ]
       resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
+      resources :backup_destinations, path: "backup-destinations", only: [ :index, :show, :create, :update, :destroy ] do
+        member do
+          post :verify
+        end
+      end
       member do
         get :server_bootstrap
       end

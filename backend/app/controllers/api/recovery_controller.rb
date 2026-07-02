@@ -5,8 +5,12 @@ module Api
     before_action :set_service
 
     def show
+      server = @service.project.server
+      destinations = server.backup_destinations.order(:name).to_a
+      destinations += server.organization.backup_destinations.order(:name).to_a if server.organization
+
       render json: {
-        destinations: @service.project.server.backup_destinations.order(:name),
+        destinations: destinations.uniq.sort_by(&:name),
         pitr: @service.postgres_pitr_config,
         drills: RestoreDrill.joins(:backup).where(backups: { service_id: @service.id }).recent.limit(25)
       }
@@ -39,9 +43,12 @@ module Api
     def snapshot_volume
       authorize_service!(@service, action: :update)
       mount = @service.storage_mounts.find(params[:storage_mount_id])
-      destination = destination_scope.find_by(id: params[:backup_destination_id]) if params[:backup_destination_id].present?
-      backup = @service.backups.create!(status: "pending", backup_kind: "volume", backup_destination: destination,
-        metadata: { "trigger" => "manual", "storage_mount_id" => mount.id })
+      destination_ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
+      backup = @service.backups.create!(
+        status: "pending",
+        backup_kind: "volume",
+        metadata: { "trigger" => "manual", "storage_mount_id" => mount.id, "destination_ids" => destination_ids }
+      )
       VolumeBackupJob.perform_later(backup.id, mount.id)
       render json: backup, status: :accepted
     end
@@ -50,7 +57,9 @@ module Api
       authorize_service!(@service, action: :update)
       return render json: { error: "PITR is only available for PostgreSQL" }, status: :unprocessable_entity unless @service.subtype == "postgres"
 
-      destination = destination_scope.find(params[:backup_destination_id])
+      destination = find_destination(params[:backup_destination_id])
+      return render json: { error: "Destination not found" }, status: :not_found unless destination
+
       config = @service.postgres_pitr_config || @service.build_postgres_pitr_config
       config.assign_attributes(backup_destination: destination, retention_days: params[:retention_days] || 7)
       config.save!
@@ -81,6 +90,15 @@ module Api
 
       def destination_scope
         @service.project.server.backup_destinations
+      end
+
+      def find_destination(id)
+        return nil if id.blank?
+
+        server = @service.project.server
+        destination = server.backup_destinations.find_by(id: id)
+        destination ||= server.organization&.backup_destinations&.find_by(id: id)
+        destination
       end
 
       def destination_params

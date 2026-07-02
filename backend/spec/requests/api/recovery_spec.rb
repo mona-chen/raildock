@@ -28,12 +28,12 @@ RSpec.describe "Service recovery", type: :request do
     allow(VolumeBackupJob).to receive(:perform_later)
 
     post "/api/services/#{service.id}/recovery/volumes/#{mount.id}/snapshot", headers: headers,
-      params: { backup_destination_id: destination.id }, as: :json
+      params: { backup_destination_ids: [ destination.id ] }, as: :json
 
     expect(response).to have_http_status(:accepted)
     backup = service.backups.last
     expect(backup).to be_backup_kind_volume
-    expect(backup.backup_destination).to eq(destination)
+    expect(backup.metadata["destination_ids"]).to eq([ destination.id.to_s ])
     expect(VolumeBackupJob).to have_received(:perform_later).with(backup.id, mount.id)
   end
 

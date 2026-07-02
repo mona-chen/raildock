@@ -499,8 +499,16 @@ module Api
       return render json: { error: "Backups are only available for databases" }, status: :unprocessable_entity unless @service.service_type_database?
       return render json: { error: "No server configured" }, status: :unprocessable_entity unless @service.project.server&.ssh_key.present?
 
-      destination = @service.project.server.backup_destinations.find_by(id: params[:backup_destination_id]) if params[:backup_destination_id].present?
-      backup_record = @service.backups.create!(status: "pending", backup_destination: destination, metadata: { "trigger" => "manual" })
+      destination_ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
+      if destination_ids.any?
+        server = @service.project.server
+        visible_ids = server.backup_destinations.ids + server.organization&.backup_destinations&.ids.to_a
+        invalid = destination_ids - visible_ids.map(&:to_s)
+        return render json: { error: "Invalid backup destination(s): #{invalid.join(", ")}" }, status: :unprocessable_entity if invalid.any?
+      end
+
+      metadata = { "trigger" => "manual", "destination_ids" => destination_ids }
+      backup_record = @service.backups.create!(status: "pending", metadata: metadata)
       BackupJob.perform_later(backup_record.id)
       render json: { success: true, backup: backup_record }, status: :accepted
     end
@@ -960,7 +968,8 @@ module Api
     end
 
     def backup_schedule_params
-      params.require(:backup_schedule).permit(:frequency, :retention_count)
+      params.require(:backup_schedule).permit(:frequency, :retention_count, destination_ids: [])
+            .tap { |p| p[:metadata] = { "destination_ids" => Array(p.delete(:destination_ids)).compact_blank } }
     end
 
     def parse_metrics(output)

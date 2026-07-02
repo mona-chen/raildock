@@ -6,6 +6,7 @@ class Organization < ApplicationRecord
   has_many :projects, dependent: :destroy
   has_many :git_sources, dependent: :destroy
   has_many :deploy_keys, dependent: :destroy
+  has_many :backup_destinations, dependent: :destroy
   has_one :ssh_key, class_name: "OrganizationSshKey", dependent: :destroy
 
   validates :name, presence: true

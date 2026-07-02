@@ -252,7 +252,7 @@ export function useCreateBackupDestination() {
 export function useSnapshotVolume() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, storageMountId, backupDestinationId }: { id: string; storageMountId: string; backupDestinationId?: string }) => api.services.snapshotVolume(id, storageMountId, backupDestinationId),
+    mutationFn: ({ id, storageMountId, backupDestinationIds }: { id: string; storageMountId: string; backupDestinationIds?: string[] }) => api.services.snapshotVolume(id, storageMountId, backupDestinationIds),
     onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] }); toast.success('Volume snapshot queued') },
     onError: (err) => toast.error(`Snapshot failed: ${err.message}`),
   })
@@ -287,7 +287,7 @@ export function useBackupSchedules(id: string) {
 export function useCreateBackupSchedule() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { frequency: string; retentionCount: number } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { frequency: string; retentionCount: number; destinationIds?: string[] } }) =>
       api.services.createBackupSchedule(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
@@ -378,9 +378,9 @@ export function useLinkedByServices(id: string) {
 export function useBackupService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: string | { id: string; backupDestinationId?: string }) => {
-      const { id, backupDestinationId } = typeof input === 'string' ? { id: input, backupDestinationId: undefined } : input
-      return backupDestinationId ? api.services.backup(id, backupDestinationId) : api.services.backup(id)
+    mutationFn: (input: string | { id: string; backupDestinationIds?: string[] }) => {
+      const { id, backupDestinationIds } = typeof input === 'string' ? { id: input, backupDestinationIds: undefined } : input
+      return backupDestinationIds?.length ? api.services.backup(id, backupDestinationIds) : api.services.backup(id)
     },
     onSuccess: (_, input) => {
       const id = typeof input === 'string' ? input : input.id
