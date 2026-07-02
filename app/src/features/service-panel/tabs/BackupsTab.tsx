@@ -280,14 +280,14 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
           )}
         </div>
         {svc.subtype === 'postgres' && (
-          <div className="mt-3 flex items-center gap-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] text-white/65">PostgreSQL point-in-time recovery</div>
+          <div className="mt-3 flex flex-col gap-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-[11px] font-medium text-white/65">PostgreSQL point-in-time recovery</div>
               <div className="mt-1 text-[10px] text-white/25">Daily physical base backup + continuous WAL archiving</div>
             </div>
             {recovery?.pitr?.enabled ? (
-              <div className="text-right text-[10px] text-emerald-400">
-                Active
+              <div className="shrink-0 text-right text-[10px] text-emerald-400">
+                <div>Active</div>
                 <div className="text-white/25">WAL {formatDate(recovery.pitr.lastWalArchivedAt)}</div>
               </div>
             ) : (
@@ -297,7 +297,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
                   if (value) configurePitr.mutate({ id: serviceId, destinationId: value, retentionDays: 7 })
                 }}
               >
-                <SelectTrigger className="rounded-md bg-emerald-500/10 px-3 py-1.5 text-[10px] text-emerald-300 border-0 h-auto">
+                <SelectTrigger className="w-full shrink-0 rounded-md bg-emerald-500/10 px-3 py-1.5 text-[10px] text-emerald-300 border-0 h-auto sm:w-auto">
                   <SelectValue placeholder="Enable PITR" />
                 </SelectTrigger>
                 <SelectContent>
