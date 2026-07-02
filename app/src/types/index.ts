@@ -160,6 +160,17 @@ export interface BackupDestination {
   recoveryKey?: string
 }
 
+export interface BackupSchedule {
+  id: string
+  frequency: 'daily' | 'weekly' | 'monthly'
+  retentionCount: number
+  backupKind: 'database' | 'volume'
+  storageMountId?: string
+  storageMount?: StorageMount
+  lastRunAt?: string
+  nextRunAt?: string
+}
+
 export interface PostgresPitrConfig {
   id: string
   enabled: boolean

@@ -14,7 +14,7 @@ module Api
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
       :metrics, :backup, :restore, :restore_backup, :download_backup, :destroy_backup,
-      :database_info, :backups, :backup_schedules,
+      :database_info, :backups, :snapshots, :backup_schedules,
       :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
       :generate_domain
     ]
@@ -553,6 +553,10 @@ module Api
       render json: @service.backups.where.not(backup_kind: "wal").recent.limit(100)
     end
 
+    def snapshots
+      render json: @service.backups.where(backup_kind: "volume").recent.limit(100)
+    end
+
     def download_backup
       backup = @service.backups.find(params[:backup_id])
       return render json: { error: "Backup artifact is unavailable" }, status: :not_found unless backup.available?
@@ -968,7 +972,7 @@ module Api
     end
 
     def backup_schedule_params
-      params.require(:backup_schedule).permit(:frequency, :retention_count, destination_ids: [])
+      params.require(:backup_schedule).permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, destination_ids: [])
             .tap { |p| p[:metadata] = { "destination_ids" => Array(p.delete(:destination_ids)).compact_blank } }
     end
 

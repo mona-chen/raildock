@@ -30,6 +30,7 @@ Rails.application.routes.draw do
           get :container_status
           get :database_info
           get :backups
+          get :snapshots
           get :backup_schedules
           post :create_backup_schedule
           post :link

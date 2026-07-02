@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import type { Service, StorageMountKind } from '@/types'
+import type { Service, StorageMountKind, BackupSchedule } from '@/types'
 
 export function useServices(projectId: string) {
   return useQuery({
@@ -236,6 +236,15 @@ export function useBackups(id: string) {
   })
 }
 
+export function useVolumeSnapshots(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'snapshots'],
+    queryFn: () => api.services.snapshots(id),
+    enabled: !!id,
+    refetchInterval: (query) => query.state.data?.some((backup) => backup.status === 'pending' || backup.status === 'running') ? 3000 : false,
+  })
+}
+
 export function useRecovery(id: string) {
   return useQuery({ queryKey: ['services', id, 'recovery'], queryFn: () => api.services.recovery(id), enabled: !!id, refetchInterval: 10000 })
 }
@@ -253,8 +262,25 @@ export function useSnapshotVolume() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, storageMountId, backupDestinationIds }: { id: string; storageMountId: string; backupDestinationIds?: string[] }) => api.services.snapshotVolume(id, storageMountId, backupDestinationIds),
-    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] }); toast.success('Volume snapshot queued') },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'snapshots'] })
+      toast.success('Volume snapshot queued')
+    },
     onError: (err) => toast.error(`Snapshot failed: ${err.message}`),
+  })
+}
+
+export function useCreateSnapshotSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { frequency: string; retentionCount: number; storageMountId: string; destinationIds?: string[] } }) =>
+      api.services.createSnapshotSchedule(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      toast.success('Snapshot schedule created')
+    },
+    onError: (err) => toast.error(`Failed to create schedule: ${err.message}`),
   })
 }
 
@@ -277,7 +303,7 @@ export function useRunRestoreDrill() {
 }
 
 export function useBackupSchedules(id: string) {
-  return useQuery({
+  return useQuery<BackupSchedule[]>({
     queryKey: ['services', id, 'backup_schedules'],
     queryFn: () => api.services.backupSchedules(id),
     enabled: !!id,

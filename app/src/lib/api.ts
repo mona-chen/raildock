@@ -26,6 +26,7 @@ import type {
   DeploymentDetail as ApiDeploymentDetail,
   RecoveryOverview,
   BackupDestination,
+  BackupSchedule,
   PostgresPitrConfig,
   RestoreDrill,
   Backup,
@@ -291,12 +292,20 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/backups`)
   },
 
-  backupSchedules: async (id: string): Promise<{ id: string; frequency: string; retentionCount: number; lastRunAt: string; nextRunAt: string }[]> => {
+  snapshots: async (id: string): Promise<Backup[]> => {
+    return fetchJson(`/api/services/${id}/snapshots`)
+  },
+
+  backupSchedules: async (id: string): Promise<BackupSchedule[]> => {
     return fetchJson(`/api/services/${id}/backup_schedules`)
   },
 
   createBackupSchedule: async (id: string, data: { frequency: string; retentionCount: number; destinationIds?: string[] }): Promise<void> => {
     await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: data }) })
+  },
+
+  createSnapshotSchedule: async (id: string, data: { frequency: string; retentionCount: number; storageMountId: string; destinationIds?: string[] }): Promise<void> => {
+    await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: { ...data, backup_kind: 'volume' } }) })
   },
 
   destroyBackupSchedule: async (id: string, scheduleId: string): Promise<void> => {

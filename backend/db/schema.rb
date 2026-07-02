@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_02_183000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_02_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -64,6 +64,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_183000) do
   end
 
   create_table "backup_schedules", force: :cascade do |t|
+    t.string "backup_kind", default: "database", null: false
     t.datetime "created_at", null: false
     t.string "frequency"
     t.datetime "last_run_at"
@@ -71,9 +72,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_183000) do
     t.datetime "next_run_at"
     t.integer "retention_count"
     t.bigint "service_id", null: false
+    t.bigint "storage_mount_id"
     t.datetime "updated_at", null: false
+    t.index ["backup_kind"], name: "index_backup_schedules_on_backup_kind"
     t.index ["next_run_at"], name: "index_backup_schedules_on_next_run_at"
     t.index ["service_id"], name: "index_backup_schedules_on_service_id"
+    t.index ["storage_mount_id"], name: "index_backup_schedules_on_storage_mount_id"
   end
 
   create_table "backups", force: :cascade do |t|
@@ -444,6 +448,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_183000) do
   add_foreign_key "backup_destinations", "organizations"
   add_foreign_key "backup_destinations", "servers"
   add_foreign_key "backup_schedules", "services"
+  add_foreign_key "backup_schedules", "storage_mounts"
   add_foreign_key "backups", "backup_destinations"
   add_foreign_key "backups", "services"
   add_foreign_key "deploy_keys", "git_sources"
