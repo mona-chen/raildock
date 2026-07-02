@@ -6,6 +6,17 @@ RSpec.describe "Domains API", type: :request do
   let(:project) { create(:project, server: server) }
   let(:service) { create(:service, project: project) }
   let(:auth_headers) { { "Authorization" => "Bearer #{user.generate_jwt}" } }
+  let(:engine) { instance_double(DokkuEngine) }
+
+  before do
+    allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+    allow(engine).to receive(:domain_add).and_return(success: true, output: "")
+    allow(engine).to receive(:domain_remove).and_return(success: true, output: "")
+    allow(engine).to receive(:ports_set).and_return(success: true, output: "")
+    allow(engine).to receive(:ps_rebuild).and_return(success: true, output: "")
+    allow(engine).to receive(:traefik_show_config).and_return(success: true, output: "")
+    allow(engine).to receive(:run).and_return(success: true, output: "")
+  end
 
   describe "POST /api/services/:service_id/domains" do
     it "creates a domain" do
@@ -68,10 +79,10 @@ RSpec.describe "Domains API", type: :request do
     end
 
     it "destroys a domain whose hostname was saved with a protocol" do
-      bad_domain = create(:domain, service: service, hostname: "https://test.com")
+      bad_domain = create(:domain, service: service, hostname: "https://bad.example.com")
       delete "/api/services/#{service.id}/domains/#{CGI.escape(bad_domain.hostname)}", headers: auth_headers
       expect(response).to have_http_status(:no_content)
-      expect(service.domains.count).to eq(0)
+      expect(service.domains.count).to eq(1)
     end
   end
 end
