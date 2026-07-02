@@ -12,6 +12,8 @@ RSpec.describe "Storage Mounts API", type: :request do
   before do
     allow_any_instance_of(DokkuEngine).to receive(:storage_mount).and_return({ success: true, output: "" })
     allow_any_instance_of(DokkuEngine).to receive(:storage_unmount).and_return({ success: true, output: "" })
+    allow_any_instance_of(DokkuEngine).to receive(:config_set).and_return({ success: true, output: "" })
+    allow_any_instance_of(DokkuEngine).to receive(:config_unset).and_return({ success: true, output: "" })
   end
 
   describe "POST /api/services/:service_id/storage" do
@@ -21,6 +23,26 @@ RSpec.describe "Storage Mounts API", type: :request do
         headers: auth_headers
       expect(response).to have_http_status(:created)
       expect(service.storage_mounts.count).to eq(1)
+      mount = service.storage_mounts.first
+      expect(mount.kind).to eq("bind")
+    end
+
+    it "auto-generates a volume name when kind is volume and host_path is omitted" do
+      post "/api/services/#{service.id}/storage",
+        params: { container_path: "/app/data", kind: "volume" },
+        headers: auth_headers
+      expect(response).to have_http_status(:created)
+      mount = service.storage_mounts.first
+      expect(mount.kind).to eq("volume")
+      expect(mount.host_path).to eq("#{service.dokku_app_name}-app-data")
+    end
+
+    it "syncs RAILDOCK_STORAGE_* env vars after creating a mount" do
+      expect_any_instance_of(StorageMountEnvSync).to receive(:sync!).once
+      post "/api/services/#{service.id}/storage",
+        params: { container_path: "/app/data", kind: "volume" },
+        headers: auth_headers
+      expect(response).to have_http_status(:created)
     end
 
     it "returns 422 with invalid data" do

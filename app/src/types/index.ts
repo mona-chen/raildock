@@ -112,10 +112,13 @@ export interface Domain {
   challengeType: 'http' | 'dns'
 }
 
+export type StorageMountKind = 'volume' | 'bind' | 'tmpfs'
+
 export interface StorageMount {
   id: string
   hostPath: string
   containerPath: string
+  kind: StorageMountKind
 }
 
 export interface LogEntry {

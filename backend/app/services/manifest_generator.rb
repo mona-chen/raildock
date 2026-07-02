@@ -75,7 +75,9 @@ class ManifestGenerator
     # Storage
     if svc.storage_mounts.any?
       h[:storage] = svc.storage_mounts.map do |sm|
-        { host: sm.host_path, container: sm.container_path }
+        mount = { host: sm.host_path, container: sm.container_path }
+        mount[:kind] = sm.kind unless sm.kind == "volume"
+        mount
       end
     end
 

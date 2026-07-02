@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, StorageMountKind } from '@/types'
 
 export function useServices(projectId: string) {
   return useQuery({
@@ -169,8 +169,8 @@ export function useGenerateDomain() {
 export function useAddStorageMount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, hostPath, containerPath }: { id: string; hostPath: string; containerPath: string }) =>
-      api.services.addStorageMount(id, hostPath, containerPath),
+    mutationFn: ({ id, hostPath, containerPath, kind }: { id: string; hostPath?: string; containerPath: string; kind: StorageMountKind }) =>
+      api.services.addStorageMount(id, { hostPath, containerPath, kind }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       toast.success('Storage mount added')

@@ -457,13 +457,21 @@ class ManifestReconciler
 
       # Create storage mounts
       (svc[:storage] || []).each do |mount|
-        service.storage_mounts.create!(host_path: mount[:host], container_path: mount[:container])
+        host_path = mount[:host].presence || auto_storage_host_path(service.dokku_app_name, mount)
+        service.storage_mounts.create!(
+          host_path: host_path,
+          container_path: mount[:container],
+          kind: mount[:kind] || "volume"
+        )
       end
 
       # Create process types for scaling
       (svc[:scaling] || {}).each do |pt_name, qty|
         service.process_types.create!(name: pt_name, quantity: qty, running: 0, command: "")
       end
+
+      # Sync RAILDOCK_STORAGE_* env vars for any mounts defined in the manifest.
+      sync_storage_env_vars!(engine, service) if service.storage_mounts.any?
 
       result = result.merge(service_id: service.id, deploy: svc[:category] == "app")
     end
@@ -639,6 +647,25 @@ class ManifestReconciler
     { success: false, error: e.message }
   end
 
+  def auto_storage_host_path(app_name, mount)
+    return nil unless (mount[:kind].blank? || mount[:kind] == "volume") && mount[:container].present?
+
+    suffix = mount[:container]
+      .sub(/\A\//, "")
+      .gsub(/[^a-zA-Z0-9_.-]+/, "-")
+      .gsub(/\A-+|-+\z/, "")
+      .downcase
+    suffix = "data" if suffix.blank?
+
+    "#{app_name}-#{suffix}"
+  end
+
+  def sync_storage_env_vars!(engine, service)
+    return unless service.project&.server&.ssh_key.present?
+
+    StorageMountEnvSync.new(service, engine).sync!
+  end
+
   def wait_for_container(app_name, host_engine, timeout: 60)
     start_time = Time.now
     while Time.now - start_time < timeout
@@ -741,12 +768,10 @@ class ManifestReconciler
     desired = change.new_value || []
     actual = change.old_value || []
 
-    desired_map = desired.map { |d| [ d[:host], d[:container] ] }
-    actual_map = actual.map { |a| [ a[:host], a[:container] ] }
-
     (desired - actual).each do |mount|
-      engine.storage_mount(service.dokku_app_name, mount[:host], mount[:container])
-      service.storage_mounts.find_or_initialize_by(host_path: mount[:host], container_path: mount[:container]).save!
+      host_path = mount[:host].presence || auto_storage_host_path(service.dokku_app_name, mount)
+      engine.storage_mount(service.dokku_app_name, host_path, mount[:container])
+      service.storage_mounts.find_or_initialize_by(host_path: host_path, container_path: mount[:container]).update!(kind: mount[:kind] || "volume")
     end
 
     (actual - desired).each do |mount|
@@ -754,6 +779,7 @@ class ManifestReconciler
       service.storage_mounts.find_by(host_path: mount[:host], container_path: mount[:container])&.destroy!
     end
 
+    sync_storage_env_vars!(engine, service)
     { success: true }
   end
 

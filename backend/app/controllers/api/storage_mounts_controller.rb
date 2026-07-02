@@ -4,13 +4,17 @@ module Api
     before_action :set_and_authorize_service!
 
     def create
-      mount = @service.storage_mounts.build(mount_params)
+      attrs = mount_params.to_h
+      attrs[:host_path] ||= auto_host_path(attrs[:kind], attrs[:container_path])
+
+      mount = @service.storage_mounts.build(attrs)
       mount.validate!
 
       result = sync_to_dokku(:mount, mount.host_path, mount.container_path)
       return render json: { error: result[:output] }, status: :unprocessable_entity if result && !result[:success]
 
       mount.save!
+      sync_storage_env_vars!
 
       render json: mount, status: :created
     end
@@ -23,6 +27,7 @@ module Api
       return render json: { error: result[:output] }, status: :unprocessable_entity if result && !result[:success]
 
       mount.destroy!
+      sync_storage_env_vars!
       head :no_content
     end
 
@@ -34,7 +39,20 @@ module Api
     end
 
     def mount_params
-      params.permit(:host_path, :container_path)
+      params.permit(:host_path, :container_path, :kind)
+    end
+
+    def auto_host_path(kind, container_path)
+      return nil if kind == "bind" || container_path.blank?
+
+      suffix = container_path
+        .sub(/\A\//, "")
+        .gsub(/[^a-zA-Z0-9_.-]+/, "-")
+        .gsub(/\A-+|-+\z/, "")
+        .downcase
+      suffix = "data" if suffix.blank?
+
+      "#{@service.dokku_app_name}-#{suffix}"
     end
 
     def sync_to_dokku(action, host_path, container_path)
@@ -46,6 +64,12 @@ module Api
       else
         engine.storage_unmount(@service.dokku_app_name, host_path, container_path: container_path)
       end
+    end
+
+    def sync_storage_env_vars!
+      return unless @service.project&.server&.ssh_key.present?
+
+      StorageMountEnvSync.new(@service, DokkuEngine.new(@service.project.server)).sync!
     end
   end
 end

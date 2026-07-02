@@ -168,7 +168,7 @@ class Service < ApplicationRecord
       include: {
         environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },
         domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ] },
-        storage_mounts: { only: [ :id, :host_path, :container_path ] },
+        storage_mounts: { only: [ :id, :host_path, :container_path, :kind ] },
         process_types: { only: [ :id, :name, :quantity, :running, :command ] },
         backups: { only: [ :id, :status, :size, :created_at ] }
       }

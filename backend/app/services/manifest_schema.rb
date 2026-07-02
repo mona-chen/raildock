@@ -177,6 +177,20 @@ class ManifestSchema
       end
     end
 
+    if svc["storage"].is_a?(Array)
+      svc["storage"].each_with_index do |st, stidx|
+        if st.is_a?(Hash)
+          kind = (st["kind"] || st["type"]).to_s
+          if kind.present? && !StorageMount.kinds.key?(kind)
+            errors << "#{prefix}.storage[#{stidx}]: kind/type must be one of: #{StorageMount.kinds.keys.join(', ')}"
+          end
+          errors << "#{prefix}.storage[#{stidx}]: container is required" if st["container"].blank?
+        else
+          errors << "#{prefix}.storage[#{stidx}]: must be an object"
+        end
+      end
+    end
+
     if svc["env"].is_a?(Hash)
       svc["env"].each do |k, v|
         errors << "#{prefix}.env.#{k}: env values must be strings" unless v.is_a?(String)

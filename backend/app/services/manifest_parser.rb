@@ -534,9 +534,15 @@ class ManifestParser
     return [] unless storage.is_a?(Array)
     storage.map do |s|
       next unless s.is_a?(Hash)
+      container = (s["container"] || s[:container]).to_s
+      host = (s["host"] || s[:host]).to_s
+      kind = (s["kind"] || s[:kind] || s["type"] || s[:type] || "volume").to_s.downcase
+      kind = "volume" unless StorageMount.kinds.key?(kind)
+
       {
-        host: (s["host"] || s[:host]).to_s,
-        container: (s["container"] || s[:container]).to_s
+        host: host,
+        container: container,
+        kind: kind
       }
     end.compact
   end

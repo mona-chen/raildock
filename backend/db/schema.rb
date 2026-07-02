@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_071452) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_02_172000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -394,6 +394,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_071452) do
     t.string "container_path"
     t.datetime "created_at", null: false
     t.string "host_path"
+    t.string "kind", null: false
     t.bigint "service_id", null: false
     t.datetime "updated_at", null: false
     t.index ["service_id"], name: "index_storage_mounts_on_service_id"

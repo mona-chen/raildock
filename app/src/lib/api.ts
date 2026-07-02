@@ -31,6 +31,7 @@ import type {
   Backup,
   RepositoryImportPreview,
   DockerContainer,
+  StorageMountKind,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -240,8 +241,8 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/generate_domain`, { method: 'POST' })
   },
 
-  addStorageMount: async (id: string, hostPath: string, containerPath: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/storage`, { method: 'POST', body: JSON.stringify({ hostPath, containerPath }) })
+  addStorageMount: async (id: string, data: { hostPath?: string; containerPath: string; kind: StorageMountKind }): Promise<void> => {
+    await fetchJson(`/api/services/${id}/storage`, { method: 'POST', body: JSON.stringify(data) })
   },
 
   removeStorageMount: async (id: string, hostPath: string): Promise<void> => {
