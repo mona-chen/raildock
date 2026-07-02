@@ -8,7 +8,6 @@ import type { Service, StorageMount, StorageMountKind } from '@/types'
 const STORAGE_KINDS: { value: StorageMountKind; label: string; description: string }[] = [
   { value: 'volume', label: 'Docker Volume', description: 'Managed and portable — recommended.' },
   { value: 'bind', label: 'Host Path', description: 'Absolute server path. Advanced only.' },
-  { value: 'tmpfs', label: 'Tmpfs', description: 'In-memory. Lost on restart.' },
 ]
 
 function kindLabel(kind: StorageMountKind) {
@@ -209,11 +208,11 @@ export default function StorageTab({ svc }: { svc: Service }) {
               </label>
 
               <label className="block text-[10px] text-white/40">
-                {kind === 'volume' ? 'Volume name (override auto-generated)' : kind === 'bind' ? 'Host path' : 'Tmpfs mount point'}
+                {kind === 'volume' ? 'Volume name (override auto-generated)' : 'Host path'}
                 <input
                   value={hostPath}
                   onChange={(event) => setHostPath(event.target.value)}
-                  placeholder={kind === 'volume' ? generatedHostPath || 'my-app-data' : kind === 'bind' ? '/mnt/data' : 'tmpfs'}
+                  placeholder={kind === 'volume' ? generatedHostPath || 'my-app-data' : '/mnt/data'}
                   className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 py-2 font-mono text-[11px] text-white/70 placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
                 />
               </label>
@@ -221,7 +220,6 @@ export default function StorageTab({ svc }: { svc: Service }) {
               <p className="text-[10px] leading-4 text-white/25">
                 {kind === 'volume' && 'Docker Volumes are managed by RailDock and move with your app.'}
                 {kind === 'bind' && 'Use an absolute path on the server. Only choose this if you need host-level access.'}
-                {kind === 'tmpfs' && 'Tmpfs is stored in memory. Data is lost when the container stops.'}
               </p>
             </div>
           )}

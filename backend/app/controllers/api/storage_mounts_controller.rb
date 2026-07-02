@@ -5,6 +5,8 @@ module Api
 
     def create
       attrs = mount_params.to_h
+      attrs[:host_path] = attrs[:host_path].to_s.strip.presence
+      attrs[:container_path] = attrs[:container_path].to_s.strip
       attrs[:host_path] ||= auto_host_path(attrs[:kind], attrs[:container_path])
 
       mount = @service.storage_mounts.build(attrs)
