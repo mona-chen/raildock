@@ -56,4 +56,28 @@ RSpec.describe AppUpdateService do
       )
     end
   end
+
+  describe ".apply_update" do
+    it "uses HostEngine (root) instead of DokkuEngine for ssh_to_local updates" do
+      described_class.remove_instance_variable(:@apply_strategy) if described_class.instance_variable_defined?(:@apply_strategy)
+
+      server = create(:server, ssh_key_ciphertext: "encrypted-key")
+      host_engine = instance_double(HostEngine, run: { success: true, output: "ok" })
+      allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
+      allow(described_class).to receive(:check_for_updates).and_return(
+        { update_available: true, latest_version: "0.2.0" }
+      )
+
+      # Force the container/SSH strategy path
+      allow(File).to receive(:exist?).with("/opt/raildock/install.sh").and_return(false)
+      allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
+      allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
+      allow(File).to receive(:read).with("/proc/1/cgroup").and_return("")
+
+      result = described_class.apply_update
+
+      expect(result[:success]).to be(true)
+      expect(host_engine).to have_received(:run).with(a_string_including("./install.sh update"))
+    end
+  end
 end

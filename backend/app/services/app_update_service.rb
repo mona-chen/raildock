@@ -230,7 +230,9 @@ class AppUpdateService
 
       install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
       cmd = "cd #{Shellwords.escape(install_dir)} && ./install.sh update 2>&1"
-      result = DokkuEngine.new(server).run(cmd)
+      # HostEngine runs as root, which is what install.sh needs. DokkuEngine
+      # connects as the restricted dokku user and cannot run arbitrary shell.
+      result = HostEngine.new(server).run(cmd)
 
       if result[:success]
         SystemSetting.set!("update_available", "false")
