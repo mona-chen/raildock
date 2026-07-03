@@ -66,12 +66,12 @@ class DokkuEngine
               return { success: false, output: "Failed to execute command" }
             end
 
-            ch.send_data(stdin_data)
-            ch.eof!
-
             ch.on_data { |_, data| output += data }
             ch.on_extended_data { |_, type, data| output += data }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+
+            ch.send_data(stdin_data)
+            ch.eof!
           end
         end
         channel.wait
@@ -121,11 +121,13 @@ class DokkuEngine
             ch.exec(command) do |_, success|
               return { success: false, output: "Failed to execute command" } unless success
 
-              ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
-              ch.eof!
               ch.on_data { |_, data| output << data }
               ch.on_extended_data { |_, _, data| output << data }
               ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
+
+              chunk = nil
+              ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
+              ch.eof!
             end
           end
           channel.wait
