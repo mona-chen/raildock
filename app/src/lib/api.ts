@@ -380,9 +380,9 @@ export const servicesApi = {
 
     try {
       const authHeaders = getAuthHeaders()
-      // Don't send application/json when uploading a raw binary dump;
-      // Rails would try to parse the PGDMP bytes as JSON.
-      delete authHeaders['Content-Type']
+      // Send binary dumps as octet-stream so Rack does not try to parse
+      // the PGDMP bytes as JSON or x-www-form-urlencoded.
+      authHeaders['Content-Type'] = 'application/octet-stream'
 
       const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
         method: 'POST',
