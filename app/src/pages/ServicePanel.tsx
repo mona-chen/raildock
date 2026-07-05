@@ -21,6 +21,7 @@ import MetricsTab from '@/features/service-panel/tabs/MetricsTab'
 import DomainsTab from '@/features/service-panel/tabs/DomainsTab'
 import StorageTab from '@/features/service-panel/tabs/StorageTab'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
+import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
 
 interface ServicePanelProps {
@@ -59,13 +60,19 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             >
               <X size={15} className="text-white/60" />
             </button>
-            <div className="w-32 h-4 bg-white/[0.04] rounded animate-pulse" />
+            <Skeleton className="w-32 h-4" />
           </div>
         </div>
         <div className="flex-1 p-5 space-y-4">
-          <div className="h-24 bg-white/[0.02] rounded-xl animate-pulse" />
-          <div className="h-32 bg-white/[0.02] rounded-xl animate-pulse" />
-          <div className="h-48 bg-white/[0.02] rounded-xl animate-pulse" />
+          <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <Skeleton className="size-8 rounded-lg" />
+              <SkeletonText lines={2} className="flex-1" />
+            </div>
+            <Skeleton className="h-8 w-full" />
+          </div>
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
         </div>
       </div>
     )

@@ -11,6 +11,7 @@ import { useProject } from '@/hooks/useProjects'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import { toast } from 'sonner'
 import type { Service } from '@/types'
+import { SkeletonPage } from '@/components/ui/skeleton'
 import { useProjectRealtime } from '@/hooks/useProjectRealtime'
 
 import CanvasGrid from '@/features/project-canvas/components/CanvasGrid'
@@ -404,14 +405,7 @@ export default function ProjectCanvas() {
   }
 
   if (isLoading) {
-    return (
-      <div className="h-full flex flex-col bg-[#0f0f13]">
-        <div className="h-11 border-b border-white/[0.06] flex-shrink-0" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-white/30 text-sm">Loading project...</div>
-        </div>
-      </div>
-    )
+    return <SkeletonPage />
   }
 
   return (

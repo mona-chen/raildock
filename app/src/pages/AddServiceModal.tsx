@@ -15,6 +15,7 @@ import type { RepositoryImportPreview } from '@/types'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 
 interface AddServiceModalProps {
   projectId: string
@@ -269,9 +270,67 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
   // ── Step: Application ────────────────────────
   if (step === 'app') {
+    if (isScanning) {
+      return (
+        <ModalShell onClose={onClose} title="Reading repository…">
+          <div className="space-y-5 py-2">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+              <Skeleton className="h-4 w-2/3" />
+              <SkeletonText lines={2} />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="size-8 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-1/3" />
+                    <Skeleton className="h-2.5 w-1/2" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded" />
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-[11px] text-white/30">Scanning repository for services and deployment settings…</p>
+          </div>
+        </ModalShell>
+      )
+    }
+
     if (discovery) {
       const databases = discovery.services.filter((service) => service.category === 'database').length
       const applications = discovery.services.length - databases
+
+      if (discovery.services.length === 0) {
+        return (
+          <ModalShell onClose={onClose} title="No services found">
+            <div className="space-y-4 py-2">
+              <button onClick={() => setDiscovery(null)} className="flex items-center gap-1 text-[12px] text-white/40 hover:text-white/70">
+                <ChevronLeft size={14} /> Choose another repository
+              </button>
+              <div className="rounded-xl border border-amber-400/15 bg-amber-400/[0.035] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-lg bg-amber-400/10 p-2">
+                    <AlertTriangle size={16} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] font-medium text-white/85">No deployable services found</h3>
+                    <p className="mt-1 text-[11px] leading-5 text-white/35">
+                      RailDock could not detect any apps or databases in this repository. Check the branch, base directory, or try creating the service manually.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setDiscovery(null)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/[0.06] py-2.5 text-[13px] font-medium text-white/70 hover:bg-white/[0.1]"
+              >
+                <ChevronLeft size={14} /> Go back
+              </button>
+            </div>
+          </ModalShell>
+        )
+      }
+
       return (
         <ModalShell onClose={onClose} title="Ready to deploy">
           <div className="space-y-4">
@@ -416,7 +475,14 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                     {reposSyncing && <Loader2 size={11} className="animate-spin text-white/30" />}
                   </label>
                   {reposLoading ? (
-                    <div className="h-10 bg-white/[0.03] rounded-lg animate-pulse" />
+                    <div className="space-y-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2">
+                          <Skeleton className="size-3 rounded" />
+                          <Skeleton className="h-3 flex-1" />
+                        </div>
+                      ))}
+                    </div>
                   ) : repos.length > 0 ? (
                     <>
                       <div className="relative mb-1.5">

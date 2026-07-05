@@ -5,6 +5,7 @@ import { useActivity } from '@/hooks/useActivity'
 import { useProject } from '@/hooks/useProjects'
 import { useProjects } from '@/hooks/useProjects'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const ACTION_ICON: Record<string, React.ElementType> = {
   deployed: GitBranch,
@@ -70,7 +71,14 @@ export default function ActivityPage() {
         <div className="mx-auto max-w-3xl">
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-14 bg-[rgba(255,255,255,0.02)] rounded-lg animate-pulse" />
+              <div key={i} className="flex items-center gap-3 py-3">
+                <Skeleton className="size-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded" />
+              </div>
             ))
           ) : visibleEvents.length > 0 ? (
             <div className="relative divide-y divide-white/[0.05] border-y border-white/[0.05] before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-white/[0.06]">

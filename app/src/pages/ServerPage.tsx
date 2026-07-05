@@ -8,6 +8,7 @@ import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
 import ServerDockerImportModal from '@/features/servers/ServerDockerImportModal'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 
 export default function ServerPage() {
   const { data: servers = [], isLoading } = useServers()
@@ -89,7 +90,27 @@ export default function ServerPage() {
         <div className="max-w-3xl space-y-4">
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-48 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl animate-pulse" />
+              <div key={i} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-xl" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3.5 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-5 w-20 rounded" />
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <Skeleton key={j} className="h-16 rounded-lg" />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-20 rounded-lg" />
+                  <Skeleton className="h-20 rounded-lg" />
+                </div>
+              </div>
             ))
           ) : (
             servers.map((srv) => (

@@ -391,7 +391,7 @@ class ManifestReconciler
 
   def apply_create_service(engine, change)
     svc = change.new_value
-    app_name = "#{@project.name.parameterize}-#{svc[:name].parameterize}"
+    app_name = Service.dokku_app_name_for(@project.name, svc[:name])
 
     if svc[:category] == "database"
       result = create_database_service(engine, svc, app_name)
@@ -513,7 +513,7 @@ class ManifestReconciler
 
   def apply_destroy_service(engine, change)
     svc = change.old_value
-    app_name = "#{@project.name.parameterize}-#{svc[:name].parameterize}"
+    app_name = Service.dokku_app_name_for(@project.name, svc[:name])
 
     st = PluginRegistry.find_subtype(svc[:subtype])
     if st&.has_capability?(:destroy)

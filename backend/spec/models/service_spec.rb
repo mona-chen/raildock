@@ -103,6 +103,20 @@ RSpec.describe Service, type: :model do
     end
   end
 
+  describe ".dokku_app_name_for" do
+    it "parameterizes project and service names" do
+      expect(described_class.dokku_app_name_for("My Project", "Web App")).to eq("my-project-web-app")
+    end
+
+    it "replaces underscores with hyphens" do
+      expect(described_class.dokku_app_name_for("ruut_helpcenter", "web_app")).to eq("ruut-helpcenter-web-app")
+    end
+
+    it "appends an optional suffix" do
+      expect(described_class.dokku_app_name_for("My Project", "Web App", suffix: "abc123")).to eq("my-project-web-app-abc123")
+    end
+  end
+
   describe "callbacks" do
     describe "#generate_dokku_app_name" do
       it "generates a dokku_app_name before create with a hex suffix" do
@@ -114,6 +128,12 @@ RSpec.describe Service, type: :model do
       it "does not override an existing dokku_app_name" do
         service = create(:service, dokku_app_name: "custom-name")
         expect(service.dokku_app_name).to eq("custom-name")
+      end
+
+      it "sanitizes underscores so the name is valid for Dokku" do
+        project = create(:project, name: "ruut_helpcenter")
+        service = create(:service, project: project, name: "web_app", dokku_app_name: nil)
+        expect(service.dokku_app_name).to match(/\Aruut-helpcenter-web-app-[a-f0-9]{8}\z/)
       end
     end
   end

@@ -135,6 +135,15 @@ class Service < ApplicationRecord
     nil
   end
 
+  # Dokku app names must start with a lowercase alphanumeric character and
+  # cannot contain uppercase letters, colons, or underscores. Rails parameterize
+  # preserves underscores, so we normalize them to hyphens here.
+  def self.dokku_app_name_for(project_name, service_name, suffix: nil)
+    base = "#{project_name.to_s.parameterize}-#{service_name.to_s.parameterize}"
+    base = "#{base}-#{suffix}" if suffix.present?
+    base.gsub("_", "-").gsub(/-+/, "-").gsub(/^-|-$/, "").downcase
+  end
+
   def type
     service_type
   end
@@ -190,7 +199,7 @@ class Service < ApplicationRecord
   private
 
   def generate_dokku_app_name
-    self.dokku_app_name ||= "#{project.name.parameterize}-#{name.parameterize}-#{SecureRandom.hex(4)}"
+    self.dokku_app_name ||= Service.dokku_app_name_for(project.name, name, suffix: SecureRandom.hex(4))
   end
 
   def generate_webhook_token

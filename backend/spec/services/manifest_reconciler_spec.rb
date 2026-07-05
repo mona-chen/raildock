@@ -270,6 +270,28 @@ RSpec.describe ManifestReconciler do
       expect(domain).to have_attributes(port: 443, target_port: 3000, ssl: true, letsencrypt: true)
     end
 
+    it "sanitizes underscores from the generated Dokku app name" do
+      project.update!(name: "ruut_helpcenter")
+      definition = app_definition(name: "web_app", repo: "https://github.com/acme/app.git")
+      reconciler = described_class.new(project, desired_state(services: [ definition ]))
+      reconciler.diff
+      engine = instance_double(DokkuEngine)
+      host_engine = instance_double(HostEngine)
+
+      allow(engine).to receive(:app_create).and_return(success: true)
+      allow(engine).to receive(:proxy_set).and_return(success: true)
+      allow(engine).to receive(:domain_add).and_return(success: true)
+      allow(engine).to receive(:sync_port_mappings).and_return(success: true)
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(engine, host_engine: host_engine)
+
+      service = project.services.find_by!(name: "web_app")
+      expect(result[:success]).to be(true)
+      expect(service.dokku_app_name).to eq("ruut-helpcenter-web-app")
+      expect(engine).to have_received(:app_create).with("ruut-helpcenter-web-app")
+    end
+
     it "creates a directed Dokku database link before persisting the link record" do
       web = create(:service, project: project, name: "web", managed_by: :manifest)
       postgres = create(:service, :database, project: project, name: "postgres", managed_by: :manifest)

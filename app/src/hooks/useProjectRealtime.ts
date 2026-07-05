@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { getCable, isCableAvailable } from '@/lib/cable'
 import { useRealtimeState } from './useRealtimeState'
 
@@ -8,6 +9,8 @@ interface ProjectEvent {
   service_id?: string
   deployment_id?: string
   status?: string
+  message?: string
+  details?: string[]
 }
 
 export function useProjectRealtime(projectId: string) {
@@ -41,6 +44,12 @@ export function useProjectRealtime(projectId: string) {
             queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'activity'] })
           } else if (event.type.startsWith('manifest')) {
             queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest'] })
+            if (event.type === 'manifest_apply' && event.status === 'failed') {
+              const detail = event.details?.filter(Boolean).join('\n')
+              toast.error(event.message || 'Manifest apply failed', {
+                description: detail || 'Check the service logs or Activity tab for details.',
+              })
+            }
           }
         },
       },
