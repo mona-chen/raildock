@@ -761,7 +761,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div
-      className="absolute inset-0 z-[60] flex items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-center justify-center"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={onClose}
     >
