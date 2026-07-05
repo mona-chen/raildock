@@ -9,8 +9,9 @@ class LogRedactor
   ].freeze
 
   def self.redact(value)
-    PATTERNS.reduce(value.to_s.dup) do |text, pattern|
-      text.gsub(pattern) do
+    text = value.to_s.dup.force_encoding("UTF-8").scrub
+    PATTERNS.reduce(text) do |memo, pattern|
+      memo.gsub(pattern) do
         match = Regexp.last_match
         if match.captures.compact.length >= 2
           "#{match[1]}#{REDACTED}#{match[2]}"

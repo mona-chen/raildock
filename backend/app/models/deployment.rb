@@ -83,7 +83,8 @@ class Deployment < ApplicationRecord
     redacted = LogRedactor.redact(chunk)
     with_lock do
       self.event_sequence += 1
-      self.deploy_log = "#{deploy_log}#{redacted}"
+      existing = (deploy_log || "").to_s.dup.force_encoding("UTF-8").scrub
+      self.deploy_log = "#{existing}#{redacted}"
       save!
     end
     redacted

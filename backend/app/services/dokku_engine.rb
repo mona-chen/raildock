@@ -39,8 +39,8 @@ class DokkuEngine
               return { success: false, output: "Failed to execute command" }
             end
 
-            ch.on_data { |_, data| output += data }
-            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_data { |_, data| output += coerce_output(data) }
+            ch.on_extended_data { |_, type, data| output += coerce_output(data) }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
         end
@@ -66,8 +66,8 @@ class DokkuEngine
               return { success: false, output: "Failed to execute command" }
             end
 
-            ch.on_data { |_, data| output += data }
-            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_data { |_, data| output += coerce_output(data) }
+            ch.on_extended_data { |_, type, data| output += coerce_output(data) }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
 
             ch.send_data(stdin_data)
@@ -96,7 +96,7 @@ class DokkuEngine
               return { success: false, output: "Failed to execute command" } unless success
 
               ch.on_data { |_, data| file.write(data) }
-              ch.on_extended_data { |_, _, data| error_output << data }
+              ch.on_extended_data { |_, _, data| error_output << coerce_output(data) }
               ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
             end
           end
@@ -121,8 +121,8 @@ class DokkuEngine
             ch.exec(command) do |_, success|
               return { success: false, output: "Failed to execute command" } unless success
 
-              ch.on_data { |_, data| output << data }
-              ch.on_extended_data { |_, _, data| output << data }
+              ch.on_data { |_, data| output << coerce_output(data) }
+              ch.on_extended_data { |_, _, data| output << coerce_output(data) }
               ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
 
               chunk = nil
@@ -153,13 +153,15 @@ class DokkuEngine
             end
 
             ch.on_data do |_, data|
-              output += data
-              yield(data) if block_given?
+              coerced = coerce_output(data)
+              output += coerced
+              yield(coerced) if block_given?
               ch.close if cancelled&.call
             end
             ch.on_extended_data do |_, type, data|
-              output += data
-              yield(data) if block_given?
+              coerced = coerce_output(data)
+              output += coerced
+              yield(coerced) if block_given?
               ch.close if cancelled&.call
             end
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
@@ -998,6 +1000,12 @@ class DokkuEngine
       Rails.logger.warn "Failed to close DokkuEngine SSH session: #{e.message}"
     end
     Thread.current[:dokku_engine_session] = nil
+  end
+
+  # Net::SSH returns output as BINARY. Coerce it to UTF-8 before we append it
+  # to in-memory strings so Ruby never raises "incompatible character encodings".
+  def coerce_output(data)
+    data.to_s.dup.force_encoding("UTF-8").scrub
   end
 
   def current_session

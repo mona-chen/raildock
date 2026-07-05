@@ -31,8 +31,8 @@ class HostEngine
               return { success: false, output: "Failed to execute command" }
             end
 
-            ch.on_data { |_, data| output += data }
-            ch.on_extended_data { |_, type, data| output += data }
+            ch.on_data { |_, data| output += coerce_output(data) }
+            ch.on_extended_data { |_, type, data| output += coerce_output(data) }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
         end
@@ -55,7 +55,7 @@ class HostEngine
             return { success: false, output: "Failed to execute command" } unless success
 
             ch.on_data { |_, data| file.write(data) }
-            ch.on_extended_data { |_, _, data| error_output << data }
+            ch.on_extended_data { |_, _, data| error_output << coerce_output(data) }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
         end
@@ -81,8 +81,8 @@ class HostEngine
 
             ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
             ch.eof!
-            ch.on_data { |_, data| output << data }
-            ch.on_extended_data { |_, _, data| output << data }
+            ch.on_data { |_, data| output << coerce_output(data) }
+            ch.on_extended_data { |_, _, data| output << coerce_output(data) }
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
           end
         end
@@ -110,13 +110,15 @@ class HostEngine
             end
 
             ch.on_data do |_, data|
-              output << data
-              yield(data) if block_given?
+              coerced = coerce_output(data)
+              output << coerced
+              yield(coerced) if block_given?
               ch.close if cancelled&.call
             end
             ch.on_extended_data do |_, _, data|
-              output << data
-              yield(data) if block_given?
+              coerced = coerce_output(data)
+              output << coerced
+              yield(coerced) if block_given?
               ch.close if cancelled&.call
             end
             ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
@@ -398,6 +400,12 @@ class HostEngine
       Rails.logger.warn "Failed to close HostEngine SSH session: #{e.message}"
     end
     Thread.current[:host_engine_session] = nil
+  end
+
+  # Net::SSH returns output as BINARY. Coerce it to UTF-8 before appending to
+  # in-memory strings so Ruby never raises "incompatible character encodings".
+  def coerce_output(data)
+    data.to_s.dup.force_encoding("UTF-8").scrub
   end
 
   def current_session
