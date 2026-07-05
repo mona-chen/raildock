@@ -55,6 +55,22 @@ RSpec.describe RepositoryDiscovery do
     expect(result.services.map { |service| service["root_directory"] }).to contain_exactly("web", "worker")
   end
 
+  it "discovers conventional apps with a registered web subtype" do
+    stub_tree("package.json", "Gemfile", "Dockerfile")
+    stub_content("package.json", JSON.generate(name: "storefront"))
+    stub_content("Gemfile", "source 'https://rubygems.org'\n")
+    stub_content("Dockerfile", "FROM ruby:3.4\n")
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.map { |service| service["subtype"] }).to eq([ "web" ])
+    expect(result.services.first).to include(
+      "name" => "storefront",
+      "builder" => "dockerfile",
+      "category" => "app"
+    )
+  end
+
   it "uses a native RailDock manifest as authoritative and reports compatibility files as a note" do
     stub_tree("raildock.json", "railway.toml")
     stub_content("raildock.json", JSON.generate(name: "storefront", services: [ { name: "web", category: "app", subtype: "web" } ]))

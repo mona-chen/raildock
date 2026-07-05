@@ -157,7 +157,7 @@ class RepositoryDiscovery
         next unless dockerfile || package || gemfile
 
         builder = dockerfile ? "dockerfile" : nil
-        subtype = gemfile ? "rails" : package ? "node" : "web"
+        subtype = "web"
         name = root.present? ? File.basename(root) : @repository.split("/").last
         services << {
           "name" => name.parameterize,
