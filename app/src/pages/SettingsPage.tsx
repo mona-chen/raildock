@@ -79,11 +79,16 @@ export default function SettingsPage() {
                 {modules.map((mod) => (
                   <div key={mod.id} className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
                     <div>
-                      <div className="text-sm text-white">{mod.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-white">{mod.name}</div>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">
+                          {mod.status.replace('_', ' ')}
+                        </span>
+                      </div>
                       <div className="text-[10px] text-[#4A4A55]">{mod.description}</div>
                     </div>
                     <div className="flex gap-1">
-                      {mod.services.map((s) => (
+                      {mod.serviceSubtypes.map((s) => (
                         <span key={s.subtype} className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">{s.subtype}</span>
                       ))}
                     </div>

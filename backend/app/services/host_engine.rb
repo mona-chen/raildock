@@ -269,8 +269,8 @@ class HostEngine
         exact = "#{app_name}.web.1"
         return exact if containers.include?(exact)
 
-        %w[postgres redis mongo mysql].each do |plugin|
-          exact = "dokku.#{plugin}.#{app_name}"
+        datastore_container_prefixes.each do |prefix|
+          exact = "#{prefix}#{app_name}"
           return exact if containers.include?(exact)
         end
       end
@@ -301,9 +301,9 @@ class HostEngine
     exact = "#{app_name}.web.1"
     return exact if containers.include?(exact)
 
-    # Try plugin service containers (postgres, redis, mongo, mysql)
-    %w[postgres redis mongo mysql].each do |plugin|
-      exact = "dokku.#{plugin}.#{app_name}"
+    # Try plugin service containers
+    datastore_container_prefixes.each do |prefix|
+      exact = "#{prefix}#{app_name}"
       return exact if containers.include?(exact)
     end
 
@@ -311,6 +311,10 @@ class HostEngine
   end
 
   private
+
+  def datastore_container_prefixes
+    ServiceSubtype.where.not(dokku_plugin: nil).distinct.pluck(:dokku_plugin).map { |plugin| "dokku.#{plugin}." }
+  end
 
   # Retry transient SSH failures. Host commands (docker ps, network connect, etc.)
   # are idempotent and can fail when dokku commands are hammering sshd in parallel.

@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     get "me", to: "auth#me"
     get "setup", to: "users#setup_required"
     post "users", to: "users#create"
+    get "modules", to: "plugins#index"
 
     resources :projects do
       resource :repository_import, path: "repository-import", only: [] do

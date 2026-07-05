@@ -89,14 +89,9 @@ class LogsChannel < ApplicationCable::Channel
     server = service.project&.server
     return unless server&.ssh_key.present?
 
-    log_cmd = if service.service_type == "database"
-      case service.subtype
-      when "postgres" then "postgres:logs #{service.dokku_app_name} --tail"
-      when "redis" then "redis:logs #{service.dokku_app_name} --tail"
-      when "mysql", "mariadb" then "mysql:logs #{service.dokku_app_name} --tail"
-      when "mongo" then "mongo:logs #{service.dokku_app_name} --tail"
-      else "logs #{service.dokku_app_name} -n 0 --tail"
-      end
+    log_cmd = if service.subtype_record&.has_capability?(:logs)
+      st = service.subtype_record
+      "#{st.dokku_command(:logs)} #{service.dokku_app_name} --tail"
     else
       "logs #{service.dokku_app_name} -n 0 --tail"
     end

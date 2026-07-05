@@ -55,7 +55,7 @@ module Api
 
     def configure_pitr
       authorize_service!(@service, action: :update)
-      return render json: { error: "PITR is only available for PostgreSQL" }, status: :unprocessable_entity unless @service.subtype == "postgres"
+      return render json: { error: "PITR is not available for this service type" }, status: :unprocessable_entity unless @service.subtype_record&.has_capability?(:point_in_time_recovery)
 
       destination = find_destination(params[:backup_destination_id])
       return render json: { error: "Destination not found" }, status: :not_found unless destination

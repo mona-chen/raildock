@@ -853,8 +853,6 @@ export const repositoryImportsApi = {
 
 export const modulesApi = {
   list: async (): Promise<Module[]> => {
-    // TODO: Create a /api/modules endpoint in the backend
-    // For now, fall back to templates
     return fetchJson('/api/modules')
   },
 }

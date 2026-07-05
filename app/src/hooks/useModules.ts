@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 
@@ -7,6 +8,14 @@ export function useModules() {
     queryKey: ['modules'],
     queryFn: () => api.modules.list(),
   })
+}
+
+export function useServiceSubtypes(serviceType?: string) {
+  const { data: modules = [] } = useModules()
+  return useMemo(() => {
+    if (!serviceType) return []
+    return modules.flatMap((m) => m.serviceSubtypes).filter((s) => s.serviceType === serviceType)
+  }, [modules, serviceType])
 }
 
 export const BUILDERS = [

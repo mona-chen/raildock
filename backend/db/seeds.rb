@@ -7,4 +7,6 @@
 # If you need demo data for development, run: make seed
 # Or add your own seed data below.
 
-puts "RailDock: No seed data required. Use the setup UI to create your admin account."
+PluginRegistry.seed! if defined?(PluginRegistry)
+
+puts "RailDock: Built-in plugins seeded. Use the setup UI to create your admin account."

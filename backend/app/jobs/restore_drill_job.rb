@@ -28,14 +28,15 @@ class RestoreDrillJob < ApplicationJob
   private
     def drill_database!(backup, path, resource_name)
       service = backup.service
-      raise "Automated database drills currently require PostgreSQL" unless service.subtype == "postgres"
+      raise "Automated database drills require a service with backup/restore capabilities" unless service.subtype_record&.has_capability?(:backup) && service.subtype_record&.has_capability?(:restore)
 
       engine = DokkuEngine.new(service.project.server)
-      created = engine.postgres_create(resource_name)
-      raise created[:output].presence || "Could not create isolated PostgreSQL drill database" unless created[:success]
+      drill_service = OpenStruct.new(subtype: service.subtype, dokku_app_name: resource_name)
+      created = engine.datastore_create(drill_service)
+      raise created[:output].presence || "Could not create isolated drill database" unless created[:success]
 
-      imported = engine.run_with_file("postgres:import #{Shellwords.escape(resource_name)}", path)
-      raise imported[:output].presence || "Could not import backup into isolated PostgreSQL" unless imported[:success]
+      imported = engine.datastore_import_from(drill_service, path)
+      raise imported[:output].presence || "Could not import backup into isolated drill database" unless imported[:success]
 
       container = "dokku.postgres.#{resource_name}"
       healthy = HostEngine.new(service.project.server).run("docker exec #{Shellwords.escape(container)} pg_isready -U postgres")

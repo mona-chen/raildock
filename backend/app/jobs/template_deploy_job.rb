@@ -55,14 +55,8 @@ class TemplateDeployJob < ApplicationJob
     services.each do |service|
       app_name = service.dokku_app_name
 
-      if service.service_type_database?
-        result = case service.subtype
-        when "postgres" then engine.postgres_create(app_name)
-        when "redis" then engine.redis_create(app_name)
-        when "mysql", "mariadb" then engine.mysql_create(app_name)
-        when "mongo" then engine.mongo_create(app_name)
-        else { success: false, output: "Unsupported database subtype: #{service.subtype}" }
-        end
+      if service.subtype_record&.has_capability?(:create)
+        result = engine.datastore_create(service)
         ensure_success!(result, "create database #{app_name}")
       else
         ensure_success!(engine.app_create(app_name), "create app #{app_name}")
@@ -109,8 +103,8 @@ class TemplateDeployJob < ApplicationJob
 
       ServiceLink.find_or_create_by!(from_service: from_svc, to_service: to_svc)
 
-      if to_svc.docker_image_database?
-        link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
+      if to_svc.subtype_record&.has_capability?(:link)
+        link_result = engine.datastore_link(to_svc, from_svc.dokku_app_name)
         ensure_success!(link_result, "link #{link[:from]} to #{link[:to]}")
 
         linker = ServiceLinkSetup.new(project, engine, host_engine: host_engine)
@@ -157,19 +151,12 @@ class TemplateDeployJob < ApplicationJob
       linked_dbs = service.linked_services.select(&:service_type_database?)
       next if linked_dbs.empty?
 
-      db_url_map = {
-        "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
-        "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
-        "mysql"    => [ "DATABASE_URL", /\Amysql:\/\//i ],
-        "mariadb"  => [ "DATABASE_URL", /\Amysql:\/\//i ],
-        "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
-      }.freeze
-
       linked_dbs.each do |db|
-        mapping = db_url_map[db.subtype]
-        next unless mapping
+        st = db.subtype_record
+        next unless st&.url_var
 
-        url_var, url_pattern = mapping
+        url_var = st.url_var
+        url_pattern = /\A#{Regexp.escape(st.url_scheme)}(?:\+srv)?:\/\//i
         actual_ev = service.environment_variables.find_by(key: url_var)
         next unless actual_ev
 

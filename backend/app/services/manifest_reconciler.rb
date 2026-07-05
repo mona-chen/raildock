@@ -483,15 +483,10 @@ class ManifestReconciler
   end
 
   def create_database_service(engine, svc, app_name)
-    result = case svc[:subtype]
-    when "postgres" then engine.postgres_create(app_name)
-    when "redis" then engine.redis_create(app_name)
-    when "mysql", "mariadb" then engine.mysql_create(app_name)
-    when "mongo" then engine.mongo_create(app_name)
-    else
-      { success: false, error: "Unknown database subtype: #{svc[:subtype]}" }
-    end
-    result
+    st = PluginRegistry.find_subtype(svc[:subtype])
+    return { success: false, error: "Unknown database subtype: #{svc[:subtype]}" } unless st&.has_capability?(:create)
+
+    engine.datastore_create(OpenStruct.new(subtype: svc[:subtype], dokku_app_name: app_name))
   end
 
   def create_app_service(engine, svc, app_name)
@@ -520,13 +515,9 @@ class ManifestReconciler
     svc = change.old_value
     app_name = "#{@project.name.parameterize}-#{svc[:name].parameterize}"
 
-    if svc[:category] == "database"
-      case svc[:subtype]
-      when "postgres" then engine.postgres_destroy(app_name)
-      when "redis" then engine.redis_destroy(app_name)
-      when "mysql", "mariadb" then engine.mysql_destroy(app_name)
-      when "mongo" then engine.mongo_destroy(app_name)
-      end
+    st = PluginRegistry.find_subtype(svc[:subtype])
+    if st&.has_capability?(:destroy)
+      engine.datastore_destroy(OpenStruct.new(subtype: svc[:subtype], dokku_app_name: app_name))
     else
       engine.app_destroy(app_name)
     end
@@ -618,8 +609,8 @@ class ManifestReconciler
     if change.change_type == :added
       linker = ServiceLinkSetup.new(@project, engine, host_engine: @host_engine)
 
-      if to_svc.service_type_database?
-        link_result = engine.send("#{to_svc.subtype}_link", to_svc.dokku_app_name, from_svc.dokku_app_name)
+      if to_svc.subtype_record&.has_capability?(:link)
+        link_result = engine.datastore_link(to_svc, from_svc.dokku_app_name)
         unless link_result[:success]
           Rails.logger.error "Dokku link failed for #{from_svc.name} -> #{to_svc.name}: #{link_result[:output]}"
           return { success: false, error: link_result[:output] }
@@ -635,8 +626,8 @@ class ManifestReconciler
       linker.ensure_network_aliases(from_svc, to_svc)
       { success: true }
     elsif change.change_type == :removed
-      if to_svc.service_type_database?
-        unlink_result = engine.send("#{to_svc.subtype}_unlink", to_svc.dokku_app_name, from_svc.dokku_app_name)
+      if to_svc.subtype_record&.has_capability?(:unlink)
+        unlink_result = engine.datastore_unlink(to_svc, from_svc.dokku_app_name)
         return { success: false, error: unlink_result[:output] } unless unlink_result[:success]
       end
       ServiceLink.find_by(from_service: from_svc, to_service: to_svc)&.destroy!

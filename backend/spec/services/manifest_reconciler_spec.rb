@@ -287,7 +287,12 @@ RSpec.describe ManifestReconciler do
       reconciler.instance_variable_set(:@host_engine, host_engine)
       reconciler.instance_variable_set(:@engine, engine)
       allow(engine).to receive(:network_list).and_return(success: true, output: project.network_name)
-      allow(engine).to receive(:postgres_link).and_return(success: true, output: "")
+      allow(engine).to receive(:datastore_link).and_return(success: true, output: "")
+      allow(engine).to receive(:datastore_info).and_return(
+        success: true,
+        dsn: "postgres://realuser:realpass@postgres:5432/realdb",
+        status: "running"
+      )
       allow(engine).to receive(:config_set).and_return(success: true, output: "")
       allow(engine).to receive(:config_show).and_return(
         success: true,
@@ -298,7 +303,7 @@ RSpec.describe ManifestReconciler do
       result = reconciler.send(:apply_link_change, engine, change)
 
       expect(result[:success]).to be(true)
-      expect(engine).to have_received(:postgres_link).with(postgres.dokku_app_name, web.dokku_app_name)
+      expect(engine).to have_received(:datastore_link).with(postgres, web.dokku_app_name)
       expect(ServiceLink.exists?(from_service: web, to_service: postgres)).to be(true)
       expect(web.environment_variables.find_by(key: "DATABASE_URL")&.value).to start_with("postgres://")
     end
@@ -316,7 +321,7 @@ RSpec.describe ManifestReconciler do
         new_value: { from: "web", to: "postgres" }
       )
 
-      allow(engine).to receive(:postgres_link).and_return(success: false, output: "link failed")
+      allow(engine).to receive(:datastore_link).and_return(success: false, output: "link failed")
 
       result = reconciler.send(:apply_link_change, engine, change)
 

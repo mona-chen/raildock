@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
-import { useBuilders } from '@/hooks/useModules'
+import { useBuilders, useServiceSubtypes } from '@/hooks/useModules'
 import { useGitSources, useGitSourceRepos } from '@/hooks/useGitSources'
 import type { GitRepo } from '@/types'
 import type { RepositoryImportPreview } from '@/types'
@@ -53,13 +53,6 @@ function slugifyName(value: string): string {
     .slice(0, 40) || 'app'
 }
 
-const DB_TYPES = [
-  { subtype: 'postgres', name: 'PostgreSQL', description: 'Relational database', defaultVersion: '16' },
-  { subtype: 'mysql', name: 'MySQL', description: 'Popular relational database', defaultVersion: '8.0' },
-  { subtype: 'mongo', name: 'MongoDB', description: 'Document NoSQL database', defaultVersion: '7.0' },
-  { subtype: 'redis', name: 'Redis', description: 'In-memory key-value store', defaultVersion: '7.2' },
-]
-
 const BUILDER_INFO: Record<string, { name: string; description: string; bestFor: string }> = {
   auto: {
     name: 'Auto-detect',
@@ -102,6 +95,11 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const createService = useCreateService()
   const { data: builders = [] } = useBuilders()
   const { data: gitSources = [] } = useGitSources()
+  const databaseSubtypes = useServiceSubtypes('database')
+  const cacheSubtypes = useServiceSubtypes('cache')
+  const queueSubtypes = useServiceSubtypes('queue')
+  const serviceSubtypes = useServiceSubtypes('service')
+  const otherSubtypes = [...cacheSubtypes, ...queueSubtypes, ...serviceSubtypes]
   const [step, setStep] = useState<Step>('type')
 
   // Common
@@ -139,7 +137,13 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   }, [suggestedName, nameTouched])
 
   // Database
-  const [dbType, setDbType] = useState('postgres')
+  const [dbType, setDbType] = useState(databaseSubtypes[0]?.subtype ?? 'postgres')
+
+  useEffect(() => {
+    if (databaseSubtypes.length > 0 && !databaseSubtypes.find((d) => d.subtype === dbType)) {
+      setDbType(databaseSubtypes[0].subtype)
+    }
+  }, [databaseSubtypes, dbType])
 
   const isCreating = createService.isPending
 
@@ -213,8 +217,9 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   }
 
   const handleCreateDatabase = () => {
-    const finalName = name.trim() || `${dbType}-db`
-    const db = DB_TYPES.find((d) => d.subtype === dbType)!
+    const db = databaseSubtypes.find((d) => d.subtype === dbType)
+    if (!db) return
+    const finalName = name.trim() || `${db.subtype}-db`
     createService.mutate(
       {
         projectId,
@@ -575,7 +580,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           <div>
             <label className="text-[11px] text-white/40 block mb-1.5">Database Type</label>
             <div className="space-y-2">
-              {DB_TYPES.map((db) => (
+              {databaseSubtypes.length === 0 && (
+                <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                  No database modules available
+                </div>
+              )}
+              {databaseSubtypes.map((db) => (
                 <button
                   key={db.subtype}
                   onClick={() => setDbType(db.subtype)}
@@ -635,27 +645,21 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
         </div>
 
         <div className="space-y-2">
-          <ServiceOption
-            icon={() => <ServiceIcon subtype="redis" size={18} />}
-            name="Redis"
-            description="In-memory cache and session store"
-            onClick={() => handleCreateService('redis')}
-            isCreating={isCreating}
-          />
-          <ServiceOption
-            icon={() => <ServiceIcon subtype="rabbitmq" size={18} />}
-            name="RabbitMQ"
-            description="Message broker and queue system"
-            onClick={() => handleCreateService('rabbitmq')}
-            isCreating={isCreating}
-          />
-          <ServiceOption
-            icon={() => <ServiceIcon subtype="minio" size={18} />}
-            name="MinIO"
-            description="S3-compatible object storage"
-            onClick={() => handleCreateService('minio')}
-            isCreating={isCreating}
-          />
+          {otherSubtypes.length === 0 && (
+            <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+              No service modules available
+            </div>
+          )}
+          {otherSubtypes.map((svc) => (
+            <ServiceOption
+              key={svc.subtype}
+              icon={() => <ServiceIcon subtype={svc.subtype} size={18} />}
+              name={svc.name}
+              description={svc.description}
+              onClick={() => handleCreateService(svc.subtype)}
+              isCreating={isCreating}
+            />
+          ))}
         </div>
       </div>
     </ModalShell>

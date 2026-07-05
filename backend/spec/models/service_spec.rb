@@ -13,8 +13,15 @@ RSpec.describe Service, type: :model do
     it { is_expected.to validate_presence_of(:name) }
 
     it "is valid with recognized service_types" do
-      %w[app database cache queue search service].each do |type|
-        expect(build(:service, service_type: type)).to be_valid
+      {
+        "app" => "web",
+        "database" => "postgres",
+        "cache" => "redis",
+        "queue" => "rabbitmq",
+        "search" => "elasticsearch",
+        "service" => "minio"
+      }.each do |type, subtype|
+        expect(build(:service, service_type: type, subtype: subtype)).to be_valid
       end
     end
 
@@ -70,9 +77,9 @@ RSpec.describe Service, type: :model do
   end
 
   describe "scopes" do
-    let!(:app_service) { create(:service, service_type: :app) }
-    let!(:db_service) { create(:service, service_type: :database) }
-    let!(:cache_service) { create(:service, service_type: :cache) }
+    let!(:app_service) { create(:service, service_type: :app, subtype: "web") }
+    let!(:db_service) { create(:service, service_type: :database, subtype: "postgres") }
+    let!(:cache_service) { create(:service, service_type: :cache, subtype: "redis") }
 
     describe ".apps" do
       it "returns only app services" do

@@ -150,21 +150,13 @@ class PortDetector
     nil
   end
 
-  # For datastore plugins (postgres, redis, mysql, mongo), use the plugin's
-  # info command to extract the port from the DSN.
+  # For datastore plugins, use the plugin's info command to extract the port
+  # from the DSN.
   def detect_from_datastore_info(service, app_name)
-    case service.subtype
-    when "postgres"
-      detect_from_dsn("postgres:info", app_name)
-    when "redis"
-      detect_from_dsn("redis:info", app_name)
-    when "mysql", "mariadb"
-      detect_from_dsn("mysql:info", app_name)
-    when "mongo"
-      detect_from_dsn("mongo:info", app_name)
-    else
-      nil
-    end
+    st = service.subtype_record
+    return nil unless st&.has_capability?(:info)
+
+    detect_from_dsn(st.dokku_command(:info), app_name)
   rescue => e
     Rails.logger.warn "Datastore info parse failed for #{app_name}: #{e.message}"
     nil
@@ -191,16 +183,18 @@ class PortDetector
   end
 
   # Known default ports for common service types.
+  DEFAULT_SUBTYPE_PORTS = {
+    "postgres" => 5432,
+    "redis" => 6379,
+    "mysql" => 3306,
+    "mariadb" => 3306,
+    "mongo" => 27017,
+    "elasticsearch" => 9200,
+    "rabbitmq" => 5672,
+    "memcached" => 11211
+  }.freeze
+
   def default_port_for_subtype(subtype)
-    case subtype
-    when "postgres" then 5432
-    when "redis" then 6379
-    when "mysql", "mariadb" then 3306
-    when "mongo" then 27017
-    when "elasticsearch" then 9200
-    when "rabbitmq" then 5672
-    when "memcached" then 11211
-    else nil
-    end
+    DEFAULT_SUBTYPE_PORTS[subtype.to_s.downcase]
   end
 end

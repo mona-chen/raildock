@@ -14,9 +14,15 @@ class Service < ApplicationRecord
   has_many :linked_services, through: :outgoing_links, source: :to_service
   has_many :linked_by_services, through: :incoming_links, source: :from_service
 
+  # Registry-backed subtype. The string value in `subtype` remains the source
+  # of truth; the association is a convenience for joins/preloading.
+  belongs_to :service_subtype, optional: true, foreign_key: "subtype", primary_key: "subtype", inverse_of: :services
+  has_one :plugin, through: :service_subtype
+
   validates :name, presence: true
   validates :service_type, inclusion: { in: %w[app database cache queue search service] }
   validates :status, inclusion: { in: %w[running stopped deploying error building] }
+  validate :subtype_must_be_registered, on: :create
 
   enum :service_type, {
     app: "app",
@@ -71,7 +77,13 @@ class Service < ApplicationRecord
   before_create :generate_webhook_token
 
   def default_docker_image
-    DEFAULT_DOCKER_IMAGES[subtype]
+    subtype_record&.default_image || DEFAULT_DOCKER_IMAGES[subtype]
+  end
+
+  def subtype_record
+    return @subtype_record if defined?(@subtype_record)
+
+    @subtype_record = subtype.present? ? PluginRegistry.find_subtype(subtype) : nil
   end
 
   scope :apps, -> { where(service_type: :app) }
@@ -193,5 +205,15 @@ class Service < ApplicationRecord
     base = ENV.fetch("RAILDOCK_API_URL", "")
     return nil if base.blank?
     "#{base.chomp("/")}/api/services/#{id}/webhooks/#{webhook_token}/deploy"
+  end
+
+  # Phase 1 registers datastore/cache/queue/search/service subtypes.
+  # App/process subtypes remain legacy until Phase 2.
+  def subtype_must_be_registered
+    return if subtype.blank?
+    return if service_type_app?
+    return if PluginRegistry.has_capability?(subtype, :create) || PluginRegistry.has_capability?(subtype, :docker_deploy)
+
+    errors.add(:subtype, "'#{subtype}' is not a registered service subtype")
   end
 end

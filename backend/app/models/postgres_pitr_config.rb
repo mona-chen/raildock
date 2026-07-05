@@ -9,6 +9,6 @@ class PostgresPitrConfig < ApplicationRecord
 
   private
     def postgres_service
-      errors.add(:service, "must be PostgreSQL") unless service&.service_type_database? && service.subtype == "postgres"
+      errors.add(:service, "must support point-in-time recovery") unless service&.subtype_record&.has_capability?(:point_in_time_recovery)
     end
 end

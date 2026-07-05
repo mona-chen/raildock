@@ -448,32 +448,29 @@ class DeploymentJob < ApplicationJob
 
   def wait_for_datastore_ready(engine, host_engine, db_service, timeout: 120)
     app_name = db_service.dokku_app_name
-    subtype = db_service.subtype
-    return unless %w[postgres mysql mariadb redis mongo].include?(subtype)
+    st = db_service.subtype_record
+    return unless st&.has_capability?(:info)
 
     start = Time.now
     loop do
       elapsed = Time.now - start
       break if elapsed > timeout
 
-      info_method = "#{subtype}_info"
-      if engine.respond_to?(info_method)
-        info = engine.send(info_method, app_name)
-        if info[:success] && info[:status].to_s.downcase == "running"
-          Rails.logger.info "Datastore #{app_name} (#{subtype}) is running"
-          return true
-        end
+      info = engine.datastore_info(db_service)
+      if info[:success] && info[:status].to_s.downcase == "running"
+        Rails.logger.info "Datastore #{app_name} (#{db_service.subtype}) is running"
+        return true
       end
 
       # Fallback: check that the container is running
       container = host_engine.dokku_container_name(app_name)
       if container.present? && host_engine.container_running?(container)
-        # Additional port readiness check for mysql/postgres/mariadb
-        if %w[postgres mysql mariadb].include?(subtype)
-          port = { "postgres" => 5432, "mysql" => 3306, "mariadb" => 3306 }[subtype]
+        # Additional port readiness check when a default port is known
+        port = PortDetector.new(engine).default_port_for_subtype(db_service.subtype)
+        if port.present?
           check = host_engine.run("docker exec #{container} sh -c 'timeout 2 bash -c \"</dev/tcp/localhost/#{port}\"'")
           if check[:success]
-            Rails.logger.info "Datastore #{app_name} (#{subtype}) port #{port} is open"
+            Rails.logger.info "Datastore #{app_name} (#{db_service.subtype}) port #{port} is open"
             return true
           end
         else
@@ -484,7 +481,7 @@ class DeploymentJob < ApplicationJob
       sleep 2
     end
 
-    Rails.logger.warn "Timeout waiting for datastore #{app_name} (#{subtype}) to become ready"
+    Rails.logger.warn "Timeout waiting for datastore #{app_name} (#{db_service.subtype}) to become ready"
     false
   end
 

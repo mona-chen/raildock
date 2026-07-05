@@ -9,26 +9,19 @@
 # - Setting PGSSLMODE for Postgres links
 # - Ensuring network aliases on the project network
 class ServiceLinkSetup
-  DB_URL_MAP = {
-    "postgres" => [ "DATABASE_URL", /\Apostgres(?:ql)?:\/\//i ],
-    "redis"    => [ "REDIS_URL",    /\Aredis:\/\//i ],
-    "mysql"    => [ "DATABASE_URL", /\Amysql:\/\//i ],
-    "mariadb"  => [ "DATABASE_URL", /\Amysql:\/\//i ],
-    "mongo"    => [ "MONGO_URL",    /\Amongodb(?:\+srv)?:\/\//i ]
-  }.freeze
-
   def initialize(project, engine, host_engine: nil)
     @project = project
     @engine = engine
     @host_engine = host_engine || HostEngine.new(project.server)
   end
 
-  # Full per-link setup: PGSSLMODE, env sync, and credential rewrite.
+  # Full per-link setup: SSL mode, env sync, and credential rewrite.
   def setup!(app_service, db_service)
-    if db_service.subtype == "postgres"
-      result = @engine.config_set(app_service.dokku_app_name, "PGSSLMODE", "disable")
+    st = db_service.subtype_record
+    if st&.sslmode.present?
+      result = @engine.config_set(app_service.dokku_app_name, "PGSSLMODE", st.sslmode)
       return { success: false, error: result[:output] } unless result[:success]
-      app_service.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
+      app_service.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: st.sslmode)
     end
 
     sync_result = sync_env_vars(app_service, db_service)
@@ -42,13 +35,16 @@ class ServiceLinkSetup
     result = @engine.config_show(app_service.dokku_app_name)
     return { success: false, error: result[:output] } unless result[:success]
 
+    st = db_service.subtype_record
+    url_var = st&.url_var
+
     result[:output].each_line do |line|
       line = line.strip
       next unless line.include?("=")
       key, _, value = line.partition("=")
       key = key.strip
       value = value.strip
-      next unless key.match?(/^(DATABASE_URL|REDIS_URL|MONGO_URL|MYSQL_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL|DOKKU_MYSQL|DOKKU_POSTGRES|DOKKU_REDIS|DOKKU_MONGO)/i)
+      next unless dokku_link_var?(key, url_var, st)
       next if value.blank? || value.start_with?("$")
 
       existing = app_service.environment_variables.find_by(key: key)
@@ -59,7 +55,6 @@ class ServiceLinkSetup
       end
     end
 
-    url_var = DB_URL_MAP[db_service.subtype]&.first
     return { success: true } unless url_var
 
     url_value = find_config_value(result[:output], url_var)
@@ -77,14 +72,14 @@ class ServiceLinkSetup
 
   # Overwrite placeholder env vars with real values from the Dokku DSN.
   def rewrite_from_dsn(app_service, db_service)
-    info_method = "#{db_service.subtype}_info"
-    return { success: true } unless @engine.respond_to?(info_method)
+    st = db_service.subtype_record
+    return { success: true } unless st&.has_capability?(:info)
 
-    info = @engine.send(info_method, db_service.dokku_app_name)
+    info = @engine.datastore_info(db_service)
     return { success: false, error: "Unable to read #{db_service.subtype} connection URL" } unless info[:success] && info[:dsn].present?
 
     dsn = info[:dsn]
-    url_var = DB_URL_MAP[db_service.subtype]&.first
+    url_var = st.url_var
     return { success: true } unless url_var
 
     set_result = @engine.config_set(app_service.dokku_app_name, url_var, dsn)
@@ -175,5 +170,16 @@ class ServiceLinkSetup
       return v.strip if k&.strip == key
     end
     nil
+  end
+
+  def dokku_link_var?(key, url_var, _st)
+    return true if key == url_var
+    return true if key.match?(/^(DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL)$/i)
+    return true if key.match?(/^DOKKU_(MYSQL|POSTGRES|REDIS|MONGO)/i)
+
+    # Broadly capture any value that looks like a datastore URL so the UI can
+    # persist Dokku-injected connection vars even when the exact subtype was
+    # not registered.
+    key.match?(/^(DATABASE_URL|MYSQL_URL|MONGO_URL|REDIS_URL|DATABASE_PRIVATE_URL|REDIS_PRIVATE_URL)$/i)
   end
 end

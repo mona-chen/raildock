@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/hooks/useServices', () => ({
   useService: vi.fn(),
+  useCreateService: () => ({ mutate: vi.fn(), isPending: false }),
   useScaleProcess: () => ({ mutate: vi.fn(), isPending: false }),
   useSetEnvVar: () => ({ mutate: vi.fn() }),
   useUnsetEnvVar: () => ({ mutate: vi.fn() }),
@@ -69,9 +70,60 @@ vi.mock('@/hooks/useOrganizations', () => ({
   }),
 }))
 
+const mockModules = vi.hoisted(() => [
+  {
+    id: 'mod-postgres',
+    slug: 'postgres',
+    name: 'PostgreSQL',
+    description: 'Relational database',
+    icon: 'database',
+    category: 'database',
+    status: 'built_in',
+    serviceSubtypes: [
+      { id: 'st-postgres', subtype: 'postgres', name: 'PostgreSQL', description: 'Relational database', serviceType: 'database', defaultVersion: '16', icon: 'postgres', color: '#3b82f6' },
+    ],
+  },
+  {
+    id: 'mod-redis',
+    slug: 'redis',
+    name: 'Redis',
+    description: 'In-memory cache',
+    icon: 'zap',
+    category: 'cache',
+    status: 'built_in',
+    serviceSubtypes: [
+      { id: 'st-redis', subtype: 'redis', name: 'Redis', description: 'In-memory cache', serviceType: 'cache', defaultVersion: '7', icon: 'redis', color: '#f59e0b' },
+      { id: 'st-valkey', subtype: 'valkey', name: 'Valkey', description: 'Open source Redis alternative', serviceType: 'cache', defaultVersion: '8', icon: 'valkey', color: '#f59e0b' },
+    ],
+  },
+  {
+    id: 'mod-rabbitmq',
+    slug: 'rabbitmq',
+    name: 'RabbitMQ',
+    description: 'Message broker',
+    icon: 'cog',
+    category: 'queue',
+    status: 'built_in',
+    serviceSubtypes: [
+      { id: 'st-rabbitmq', subtype: 'rabbitmq', name: 'RabbitMQ', description: 'Message broker', serviceType: 'queue', defaultVersion: '3', icon: 'rabbitmq', color: '#6b7280' },
+    ],
+  },
+])
+
 vi.mock('@/hooks/useModules', () => ({
+  useModules: () => ({ data: mockModules, isLoading: false }),
+  useServiceSubtypes: (serviceType?: string) =>
+    mockModules
+      .flatMap((m) => m.serviceSubtypes)
+      .filter((s) => !serviceType || s.serviceType === serviceType),
+  useBuilders: () => ({ data: [], isLoading: false }),
   useNetworks: () => ({ data: [], isLoading: false }),
   useValidateNetwork: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
+vi.mock('@/hooks/useGitSources', () => ({
+  useGitSources: () => ({ data: [], isLoading: false }),
+  useGitSourceRepos: () => ({ data: { repos: [], syncing: false }, isLoading: false }),
 }))
 
 vi.mock('@/stores/useAuthStore', () => ({
@@ -99,6 +151,8 @@ import { useServers } from '@/hooks/useServers'
 import ServicePanel from '@/pages/ServicePanel'
 import AuthPage from '@/pages/AuthPage'
 import ServerPage from '@/pages/ServerPage'
+import SettingsPage from '@/pages/SettingsPage'
+import AddServiceModal from '@/pages/AddServiceModal'
 import CanvasToolbar from '@/features/project-canvas/components/CanvasToolbar'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
 
@@ -367,5 +421,57 @@ describe('ErrorBoundary', () => {
     )
 
     expect(screen.getByText('Safe content')).toBeInTheDocument()
+  })
+})
+
+describe('SettingsPage integrations tab', () => {
+  it('renders installed modules from the plugin registry', () => {
+    renderWithClient(
+      <MemoryRouter initialEntries={[{ pathname: '/dashboard/settings', search: '?tab=integrations' }]}>
+        <SettingsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Platform Settings')).toBeInTheDocument()
+    expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
+    expect(screen.getByText('Relational database')).toBeInTheDocument()
+    expect(screen.getByText('Redis')).toBeInTheDocument()
+    expect(screen.getByText('postgres')).toBeInTheDocument()
+    expect(screen.getByText('redis')).toBeInTheDocument()
+  })
+})
+
+describe('AddServiceModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows database subtypes from the plugin registry', () => {
+    renderWithClient(
+      <MemoryRouter>
+        <AddServiceModal projectId="proj-1" onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByText('Database'))
+    expect(screen.getByText('Add Database')).toBeInTheDocument()
+    expect(screen.getByText('Relational database · v16')).toBeInTheDocument()
+  })
+
+  it('shows cache and queue subtypes from the plugin registry', () => {
+    renderWithClient(
+      <MemoryRouter>
+        <AddServiceModal projectId="proj-1" onClose={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByText('Cache'))
+    expect(screen.getByText('Add Service')).toBeInTheDocument()
+    expect(screen.getByText('In-memory cache')).toBeInTheDocument()
+    expect(screen.getByText('Open source Redis alternative')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Back'))
+    fireEvent.click(screen.getByText('Other Service'))
+    expect(screen.getByText('Message broker')).toBeInTheDocument()
   })
 })

@@ -283,19 +283,29 @@ export interface TemplateService {
 
 export interface Module {
   id: string
+  slug: string
   name: string
   description: string
   icon: string
-  category: 'database' | 'service' | 'tool'
-  plugins: string[]   // which dokku plugins this module uses
-  services: ModuleService[]
+  category: 'database' | 'cache' | 'queue' | 'search' | 'service' | 'tool'
+  status: 'built_in' | 'enabled' | 'disabled'
+  version?: string
+  serviceSubtypes: ServiceSubtype[]
 }
 
-export interface ModuleService {
+export interface ServiceSubtype {
+  id: string
   subtype: string
   name: string
   description: string
+  serviceType: ServiceType
   defaultVersion: string
+  icon: string
+  color: string
+  capabilities: string[]
+  envVarPrefix?: string
+  urlVar?: string
+  sslmode?: string
 }
 
 // ───────────────────────────────────────────────

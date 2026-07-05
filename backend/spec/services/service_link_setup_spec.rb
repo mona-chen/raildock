@@ -32,7 +32,7 @@ RSpec.describe ServiceLinkSetup do
         success: true,
         output: "DATABASE_URL=postgres://user:password@dokku-postgres-web:5432/app"
       )
-      allow(engine).to receive(:postgres_info).and_return(
+      allow(engine).to receive(:datastore_info).and_return(
         success: true,
         dsn: "postgres://realuser:realpass@dokku-postgres-web:5432/realdb",
         status: "running"
@@ -51,7 +51,7 @@ RSpec.describe ServiceLinkSetup do
     it "skips PGSSLMODE for non-postgres links" do
       mysql_service = create(:service, :database, project: project, name: "mysql", subtype: "mysql")
 
-      allow(engine).to receive(:mysql_info).and_return(
+      allow(engine).to receive(:datastore_info).with(mysql_service).and_return(
         success: true,
         dsn: "mysql://realuser:realpass@dokku-mysql-web:3306/realdb",
         status: "running"
@@ -77,7 +77,7 @@ RSpec.describe ServiceLinkSetup do
 
       expect(result[:success]).to be(true)
       expect(engine).to have_received(:config_show).with(app_service.dokku_app_name)
-      expect(engine).to have_received(:postgres_info).with(db_service.dokku_app_name)
+      expect(engine).to have_received(:datastore_info).with(db_service)
     end
 
     it "returns failure when sync_env_vars fails" do
@@ -90,7 +90,7 @@ RSpec.describe ServiceLinkSetup do
     end
 
     it "returns failure when rewrite_from_dsn fails" do
-      allow(engine).to receive(:postgres_info).and_return(success: false, dsn: nil)
+      allow(engine).to receive(:datastore_info).and_return(success: false, dsn: nil)
 
       result = linker.setup!(app_service, db_service)
 
@@ -190,7 +190,7 @@ RSpec.describe ServiceLinkSetup do
 
   describe "#rewrite_from_dsn" do
     before do
-      allow(engine).to receive(:postgres_info).and_return(
+      allow(engine).to receive(:datastore_info).and_return(
         success: true,
         dsn: "postgres://realuser:realpass@dokku-postgres-web:5432/realdb",
         status: "running"
@@ -306,7 +306,7 @@ RSpec.describe ServiceLinkSetup do
     end
 
     it "skips unknown subtypes gracefully" do
-      unknown = create(:service, :database, project: project, name: "unknown", subtype: "clickhouse")
+      unknown = build(:service, :database, project: project, name: "unknown", subtype: "clickhouse")
 
       result = linker.rewrite_from_dsn(app_service, unknown)
 
@@ -314,7 +314,7 @@ RSpec.describe ServiceLinkSetup do
     end
 
     it "returns failure when _info fails" do
-      allow(engine).to receive(:postgres_info).and_return(success: false, dsn: nil, error: "connection refused")
+      allow(engine).to receive(:datastore_info).and_return(success: false, dsn: nil, error: "connection refused")
 
       result = linker.rewrite_from_dsn(app_service, db_service)
 

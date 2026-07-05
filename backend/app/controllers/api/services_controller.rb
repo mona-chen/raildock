@@ -49,22 +49,17 @@ module Api
       attrs[:subtype] ||= params[:subtype]
       attrs[:status] ||= "stopped"
 
-      # Auto-assign default Docker image for known one-click service subtypes
+      # Auto-assign default Docker image for registered one-click service subtypes
       if attrs[:docker_image].blank? && attrs[:git_repo].blank?
-        attrs[:docker_image] ||= Service::DEFAULT_DOCKER_IMAGES[attrs[:subtype]]
+        attrs[:docker_image] ||= PluginRegistry.find_subtype(attrs[:subtype])&.default_image || Service::DEFAULT_DOCKER_IMAGES[attrs[:subtype]]
       end
 
       service = Service.create!(attrs)
 
       # Create Dokku resource if server is connected and has SSH key
       with_dokku_engine(service) do |engine|
-        if service.service_type == "database"
-          result = case service.subtype
-          when "postgres" then engine.postgres_create(service.dokku_app_name)
-          when "redis" then engine.redis_create(service.dokku_app_name)
-          when "mysql", "mariadb" then engine.mysql_create(service.dokku_app_name)
-          when "mongo" then engine.mongo_create(service.dokku_app_name)
-          end
+        if service.subtype_record&.has_capability?(:create)
+          result = engine.datastore_create(service)
           service.update!(status: :running) if result && result[:success]
         else
           engine.app_create(service.dokku_app_name)
@@ -112,13 +107,8 @@ module Api
 
       # Destroy Dokku resource if server connected
       with_dokku_engine(@service) do |engine|
-        if @service.service_type == "database"
-          case @service.subtype
-          when "postgres" then engine.postgres_destroy(@service.dokku_app_name)
-          when "redis" then engine.redis_destroy(@service.dokku_app_name)
-          when "mysql", "mariadb" then engine.mysql_destroy(@service.dokku_app_name)
-          when "mongo" then engine.mongo_destroy(@service.dokku_app_name)
-          end
+        if @service.subtype_record&.has_capability?(:destroy)
+          engine.datastore_destroy(@service)
         else
           engine.app_destroy(@service.dokku_app_name)
         end
@@ -339,14 +329,8 @@ module Api
 
     def logs
       with_dokku_engine(@service) do |engine|
-        if @service.service_type == "database"
-          result = case @service.subtype
-          when "postgres" then engine.postgres_logs(@service.dokku_app_name, lines: 100)
-          when "redis" then engine.redis_logs(@service.dokku_app_name, lines: 100)
-          when "mysql", "mariadb" then engine.mysql_logs(@service.dokku_app_name, lines: 100)
-          when "mongo" then engine.mongo_logs(@service.dokku_app_name, lines: 100)
-          else engine.logs(@service.dokku_app_name, lines: 100)
-          end
+        if @service.subtype_record&.has_capability?(:logs)
+          result = engine.datastore_logs(@service)
         else
           result = engine.logs(@service.dokku_app_name, lines: 100)
         end
@@ -375,13 +359,8 @@ module Api
       # Only sync to Dokku if this is a newly-created link
       if is_new_link
         with_dokku_engine(@service) do |engine|
-          if target.service_type_database?
-            link_result = case target.subtype
-            when "postgres" then engine.postgres_link(target.dokku_app_name, @service.dokku_app_name)
-            when "redis" then engine.redis_link(target.dokku_app_name, @service.dokku_app_name)
-            when "mysql", "mariadb" then engine.mysql_link(target.dokku_app_name, @service.dokku_app_name)
-            when "mongo" then engine.mongo_link(target.dokku_app_name, @service.dokku_app_name)
-            end
+          if target.subtype_record&.has_capability?(:link)
+            link_result = engine.datastore_link(target, @service.dokku_app_name)
 
             unless link_result&.dig(:success)
               Rails.logger.error "Dokku link failed: #{link_result&.dig(:output)}"
@@ -391,10 +370,10 @@ module Api
             # Fetch and sync Dokku-injected env vars (DATABASE_URL, REDIS_URL, etc.)
             sync_dokku_env_vars(engine, @service)
 
-            # Disable SSL cert validation for internal postgres connections
-            if target.subtype == "postgres"
-              engine.config_set(@service.dokku_app_name, "PGSSLMODE", "disable")
-              @service.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: "disable")
+            # Disable SSL cert validation for internal connections when the subtype requests it
+            if target.subtype_record&.sslmode.present?
+              engine.config_set(@service.dokku_app_name, "PGSSLMODE", target.subtype_record.sslmode)
+              @service.environment_variables.find_or_initialize_by(key: "PGSSLMODE").update!(value: target.subtype_record.sslmode)
             end
           end
 
@@ -444,13 +423,8 @@ module Api
 
       # Sync to Dokku if server connected
       with_dokku_engine(app_service) do |engine|
-        if db_service.service_type_database?
-          case db_service.subtype
-          when "postgres" then engine.postgres_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
-          when "redis" then engine.redis_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
-          when "mysql", "mariadb" then engine.mysql_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
-          when "mongo" then engine.mongo_unlink(db_service.dokku_app_name, app_service.dokku_app_name)
-          end
+        if db_service.subtype_record&.has_capability?(:unlink)
+          engine.datastore_unlink(db_service, app_service.dokku_app_name)
 
           # Remove env vars that were injected by this link
           remove_linked_env_vars(app_service, db_service)
@@ -481,12 +455,10 @@ module Api
 
     def database_info
       with_dokku_engine(@service) do |engine|
-        result = case @service.subtype
-        when "postgres" then engine.postgres_info(@service.dokku_app_name)
-        when "redis" then engine.redis_info(@service.dokku_app_name)
-        when "mysql", "mariadb" then engine.mysql_info(@service.dokku_app_name)
-        when "mongo" then engine.mongo_info(@service.dokku_app_name)
-        else { success: false, error: "Unsupported database type" }
+        if @service.subtype_record&.has_capability?(:info)
+          result = engine.datastore_info(@service)
+        else
+          result = { success: false, error: "Unsupported database type" }
         end
         return render json: result
       end
@@ -883,29 +855,29 @@ module Api
 
     # Fetch DSN from Dokku plugin info and sync extracted credentials to the app
     def fetch_and_sync_dsn_credentials(engine, app_service, linked_service)
-      case linked_service.subtype
-      when "postgres"
-        result = engine.run("postgres:info #{linked_service.dokku_app_name}")
+      st = linked_service.subtype_record
+      return unless st&.has_capability?(:info)
+
+      prefix = st.env_var_prefix&.then { |v| v.delete_suffix("_URL") } || st.subtype.upcase
+      scheme = st.url_scheme
+
+      if scheme == "redis"
+        redis_url = linked_service.environment_variables.find_by(key: "REDIS_URL")&.value
+        if redis_url.present?
+          match = redis_url.match(/redis:\/\/(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)/)
+          sync_credential_vars(engine, app_service, prefix, match) if match
+        end
+      else
+        result = engine.datastore_info(linked_service)
         return unless result[:success]
 
         dsn_line = result[:output].lines.find { |l| l.match?(/Dsn:\s+\S+:\/\//) }
         return unless dsn_line
 
-        # Parse: postgres://user:pass@host:port/db
-        match = dsn_line.match(/postgres:\/\/(?<user>[^:]+):(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)\/(?<db>\S+)/)
+        match = dsn_line.match(/#{Regexp.escape(scheme)}:\/\/(?<user>[^:]+):(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)\/(?<db>\S+)/)
         return unless match
 
-        sync_credential_vars(engine, app_service, "POSTGRES", match)
-      when "redis"
-        result = engine.run("redis:info #{linked_service.dokku_app_name}")
-        return unless result[:success]
-
-        # Redis info may not have a DSN; try to get from REDIS_URL env var
-        redis_url = linked_service.environment_variables.find_by(key: "REDIS_URL")&.value
-        if redis_url.present?
-          match = redis_url.match(/redis:\/\/(?<pass>[^@]+)@(?<host>[^:]+):(?<port>\d+)/)
-          sync_credential_vars(engine, app_service, "REDIS", match) if match
-        end
+        sync_credential_vars(engine, app_service, prefix, match)
       end
     end
 

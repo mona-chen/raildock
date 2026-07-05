@@ -751,190 +751,85 @@ class DokkuEngine
   end
 
   # ── Datastore Plugins ────────────────────────
+  #
+  # Phase 1 dispatches through the PluginRegistry instead of hard-coding
+  # per-subtype commands. Legacy per-subtype methods are kept as thin
+  # wrappers for callers that have not been migrated yet.
 
-  def postgres_create(service_name)
-    run("postgres:create #{escape(service_name)}")
+  # Generic dispatch: create
+  def datastore_create(service)
+    run_subtype_command(service, :create)
   end
 
-  def redis_create(service_name)
-    run("redis:create #{escape(service_name)}")
+  # Generic dispatch: destroy
+  def datastore_destroy(service)
+    run_subtype_command(service, :destroy, "--force")
   end
 
-  def mysql_create(service_name)
-    run("mysql:create #{escape(service_name)}")
+  # Generic dispatch: link to an app
+  def datastore_link(service, app_name)
+    run_subtype_command(service, :link, escape(app_name))
   end
 
-  def mongo_create(service_name)
-    run("mongo:create #{escape(service_name)}")
+  # Generic dispatch: unlink from an app
+  def datastore_unlink(service, app_name)
+    run_subtype_command(service, :unlink, escape(app_name))
   end
 
-  # MariaDB is handled by Dokku's mysql plugin; alias the commands.
-  def mariadb_create(service_name)
-    run("mysql:create #{escape(service_name)}")
+  # Generic dispatch: info
+  def datastore_info(service)
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(:info)
+
+    parse_datastore_info(run("#{st.dokku_command(:info)} #{escape(service.dokku_app_name)}"), service.subtype)
   end
 
-  def postgres_destroy(service_name)
-    run("postgres:destroy #{escape(service_name)} --force")
-  end
-
-  def redis_destroy(service_name)
-    run("redis:destroy #{escape(service_name)} --force")
-  end
-
-  def mysql_destroy(service_name)
-    run("mysql:destroy #{escape(service_name)} --force")
-  end
-
-  def mongo_destroy(service_name)
-    run("mongo:destroy #{escape(service_name)} --force")
-  end
-
-  def mariadb_destroy(service_name)
-    run("mysql:destroy #{escape(service_name)} --force")
-  end
-
-  def postgres_link(service_name, app_name)
-    run("postgres:link #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def redis_link(service_name, app_name)
-    run("redis:link #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mysql_link(service_name, app_name)
-    run("mysql:link #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mongo_link(service_name, app_name)
-    run("mongo:link #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mariadb_link(service_name, app_name)
-    run("mysql:link #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def postgres_unlink(service_name, app_name)
-    run("postgres:unlink #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def redis_unlink(service_name, app_name)
-    run("redis:unlink #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mysql_unlink(service_name, app_name)
-    run("mysql:unlink #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mongo_unlink(service_name, app_name)
-    run("mongo:unlink #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  def mariadb_unlink(service_name, app_name)
-    run("mysql:unlink #{escape(service_name)} #{escape(app_name)}")
-  end
-
-  # ── Datastore Info ───────────────────────────
-
-  def postgres_info(service_name)
-    parse_datastore_info(run("postgres:info #{escape(service_name)}"), "postgres")
-  end
-
-  def redis_info(service_name)
-    parse_datastore_info(run("redis:info #{escape(service_name)}"), "redis")
-  end
-
-  def mysql_info(service_name)
-    parse_datastore_info(run("mysql:info #{escape(service_name)}"), "mysql")
-  end
-
-  def mongo_info(service_name)
-    parse_datastore_info(run("mongo:info #{escape(service_name)}"), "mongo")
-  end
-
-  def mariadb_info(service_name)
-    parse_datastore_info(run("mysql:info #{escape(service_name)}"), "mariadb")
-  end
-
-  # ── Datastore Logs ───────────────────────────
-
-  def postgres_logs(service_name, lines: 100)
+  # Generic dispatch: logs
+  def datastore_logs(service, lines: 100)
     # Datastore plugins do not support --num. Without --tail the command
     # prints recent logs and exits, which is what the REST endpoint needs.
-    run("postgres:logs #{escape(service_name)}")
+    run_subtype_command(service, :logs)
   end
 
-  def redis_logs(service_name, lines: 100)
-    run("redis:logs #{escape(service_name)}")
+  # Generic dispatch: export to stdout
+  def datastore_export(service)
+    run_subtype_command(service, :export)
   end
 
-  def mysql_logs(service_name, lines: 100)
-    run("mysql:logs #{escape(service_name)}")
-  end
-
-  def mongo_logs(service_name, lines: 100)
-    run("mongo:logs #{escape(service_name)}")
-  end
-
-  def mariadb_logs(service_name, lines: 100)
-    run("mysql:logs #{escape(service_name)}")
-  end
-
-  # ── Datastore Backup / Restore ───────────────
-
-  def postgres_export(service_name)
-    run("postgres:export #{escape(service_name)}")
-  end
-
-  def redis_export(service_name)
-    run("redis:export #{escape(service_name)}")
-  end
-
-  def mysql_export(service_name)
-    run("mysql:export #{escape(service_name)}")
-  end
-
-  def mongo_export(service_name)
-    run("mongo:export #{escape(service_name)}")
-  end
-
+  # Generic dispatch: export to file
   def datastore_export_to(service, path)
-    command = case service.subtype
-    when "postgres" then "postgres:export"
-    when "redis" then "redis:export"
-    when "mysql", "mariadb" then "mysql:export"
-    when "mongo" then "mongo:export"
-    else return { success: false, output: "Unsupported database type for backup" }
-    end
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(:backup)
 
-    run_to_file("#{command} #{escape(service.dokku_app_name)}", path)
+    run_to_file("#{st.dokku_command(:export)} #{escape(service.dokku_app_name)}", path)
   end
 
+  # Generic dispatch: import from file
   def datastore_import_from(service, path)
-    command = case service.subtype
-    when "postgres" then "postgres:import"
-    when "redis" then "redis:import"
-    when "mysql", "mariadb" then "mysql:import"
-    when "mongo" then "mongo:import"
-    else return { success: false, output: "Unsupported database type for restore" }
-    end
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(:restore)
 
-    run_with_file("#{command} #{escape(service.dokku_app_name)}", path)
+    run_with_file("#{st.dokku_command(:import)} #{escape(service.dokku_app_name)}", path)
   end
 
-  def postgres_import(service_name, data)
-    run_with_stdin("postgres:import #{escape(service_name)}", data)
+  # Generic dispatch: import from stdin
+  def datastore_import_stdin(service, data)
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(:restore)
+
+    run_with_stdin("#{st.dokku_command(:import)} #{escape(service.dokku_app_name)}", data)
   end
 
-  def redis_import(service_name, data)
-    run_with_stdin("redis:import #{escape(service_name)}", data)
-  end
-
-  def mysql_import(service_name, data)
-    run_with_stdin("mysql:import #{escape(service_name)}", data)
-  end
-
-  def mongo_import(service_name, data)
-    run_with_stdin("mongo:import #{escape(service_name)}", data)
+  # Legacy per-subtype helpers for callers that pass a name instead of a Service.
+  %w[postgres redis mysql mongo mariadb].each do |subtype|
+    define_method("#{subtype}_create") { |service_name| run_legacy_command(subtype, :create, service_name) }
+    define_method("#{subtype}_destroy") { |service_name| run_legacy_command(subtype, :destroy, service_name, "--force") }
+    define_method("#{subtype}_link") { |service_name, app_name| run_legacy_command(subtype, :link, service_name, escape(app_name)) }
+    define_method("#{subtype}_unlink") { |service_name, app_name| run_legacy_command(subtype, :unlink, service_name, escape(app_name)) }
+    define_method("#{subtype}_info") { |service_name| legacy_info(subtype, service_name) }
+    define_method("#{subtype}_logs") { |service_name, lines: 100| run_legacy_command(subtype, :logs, service_name) }
+    define_method("#{subtype}_export") { |service_name| run_legacy_command(subtype, :export, service_name) }
+    define_method("#{subtype}_import") { |service_name, data| run_legacy_stdin_import(subtype, service_name, data) }
   end
 
   # ── Cron ─────────────────────────────────────
@@ -990,6 +885,42 @@ class DokkuEngine
   end
 
   private
+
+  # --- Plugin registry helpers -------------------
+
+  def run_subtype_command(service, action, *args)
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(action)
+
+    command = [ st.dokku_command(action), escape(service.dokku_app_name), *args ].compact.join(" ")
+    run(command)
+  end
+
+  def run_legacy_command(subtype, action, service_name, *args)
+    st = PluginRegistry.find_subtype(subtype)
+    return unsupported_subtype(subtype) unless st&.has_capability?(action)
+
+    command = [ st.dokku_command(action), escape(service_name), *args ].compact.join(" ")
+    run(command)
+  end
+
+  def legacy_info(subtype, service_name)
+    st = PluginRegistry.find_subtype(subtype)
+    return unsupported_subtype(subtype) unless st&.has_capability?(:info)
+
+    parse_datastore_info(run("#{st.dokku_command(:info)} #{escape(service_name)}"), subtype)
+  end
+
+  def run_legacy_stdin_import(subtype, service_name, data)
+    st = PluginRegistry.find_subtype(subtype)
+    return unsupported_subtype(subtype) unless st&.has_capability?(:restore)
+
+    run_with_stdin("#{st.dokku_command(:import)} #{escape(service_name)}", data)
+  end
+
+  def unsupported_subtype(subtype)
+    { success: false, output: "Unsupported service subtype: #{subtype}" }
+  end
 
   # Retry transient SSH failures. dokku commands are idempotent where it matters,
   # and bursts of connections during one-click deploys can hit sshd rate limits

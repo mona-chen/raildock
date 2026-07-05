@@ -129,18 +129,10 @@ class RestartJob < ApplicationJob
   private
 
   def restart_database_service(engine, service)
-    case service.subtype
-    when "postgres"
-      engine.run("postgres:restart #{service.dokku_app_name}")
-    when "redis"
-      engine.run("redis:restart #{service.dokku_app_name}")
-    when "mysql", "mariadb"
-      engine.run("mysql:restart #{service.dokku_app_name}")
-    when "mongo"
-      engine.run("mongo:restart #{service.dokku_app_name}")
-    else
-      { success: false, output: "Unknown database subtype: #{service.subtype}" }
-    end
+    st = service.subtype_record
+    return { success: false, output: "Unknown database subtype: #{service.subtype}" } unless st&.has_capability?(:create)
+
+    engine.run("#{st.dokku_command(:restart)} #{service.dokku_app_name}")
   end
 
   def restore_network_aliases(service, network_manager, log)

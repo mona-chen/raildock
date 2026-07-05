@@ -25,13 +25,8 @@ class Project < ApplicationRecord
     engine = DokkuEngine.new(server)
 
     services.each do |service|
-      if service.service_type == "database"
-        case service.subtype
-        when "postgres" then engine.postgres_destroy(service.dokku_app_name)
-        when "redis" then engine.redis_destroy(service.dokku_app_name)
-        when "mysql", "mariadb" then engine.mysql_destroy(service.dokku_app_name)
-        when "mongo" then engine.mongo_destroy(service.dokku_app_name)
-        end
+      if service.subtype_record&.has_capability?(:destroy)
+        engine.datastore_destroy(service)
       else
         engine.app_destroy(service.dokku_app_name)
       end

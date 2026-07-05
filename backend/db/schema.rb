@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_02_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -258,6 +258,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_190000) do
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
+  create_table "plugins", force: :cascade do |t|
+    t.string "category", null: false
+    t.jsonb "config_schema", default: {}
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "icon"
+    t.jsonb "metadata", default: {}
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "status", default: "built_in", null: false
+    t.datetime "updated_at", null: false
+    t.string "version"
+    t.index ["category"], name: "index_plugins_on_category"
+    t.index ["slug"], name: "index_plugins_on_slug", unique: true
+    t.index ["status"], name: "index_plugins_on_status"
+  end
+
   create_table "postgres_pitr_configs", force: :cascade do |t|
     t.bigint "backup_destination_id", null: false
     t.datetime "created_at", null: false
@@ -364,6 +381,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_190000) do
     t.index ["from_service_id", "to_service_id"], name: "index_service_links_on_from_service_id_and_to_service_id", unique: true
     t.index ["from_service_id"], name: "index_service_links_on_from_service_id"
     t.index ["to_service_id"], name: "index_service_links_on_to_service_id"
+  end
+
+  create_table "service_subtypes", force: :cascade do |t|
+    t.jsonb "capabilities", default: []
+    t.string "color"
+    t.string "command_namespace"
+    t.jsonb "config_schema", default: {}
+    t.datetime "created_at", null: false
+    t.string "default_version"
+    t.text "description"
+    t.string "dokku_plugin"
+    t.string "env_var_prefix"
+    t.string "icon"
+    t.jsonb "metadata", default: {}
+    t.string "name", null: false
+    t.bigint "plugin_id", null: false
+    t.string "service_type", null: false
+    t.string "subtype", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capabilities"], name: "index_service_subtypes_on_capabilities", using: :gin
+    t.index ["plugin_id", "subtype"], name: "index_service_subtypes_on_plugin_id_and_subtype", unique: true
+    t.index ["plugin_id"], name: "index_service_subtypes_on_plugin_id"
+    t.index ["service_type"], name: "index_service_subtypes_on_service_type"
+    t.index ["subtype"], name: "index_service_subtypes_on_subtype", unique: true
   end
 
   create_table "services", force: :cascade do |t|
@@ -478,6 +519,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_190000) do
   add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"
   add_foreign_key "service_links", "services", column: "to_service_id"
+  add_foreign_key "service_subtypes", "plugins"
   add_foreign_key "services", "projects"
   add_foreign_key "storage_mounts", "services"
 end
