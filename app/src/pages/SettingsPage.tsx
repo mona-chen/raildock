@@ -1,14 +1,22 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
-import { useModules } from '@/hooks/useModules'
+import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUninstallPlugin, usePluginSettings, useUpdatePluginSettings } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
 import { useDeployKeys, useCreateDeployKey, useDeleteDeployKey } from '@/hooks/useDeployKeys'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -18,13 +26,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import ConfigSchemaForm from '@/components/ConfigSchemaForm'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
 import MembersTab from '@/features/settings/MembersTab'
 import BackupDestinationsTab from '@/features/settings/BackupDestinationsTab'
 import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
-import type { AppUpdateInfo } from '@/types'
+import type { AppUpdateInfo, Module } from '@/types'
 
 const TABS = [
   { key: 'integrations', label: 'Integrations', icon: Puzzle },
@@ -40,7 +49,9 @@ const TABS = [
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'integrations'
-  const { data: modules = [] } = useModules()
+  const { data: modules = [], isLoading: modulesLoading } = useModules()
+  const { user } = useAuthStore()
+  const isAdmin = user?.admin === true
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -69,34 +80,7 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {activeTab === 'integrations' && (
-          <div className="max-w-3xl space-y-5">
-            {/* Installed Modules */}
-            <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-              <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-3 flex items-center gap-2">
-                <Puzzle size={12} className="text-rail-purple" /> Modules
-              </div>
-              <div className="space-y-2">
-                {modules.map((mod) => (
-                  <div key={mod.id} className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm text-white">{mod.name}</div>
-                        <span className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">
-                          {mod.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-[#4A4A55]">{mod.description}</div>
-                    </div>
-                    <div className="flex gap-1">
-                      {mod.serviceSubtypes.map((s) => (
-                        <span key={s.subtype} className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">{s.subtype}</span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
         )}
 
         {activeTab === 'git-sources' && <GitSourcesTab />}
@@ -108,6 +92,265 @@ export default function SettingsPage() {
         {activeTab === 'updates' && <UpdatesTab />}
       </div>
     </div>
+  )
+}
+
+function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isLoading: boolean; isAdmin: boolean }) {
+  const [installOpen, setInstallOpen] = useState(false)
+  const [configPlugin, setConfigPlugin] = useState<Module | null>(null)
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-medium text-white">Plugins & Integrations</h2>
+          <p className="text-[11px] text-[#4A4A55] mt-0.5">
+            Enable, install, and configure plugins that extend RailDock capabilities.
+          </p>
+        </div>
+        {isAdmin && (
+          <Dialog open={installOpen} onOpenChange={setInstallOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-8">
+                <Plus size={14} className="mr-1" />
+                Install Plugin
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
+              <InstallPluginDialog onClose={() => setInstallOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="text-[11px] text-[#4A4A55]">Loading plugins...</div>
+      ) : (
+        <div className="space-y-3">
+          {modules.map((mod) => (
+            <PluginCard
+              key={mod.id}
+              mod={mod}
+              isAdmin={isAdmin}
+              onConfigure={() => setConfigPlugin(mod)}
+            />
+          ))}
+          {modules.length === 0 && (
+            <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
+              <Puzzle size={24} className="text-[#4A4A55] mx-auto mb-2" />
+              <p className="text-sm text-[#A0A0B0]">No plugins loaded</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <PluginConfigDialog plugin={configPlugin} onClose={() => setConfigPlugin(null)} />
+    </div>
+  )
+}
+
+function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boolean; onConfigure: () => void }) {
+  const enable = useEnablePlugin()
+  const disable = useDisablePlugin()
+  const uninstall = useUninstallPlugin()
+  const isBuiltIn = mod.status === 'built_in'
+  const isEnabled = mod.status === 'built_in' || mod.status === 'enabled'
+  const hasConfig = mod.configSchema && Object.keys(mod.configSchema).length > 0
+
+  const toggle = () => {
+    if (isBuiltIn) return
+    if (isEnabled) {
+      disable.mutate(mod.slug)
+    } else {
+      enable.mutate(mod.slug)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-white font-medium">{mod.name}</div>
+          <span className={`text-[9px] px-1.5 py-0.5 rounded capitalize ${
+            isBuiltIn
+              ? 'bg-[rgba(139,92,246,0.08)] text-rail-purple'
+              : isEnabled
+                ? 'bg-green-500/10 text-green-400'
+                : 'bg-[rgba(255,255,255,0.08)] text-[#A0A0B0]'
+          }`}>
+            {mod.status.replace('_', ' ')}
+          </span>
+        </div>
+        <div className="text-[10px] text-[#4A4A55] mt-0.5 truncate">{mod.description}</div>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {mod.serviceSubtypes.map((s) => (
+            <span key={s.subtype} className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">
+              {s.subtype}
+            </span>
+          ))}
+          {mod.builders.map((b) => (
+            <span key={b.slug} className="text-[9px] px-1.5 py-0.5 bg-[rgba(6,182,212,0.08)] text-cyan-400 rounded">
+              {b.slug}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0 ml-4">
+        {hasConfig && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onConfigure}
+            className="text-[11px] text-[#A0A0B0] hover:text-white h-7"
+          >
+            <Cog size={13} className="mr-1" />
+            Configure
+          </Button>
+        )}
+        {isAdmin && !isBuiltIn && (
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={enable.isPending || disable.isPending}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              isEnabled ? 'bg-rail-purple' : 'bg-[rgba(255,255,255,0.1)]'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                isEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        )}
+        {isAdmin && !isBuiltIn && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm(`Uninstall "${mod.name}"? This cannot be undone.`)) {
+                uninstall.mutate(mod.slug)
+              }
+            }}
+            disabled={uninstall.isPending}
+            className="text-[11px] text-[#4A4A55] hover:text-red-400 h-7"
+          >
+            <Trash2 size={13} />
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function InstallPluginDialog({ onClose }: { onClose: () => void }) {
+  const install = useInstallPlugin()
+  const [sourceType, setSourceType] = useState('remote')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [sourceRef, setSourceRef] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!sourceUrl.trim()) return
+    install.mutate(
+      { sourceUrl: sourceUrl.trim(), sourceType, sourceRef: sourceRef.trim() || undefined },
+      { onSuccess: () => onClose() }
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <DialogHeader>
+        <DialogTitle className="text-sm">Install Plugin</DialogTitle>
+        <DialogDescription className="text-[11px] text-[#4A4A55]">
+          Install a plugin from a remote manifest URL (YAML or JSON).
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3 py-4">
+        <div>
+          <Label htmlFor="source-type" className="text-[11px] text-[#A0A0B0] mb-1 block">Source Type</Label>
+          <Select value={sourceType} onValueChange={setSourceType}>
+            <SelectTrigger id="source-type" className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1A1A1F] border-[rgba(255,255,255,0.1)]">
+              <SelectItem value="remote" className="text-sm text-white">Remote manifest</SelectItem>
+              <SelectItem value="github" className="text-sm text-white">GitHub repository</SelectItem>
+              <SelectItem value="local" className="text-sm text-white">Local file</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="source-url" className="text-[11px] text-[#A0A0B0] mb-1 block">Manifest URL</Label>
+          <Input
+            id="source-url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="https://example.com/raildock-plugin.yml"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#4A4A55]"
+          />
+        </div>
+        <div>
+          <Label htmlFor="source-ref" className="text-[11px] text-[#A0A0B0] mb-1 block">Ref (branch/tag, optional)</Label>
+          <Input
+            id="source-ref"
+            value={sourceRef}
+            onChange={(e) => setSourceRef(e.target.value)}
+            placeholder="main"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#4A4A55]"
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          type="submit"
+          disabled={install.isPending || !sourceUrl.trim()}
+          className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs"
+        >
+          {install.isPending ? 'Installing...' : 'Install'}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+function PluginConfigDialog({
+  plugin,
+  onClose,
+}: {
+  plugin: Module | null
+  onClose: () => void
+}) {
+  const { data: settingsData, isLoading } = usePluginSettings(plugin?.slug)
+  const updateSettings = useUpdatePluginSettings()
+
+  return (
+    <Dialog open={!!plugin} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
+        <DialogHeader>
+          <DialogTitle className="text-sm">{plugin ? `${plugin.name} Settings` : 'Plugin Settings'}</DialogTitle>
+          <DialogDescription className="text-[11px] text-[#4A4A55]">
+            Configure this plugin before enabling it.
+          </DialogDescription>
+        </DialogHeader>
+        {plugin && (
+          <div className="py-2">
+            {isLoading ? (
+              <div className="text-[11px] text-[#4A4A55]">Loading settings...</div>
+            ) : (
+              <ConfigSchemaForm
+                key={plugin.slug}
+                schema={plugin.configSchema || {}}
+                initialValues={settingsData?.settings}
+                onSubmit={(values) => updateSettings.mutate({ slug: plugin.slug, settings: values }, { onSuccess: onClose })}
+                isSubmitting={updateSettings.isPending}
+              />
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -67,8 +67,11 @@ RSpec.describe Service, type: :model do
       expect(described_class.statuses.keys).to contain_exactly("running", "stopped", "deploying", "error", "building")
     end
 
-    it "defines builder enum" do
-      expect(described_class.builders.keys).to contain_exactly("herokuish", "pack", "dockerfile", "nixpacks", "railpack", "lambda", "null_builder")
+    it "resolves builder through the registry" do
+      service = create(:service, service_type: :app, subtype: "web", builder: "nixpacks")
+      expect(service.builder_record).to be_a(Builder)
+      expect(service.builder_record.slug).to eq("nixpacks")
+      expect(service.builder_record.dokku_builder).to eq("nixpacks")
     end
 
     it "defines restart_policy enum" do

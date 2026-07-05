@@ -9,7 +9,18 @@ Rails.application.routes.draw do
     get "me", to: "auth#me"
     get "setup", to: "users#setup_required"
     post "users", to: "users#create"
-    get "modules", to: "plugins#index"
+    resources :modules, controller: "plugins", only: [:index] do
+      collection do
+        post :install
+      end
+      member do
+        post :enable
+        post :disable
+        delete :uninstall
+        get :settings
+        patch :settings, action: :update_settings
+      end
+    end
 
     resources :projects do
       resource :repository_import, path: "repository-import", only: [] do

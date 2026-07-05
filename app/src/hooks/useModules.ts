@@ -18,18 +18,90 @@ export function useServiceSubtypes(serviceType?: string) {
   }, [modules, serviceType])
 }
 
-export const BUILDERS = [
-  { id: "herokuish", name: "Herokuish", description: "Heroku-compatible buildpack-based builder" },
-  { id: "pack", name: "Cloud Native Buildpacks", description: "Modern OCI-compliant buildpacks via pack" },
-  { id: "dockerfile", name: "Dockerfile", description: "Build from a Dockerfile in your repo" },
-  { id: "nixpacks", name: "Nixpacks", description: "Auto-detect language and build with Nix" },
-  { id: "railpack", name: "Railpack", description: "Railway's modern buildpack alternative" },
-  { id: "lambda", name: "AWS Lambda", description: "Package for AWS Lambda deployment" },
-  { id: "null", name: "Null Builder", description: "Skip build, use existing image" }
-]
+export function useBuilders(sourceType?: string) {
+  const { data: modules = [], isLoading } = useModules()
+  const builders = useMemo(() => {
+    const all = modules.flatMap((m) => m.builders || [])
+    if (!sourceType) return all
+    return all.filter((b) => b.sourceTypes.includes(sourceType))
+  }, [modules, sourceType])
+  return { data: builders, isLoading }
+}
 
-export function useBuilders() {
-  return { data: BUILDERS, isLoading: false }
+export function useBuilder(slug?: string) {
+  const { data: builders = [] } = useBuilders()
+  return useMemo(() => builders.find((b) => b.slug === slug), [builders, slug])
+}
+
+export function useInstallPlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { sourceUrl: string; sourceType?: string; sourceRef?: string }) =>
+      api.modules.install(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules'] })
+      toast.success('Plugin installation queued')
+    },
+    onError: (err: Error) => toast.error(`Install failed: ${err.message}`),
+  })
+}
+
+export function useEnablePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => api.modules.enable(slug),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules'] })
+      toast.success('Plugin enabled')
+    },
+    onError: (err: Error) => toast.error(`Enable failed: ${err.message}`),
+  })
+}
+
+export function useDisablePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => api.modules.disable(slug),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules'] })
+      toast.success('Plugin disabled')
+    },
+    onError: (err: Error) => toast.error(`Disable failed: ${err.message}`),
+  })
+}
+
+export function useUninstallPlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => api.modules.uninstall(slug),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules'] })
+      toast.success('Plugin uninstallation queued')
+    },
+    onError: (err: Error) => toast.error(`Uninstall failed: ${err.message}`),
+  })
+}
+
+export function usePluginSettings(slug?: string) {
+  return useQuery({
+    queryKey: ['modules', slug, 'settings'],
+    queryFn: () => api.modules.settings(slug!),
+    enabled: Boolean(slug),
+  })
+}
+
+export function useUpdatePluginSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ slug, settings }: { slug: string; settings: Record<string, string | number | boolean> }) =>
+      api.modules.updateSettings(slug, settings),
+    onSuccess: (_, { slug }) => {
+      queryClient.invalidateQueries({ queryKey: ['modules', slug, 'settings'] })
+      queryClient.invalidateQueries({ queryKey: ['modules'] })
+      toast.success('Plugin settings saved')
+    },
+    onError: (err: Error) => toast.error(`Save failed: ${err.message}`),
+  })
 }
 
 export function useNetworks(serverId?: string) {

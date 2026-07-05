@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_06_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -94,6 +94,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
     t.datetime "updated_at", null: false
     t.index ["backup_destination_id"], name: "index_backups_on_backup_destination_id"
     t.index ["service_id"], name: "index_backups_on_service_id"
+  end
+
+  create_table "builders", force: :cascade do |t|
+    t.string "color"
+    t.jsonb "config_schema", default: {}
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "dokku_builder", null: false
+    t.string "icon"
+    t.jsonb "language_tags", default: []
+    t.jsonb "metadata", default: {}
+    t.string "name", null: false
+    t.bigint "plugin_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "slug", null: false
+    t.jsonb "source_types", default: [], null: false
+    t.string "status", default: "built_in", null: false
+    t.datetime "updated_at", null: false
+    t.index ["plugin_id"], name: "index_builders_on_plugin_id"
+    t.index ["slug"], name: "index_builders_on_slug", unique: true
+    t.index ["source_types"], name: "index_builders_on_source_types", using: :gin
+    t.index ["status"], name: "index_builders_on_status"
   end
 
   create_table "deploy_keys", force: :cascade do |t|
@@ -258,20 +280,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
+  create_table "plugin_settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "encrypted_value_ciphertext"
+    t.string "key", null: false
+    t.bigint "plugin_id", null: false
+    t.datetime "updated_at", null: false
+    t.text "value"
+    t.index ["plugin_id", "key"], name: "index_plugin_settings_on_plugin_id_and_key", unique: true
+    t.index ["plugin_id"], name: "index_plugin_settings_on_plugin_id"
+  end
+
   create_table "plugins", force: :cascade do |t|
     t.string "category", null: false
     t.jsonb "config_schema", default: {}
     t.datetime "created_at", null: false
     t.text "description"
     t.string "icon"
+    t.text "install_command"
     t.jsonb "metadata", default: {}
     t.string "name", null: false
     t.string "slug", null: false
+    t.string "source_ref"
+    t.string "source_type"
+    t.text "source_url"
     t.string "status", default: "built_in", null: false
+    t.text "uninstall_command"
     t.datetime "updated_at", null: false
     t.string "version"
     t.index ["category"], name: "index_plugins_on_category"
     t.index ["slug"], name: "index_plugins_on_slug", unique: true
+    t.index ["source_type"], name: "index_plugins_on_source_type"
     t.index ["status"], name: "index_plugins_on_status"
   end
 
@@ -492,6 +531,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
   add_foreign_key "backup_schedules", "storage_mounts"
   add_foreign_key "backups", "backup_destinations"
   add_foreign_key "backups", "services"
+  add_foreign_key "builders", "plugins"
   add_foreign_key "deploy_keys", "git_sources"
   add_foreign_key "deploy_keys", "organizations"
   add_foreign_key "deploy_keys", "users"
@@ -508,6 +548,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000002) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_ssh_keys", "organizations"
   add_foreign_key "organizations", "users", column: "owner_id"
+  add_foreign_key "plugin_settings", "plugins"
   add_foreign_key "postgres_pitr_configs", "backup_destinations"
   add_foreign_key "postgres_pitr_configs", "services"
   add_foreign_key "process_types", "services"

@@ -855,6 +855,36 @@ export const modulesApi = {
   list: async (): Promise<Module[]> => {
     return fetchJson('/api/modules')
   },
+
+  install: async (data: { sourceUrl: string; sourceType?: string; sourceRef?: string }): Promise<{ success: boolean; message: string }> => {
+    return fetchJson('/api/modules/install', {
+      method: 'POST',
+      body: JSON.stringify({ source_url: data.sourceUrl, source_type: data.sourceType, source_ref: data.sourceRef }),
+    })
+  },
+
+  enable: async (slug: string): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/modules/${encodeURIComponent(slug)}/enable`, { method: 'POST' })
+  },
+
+  disable: async (slug: string): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/modules/${encodeURIComponent(slug)}/disable`, { method: 'POST' })
+  },
+
+  uninstall: async (slug: string): Promise<{ success: boolean; message: string }> => {
+    return fetchJson(`/api/modules/${encodeURIComponent(slug)}/uninstall`, { method: 'DELETE' })
+  },
+
+  settings: async (slug: string): Promise<{ slug: string; settings: Record<string, string> }> => {
+    return fetchJson(`/api/modules/${encodeURIComponent(slug)}/settings`)
+  },
+
+  updateSettings: async (slug: string, settings: Record<string, string | number | boolean>): Promise<{ success: boolean; settings: Record<string, string> }> => {
+    return fetchJson(`/api/modules/${encodeURIComponent(slug)}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    })
+  },
 }
 
 // ── Networks API ─────────────────────────────

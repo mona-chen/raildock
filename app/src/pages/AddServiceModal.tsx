@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
-import { useBuilders, useServiceSubtypes } from '@/hooks/useModules'
+import { useBuilders, useBuilder, useServiceSubtypes } from '@/hooks/useModules'
 import { useGitSources, useGitSourceRepos } from '@/hooks/useGitSources'
 import type { GitRepo } from '@/types'
 import type { RepositoryImportPreview } from '@/types'
@@ -53,53 +53,8 @@ function slugifyName(value: string): string {
     .slice(0, 40) || 'app'
 }
 
-const BUILDER_INFO: Record<string, { name: string; description: string; bestFor: string }> = {
-  auto: {
-    name: 'Auto-detect',
-    description: 'Dokku checks for Dockerfile → Nixpacks → Herokuish in that order.',
-    bestFor: 'Most projects — set and forget',
-  },
-  dockerfile: {
-    name: 'Dockerfile',
-    description: 'Builds your container using the Dockerfile in your repo root.',
-    bestFor: 'When you need full control over the build process',
-  },
-  nixpacks: {
-    name: 'Nixpacks',
-    description: 'Auto-detects language and produces optimized images without a Dockerfile.',
-    bestFor: 'Node, Python, Go, Ruby, PHP, Rust, Java, .NET, and more',
-  },
-  railpack: {
-    name: 'Railpack',
-    description: 'Railway-inspired buildpack with modern language support.',
-    bestFor: 'Modern frameworks and monorepos',
-  },
-  herokuish: {
-    name: 'Herokuish',
-    description: 'Emulates Heroku buildpacks using the same detection logic.',
-    bestFor: 'Legacy Heroku-compatible apps',
-  },
-  pack: {
-    name: 'Cloud Native Buildpacks',
-    description: 'Uses the cloud-native buildpack standard (Paketo, etc).',
-    bestFor: 'Cloud-native and standardized builds',
-  },
-  lambda: {
-    name: 'Lambda',
-    description: 'AWS Lambda-style packaging for serverless deployments.',
-    bestFor: 'Serverless functions',
-  },
-}
-
 export default function AddServiceModal({ projectId, onClose }: AddServiceModalProps) {
   const createService = useCreateService()
-  const { data: builders = [] } = useBuilders()
-  const { data: gitSources = [] } = useGitSources()
-  const databaseSubtypes = useServiceSubtypes('database')
-  const cacheSubtypes = useServiceSubtypes('cache')
-  const queueSubtypes = useServiceSubtypes('queue')
-  const serviceSubtypes = useServiceSubtypes('service')
-  const otherSubtypes = [...cacheSubtypes, ...queueSubtypes, ...serviceSubtypes]
   const [step, setStep] = useState<Step>('type')
 
   // Common
@@ -108,11 +63,31 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
 
   // App
   const [sourceType, setSourceType] = useState<'git' | 'docker'>('git')
+  const [appSubtype, setAppSubtype] = useState('web')
+  const [builder, setBuilder] = useState('')
   const [gitSourceId, setGitSourceId] = useState<string>('')
   const [gitRepo, setGitRepo] = useState('')
   const [gitBranch, setGitBranch] = useState('main')
-  const [builder, setBuilder] = useState('auto')
   const [dockerImage, setDockerImage] = useState('')
+
+  const appSubtypes = useServiceSubtypes('app')
+  const { data: gitBuilders = [] } = useBuilders('git')
+  const { data: dockerBuilders = [] } = useBuilders('docker')
+  const builders = sourceType === 'docker' ? dockerBuilders : gitBuilders
+  const activeBuilder = useBuilder(builder)
+
+  useEffect(() => {
+    if (builders.length > 0 && !builders.find((b) => b.slug === builder)) {
+      setBuilder(builders[0].slug)
+    }
+  }, [builders, builder])
+
+  const { data: gitSources = [] } = useGitSources()
+  const databaseSubtypes = useServiceSubtypes('database')
+  const cacheSubtypes = useServiceSubtypes('cache')
+  const queueSubtypes = useServiceSubtypes('queue')
+  const serviceSubtypes = useServiceSubtypes('service')
+  const otherSubtypes = [...cacheSubtypes, ...queueSubtypes, ...serviceSubtypes]
   const [rootDirectory, setRootDirectory] = useState('')
   const [repoSearch, setRepoSearch] = useState('')
   const [discovery, setDiscovery] = useState<RepositoryImportPreview | null>(null)
@@ -169,15 +144,15 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   }
 
   const handleCreateApp = () => {
-    const finalName = name.trim() || 'app'
+    const finalName = name.trim() || appSubtype
     createService.mutate(
       {
         projectId,
         data: {
           name: finalName,
-          subtype: sourceType === 'git' ? 'web' : 'docker',
+          subtype: appSubtype,
           category: 'app',
-          builder: sourceType === 'git' ? (builder === 'auto' ? undefined : builder) : undefined,
+          builder: builder === 'auto' ? undefined : builder,
           git_repo: sourceType === 'git' ? gitRepo : undefined,
           branch: sourceType === 'git' ? gitBranch : undefined,
           docker_image: sourceType === 'docker' ? dockerImage : undefined,
@@ -316,8 +291,8 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__discovered__">Use discovered setting{service.builder ? ` (${service.builder})` : ''}</SelectItem>
-                          {builders.map((item) => (
-                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          {gitBuilders.map((item) => (
+                            <SelectItem key={item.slug} value={item.slug}>{item.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select></label>)}</div>
@@ -352,6 +327,39 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
             <div className="flex gap-2">
               <SourceButton active={sourceType === 'git'} onClick={() => setSourceType('git')} icon={() => <ServiceIcon subtype="git" size={14} />} label="Git Repository" />
               <SourceButton active={sourceType === 'docker'} onClick={() => setSourceType('docker')} icon={() => <ServiceIcon subtype="docker" size={14} />} label="Docker Image" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] text-white/40 block mb-1.5">Application Type</label>
+            <div className="space-y-2">
+              {appSubtypes.length === 0 && (
+                <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                  No application modules available
+                </div>
+              )}
+              {appSubtypes.map((st) => (
+                <button
+                  key={st.subtype}
+                  onClick={() => setAppSubtype(st.subtype)}
+                  className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all ${
+                    appSubtype === st.subtype
+                      ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
+                      : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                  }`}
+                >
+                  <ServiceIcon subtype={st.subtype} size={18} />
+                  <div className="flex-1">
+                    <div className="text-[13px] text-white/70">{st.name}</div>
+                    <div className="text-[11px] text-white/40">{st.description}</div>
+                  </div>
+                  {appSubtype === st.subtype && (
+                    <div className="w-4 h-4 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -489,7 +497,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
               </div>}
 
               {/* Builder Selection */}
-              {!selectedGitSource && <div>
+              {!selectedGitSource && builders.length > 0 && <div>
                 <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
                   Builder
                   <span title="Builders determine how your code is turned into a container image." className="cursor-help">
@@ -497,13 +505,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                   </span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(['auto', ...builders.map((b) => b.id)] as string[]).map((b) => {
-                    const info = BUILDER_INFO[b] || { name: b, description: '', bestFor: '' }
-                    const isActive = builder === b
+                  {builders.map((b) => {
+                    const isActive = builder === b.slug
                     return (
                       <button
-                        key={b}
-                        onClick={() => setBuilder(b)}
+                        key={b.slug}
+                        onClick={() => setBuilder(b.slug)}
                         className={`text-left p-2.5 rounded-lg border transition-all ${
                           isActive
                             ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
@@ -511,18 +518,20 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                         }`}
                       >
                         <div className={`text-[12px] font-medium ${isActive ? 'text-[#8b5cf6]' : 'text-white/70'}`}>
-                          {info.name}
+                          {b.name}
                         </div>
                         <div className="text-[10px] text-white/30 mt-0.5 leading-tight">
-                          {info.bestFor}
+                          {b.sourceTypes.includes('git') ? 'Git source' : 'Docker source'}
                         </div>
                       </button>
                     )
                   })}
                 </div>
-                <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2 mt-2">
-                  {BUILDER_INFO[builder]?.description || builders.find((b) => b.id === builder)?.description}
-                </div>
+                {activeBuilder && (
+                  <div className="text-[11px] text-white/30 bg-white/[0.03] rounded-lg px-3 py-2 mt-2">
+                    {activeBuilder.description}
+                  </div>
+                )}
               </div>}
             </div>
           )}

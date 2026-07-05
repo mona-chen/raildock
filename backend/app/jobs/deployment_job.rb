@@ -140,22 +140,23 @@ class DeploymentJob < ApplicationJob
     return mark_failed(deployment, service, "Git deploy branch configuration failed", branch_result[:output]) unless branch_result[:success]
 
     # 8.5. Set builder on the Dokku app so the correct buildpack is used.
-    #      The service.builder field is set by the user in the UI; "auto" or
-    #      nil means let Dokku auto-detect (no explicit builder:set).
-    if service.builder.present? && service.builder != "auto" && !service.docker_image.present?
-      unless host_engine.builder_available?(service.builder)
-        requirement = service.builder == "railpack" ? "railpack and its BuildKit service" : service.builder
+    #      The service.builder field is a registry slug; "auto" or nil means
+    #      let Dokku auto-detect (no explicit builder:set).
+    dokku_builder = service.builder_record&.dokku_builder
+    if dokku_builder.present? && dokku_builder != "auto" && !service.docker_image.present?
+      unless host_engine.builder_available?(dokku_builder)
+        requirement = dokku_builder == "railpack" ? "railpack and its BuildKit service" : dokku_builder
         return mark_failed(
           deployment,
           service,
-          "#{service.builder.titleize} is not ready on this server",
+          "#{service.builder_record.name} is not ready on this server",
           "RailDock requires #{requirement}. Run the RailDock installer update, then retry this deployment."
         )
       end
-      builder_result = engine.builder_set(service.dokku_app_name, service.builder)
+      builder_result = engine.builder_set(service.dokku_app_name, dokku_builder)
       return mark_failed(deployment, service, "Builder configuration failed", builder_result[:output]) unless builder_result[:success]
 
-      if service.builder == "dockerfile" && service.config&.dig("dockerfilePath").present?
+      if dokku_builder == "dockerfile" && service.config&.dig("dockerfilePath").present?
         dockerfile_result = engine.builder_dockerfile_set_path(service.dokku_app_name, service.config["dockerfilePath"])
         return mark_failed(deployment, service, "Dockerfile path configuration failed", dockerfile_result[:output]) unless dockerfile_result[:success]
       end

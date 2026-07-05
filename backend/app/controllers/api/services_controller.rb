@@ -54,6 +54,12 @@ module Api
         attrs[:docker_image] ||= PluginRegistry.find_subtype(attrs[:subtype])&.default_image || Service::DEFAULT_DOCKER_IMAGES[attrs[:subtype]]
       end
 
+      # Auto-assign default builder for app services
+      if attrs[:service_type] == "app" && attrs[:builder].blank?
+        source_type = attrs[:git_repo].present? ? "git" : (attrs[:docker_image].present? ? "docker" : "git")
+        attrs[:builder] = PluginRegistry.default_builder_for(attrs[:subtype], source_type)&.slug
+      end
+
       service = Service.create!(attrs)
 
       # Create Dokku resource if server is connected and has SSH key

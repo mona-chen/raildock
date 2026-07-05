@@ -82,6 +82,7 @@ const mockModules = vi.hoisted(() => [
     serviceSubtypes: [
       { id: 'st-postgres', subtype: 'postgres', name: 'PostgreSQL', description: 'Relational database', serviceType: 'database', defaultVersion: '16', icon: 'postgres', color: '#3b82f6' },
     ],
+    builders: [],
   },
   {
     id: 'mod-redis',
@@ -95,6 +96,7 @@ const mockModules = vi.hoisted(() => [
       { id: 'st-redis', subtype: 'redis', name: 'Redis', description: 'In-memory cache', serviceType: 'cache', defaultVersion: '7', icon: 'redis', color: '#f59e0b' },
       { id: 'st-valkey', subtype: 'valkey', name: 'Valkey', description: 'Open source Redis alternative', serviceType: 'cache', defaultVersion: '8', icon: 'valkey', color: '#f59e0b' },
     ],
+    builders: [],
   },
   {
     id: 'mod-rabbitmq',
@@ -107,8 +109,32 @@ const mockModules = vi.hoisted(() => [
     serviceSubtypes: [
       { id: 'st-rabbitmq', subtype: 'rabbitmq', name: 'RabbitMQ', description: 'Message broker', serviceType: 'queue', defaultVersion: '3', icon: 'rabbitmq', color: '#6b7280' },
     ],
+    builders: [],
+  },
+  {
+    id: 'mod-apps',
+    slug: 'core-apps',
+    name: 'Core Applications',
+    description: 'Application subtypes',
+    icon: 'rocket',
+    category: 'tool',
+    status: 'built_in',
+    serviceSubtypes: [
+      { id: 'st-web', subtype: 'web', name: 'Web Service', description: 'Internet-facing app', serviceType: 'app', defaultVersion: '', icon: 'globe', color: '#8b5cf6' },
+      { id: 'st-worker', subtype: 'worker', name: 'Worker', description: 'Background worker', serviceType: 'app', defaultVersion: '', icon: 'cpu', color: '#8b5cf6' },
+      { id: 'st-docker', subtype: 'docker', name: 'Docker Image', description: 'Pre-built image', serviceType: 'app', defaultVersion: '', icon: 'container', color: '#8b5cf6' },
+    ],
+    builders: [
+      { id: 'b-auto', slug: 'auto', name: 'Auto-detect', description: 'Dokku auto-detects the builder', dokkuBuilder: 'auto', sourceTypes: ['git'], priority: 0, languageTags: [], icon: 'wand-2', color: '#6b7280', status: 'built_in' },
+      { id: 'b-dockerfile', slug: 'dockerfile', name: 'Dockerfile', description: 'Build from Dockerfile', dokkuBuilder: 'dockerfile', sourceTypes: ['git'], priority: 10, languageTags: [], icon: 'file-code', color: '#3b82f6', status: 'built_in' },
+      { id: 'b-null', slug: 'null', name: 'Null Builder', description: 'Use existing image', dokkuBuilder: 'null', sourceTypes: ['docker'], priority: 0, languageTags: [], icon: 'ban', color: '#6b7280', status: 'built_in' },
+    ],
   },
 ])
+
+const mockBuilders = vi.hoisted(() =>
+  mockModules.flatMap((m) => m.builders)
+)
 
 vi.mock('@/hooks/useModules', () => ({
   useModules: () => ({ data: mockModules, isLoading: false }),
@@ -116,9 +142,19 @@ vi.mock('@/hooks/useModules', () => ({
     mockModules
       .flatMap((m) => m.serviceSubtypes)
       .filter((s) => !serviceType || s.serviceType === serviceType),
-  useBuilders: () => ({ data: [], isLoading: false }),
+  useBuilders: (sourceType?: string) => ({
+    data: sourceType ? mockBuilders.filter((b) => b.sourceTypes.includes(sourceType)) : mockBuilders,
+    isLoading: false,
+  }),
+  useBuilder: (slug?: string) => mockBuilders.find((b) => b.slug === slug),
   useNetworks: () => ({ data: [], isLoading: false }),
   useValidateNetwork: () => ({ mutate: vi.fn(), isPending: false }),
+  useInstallPlugin: () => ({ mutate: vi.fn(), isPending: false }),
+  useEnablePlugin: () => ({ mutate: vi.fn(), isPending: false }),
+  useDisablePlugin: () => ({ mutate: vi.fn(), isPending: false }),
+  useUninstallPlugin: () => ({ mutate: vi.fn(), isPending: false }),
+  usePluginSettings: () => ({ data: { settings: {} }, isLoading: false }),
+  useUpdatePluginSettings: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/hooks/useGitSources', () => ({

@@ -58,7 +58,7 @@ RSpec.describe "Api::ServicesController", type: :request do
         service: {
           name: "api-worker",
           service_type: "app",
-          subtype: "rails",
+          subtype: "web",
           status: "stopped",
           builder: "nixpacks"
         }
@@ -77,6 +77,8 @@ RSpec.describe "Api::ServicesController", type: :request do
         it "creates the service and calls DokkuEngine" do
           allow_any_instance_of(DokkuEngine).to receive(:app_create).and_return({ success: true })
           allow_any_instance_of(DokkuEngine).to receive(:proxy_set).and_return({ success: true })
+          allow_any_instance_of(DokkuEngine).to receive(:domain_add).and_return({ success: true })
+          allow_any_instance_of(DokkuEngine).to receive(:sync_port_mappings).and_return({ success: true })
 
           expect {
             post "/api/projects/#{project.id}/services", params: valid_params, headers: auth_headers(user)

@@ -290,7 +290,30 @@ export interface Module {
   category: 'database' | 'cache' | 'queue' | 'search' | 'service' | 'tool'
   status: 'built_in' | 'enabled' | 'disabled'
   version?: string
+  sourceType?: string
+  sourceUrl?: string
+  sourceRef?: string
+  configSchema?: Record<string, ConfigSchemaField>
   serviceSubtypes: ServiceSubtype[]
+  builders: Builder[]
+  pluginSettings?: PluginSetting[]
+}
+
+export interface ConfigSchemaField {
+  type: 'string' | 'number' | 'integer' | 'boolean' | 'select'
+  label: string
+  description?: string
+  required?: boolean
+  options?: (string | number)[]
+  min?: number
+  max?: number
+  default?: string | number | boolean
+}
+
+export interface PluginSetting {
+  id: string
+  key: string
+  value: string
 }
 
 export interface ServiceSubtype {
@@ -306,6 +329,22 @@ export interface ServiceSubtype {
   envVarPrefix?: string
   urlVar?: string
   sslmode?: string
+  configSchema?: Record<string, unknown>
+}
+
+export interface Builder {
+  id: string
+  slug: string
+  name: string
+  description: string
+  dokkuBuilder: string
+  sourceTypes: string[]
+  priority: number
+  languageTags: string[]
+  icon: string
+  color: string
+  configSchema?: Record<string, unknown>
+  status: 'built_in' | 'enabled' | 'disabled'
 }
 
 // ───────────────────────────────────────────────

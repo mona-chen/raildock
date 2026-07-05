@@ -23,6 +23,7 @@ class Service < ApplicationRecord
   validates :service_type, inclusion: { in: %w[app database cache queue search service] }
   validates :status, inclusion: { in: %w[running stopped deploying error building] }
   validate :subtype_must_be_registered, on: :create
+  validate :builder_must_be_registered, on: :create, if: -> { service_type_app? }
 
   enum :service_type, {
     app: "app",
@@ -39,16 +40,6 @@ class Service < ApplicationRecord
     deploying: "deploying",
     error: "error",
     building: "building"
-  }
-
-  enum :builder, {
-    herokuish: "herokuish",
-    pack: "pack",
-    dockerfile: "dockerfile",
-    nixpacks: "nixpacks",
-    railpack: "railpack",
-    lambda: "lambda",
-    null_builder: "null"
   }
 
   enum :restart_policy, {
@@ -84,6 +75,12 @@ class Service < ApplicationRecord
     return @subtype_record if defined?(@subtype_record)
 
     @subtype_record = subtype.present? ? PluginRegistry.find_subtype(subtype) : nil
+  end
+
+  def builder_record
+    return @builder_record if defined?(@builder_record)
+
+    @builder_record = builder.present? ? PluginRegistry.find_builder(builder) : nil
   end
 
   scope :apps, -> { where(service_type: :app) }
@@ -207,13 +204,19 @@ class Service < ApplicationRecord
     "#{base.chomp("/")}/api/services/#{id}/webhooks/#{webhook_token}/deploy"
   end
 
-  # Phase 1 registers datastore/cache/queue/search/service subtypes.
-  # App/process subtypes remain legacy until Phase 2.
   def subtype_must_be_registered
     return if subtype.blank?
-    return if service_type_app?
-    return if PluginRegistry.has_capability?(subtype, :create) || PluginRegistry.has_capability?(subtype, :docker_deploy)
+    return if PluginRegistry.has_capability?(subtype, :create) ||
+              PluginRegistry.has_capability?(subtype, :docker_deploy) ||
+              PluginRegistry.has_capability?(subtype, :deploy)
 
     errors.add(:subtype, "'#{subtype}' is not a registered service subtype")
+  end
+
+  def builder_must_be_registered
+    return if builder.blank?
+    return if PluginRegistry.find_builder(builder).present?
+
+    errors.add(:builder, "'#{builder}' is not a registered builder")
   end
 end
