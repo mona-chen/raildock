@@ -2,8 +2,8 @@ require 'rails_helper'
 
 RSpec.describe UninstallPluginJob, type: :job do
   let!(:plugin) { create(:plugin, slug: "external-test") }
-  let!(:subtype) { plugin.service_subtypes.create!(subtype: "custom", name: "Custom", service_type: "service", capabilities: ["docker_deploy"]) }
-  let!(:builder) { plugin.builders.create!(slug: "custom-builder", name: "Custom Builder", dokku_builder: "dockerfile", source_types: ["git"]) }
+  let!(:subtype) { plugin.service_subtypes.create!(subtype: "custom", name: "Custom", service_type: "service", capabilities: [ "docker_deploy" ]) }
+  let!(:builder) { plugin.builders.create!(slug: "custom-builder", name: "Custom Builder", dokku_builder: "dockerfile", source_types: [ "git" ]) }
 
   it "uninstalls an external plugin and its subtypes/builders" do
     expect {

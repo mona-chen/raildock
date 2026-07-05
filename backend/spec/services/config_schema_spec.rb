@@ -6,7 +6,7 @@ RSpec.describe ConfigSchema do
       "endpoint" => { type: "string", required: true, label: "Endpoint" },
       "count" => { type: "integer", required: false, label: "Count", min: 0, max: 10 },
       "enabled" => { type: "boolean", required: true, label: "Enabled" },
-      "region" => { type: "select", required: false, label: "Region", options: ["us", "eu"] }
+      "region" => { type: "select", required: false, label: "Region", options: [ "us", "eu" ] }
     }
   end
 
