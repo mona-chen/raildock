@@ -550,7 +550,7 @@ export const gitSourcesApi = {
     await fetchJson(`/api/git-sources/${id}`, { method: 'DELETE' })
   },
 
-  repos: async (id: string): Promise<{ repos: GitRepo[]; syncing: boolean }> => {
+  repos: async (id: string): Promise<{ repos: GitRepo[]; syncing: boolean; error?: string }> => {
     return fetchJson(`/api/git-sources/${id}/repos`)
   },
 

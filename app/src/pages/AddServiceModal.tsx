@@ -70,6 +70,15 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const [gitBranch, setGitBranch] = useState('main')
   const [dockerImage, setDockerImage] = useState('')
 
+  // Keep appSubtype aligned with source type: docker source implies docker subtype
+  useEffect(() => {
+    if (sourceType === 'docker') {
+      setAppSubtype('docker')
+    } else {
+      setAppSubtype((current) => (current === 'docker' ? 'web' : current))
+    }
+  }, [sourceType])
+
   const appSubtypes = useServiceSubtypes('app')
   const { data: gitBuilders = [] } = useBuilders('git')
   const { data: dockerBuilders = [] } = useBuilders('docker')
@@ -152,7 +161,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           name: finalName,
           subtype: appSubtype,
           category: 'app',
-          builder: builder === 'auto' ? undefined : builder,
+          builder: sourceType === 'docker' ? undefined : (builder === 'auto' ? undefined : builder),
           git_repo: sourceType === 'git' ? gitRepo : undefined,
           branch: sourceType === 'git' ? gitBranch : undefined,
           docker_image: sourceType === 'docker' ? dockerImage : undefined,
@@ -330,38 +339,40 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] text-white/40 block mb-1.5">Application Type</label>
-            <div className="space-y-2">
-              {appSubtypes.length === 0 && (
-                <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
-                  No application modules available
-                </div>
-              )}
-              {appSubtypes.map((st) => (
-                <button
-                  key={st.subtype}
-                  onClick={() => setAppSubtype(st.subtype)}
-                  className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all ${
-                    appSubtype === st.subtype
-                      ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
-                      : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
-                  }`}
-                >
-                  <ServiceIcon subtype={st.subtype} size={18} />
-                  <div className="flex-1">
-                    <div className="text-[13px] text-white/70">{st.name}</div>
-                    <div className="text-[11px] text-white/40">{st.description}</div>
+          {sourceType === 'git' && (
+            <div>
+              <label className="text-[11px] text-white/40 block mb-1.5">Application Type</label>
+              <div className="space-y-2">
+                {appSubtypes.length === 0 && (
+                  <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                    No application modules available
                   </div>
-                  {appSubtype === st.subtype && (
-                    <div className="w-4 h-4 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+                )}
+                {appSubtypes.filter((st) => st.subtype !== 'docker').map((st) => (
+                  <button
+                    key={st.subtype}
+                    onClick={() => setAppSubtype(st.subtype)}
+                    className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all ${
+                      appSubtype === st.subtype
+                        ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
+                        : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                    }`}
+                  >
+                    <ServiceIcon subtype={st.subtype} size={18} />
+                    <div className="flex-1">
+                      <div className="text-[13px] text-white/70">{st.name}</div>
+                      <div className="text-[11px] text-white/40">{st.description}</div>
                     </div>
-                  )}
-                </button>
-              ))}
+                    {appSubtype === st.subtype && (
+                      <div className="w-4 h-4 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {sourceType === 'git' && (
             <div className="space-y-3">
@@ -445,34 +456,38 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                       )}
                     </>
                   ) : (
-                    <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
-                      {reposSyncing
-                        ? 'Syncing repositories...'
-                        : 'No repositories found. Check your Git source connection.'}
+                    <div className="text-[12px] text-white/30 py-3 text-center border border-dashed border-white/[0.06] rounded-lg space-y-1">
+                      {reposSyncing ? (
+                        <span>Syncing repositories…</span>
+                      ) : reposData?.error ? (
+                        <span>{reposData.error}</span>
+                      ) : !selectedGitSource.installationId ? (
+                        <span>Repository lists are only synced for GitHub App connections. Paste the repository URL below to deploy from this account.</span>
+                      ) : (
+                        <span>No repositories found. Check your Git source connection.</span>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Manual repo fallback */}
-              {!selectedGitSource && (
-                <div>
-                  <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
-                    Repository URL
-                    <span title="Use the HTTPS or SSH clone URL of your repository. For private repos, make sure you've connected a Git source or added a deploy key." className="cursor-help">
-                      <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
-                    </span>
-                  </label>
-                  <input
-                    value={gitRepo}
-                    onChange={(e) => setGitRepo(e.target.value)}
-                    placeholder="https://github.com/username/repo.git"
-                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
-                  />
-                </div>
-              )}
+              {/* Repository URL — also acts as the manual fallback */}
+              <div>
+                <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
+                  Repository URL
+                  <span title="Use the HTTPS or SSH clone URL of your repository. Selecting a repo above fills this automatically." className="cursor-help">
+                    <HelpCircle size={12} className="text-white/20 hover:text-white/40" />
+                  </span>
+                </label>
+                <input
+                  value={gitRepo}
+                  onChange={(e) => setGitRepo(e.target.value)}
+                  placeholder="https://github.com/username/repo.git"
+                  className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                />
+              </div>
 
-              {!selectedGitSource && <div className="flex gap-3">
+              <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-[11px] text-white/40 block mb-1.5">Branch</label>
                   <input
@@ -494,10 +509,10 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                     className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
                   />
                 </div>
-              </div>}
+              </div>
 
               {/* Builder Selection */}
-              {!selectedGitSource && builders.length > 0 && <div>
+              {builders.length > 0 && <div>
                 <label className="text-[11px] text-white/40 block mb-1.5 flex items-center gap-1.5">
                   Builder
                   <span title="Builders determine how your code is turned into a container image." className="cursor-help">
@@ -552,12 +567,12 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           )}
 
           <button
-            onClick={selectedGitSource && sourceType === 'git' ? handleScanRepository : handleCreateApp}
+            onClick={selectedGitSource?.installationId && sourceType === 'git' ? handleScanRepository : handleCreateApp}
             disabled={isCreating || isScanning || (sourceType === 'git' && !gitRepo.trim()) || (sourceType === 'docker' && !dockerImage.trim())}
             className="w-full py-2.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isScanning ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            {isScanning ? 'Reading deployment settings…' : isCreating ? 'Creating...' : selectedGitSource && sourceType === 'git' ? 'Continue' : 'Create Application'}
+            {isScanning ? 'Reading deployment settings…' : isCreating ? 'Creating...' : selectedGitSource?.installationId && sourceType === 'git' ? 'Continue' : 'Create Application'}
           </button>
         </div>
       </ModalShell>
