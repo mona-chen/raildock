@@ -100,7 +100,7 @@ module Api
     end
 
     def settings_params
-      params.permit!
+      params.require(:settings).to_unsafe_h
     end
   end
 end

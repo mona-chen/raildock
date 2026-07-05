@@ -145,19 +145,19 @@ RSpec.describe "Plugins API", type: :request do
     end
 
     it "persists valid settings for admins" do
-      patch "/api/modules/ext/settings", params: { endpoint: "https://b.com", count: 5 }, headers: admin_headers
+      patch "/api/modules/ext/settings", params: { settings: { endpoint: "https://b.com", count: 5 } }, headers: admin_headers
       expect(response).to have_http_status(:ok)
       expect(plugin.plugin_settings.find_by(key: "endpoint").value).to eq("https://b.com")
       expect(plugin.plugin_settings.find_by(key: "count").value).to eq("5")
     end
 
     it "rejects invalid settings" do
-      patch "/api/modules/ext/settings", params: { endpoint: "" }, headers: admin_headers
+      patch "/api/modules/ext/settings", params: { settings: { endpoint: "" } }, headers: admin_headers
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "rejects non-admins" do
-      patch "/api/modules/ext/settings", params: { endpoint: "x" }, headers: auth_headers
+      patch "/api/modules/ext/settings", params: { settings: { endpoint: "x" } }, headers: auth_headers
       expect(response).to have_http_status(:forbidden)
     end
   end

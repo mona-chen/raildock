@@ -882,7 +882,7 @@ export const modulesApi = {
   updateSettings: async (slug: string, settings: Record<string, string | number | boolean>): Promise<{ success: boolean; settings: Record<string, string> }> => {
     return fetchJson(`/api/modules/${encodeURIComponent(slug)}/settings`, {
       method: 'PATCH',
-      body: JSON.stringify(settings),
+      body: JSON.stringify({ settings }),
     })
   },
 }

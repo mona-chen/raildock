@@ -9,7 +9,7 @@ Rails.application.routes.draw do
     get "me", to: "auth#me"
     get "setup", to: "users#setup_required"
     post "users", to: "users#create"
-    resources :modules, controller: "plugins", only: [:index] do
+    resources :modules, controller: "plugins", only: [ :index ] do
       collection do
         post :install
       end

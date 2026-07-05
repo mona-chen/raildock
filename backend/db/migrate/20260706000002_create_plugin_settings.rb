@@ -9,6 +9,6 @@ class CreatePluginSettings < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :plugin_settings, [:plugin_id, :key], unique: true
+    add_index :plugin_settings, [ :plugin_id, :key ], unique: true
   end
 end

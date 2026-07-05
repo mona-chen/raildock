@@ -19,7 +19,7 @@ RSpec.describe ManifestGenerator do
         @web = project.services.create!(
           name: "web",
           service_type: "app",
-          subtype: "rails",
+          subtype: "web",
           status: "stopped",
           builder: "nixpacks",
           git_repo: "https://github.com/test/app",
@@ -52,7 +52,7 @@ RSpec.describe ManifestGenerator do
 
         expect(toml).to include('name = "web"')
         expect(toml).to include('category = "app"')
-        expect(toml).to include('subtype = "rails"')
+        expect(toml).to include('subtype = "web"')
         expect(toml).to include('builder = "nixpacks"')
         expect(toml).to include('repo = "https://github.com/test/app"')
         expect(toml).to include('branch = "main"')
@@ -88,7 +88,7 @@ RSpec.describe ManifestGenerator do
 
         web = parsed.find_service("web")
         expect(web[:category]).to eq("app")
-        expect(web[:subtype]).to eq("rails")
+        expect(web[:subtype]).to eq("web")
         expect(web[:env]["RAILS_ENV"]).to eq("production")
         expect(web[:scaling]["web"]).to eq(2)
         expect(web[:domains]).to include("api.example.com")

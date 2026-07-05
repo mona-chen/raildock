@@ -8,10 +8,10 @@ RSpec.describe InstallPluginJob, type: :job do
       "name" => "External Test",
       "category" => "tool",
       "subtypes" => [
-        { "subtype" => "custom", "name" => "Custom", "service_type" => "service", "capabilities" => ["docker_deploy"] }
+        { "subtype" => "custom", "name" => "Custom", "service_type" => "service", "capabilities" => [ "docker_deploy" ] }
       ],
       "builders" => [
-        { "slug" => "custom-builder", "name" => "Custom Builder", "dokku_builder" => "dockerfile", "source_types" => ["git"] }
+        { "slug" => "custom-builder", "name" => "Custom Builder", "dokku_builder" => "dockerfile", "source_types" => [ "git" ] }
       ]
     }
   end
@@ -31,7 +31,7 @@ RSpec.describe InstallPluginJob, type: :job do
   end
 
   it "raises when the manifest is invalid" do
-    manifest_double = instance_double(PluginManifest, fetch: nil, errors: ["Missing slug"])
+    manifest_double = instance_double(PluginManifest, fetch: nil, errors: [ "Missing slug" ])
     allow(PluginManifest).to receive(:new).with(manifest_url).and_return(manifest_double)
 
     expect {
