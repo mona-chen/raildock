@@ -6,13 +6,12 @@ import { useUnlinkService, useLinkedByServices } from '@/hooks/useServices'
 import type { Service } from '@/types'
 
 function maskConnectionUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    if (u.password) u.password = '••••••••'
-    return u.toString()
-  } catch {
-    return url
-  }
+  // Mask the password segment in the URL string with bullets. We can't go
+  // through `new URL(url)` + `u.password = ...` + `u.toString()` because the
+  // URL serializer would percent-encode the bullet characters (U+2022) and
+  // produce an ugly `%E2%80%A2` string instead of the dots the user expects.
+  // The user segment is optional (e.g. `redis://:password@host` has no user).
+  return url.replace(/(?<=:\/\/(?:[^:@/]+:)?)[^@]+(?=@)/, '••••••••')
 }
 
 function quickConnectCommand(subtype: string, url: string): string {
