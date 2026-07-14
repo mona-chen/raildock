@@ -70,7 +70,7 @@ module Api
           exposed: svc_def[:exposed],
           port: svc_def[:port],
           config: build_config(svc_def),
-          managed_by: "manifest"
+          managed_by: "ui"
         )
 
         # Create process types from scaling
