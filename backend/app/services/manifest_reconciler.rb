@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "ostruct"
 
 # Compares a manifest's desired state against the actual state of a project's services,
 # producing a list of classified changes ready for application.
