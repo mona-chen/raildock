@@ -474,6 +474,12 @@ class ManifestReconciler
       # Sync RAILDOCK_STORAGE_* env vars for any mounts defined in the manifest.
       sync_storage_env_vars!(engine, service) if service.storage_mounts.any?
 
+      # Configure external proxy labels and network after DB record exists.
+      if @project.server.external_proxy? && service.service_type_app?
+        ExternalProxyConfigurator.new(service, engine, @host_engine).apply!
+        ProjectNetworkManager.new(@project, engine).send(:configure_attach_networks, service)
+      end
+
       result = result.merge(service_id: service.id, deploy: svc[:category] == "app")
     end
 
@@ -498,18 +504,10 @@ class ManifestReconciler
     app_result = engine.app_create(app_name)
     return app_result unless app_result[:success]
 
-    if @project.server.external_proxy?
-      # Apply labels and network attachment before the first deploy.
-      svc = Service.find_by(dokku_app_name: app_name)
-      if svc
-        ExternalProxyConfigurator.new(svc, engine, @host_engine).apply!
-        ProjectNetworkManager.new(@project, engine).send(:configure_attach_networks, svc)
-      end
-      return { success: true }
-    end
-
     proxy_type = svc.dig(:proxy, :type) || "traefik"
     engine.proxy_set(app_name, proxy_type)
+
+    { success: true, app_name: app_name }
   end
 
   def apply_destroy_service(engine, change)
