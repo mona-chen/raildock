@@ -18,9 +18,9 @@ module Api
       return head :bad_request unless repo_name
 
       # Find services linked to this repo that have auto_deploy enabled.
-      # Database services (postgres, redis, etc.) are excluded — they're
-      # stateful infrastructure created once via manifest and never redeployed
-      # on git push.
+      # Infrastructure services (database, cache, queue, search, service)
+      # are excluded — they're stateful and were created once via manifest
+      # apply. Only apps rebuild on git push.
       services = Service.matching_repo(
         repo_name,
         repository[:clone_url] || repository["clone_url"],
@@ -66,7 +66,7 @@ module Api
     def service_deploy
       service = Service.find_by(id: params[:id], webhook_token: params[:token])
       return head :not_found unless service
-      return render json: { error: "Database services cannot be deployed" }, status: :unprocessable_entity if service.service_type_database?
+      return render json: { error: "Only app services can be deployed" }, status: :unprocessable_entity unless service.service_type_app?
 
       branch = params[:branch] || service.branch || "main"
 

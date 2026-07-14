@@ -10,11 +10,13 @@ class DeploymentJob < ApplicationJob
     server = project.server
     deployment = service.deployments.find(deployment_id)
 
-    # Database services (postgres, redis, etc.) are stateful infrastructure.
-    # They should never be deployed. Mark any stale deployment records as
-    # cancelled to keep the audit trail clean.
-    if service.service_type_database?
-      deployment.cancel!(message: "Database services cannot be deployed; only app services auto-deploy on git push")
+    # Only app services get redeployed on git push. Infrastructure services
+    # (database, cache, queue, search, service) are stateful — they were
+    # created once via manifest apply and any change to them flows through
+    # the reconciler without redeploying. Cancel any stale deployment record
+    # that slipped through (e.g. before the webhook filter was tightened).
+    unless service.service_type_app?
+      deployment.cancel!(message: "Only app services auto-deploy on git push; #{service.service_type} services are stateful infrastructure")
       return
     end
 

@@ -427,8 +427,8 @@ class ManifestReconciler
         maintenance_mode: svc[:maintenance] || false,
         restart_policy: svc[:restart_policy],
         restart_max_retries: svc[:restart_max_retries],
-        # Database services are stateful infrastructure — never auto-deploy.
-        # Only app services redeploy on git push.
+        # Only app services auto-deploy on git push. Infrastructure
+        # services (database, cache, queue, search, service) are stateful.
         auto_deploy: svc[:category] == "app" ? (svc[:auto_deploy].nil? ? true : svc[:auto_deploy]) : false,
         dokku_app_name: app_name,
         managed_by: "manifest",
