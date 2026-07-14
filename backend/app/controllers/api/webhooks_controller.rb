@@ -17,7 +17,10 @@ module Api
 
       return head :bad_request unless repo_name
 
-      # Find services linked to this repo that have auto_deploy enabled
+      # Find services linked to this repo that have auto_deploy enabled.
+      # Database services (postgres, redis, etc.) are excluded — they're
+      # stateful infrastructure created once via manifest and never redeployed
+      # on git push.
       services = Service.matching_repo(
         repo_name,
         repository[:clone_url] || repository["clone_url"],
@@ -25,7 +28,7 @@ module Api
         repository[:html_url] || repository["html_url"],
         project[:git_http_url] || project["git_http_url"],
         project[:git_ssh_url] || project["git_ssh_url"],
-      ).where(auto_deploy: true)
+      ).where(auto_deploy: true, service_type: :app)
 
       services = services.select do |service|
         expected_branch = service.branch.presence ||

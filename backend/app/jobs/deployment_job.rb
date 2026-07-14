@@ -10,6 +10,14 @@ class DeploymentJob < ApplicationJob
     server = project.server
     deployment = service.deployments.find(deployment_id)
 
+    # Database services (postgres, redis, etc.) are stateful infrastructure.
+    # They should never be deployed. Mark any stale deployment records as
+    # cancelled to keep the audit trail clean.
+    if service.service_type_database?
+      deployment.cancel!(message: "Database services cannot be deployed; only app services auto-deploy on git push")
+      return
+    end
+
     return mark_failed(deployment, service, "No server configured") unless server
     return mark_failed(deployment, service, "No SSH key configured") if server.ssh_key.blank?
 

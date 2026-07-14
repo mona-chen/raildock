@@ -307,7 +307,7 @@ module Api
         repo["url"]
       ]
 
-      services = Service.matching_repo(*identifiers).where(auto_deploy: true).includes(project: :organization)
+      services = Service.matching_repo(*identifiers).where(auto_deploy: true, service_type: :app).includes(project: :organization)
       services = services.select { |service| github_source_can_deploy_service?(git_source, service) } if git_source
 
       services.each do |service|
