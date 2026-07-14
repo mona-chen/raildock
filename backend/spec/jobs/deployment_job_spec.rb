@@ -63,6 +63,8 @@ RSpec.describe DeploymentJob, type: :job do
     allow(host_engine).to receive(:with_session).and_yield
     allow(host_engine).to receive(:builder_available?).and_return(true)
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
+    allow(host_engine).to receive(:run).and_return({ success: false, output: "" })
+    allow(host_engine).to receive(:docker_inspect).and_return({ success: false, output: "" })
     allow(engine).to receive(:config_export_json).and_return({ success: true, output: "{}" })
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })

@@ -11,7 +11,7 @@ class PortDetector
   # The Dokku SSH user intercepts raw Docker commands, so we use Dokku's
   # native reporting instead of `docker inspect`.
   #
-  # Priority: manifest port > domain target_port > Docker EXPOSE > ports:report > defaults.
+  # Priority: manifest port > domain target_port > actual listening ports > Docker EXPOSE > ports:report > defaults.
   # Docker's EXPOSE directive is unreliable — many Dockerfiles EXPOSE 80 while the
   # app actually listens on a different port (e.g. Rails on 3000).  The manifest's
   # `port` field and domain `target_port` are the authoritative sources.
@@ -28,31 +28,38 @@ class PortDetector
     port = service.domains.pick(:target_port)
     return port if port.present? && port > 0
 
-    # Try 3: Inspect the running container's actual listening sockets. This is
-    # more reliable than ports:report when RailDock previously fell back to 5000.
+    detect_actual(service)
+  rescue => e
+    Rails.logger.error "Port detection failed for #{app_name}: #{e.message}"
+    nil
+  end
+
+  # Detect the port the running container is actually listening on, ignoring
+  # manifest-declared values. This is used after a deploy to validate that the
+  # configured port matches reality, and to refresh routing when the app's port
+  # changes.
+  #
+  # Priority: actual listening sockets > Docker EXPOSE > ports:report > defaults.
+  def detect_actual(service)
+    app_name = service.dokku_app_name
+
+    # Try 1: Inspect the running container's actual listening sockets. This is
+    # the most reliable source after the app has started.
     port = detect_from_listening_ports(app_name)
     return port if port
 
-    # Try 4: Docker EXPOSE metadata (unreliable — often wrong)
+    # Try 2: Docker EXPOSE metadata (unreliable — often wrong)
     port = detect_from_container(app_name)
     return port if port
 
-    # Try 5: Dokku's ports:report (reflects configured mapping, which may be stale)
+    # Try 3: Dokku's ports:report (reflects configured mapping, which may be stale)
     port = detect_from_ports_report(app_name)
     return port if port
 
-    # Try 6: Datastore plugin info (for postgres, redis, etc.)
-    port = detect_from_datastore_info(service, app_name)
-    return port if port
-
-    # Try 7: Known default ports by service type
-    port = default_port_for_subtype(service.subtype)
-    return port if port
-
-    # Try 8: Generic fallback based on deployment method
+    # Try 4: Generic fallback based on deployment method
     service.docker_image.present? ? 80 : 5000
   rescue => e
-    Rails.logger.error "Port detection failed for #{app_name}: #{e.message}"
+    Rails.logger.error "Actual port detection failed for #{app_name}: #{e.message}"
     nil
   end
 
@@ -88,20 +95,27 @@ class PortDetector
     result = @host_engine.run("docker exec #{Shellwords.escape(container)} sh -c 'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null'")
     return unless result[:success]
 
-    ports = parse_proc_net_tcp(result[:output])
-    return nil if ports.empty?
+    all_interfaces, localhost_only = parse_proc_net_tcp(result[:output])
+
+    # Prefer ports bound to all interfaces (0.0.0.0 or ::); those are the
+    # externally reachable application ports. Loopback-only listeners are often
+    # dev servers or sidecars and should only be used as a fallback.
+    candidates = all_interfaces.any? ? all_interfaces : localhost_only
+    return nil if candidates.empty?
 
     # Prefer non-system ports (>1024). If only system ports are listening,
     # fall back to the smallest one.
-    non_system = ports.select { |p| p > 1024 }
-    non_system.any? ? non_system.min : ports.min
+    non_system = candidates.select { |p| p > 1024 }
+    non_system.any? ? non_system.min : candidates.min
   rescue => e
     Rails.logger.warn "Listening-port detection failed for #{app_name}: #{e.message}"
     nil
   end
 
   def parse_proc_net_tcp(output)
-    ports = []
+    all_interfaces = []
+    localhost_only = []
+
     output.each_line do |line|
       fields = line.split
       next if fields.size < 4
@@ -111,13 +125,21 @@ class PortDetector
       state = fields[3]
       next unless state == "0A" # TCP_LISTEN
 
-      _ip_hex, port_hex = local_address.split(":", 2)
+      ip_hex, port_hex = local_address.split(":", 2)
       next if port_hex.blank?
 
       port = port_hex.to_i(16)
-      ports << port if port > 0
+      next unless port > 0
+
+      # IPv4 all interfaces: 00000000; IPv6 all interfaces: 00000000000000000000000000000000
+      if ip_hex == "00000000" || ip_hex == "00000000000000000000000000000000"
+        all_interfaces << port
+      else
+        localhost_only << port
+      end
     end
-    ports.uniq
+
+    [ all_interfaces.uniq, localhost_only.uniq ]
   end
 
   # Parse Dokku's `ports:report` output to extract the detected container port.

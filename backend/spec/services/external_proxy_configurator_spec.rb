@@ -100,4 +100,23 @@ RSpec.describe ExternalProxyConfigurator do
       expect(label).to include('loadbalancer.server.port=3000')
     end
   end
+
+  it "uses the actual listening port when the manifest port is stale" do
+    service.update!(port: 5173, detected_port: 5000)
+    service.domains.update_all(target_port: nil)
+    allow(host_engine).to receive(:dokku_container_name).with(service.dokku_app_name).and_return("app.web.1")
+    allow(host_engine).to receive(:run).with("docker exec app.web.1 sh -c 'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null'")
+      .and_return(success: true, output: "  0: 00000000:0BB8 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000 0 12345 1 0000000000000000 100 0 0 10 0\n")
+
+    described_class.new(service, engine, host_engine).apply!
+
+    expect(engine).to have_received(:docker_option_add).with(
+      service.dokku_app_name,
+      "deploy",
+      a_string_including('traefik.http.services.'),
+      process: "web"
+    ) do |_, _, label, _|
+      expect(label).to include('loadbalancer.server.port=3000')
+    end
+  end
 end

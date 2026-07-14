@@ -62,16 +62,41 @@ class ExternalProxyConfigurator
     # that overwrites the correct port from the primary domain.
     # Determine the port once, using the authoritative priority chain.
     app_name = service.dokku_app_name
-    target = service.port ||
-             service.domains.where(temporary: false).where.not(target_port: nil).pick(:target_port) ||
-             service.detected_port ||
-             5000
+    target = effective_target_port
     generated["traefik.http.services.#{app_name}-web.loadbalancer.server.port"] = target.to_s
 
     traefik_config = service.config&.dig("traefik") || {}
     configured = traefik_config["labels"].is_a?(Hash) ? traefik_config["labels"] : traefik_config
     configured = configured.select { |_key, value| value.is_a?(String) || value.is_a?(Numeric) || [ true, false ].include?(value) }
     server.external_proxy_default_labels.to_h.merge(generated).merge(configured).transform_values(&:to_s)
+  end
+
+  # Choose the port Traefik should forward to.
+  #
+  # Priority:
+  #   1. An explicit domain target_port (user override per domain).
+  #   2. The port the running container is actually listening on. This catches
+  #      cases where the Dockerfile or startup command changed and the old
+  #      manifest port is now stale.
+  #   3. The manifest-declared service.port.
+  #   4. Any previously auto-detected port.
+  #   5. Dokku's generic fallback (5000).
+  def effective_target_port
+    domain_target = service.domains.where(temporary: false).where.not(target_port: nil).pick(:target_port)
+    return domain_target if domain_target.present? && domain_target > 0
+
+    actual = PortDetector.new(engine, host_engine: host_engine).detect_actual(service)
+    if actual.present? && actual > 0
+      if service.port.present? && service.port > 0 && service.port != actual
+        Rails.logger.warn "Service #{service.dokku_app_name} manifest port #{service.port} does not match actual listening port #{actual}; using actual port"
+      end
+      return actual
+    end
+
+    return service.port if service.port.present? && service.port > 0
+    return service.detected_port if service.detected_port.present? && service.detected_port > 0
+
+    5000
   end
 
   def add_label(key, value)

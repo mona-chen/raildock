@@ -183,7 +183,7 @@ class RepositoryDiscovery
 
     def file_content(path, commit_sha)
       content = @client.contents(@repository, path: path, ref: commit_sha)
-      Base64.decode64(content.content.to_s)
+      Base64.decode64(content.content.to_s).force_encoding("UTF-8")
     end
 
     def inferred_name(original, root, multiple)

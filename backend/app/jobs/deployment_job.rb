@@ -327,11 +327,21 @@ class DeploymentJob < ApplicationJob
       started_at: deployment.started_at.iso8601
     })
 
-    # 10. Detect the app's listening port from the running container/image
+    # 10. Detect the app's listening port from the running container/image.
+    # Always refresh detected_port with the actual listening port so proxy/routing
+    # config stays in sync when the app's port changes.
+    actual_port = nil
     begin
       port_detector = PortDetector.new(engine, host_engine: host_engine)
       detected = port_detector.detect(service)
-      if detected
+      actual_port = port_detector.detect_actual(service)
+      if actual_port && actual_port > 0
+        if service.port.present? && service.port > 0 && service.port != actual_port
+          Rails.logger.warn "Port mismatch for #{service.dokku_app_name}: manifest port #{service.port}, actual listening port #{actual_port}"
+        end
+        service.update!(detected_port: actual_port)
+        Rails.logger.info "Detected actual port #{actual_port} for #{service.dokku_app_name}"
+      elsif detected && detected > 0
         service.update!(detected_port: detected)
         Rails.logger.info "Detected port #{detected} for #{service.dokku_app_name}"
       end
@@ -347,7 +357,7 @@ class DeploymentJob < ApplicationJob
     # 11. Re-apply port mappings after the build using the actual detected port
     # and any explicit per-domain target_port. Bulk-set both http and https in
     # one call; calling ports:set one mapping at a time overwrites the previous.
-    target = service.port || domain_target_port(service) || service.detected_port || 5000
+    target = domain_target_port(service) || actual_port || service.port || service.detected_port || 5000
     unless server.external_proxy?
       result = apply_container_port_mapping(service, engine, target, deployment)
       return result unless result[:success]
