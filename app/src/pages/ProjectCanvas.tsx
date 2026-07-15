@@ -36,10 +36,29 @@ import ManifestEditorPage from './ManifestEditorPage'
 
 // ── Helpers ───────────────────────────────────
 
+const GRID = { startX: 100, startY: 80, stepX: 300, stepY: 180, cols: 3 }
+const CARD_W = 240
+const CARD_H = 120
+
+function gridSlot(i: number) {
+  return { x: GRID.startX + (i % GRID.cols) * GRID.stepX, y: GRID.startY + Math.floor(i / GRID.cols) * GRID.stepY }
+}
+
+function overlaps(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.abs(a.x - b.x) < CARD_W && Math.abs(a.y - b.y) < CARD_H
+}
+
+// First grid slot at or after startIndex that doesn't overlap any taken position
+function freeSlot(taken: { x: number; y: number }[], startIndex: number) {
+  let i = startIndex
+  while (taken.some((p) => overlaps(p, gridSlot(i)))) i += 1
+  return gridSlot(i)
+}
+
 function autoLayout(services: Service[]) {
   const pos: Record<string, { x: number; y: number }> = {}
   services.forEach((s, i) => {
-    pos[s.id] = { x: 100 + (i % 3) * 300, y: 80 + Math.floor(i / 3) * 180 }
+    pos[s.id] = gridSlot(i)
   })
   return pos
 }
@@ -97,17 +116,21 @@ export default function ProjectCanvas() {
   useEffect(() => {
     setPositions((prev) => {
       const next: typeof prev = {}
-      services.forEach((s) => {
+      const taken: { x: number; y: number }[] = []
+      services.forEach((s, i) => {
+        let p: { x: number; y: number }
         // Prefer saved DB positions
         if (s.canvas_x != null && s.canvas_y != null) {
-          next[s.id] = { x: s.canvas_x, y: s.canvas_y }
+          p = { x: s.canvas_x, y: s.canvas_y }
         } else if (prev[s.id]) {
           // Keep existing local position
-          next[s.id] = prev[s.id]
+          p = prev[s.id]
         } else {
-          // First time: auto-layout
-          next[s.id] = autoLayout(services)[s.id]
+          // First time: auto-layout into a slot that doesn't overlap existing nodes
+          p = freeSlot(taken, i)
         }
+        next[s.id] = p
+        taken.push(p)
       })
       return next
     })
