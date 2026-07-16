@@ -8,6 +8,7 @@ vi.mock('@/hooks/useServices', () => ({
   useCreateService: () => ({ mutate: vi.fn(), isPending: false }),
   useScaleProcess: () => ({ mutate: vi.fn(), isPending: false }),
   useSetEnvVar: () => ({ mutate: vi.fn() }),
+  useSetEnvVars: () => ({ mutate: vi.fn() }),
   useUnsetEnvVar: () => ({ mutate: vi.fn() }),
   useServiceMetrics: () => ({ data: null }),
   useServiceDeployments: () => ({ data: [] }),

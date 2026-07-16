@@ -37,6 +37,35 @@ module Api
       render json: { restart_deployment_id: restart_deployment_id }
     end
 
+    # Bulk upsert used by the raw editor: writes all provided vars in one
+    # transaction, syncs to Dokku once, and schedules a single restart —
+    # saving N lines must not produce N restarts in the deploy log.
+    def bulk_update
+      vars = bulk_env_vars_params
+      if vars.empty?
+        return render json: { error: "vars must be a non-empty array of { key, value }" },
+                      status: :unprocessable_entity
+      end
+
+      EnvironmentVariable.transaction do
+        vars.each do |var|
+          ev = @service.environment_variables.find_or_initialize_by(key: var[:key])
+          ev.assign_attributes(var)
+          ev.save!
+        end
+      end
+
+      sync_result = sync_env_to_dokku
+      if sync_result[:error]
+        return render json: { error: sync_result[:error] },
+                      status: sync_result[:status] || :unprocessable_entity
+      end
+
+      restart_deployment_id = trigger_restart_after_env_change
+
+      render json: { updated: vars.size, restart_deployment_id: restart_deployment_id }.compact
+    end
+
     private
 
     def set_and_authorize_service!
@@ -46,6 +75,13 @@ module Api
 
     def env_var_params
       params.permit(:key, :value, :source, :is_dokku_internal)
+    end
+
+    def bulk_env_vars_params
+      Array(params[:vars]).filter_map do |var|
+        permitted = var.permit(:key, :value, :source, :is_dokku_internal)
+        permitted if permitted[:key].present?
+      end
     end
 
     # Sync the entire desired env state to Dokku in one batched call:

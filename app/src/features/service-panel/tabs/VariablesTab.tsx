@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FileCode, Plus, Check, Copy, Eye, EyeOff, Wrench, Trash2, AlertCircle } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
-import { useSetEnvVar, useUnsetEnvVar } from '@/hooks/useServices'
+import { useSetEnvVar, useSetEnvVars, useUnsetEnvVar } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import { toast } from 'sonner'
 import type { Service } from '@/types'
@@ -30,6 +30,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
   const { copiedKey, copy } = useCopy(1500)
   const setEnvVar = useSetEnvVar()
+  const setEnvVars = useSetEnvVars()
   const unsetEnvVar = useUnsetEnvVar()
 
   const userVars = svc.envVars.filter((ev) => !ev.isDokkuInternal)
@@ -82,12 +83,17 @@ export default function VariablesTab({ svc }: { svc: Service }) {
       toast.error('No valid KEY=VALUE pairs found')
       return
     }
-    for (const { key, value } of parsed) {
-      setEnvVar.mutate({ id: svc.id, key, value })
-    }
-    setRawText('')
-    setMode('list')
-    toast.success(`Saved ${parsed.length} variable(s)`)
+    // One bulk request: the backend syncs to Dokku once and schedules a
+    // single restart, instead of one restart per variable.
+    setEnvVars.mutate(
+      { id: svc.id, vars: parsed },
+      {
+        onSuccess: () => {
+          setRawText('')
+          setMode('list')
+        },
+      }
+    )
   }
 
   const handleInsertShared = (key: string) => {
@@ -238,7 +244,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
         </div>
       </div>
 
-      {(setEnvVar.isPending || unsetEnvVar.isPending) && (
+      {(setEnvVar.isPending || setEnvVars.isPending || unsetEnvVar.isPending) && (
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex items-center gap-2">
           <AlertCircle size={14} className="text-amber-400/60" />
           <span className="text-[12px] text-amber-400/70">

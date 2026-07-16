@@ -231,6 +231,13 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/env-vars/${encodeURIComponent(key)}`, { method: 'DELETE' })
   },
 
+  setEnvVars: async (
+    id: string,
+    vars: { key: string; value: string }[]
+  ): Promise<{ updated: number; restart_deployment_id?: string }> => {
+    return fetchJson(`/api/services/${id}/env-vars`, { method: 'PUT', body: JSON.stringify({ vars }) })
+  },
+
   addDomain: async (id: string, hostname: string, port: number, targetPort?: number): Promise<void> => {
     await fetchJson(`/api/services/${id}/domains`, { method: 'POST', body: JSON.stringify({ hostname, port, target_port: targetPort }) })
   },

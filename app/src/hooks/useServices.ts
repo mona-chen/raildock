@@ -129,6 +129,24 @@ export function useUnsetEnvVar() {
   })
 }
 
+export function useSetEnvVars() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, vars }: { id: string; vars: { key: string; value: string }[] }) =>
+      api.services.setEnvVars(id, vars),
+    onSuccess: (data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id] })
+      if (data?.restart_deployment_id) {
+        queryClient.invalidateQueries({ queryKey: ['services', id, 'deployments'] })
+        toast.success(`Saved ${data.updated} variable(s) — restarting to apply`)
+      } else {
+        toast.success(`Saved ${data?.updated ?? 0} variable(s)`)
+      }
+    },
+    onError: (err) => toast.error(`Failed to save variables: ${err.message}`),
+  })
+}
+
 export function useAddDomain() {
   const queryClient = useQueryClient()
   return useMutation({
