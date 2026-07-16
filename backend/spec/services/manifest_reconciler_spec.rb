@@ -200,6 +200,17 @@ RSpec.describe ManifestReconciler do
 
       expect(changes).not_to include(have_attributes(field: :proxy))
     end
+
+    it "preserves services missing from the manifest when preserve_removed_services is set" do
+      create(:service, project: project, name: "old-worker", managed_by: :manifest)
+      desired = desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ])
+
+      preserving = described_class.new(project, desired).diff(preserve_removed_services: true)
+      expect(preserving).not_to include(have_attributes(field: :service, change_type: :removed))
+
+      destroying = described_class.new(project, desired).diff
+      expect(destroying).to include(have_attributes(field: :service, change_type: :removed, service_name: "old-worker"))
+    end
   end
 
   describe "#apply!" do
@@ -248,6 +259,76 @@ RSpec.describe ManifestReconciler do
       expect(result[:success]).to be(true)
       expect(service.deployments.pending.count).to eq(1)
       expect(DeploymentSequenceJob).to have_received(:perform_later).once
+    end
+
+    it "does not prepare a deployment for services in deploy_exclusions" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks",
+        status: :error
+      )
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:port] = 3000
+      reconciler = described_class.new(project, desired_state(services: [ definition ]))
+      reconciler.diff
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(instance_double(DokkuEngine), host_engine: instance_double(HostEngine), deploy_exclusions: [ service.id ])
+
+      expect(result[:success]).to be(true)
+      expect(service.deployments.pending.count).to eq(0)
+      expect(DeploymentSequenceJob).not_to have_received(:perform_later)
+      expect(service.reload.port).to eq(3000)
+    end
+
+    it "skips env references with no stored value instead of writing the marker" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:env] = { "SECRET_KEY_BASE" => "[ENV:SECRET_KEY_BASE]", "WEBHOOK_SECRET" => "[SHARED:WEBHOOK_SECRET]" }
+      reconciler = described_class.new(project, desired_state(services: [ definition ]))
+      reconciler.diff
+      engine = instance_double(DokkuEngine)
+      allow(engine).to receive(:config_set)
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(engine, host_engine: instance_double(HostEngine))
+
+      expect(result[:success]).to be(true)
+      expect(engine).not_to have_received(:config_set)
+      expect(service.environment_variables.find_by(key: "SECRET_KEY_BASE")).to be_nil
+      expect(service.environment_variables.find_by(key: "WEBHOOK_SECRET")).to be_nil
+    end
+
+    it "resolves env references from the stored value without producing drift" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks"
+      )
+      service.environment_variables.create!(key: "SECRET_KEY_BASE", value: "stored-secret")
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:env] = { "SECRET_KEY_BASE" => "[ENV:SECRET_KEY_BASE]" }
+
+      changes = described_class.new(project, desired_state(services: [ definition ])).diff
+
+      expect(changes).not_to include(have_attributes(field: :env))
     end
 
     it "creates manifest domains with valid proxy ports" do

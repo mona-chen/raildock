@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "ostruct"
 
 # Compares a manifest's desired state against the actual state of a project's services,
@@ -39,8 +40,11 @@ class ManifestReconciler
     @diff_computed = false
   end
 
-  # Compute the full diff between desired and actual state
-  def diff
+  # Compute the full diff between desired and actual state.
+  # With preserve_removed_services, services missing from the manifest are
+  # kept (and only logged) — used by automatic repo syncs, where destruction
+  # must never happen without an explicit manifest apply.
+  def diff(preserve_removed_services: false)
     @changes = []
 
     # Services to create, update, or destroy
@@ -63,6 +67,10 @@ class ManifestReconciler
     (actual_names - desired_names).each do |name|
       svc = @actual[name]
       next if svc[:managed_by] == "ui" # Don't destroy UI-managed services
+      if preserve_removed_services
+        Rails.logger.warn "Service '#{name}' is no longer declared in the manifest; keeping it (apply the manifest explicitly to destroy it)"
+        next
+      end
       @changes << Change.new(
         service_name: name,
         field: :service,
@@ -84,8 +92,10 @@ class ManifestReconciler
     @changes
   end
 
-  # Apply all computed changes via DokkuEngine
-  def apply!(engine = nil, host_engine: nil)
+  # Apply all computed changes via DokkuEngine.
+  # deploy_exclusions: service ids that must not get a new deployment prepared
+  # (e.g. the service a push-triggered DeploymentJob is already deploying).
+  def apply!(engine = nil, host_engine: nil, deploy_exclusions: [])
     raise "No changes computed. Call diff first." unless @diff_computed
 
     engine ||= build_engine
@@ -135,6 +145,7 @@ class ManifestReconciler
       .where.not(id: Deployment.succeeded.select(:service_id))
       .pluck(:id)
     deploy_service_ids.merge(never_deployed_apps)
+    deploy_service_ids.subtract(deploy_exclusions)
 
     # Deploy only after every synchronous preparation phase has succeeded.
     # This ensures new apps cannot boot before links, credentials, and runtime
@@ -719,15 +730,13 @@ class ManifestReconciler
     # Set new / changed
     (desired.keys - actual.keys).each do |key|
       resolved = ManifestParser.resolve_runtime(desired[key], @project, service, service.linked_services)
-      engine.config_set(service.dokku_app_name, key, resolved)
-      service.environment_variables.find_or_initialize_by(key: key).update!(value: resolved)
+      apply_env_value(engine, service, key, resolved)
     end
 
     (desired.keys & actual.keys).each do |key|
       next if desired[key] == actual[key]
       resolved = ManifestParser.resolve_runtime(desired[key], @project, service, service.linked_services)
-      engine.config_set(service.dokku_app_name, key, resolved)
-      service.environment_variables.find_by(key: key)&.update!(value: resolved)
+      apply_env_value(engine, service, key, resolved)
     end
 
     # Unset removed
@@ -737,6 +746,20 @@ class ManifestReconciler
     end
 
     { success: true }
+  end
+
+  # Writes one env var to Dokku and the DB. A resolved value that still holds
+  # an unresolved reference marker means the manifest points at a value that
+  # does not exist yet — skip it rather than writing the literal marker
+  # string into the container env.
+  def apply_env_value(engine, service, key, resolved)
+    if (marker = resolved.to_s.match(/\[(ENV|SHARED|LINKED):[^\]]*\]/))
+      Rails.logger.warn "Skipping #{key} on #{service.dokku_app_name}: unresolved reference #{marker[0]} (no value stored in RailDock yet)"
+      return
+    end
+
+    engine.config_set(service.dokku_app_name, key, resolved)
+    service.environment_variables.find_or_initialize_by(key: key).update!(value: resolved)
   end
 
   def apply_domains_change(engine, service, change)

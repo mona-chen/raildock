@@ -421,5 +421,105 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).not_to have_received(:proxy_enable)
       end
     end
+
+    context "when a manifest-managed service deploys from a git push" do
+      let!(:owner) { create(:user) }
+      let!(:project) { create(:project, server: server, user: owner) }
+
+      let(:manifest_toml) do
+        <<~TOML
+          [[services]]
+          name = "web"
+          category = "app"
+          subtype = "web"
+          builder = "nixpacks"
+          restart_policy = "on-failure"
+          restart_max_retries = 10
+          source = { type = "git", repo = "https://github.com/example/repo.git", branch = "main" }
+
+            [services.env]
+            NEW_FROM_MANIFEST = "hello"
+        TOML
+      end
+
+      let(:github_client) { instance_double(Octokit::Client) }
+
+      before do
+        create(
+          :git_source,
+          user: owner,
+          provider: "github",
+          access_token: nil,
+          installation_id: "12345",
+          auth_method: :oauth_app,
+          metadata: {
+            "repos" => [
+              { "full_name" => "example/repo", "clone_url" => "https://github.com/example/repo.git" }
+            ]
+          }
+        )
+        allow(GithubAppService).to receive(:installation_token).with("12345").and_return("install-token")
+        allow(GithubAppService).to receive(:installation_client).with("12345").and_return(github_client)
+        allow(github_client).to receive(:contents) do |_repo, path:, ref:|
+          path == "raildock.toml" ? double(content: Base64.encode64(manifest_toml)) : (raise Octokit::NotFound)
+        end
+
+        allow(engine).to receive(:config_set).and_return({ success: true, output: "" })
+        allow(engine).to receive(:escape) { |value| value }
+        allow(engine).to receive(:checks_enable).and_return({ success: true, output: "" })
+        allow(engine).to receive(:checks_disable).and_return({ success: true, output: "" })
+        allow(engine).to receive(:checks_skip).and_return({ success: true, output: "" })
+        allow(engine).to receive(:checks_set).and_return({ success: true, output: "" })
+
+        service.update!(name: "web", managed_by: :manifest)
+        service.environment_variables.destroy_all
+        service.domains.destroy_all
+        service.storage_mounts.destroy_all
+        service.process_types.destroy_all
+      end
+
+      it "syncs env and manifest content from the repo before deploying (webhook trigger)" do
+        deployment.update!(triggered_by: "webhook")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(service.reload.environment_variables.find_by(key: "NEW_FROM_MANIFEST")&.value).to eq("hello")
+        expect(engine).to have_received(:config_set).with(service.dokku_app_name, "NEW_FROM_MANIFEST", "hello")
+        expect(project.reload.manifest_content).to eq(manifest_toml)
+        expect(project.manifest_format).to eq("raildock.toml")
+        expect(project.manifest_last_applied_at).to be_present
+      end
+
+      it "syncs from the repo for github_app-triggered deploys too" do
+        deployment.update!(triggered_by: "github_app")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(service.reload.environment_variables.find_by(key: "NEW_FROM_MANIFEST")&.value).to eq("hello")
+      end
+
+      it "skips the repo manifest sync for manual deploys" do
+        deployment.update!(triggered_by: "manual")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(service.reload.environment_variables.find_by(key: "NEW_FROM_MANIFEST")).to be_nil
+        expect(project.reload.manifest_content).to be_nil
+      end
+
+      it "skips the repo manifest sync for UI-managed services" do
+        service.update!(managed_by: :ui)
+        deployment.update!(triggered_by: "webhook")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(service.reload.environment_variables.find_by(key: "NEW_FROM_MANIFEST")).to be_nil
+        expect(project.reload.manifest_content).to be_nil
+      end
+    end
   end
 end

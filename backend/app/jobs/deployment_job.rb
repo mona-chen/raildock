@@ -2,6 +2,10 @@ class DeploymentJob < ApplicationJob
   include DokkuEnvBatchable
   queue_as :default
 
+  # Deployments created by these triggers come from git pushes — the only
+  # moments where re-syncing state from the repo's manifest makes sense.
+  PUSH_DEPLOY_TRIGGERS = %w[webhook github_app].freeze
+
   limits_concurrency to: 1, key: ->(service_id, deployment_id) { "deploy:#{service_id}" }
 
   def perform(service_id, deployment_id)
@@ -44,6 +48,12 @@ class DeploymentJob < ApplicationJob
 
   def perform_deployment(service, project, deployment, engine, host_engine)
     server = project.server
+
+    # 0. For manifest-managed services, a push-triggered deploy is also the
+    #    moment to re-sync RailDock state from the repo's manifest: env vars,
+    #    domains, or services declared there must reach the DB before the
+    #    env/domain sync steps below push state into the container.
+    sync_manifest_from_repo(service, project, deployment, engine, host_engine)
 
     # 0. Wait for linked database services to be ready and reachable.
     #    Dokku datastore:create returns before the container accepts connections,
@@ -514,10 +524,80 @@ class DeploymentJob < ApplicationJob
       .ensure_db_network_aliases(linked_dbs)
   end
 
+  # Re-read the repo's manifest on push-triggered deploys of manifest-managed
+  # services and reconcile it into RailDock state. Destructive changes
+  # (removing services) are never applied automatically — those still require
+  # an explicit manifest apply from the UI. Any failure here only logs a
+  # warning; the deploy itself proceeds with the stored state.
+  def sync_manifest_from_repo(service, project, deployment, engine, host_engine)
+    return unless PUSH_DEPLOY_TRIGGERS.include?(deployment.triggered_by)
+    return unless service.managed_by_manifest?
+
+    fetched = fetch_repo_manifest(service, deployment)
+    return unless fetched
+    path, content = fetched
+
+    desired = ManifestParser.parse(content, filename: File.basename(path))
+    reconciler = ManifestReconciler.new(project, desired)
+    reconciler.diff(preserve_removed_services: true)
+    changes = reconciler.changes
+    return if changes.empty? && project.manifest_content == content
+
+    result = reconciler.apply!(engine, host_engine: host_engine, deploy_exclusions: [ service.id ])
+
+    project.update!(
+      manifest_content: content,
+      manifest_format: desired.format_detected,
+      manifest_last_synced_at: Time.current,
+      manifest_drift_detected: false
+    )
+    project.update!(manifest_last_applied_at: Time.current) if result[:success]
+
+    note = result[:success] ? "applied" : "partially applied"
+    deployment.append_log_chunk!("--- Manifest sync from #{path}: #{changes.length} change(s) #{note} ---\n")
+    Rails.logger.info "Manifest sync from #{path} for #{service.dokku_app_name}: #{changes.length} change(s) #{note}"
+
+    service.reload
+  rescue ManifestParser::ParseError => e
+    Rails.logger.warn "Repo manifest at #{path} failed to parse for #{service.dokku_app_name}: #{e.message} — deploying with stored state"
+  rescue => e
+    Rails.logger.warn "Repo manifest sync failed for #{service.dokku_app_name}: #{e.message} — deploying with stored state"
+  end
+
+  # Fetches [path, content] of the manifest file at the deployed commit/branch
+  # via the GitHub App installation. Services in a subdirectory look there
+  # first, then at the repo root. Returns nil when no manifest exists or the
+  # repo is not reachable through a connected GitHub App source.
+  def fetch_repo_manifest(service, deployment)
+    github_source = github_source_for_service(service)
+    return nil unless github_source
+
+    repo = Service.repo_full_name(service.git_repo)
+    ref = deployment.commit_sha.presence || deployment.branch.presence || service.branch.presence || "main"
+    client = GithubAppService.installation_client(github_source.installation_id)
+
+    manifest_candidate_paths(service).each do |path|
+      content = client.contents(repo, path: path, ref: ref)
+      return [ path, Base64.decode64(content.content.to_s).force_encoding("UTF-8") ]
+    rescue Octokit::NotFound
+      next
+    end
+    nil
+  rescue => e
+    Rails.logger.warn "Failed to fetch repo manifest for #{service.dokku_app_name}: #{e.message}"
+    nil
+  end
+
+  def manifest_candidate_paths(service)
+    names = RepositoryDiscovery::MANIFEST_NAMES
+    root = service.root_directory.to_s.strip.sub(%r{^/+}, "").sub(%r{/+\z}, "")
+    roots = root.present? && root != "." ? [ root, "" ] : [ "" ]
+    roots.flat_map { |r| names.map { |name| r.present? ? "#{r}/#{name}" : name } }
+  end
+
   def git_repo_for_deploy(service)
     github_source = github_source_for_service(service)
     return service.git_repo unless github_source
-
     full_name = Service.repo_full_name(service.git_repo)
     return service.git_repo if full_name.blank?
 
