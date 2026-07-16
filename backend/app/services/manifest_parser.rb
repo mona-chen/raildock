@@ -9,6 +9,15 @@ require "json"
 class ManifestParser
   class ParseError < StandardError; end
 
+  # Env keys matching this pattern hold secrets. Their values belong in
+  # RailDock (referenced from manifests via ${{ env.KEY }} or
+  # ${{ shared.KEY }}), never as raw values in the manifest file.
+  SECRET_ENV_KEY_PATTERN = /PASSWORD|SECRET|TOKEN|CREDENTIAL|PRIVATE|AUTH|_KEY|KEY_/i
+
+  # Markers/reference syntaxes — a value containing one of these is a
+  # reference, not a raw secret.
+  ENV_VALUE_REFERENCE_PATTERN = /\[SHARED:|\[LINKED:|\[ENV:|\[RAILDOCK_|\$\{\{/
+
   # Result object holding the normalized desired state
   class ManifestDesiredState
     attr_reader :services, :links, :format_detected, :warnings, :raw
@@ -33,7 +42,7 @@ class ManifestParser
   # Resolves runtime variable markers inserted during manifest parsing.
   # Called after services and links are fully created, so project context
   # is available to fetch actual values for [RAILDOCK_*], [SHARED:*],
-  # and [LINKED:*] markers.
+  # [LINKED:*], and [ENV:*] markers.
   def self.resolve_runtime(env_value, project, service, linked_services)
     new.resolve_runtime(env_value, project, service, linked_services)
   end
@@ -54,6 +63,9 @@ class ManifestParser
 
     # ${{ linked.SERVICE.VAR }} → runtime resolved
     result = resolve_linked_vars(result, linked_services) if result.include?("[LINKED:") || result.match?(/\$\{\{\s*linked\./)
+
+    # ${{ env.VAR }} → this service's own value stored in RailDock
+    result = resolve_self_env_vars(result, service) if result.include?("[ENV:") || result.match?(/\$\{\{\s*env\./)
 
     result
   end
@@ -442,6 +454,7 @@ class ManifestParser
     cron = normalize_cron(svc_hash["cron"] || svc_hash[:cron])
     storage = normalize_storage(svc_hash["storage"] || svc_hash[:storage])
     env = normalize_env(svc_hash["env"] || svc_hash[:env])
+    warnings.concat(raw_secret_env_warnings(name, env))
     docker_options = normalize_docker_options(svc_hash["docker_options"] || svc_hash[:docker_options])
     traefik_labels = normalize_traefik_labels(svc_hash["traefik_labels"] || svc_hash[:traefik_labels])
     letsencrypt = normalize_letsencrypt(svc_hash["letsencrypt"] || svc_hash[:letsencrypt])
@@ -632,6 +645,21 @@ def normalize_env(env)
     env.transform_keys(&:to_s).transform_values { |v| resolve_placeholders(v.to_s) }
 end
 
+  # Flags secret-looking env values written as raw literals in the manifest.
+  # Secrets belong in RailDock — referenced via ${{ env.KEY }} (this service's
+  # stored value) or ${{ shared.KEY }} (project shared variable) — so the
+  # manifest file never carries the actual value.
+  def raw_secret_env_warnings(service_name, env)
+    env.filter_map do |key, value|
+      next unless key.to_s.match?(SECRET_ENV_KEY_PATTERN)
+      next if value.to_s.match?(ENV_VALUE_REFERENCE_PATTERN)
+
+      "#{service_name}: #{key} looks like a secret but is written as a raw value in the manifest. " \
+        "Use ${{ env.#{key} }} to reference the value stored in RailDock, " \
+        "or ${{ shared.#{key} }} for a project shared variable."
+    end
+  end
+
   def resolve_placeholders(value)
     return value unless value.is_a?(String)
 
@@ -750,6 +778,11 @@ end
       "[LINKED:#{$1}:#{$2}]"
     end
 
+    # ${{ env.VAR }} → this service's own value stored in RailDock (placeholder tag)
+    result.gsub!(/\$\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
+      "[ENV:#{$1}]"
+    end
+
     result
   end
 
@@ -768,6 +801,33 @@ end
   end
 
   # ── Runtime variable resolution helpers ──────────────────────
+
+  # ${{ env.VAR }} resolves to the value RailDock already stores for this
+  # service — the manifest references it without carrying the secret itself.
+  # When nothing is stored yet the marker is left in place so callers can
+  # detect and skip it instead of writing a literal "[ENV:...]" string.
+  def resolve_self_env_vars(value, service)
+    return value unless service
+
+    lookup = lambda do |var_name|
+      env_vars = service.environment_variables
+      env_vars = env_vars.to_a if env_vars.is_a?(ActiveRecord::Associations::CollectionProxy)
+      ev = env_vars.find { |e| e.key == var_name }
+      if ev
+        ev.value.to_s
+      else
+        Rails.logger.warn "Variable '#{var_name}' is not stored on service '#{service.name}' yet"
+        "[ENV:#{var_name}]"
+      end
+    end
+
+    result = value.dup
+    # Handle pre-parsed [ENV:X] markers
+    result.gsub!(/\[ENV:([A-Za-z_][A-Za-z0-9_]*)\]/) { lookup.call($1) }
+    # Handle raw ${{ env.VAR }} syntax
+    result.gsub!(/\$\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) { lookup.call($1) }
+    result
+  end
 
   def fetch_public_domain(project)
     return nil unless project&.server&.ssh_key.present?

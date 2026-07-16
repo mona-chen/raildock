@@ -108,6 +108,31 @@ RSpec.describe ManifestGenerator do
         expect(toml).to include('DATABASE_URL = "${{ linked.database.DATABASE_URL }}"')
         expect(toml).not_to include("super-secret")
       end
+
+      it 'renders secret-looking values as env references, never raw' do
+        @web.environment_variables.create!(key: "SECRET_KEY_BASE", value: "a1b2c3deadbeef")
+        @web.environment_variables.create!(key: "ADMIN_API_TOKEN", value: "tok_secret_123")
+        @web.environment_variables.create!(key: "FORCE_SSL", value: "true")
+
+        toml = described_class.new(project).generate(format: :toml)
+
+        expect(toml).to include('SECRET_KEY_BASE = "${{ env.SECRET_KEY_BASE }}"')
+        expect(toml).to include('ADMIN_API_TOKEN = "${{ env.ADMIN_API_TOKEN }}"')
+        expect(toml).not_to include("a1b2c3deadbeef")
+        expect(toml).not_to include("tok_secret_123")
+        # Non-secret config stays readable inline
+        expect(toml).to include('FORCE_SSL = "true"')
+      end
+
+      it 'prefers the shared reference over an env reference when values match' do
+        project.update!(shared_vars: [ { key: "SECRET_KEY_BASE", value: "shared-secret" } ])
+        @web.environment_variables.create!(key: "SECRET_KEY_BASE", value: "shared-secret")
+
+        toml = described_class.new(project).generate(format: :toml)
+
+        expect(toml).to include('SECRET_KEY_BASE = "${{ shared.SECRET_KEY_BASE }}"')
+        expect(toml).not_to include("${{ env.SECRET_KEY_BASE }}")
+      end
     end
   end
 end

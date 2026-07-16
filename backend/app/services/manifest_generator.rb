@@ -182,6 +182,12 @@ class ManifestGenerator
       return "${{ shared.#{environment_variable.key} }}"
     end
 
+    # Secret-looking values stay in RailDock — the manifest references them
+    # instead of carrying the raw value.
+    if environment_variable.key.to_s.match?(ManifestParser::SECRET_ENV_KEY_PATTERN)
+      return "${{ env.#{environment_variable.key} }}"
+    end
+
     value
   end
 

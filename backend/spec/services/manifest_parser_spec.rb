@@ -442,6 +442,11 @@ RSpec.describe ManifestParser do
       expect(result).to eq("[LINKED:postgres:DATABASE_URL]")
     end
 
+    it 'resolves ${{ env.VAR }} to marker tag' do
+      result = resolve('${{ env.SECRET_KEY_BASE }}')
+      expect(result).to eq("[ENV:SECRET_KEY_BASE]")
+    end
+
     it "resolves shared markers from the project's shared variable objects" do
       project = build(:project, shared_vars: [ { key: "API_KEY", value: "secret" } ])
 
@@ -506,6 +511,26 @@ RSpec.describe ManifestParser do
       expect(result).to eq('[LINKED:postgres:MISSING_VAR]')
     end
 
+    it "resolves [ENV:VAR] to the service's own stored value" do
+      ev = double(:ev, key: 'SECRET_KEY_BASE', value: 'stored-secret')
+      service = double(:service, name: 'web', environment_variables: [ ev ])
+      result = resolve_runtime('[ENV:SECRET_KEY_BASE]', service:)
+      expect(result).to eq('stored-secret')
+    end
+
+    it 'resolves raw ${{ env.VAR }} syntax too' do
+      ev = double(:ev, key: 'SECRET_KEY_BASE', value: 'stored-secret')
+      service = double(:service, name: 'web', environment_variables: [ ev ])
+      result = resolve_runtime('${{ env.SECRET_KEY_BASE }}', service:)
+      expect(result).to eq('stored-secret')
+    end
+
+    it 'leaves [ENV:VAR] marker when nothing is stored for the key' do
+      service = double(:service, name: 'web', environment_variables: [])
+      result = resolve_runtime('[ENV:MISSING]', service:)
+      expect(result).to eq('[ENV:MISSING]')
+    end
+
     it 'leaves plain values without markers unchanged' do
       result = resolve_runtime('postgres://user:pass@localhost/db')
       expect(result).to eq('postgres://user:pass@localhost/db')
@@ -525,6 +550,52 @@ RSpec.describe ManifestParser do
         linked_services: [ linked_svc ]
       )
       expect(result).to eq('postgres://postgres://user:pass@host/db@app.example.com')
+    end
+  end
+
+  describe 'raw secret warnings' do
+    def parse_env_warnings(env_lines)
+      toml = <<~TOML
+        [[services]]
+        name = "web"
+        category = "app"
+
+          [services.env]
+          #{env_lines}
+      TOML
+      described_class.parse(toml, filename: "raildock.toml").warnings
+    end
+
+    it 'warns when a secret-looking value is written raw' do
+      warnings = parse_env_warnings('SECRET_KEY_BASE = "a1b2c3deadbeef"')
+      expect(warnings.length).to eq(1)
+      expect(warnings.first).to include("SECRET_KEY_BASE")
+      expect(warnings.first).to include("${{ env.SECRET_KEY_BASE }}")
+    end
+
+    it 'does not warn for reference syntax' do
+      warnings = parse_env_warnings('SECRET_KEY_BASE = "${{ shared.SECRET_KEY_BASE }}"')
+      expect(warnings).to be_empty
+    end
+
+    it 'does not warn for non-secret keys' do
+      warnings = parse_env_warnings('RAILS_ENV = "production"')
+      expect(warnings).to be_empty
+    end
+
+    it 'parses ${{ env.VAR }} values into [ENV:VAR] markers' do
+      toml = <<~TOML
+        [[services]]
+        name = "web"
+        category = "app"
+
+          [services.env]
+          SECRET_KEY_BASE = "${{ env.SECRET_KEY_BASE }}"
+      TOML
+      result = described_class.parse(toml, filename: "raildock.toml")
+      web = result.find_service("web")
+      expect(web[:env]["SECRET_KEY_BASE"]).to eq("[ENV:SECRET_KEY_BASE]")
+      expect(result.warnings).to be_empty
     end
   end
 
