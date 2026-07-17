@@ -71,6 +71,23 @@ class Project < ApplicationRecord
     read_attribute(:shared_vars) || []
   end
 
+  # Serialized shape consumed by the UI. Always returns [{ key, value }, ...]
+  # regardless of how the row was persisted (string "KEY=VALUE" entries or
+  # already-parsed hashes), so the frontend never has to guess.
+  def shared_vars_for_api
+    shared_vars.map do |variable|
+      if variable.is_a?(Hash)
+        {
+          key: variable["key"] || variable[:key],
+          value: variable["value"] || variable[:value]
+        }
+      else
+        key, value = variable.to_s.split("=", 2)
+        { key: key, value: value }
+      end
+    end
+  end
+
   def shared_var_map
     shared_vars.each_with_object({}) do |variable, result|
       if variable.is_a?(Hash)
@@ -95,7 +112,7 @@ class Project < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [ :service_ids, :service_counts, :shared_vars, :manifest_synced?, :has_deployments? ]
+      methods: [ :service_ids, :service_counts, :shared_vars_for_api, :manifest_synced?, :has_deployments? ]
     ))
   end
 end
