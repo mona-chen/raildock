@@ -288,6 +288,31 @@ class HostEngine
     result[:output]&.strip == "true"
   end
 
+  # Remove exited containers for a given app. Dokku's scheduler-docker-local
+  # stops retired containers but never `docker rm`s them, so on a flaky deploy
+  # they pile up as `.upcoming-<rand>` Exited containers and the host's Docker
+  # DNS keeps resolving them. If a load balancer (Traefik, nginx) round-robins
+  # by container name, traffic can land on the dead ones.
+  #
+  # We only target this app's containers (by name prefix), and only Exited /
+  # Created / Dead states — never Running or Restarting.
+  def prune_exited_containers_for_app(app_name, prefix: nil)
+    name_filter = "#{Shellwords.escape(app_name)}.#{Shellwords.escape(prefix)}" if prefix.present?
+    name_filter ||= Shellwords.escape(app_name)
+    result = run(
+      "docker ps -a --filter name=#{name_filter} " \
+      "--filter status=exited --filter status=created --filter status=dead " \
+      "--format '{{.ID}}'"
+    )
+    return { success: true, removed: 0 } unless result[:success]
+
+    ids = result[:output].to_s.strip.split("\n").reject(&:blank?)
+    return { success: true, removed: 0 } if ids.empty?
+
+    rm_result = run("docker rm #{ids.join(' ')}")
+    { success: rm_result[:success], removed: ids.length, output: rm_result[:output] }
+  end
+
   # ── Dokku container helpers ─────────────────
 
   # Dokku web containers are named <app>.web.1

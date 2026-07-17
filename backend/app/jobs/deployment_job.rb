@@ -426,6 +426,14 @@ class DeploymentJob < ApplicationJob
     )
     update_service_status_after(deployment, service, success: true)
 
+    # 16. Prune exited containers for this app. Dokku's scheduler stops
+    #     retired containers but leaves them as Exited — they accumulate
+    #     as `.upcoming-<rand>` and can confuse Docker DNS / load balancers.
+    prune_result = host_engine.prune_exited_containers_for_app(service.dokku_app_name)
+    Rails.logger.info(
+      "Pruned #{prune_result[:removed]} exited container(s) for #{service.dokku_app_name}"
+    ) if prune_result[:success] && prune_result[:removed].positive?
+
     ActivityEvent.create!(
       project: project,
       service_name: service.name,
