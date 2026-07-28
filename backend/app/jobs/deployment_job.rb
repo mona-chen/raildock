@@ -314,6 +314,11 @@ class DeploymentJob < ApplicationJob
     # Dokku returns exit code 1 when image hasn't changed; treat as success
     if !result[:success] && deploy_output.include?("No changes detected")
       result = { success: true, output: deploy_output }
+
+      # git:from-image skips rebuild when the image hasn't changed, but env vars
+      # may have changed in the config sync above. Restart the app so the new env
+      # takes effect in the running container.
+      engine.run("ps:restart #{service.dokku_app_name}")
     end
 
     # Intercept missing-builder errors with an actionable message.
