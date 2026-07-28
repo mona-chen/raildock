@@ -53,7 +53,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-INSTALL_DIR="${INSTALL_DIR:-$(pwd)}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/raildock}"
 [ "$MODE_ARG" = "update" ] && INSTALL_DIR="$(pwd)"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 ENV_FILE="$INSTALL_DIR/.env"
