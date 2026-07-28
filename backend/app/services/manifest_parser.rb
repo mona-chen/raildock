@@ -684,7 +684,10 @@ end
 
     # ── Railway-style ${{ }} expressions ───────────────────────
 
-    # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex (cached per call site)
+    # ${{ secret() }} → 32-char hex, ${{ secret(N) }} → N-char hex
+    # Each env-value resolution creates a fresh parser (see resolve_runtime),
+    # so multiple env vars each get their own random value. The per-length
+    # cache only deduplicates within a single env value string.
     result.gsub!(/\$\{\{\s*secret\(\s*(\d+)?\s*\)\s*\}\}/) do
       length = ($1 || "32").to_i
       length = [ 1, [ length, 128 ].min ].max
