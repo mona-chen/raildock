@@ -317,8 +317,10 @@ class DeploymentJob < ApplicationJob
 
       # git:from-image skips rebuild when the image hasn't changed, but env vars
       # may have changed in the config sync above. Restart the app so the new env
-      # takes effect in the running container.
+      # takes effect in the running container. Also rebuild proxy + network config.
       engine.run("ps:restart #{service.dokku_app_name}")
+      engine.run("network:rebuild #{service.dokku_app_name}")
+      engine.run("proxy:build-config #{service.dokku_app_name}")
     end
 
     # Intercept missing-builder errors with an actionable message.
