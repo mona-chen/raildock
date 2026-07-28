@@ -1,0 +1,46 @@
+name = "Wordpress With Mariadb"
+description = "WordPress is open source software you can use to create a beautiful website, blog, or app."
+category = "stack"
+logo = "svgs/wordpress.svg"
+
+[[services]]
+name = "wordpress"
+category = "app"
+subtype = "docker"
+docker_image = "wordpress:latest"
+source = { type = "docker" }
+  [services.scaling]
+    web = 1
+  [services.env]
+    WORDPRESS_DB_HOST = "mariadb"
+    WORDPRESS_DB_USER = "${{ linked.mariadb.MYSQL_USER }}"
+    WORDPRESS_DB_PASSWORD = "${{ linked.mariadb.MYSQL_PASSWORD }}"
+    WORDPRESS_DB_NAME = "wordpress"
+    [[services.storage]]
+      host = "wordpress-files"
+      container = "/var/www/html"
+  [services.checks]
+    enabled = true
+    wait = 2
+    timeout = 10
+
+[[services]]
+name = "mariadb"
+category = "database"
+subtype = "mariadb"
+  [services.env]
+    MYSQL_ROOT_PASSWORD = "${{ secret() }}"
+    MYSQL_DATABASE = "wordpress"
+    MYSQL_USER = "${{ secret() }}"
+    MYSQL_PASSWORD = "${{ secret() }}"
+    [[services.storage]]
+      host = "wordpress-mariadb-data"
+      container = "/var/lib/mysql"
+  [services.checks]
+    enabled = true
+    wait = 5
+    timeout = 20
+
+[[links]]
+from = "wordpress"
+to = "mariadb"
