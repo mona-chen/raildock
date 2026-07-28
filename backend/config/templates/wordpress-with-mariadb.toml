@@ -36,14 +36,16 @@ source = { type = "docker" }
     WORDPRESS_NONCE_SALT = "${{ secret(64) }}"
     WORDPRESS_HOME = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
     WORDPRESS_SITEURL = "https://${{ RAILDOCK_PUBLIC_DOMAIN }}"
-    WORDPRESS_DEBUG = "false"
+    # WORDPRESS_DEBUG intentionally omitted — empty/unset env var makes
+    # !!getenv_docker('WORDPRESS_DEBUG', '') → false, keeping WP_DEBUG off.
+    # The string "false" is truthy in PHP; only absence produces false.
 
     # Hardening
     WORDPRESS_AUTO_UPDATE_CORE = "minor"
     WORDPRESS_AUTO_UPDATE_PLUGINS = "true"
     WORDPRESS_AUTO_UPDATE_THEMES = "true"
     WORDPRESS_DISALLOW_FILE_EDIT = "true"
-    WORDPRESS_CONFIG_EXTRA = "define('AUTOMATIC_UPDATER_DISABLED', false); define('WP_AUTO_UPDATE_CORE', 'minor'); define('DISALLOW_FILE_EDIT', true); define('FS_METHOD', 'direct');"
+    WORDPRESS_CONFIG_EXTRA = "define('AUTOMATIC_UPDATER_DISABLED', false); define('WP_AUTO_UPDATE_CORE', 'minor'); define('DISALLOW_FILE_EDIT', true); define('FS_METHOD', 'direct'); ini_set('display_errors', '0'); error_reporting(0);"
 
     # Persist plugins, themes, uploads, mu-plugins. Core files
     # (wp-includes, wp-admin) live in the image so image tag upgrades
