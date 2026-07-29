@@ -65,6 +65,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
     allow(host_engine).to receive(:run).and_return({ success: false, output: "" })
     allow(host_engine).to receive(:docker_inspect).and_return({ success: false, output: "" })
+    allow(host_engine).to receive(:prune_exited_containers_for_app).and_return({ success: true, removed: 0 })
     allow(engine).to receive(:config_export_json).and_return({ success: true, output: "{}" })
     allow(engine).to receive(:app_exists?).and_return(true)
     allow(engine).to receive(:app_create).and_return({ success: true, output: "" })
@@ -419,6 +420,36 @@ RSpec.describe DeploymentJob, type: :job do
         DeploymentJob.perform_now(service.id, deployment.id)
         expect(engine).to have_received(:proxy_disable).with(service.dokku_app_name)
         expect(engine).not_to have_received(:proxy_enable)
+      end
+    end
+
+    context "when the docker image has not changed (No changes detected)" do
+      let(:service) do
+        create(
+          :service,
+          project: project,
+          branch: "main",
+          config: config,
+          status: :stopped,
+          docker_image: "wordpress:latest",
+          git_repo: nil
+        )
+      end
+
+      before do
+        allow(engine).to receive(:run_streaming).and_yield("No changes detected, skipping git commit").and_return(
+          { success: false, output: "No changes detected, skipping git commit" }
+        )
+        allow(engine).to receive(:run).with("ps:restart #{service.dokku_app_name}").and_return({ success: true, output: "" })
+      end
+
+      it "restarts the container and rebuilds proxy and network config" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:run).with("ps:restart #{service.dokku_app_name}")
+        expect(engine).to have_received(:run).with("network:rebuild #{service.dokku_app_name}")
+        expect(engine).to have_received(:run).with("proxy:build-config #{service.dokku_app_name}")
+        expect(deployment.reload.status).to eq("succeeded")
       end
     end
 

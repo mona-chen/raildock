@@ -79,5 +79,34 @@ RSpec.describe AppUpdateService do
       expect(result[:success]).to be(true)
       expect(host_engine).to have_received(:run).with(a_string_including("./install.sh update"))
     end
+
+    it "returns :manual strategy when inside container without local SSH target" do
+      described_class.remove_instance_variable(:@apply_strategy) if described_class.instance_variable_defined?(:@apply_strategy)
+
+      # Inside a container but no SSH server configured
+      allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
+      allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
+      allow(File).to receive(:read).with("/proc/1/cgroup").and_return("")
+      allow(File).to receive(:exist?).with("/opt/raildock/install.sh").and_return(true)
+
+      # No server with SSH key → local_ssh_target_present? returns false
+      strategy = described_class.send(:detect_apply_strategy)
+
+      expect(strategy).to eq(:manual)
+    end
+
+    it "prefers :ssh_to_local over :install_sh when inside container with SSH key" do
+      described_class.remove_instance_variable(:@apply_strategy) if described_class.instance_variable_defined?(:@apply_strategy)
+
+      create(:server, ssh_key_ciphertext: "encrypted-key")
+      allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
+      allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
+      allow(File).to receive(:read).with("/proc/1/cgroup").and_return("")
+      allow(File).to receive(:exist?).with("/opt/raildock/install.sh").and_return(true)
+
+      strategy = described_class.send(:detect_apply_strategy)
+
+      expect(strategy).to eq(:ssh_to_local)
+    end
   end
 end
