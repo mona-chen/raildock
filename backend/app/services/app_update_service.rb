@@ -177,8 +177,13 @@ class AppUpdateService
       # Inside a container: prefer SSH to the host over install.sh or docker compose,
       # both of which would kill the running container mid-update and leave the new
       # container stuck in Created state.
-      if running_in_container? && local_ssh_target_present?
-        return :ssh_to_local
+      if running_in_container?
+        return :ssh_to_local if local_ssh_target_present?
+
+        # No SSH key to the host — fall through to manual; never use :install_sh or
+        # :docker_compose from inside the container.
+        Rails.logger.warn "Auto-update blocked: running inside container with no local SSH target configured."
+        return :manual
       end
 
       return :install_sh if File.exist?(script_path)
