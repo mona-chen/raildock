@@ -174,15 +174,19 @@ class AppUpdateService
       install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
       script_path = File.join(install_dir, "install.sh")
 
+      # Inside a container: prefer SSH to the host over install.sh or docker compose,
+      # both of which would kill the running container mid-update and leave the new
+      # container stuck in Created state.
+      if running_in_container? && local_ssh_target_present?
+        return :ssh_to_local
+      end
+
       return :install_sh if File.exist?(script_path)
 
       # docker compose must exist and install dir must be reachable
       if docker_compose_available? && Dir.exist?(install_dir)
         return :docker_compose
       end
-
-      # Inside a container with no host access — try SSH to the local Dokku host
-      return :ssh_to_local if running_in_container? && local_ssh_target_present?
 
       :manual
     end
