@@ -3,6 +3,7 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
 
   PENDING_TIMEOUT = 30.minutes
   RUNNING_TIMEOUT = 2.hours
+  STALE_UPCOMING_AGE = 1.hour
 
   def perform(now: Time.current)
     fail_stale(
@@ -15,6 +16,8 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
       now,
       "Deployment exceeded the maximum execution time"
     )
+
+    prune_stale_upcoming_containers
   end
 
   private
@@ -38,5 +41,16 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
         completed_at: now.iso8601
       })
     end
+  end
+
+  def prune_stale_upcoming_containers
+    Server.where.not(ssh_key: [ nil, "" ]).find_each do |server|
+      result = HostEngine.new(server).prune_stale_upcoming_containers(older_than: STALE_UPCOMING_AGE)
+      next unless result[:success] && result[:removed].positive?
+
+      Rails.logger.info "Pruned #{result[:removed]} stale upcoming container(s) on server #{server.name}"
+    end
+  rescue => e
+    Rails.logger.warn "Stale upcoming container prune sweep failed: #{e.message}"
   end
 end

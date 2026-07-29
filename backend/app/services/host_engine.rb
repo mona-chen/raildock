@@ -313,6 +313,31 @@ class HostEngine
     { success: rm_result[:success], removed: ids.length, output: rm_result[:output] }
   end
 
+  # Kill stale ".upcoming-<rand>" containers that have been running longer than
+  # the threshold. These are leftover from failed deploys where the post-deploy
+  # rename step never ran. They consume memory/cpu but serve no traffic —
+  # Traefik routes to the primary container (e.g. web.1), not the upcoming one.
+  def prune_stale_upcoming_containers(older_than: 1.hour, dry_run: false)
+    cutoff_timestamp = (Time.now - older_than).to_i
+    result = run(
+      "docker ps --filter name=.upcoming- " \
+      "--filter status=running " \
+      "--filter until=#{cutoff_timestamp} " \
+      "--format '{{.ID}}'"
+    )
+    return { success: true, removed: 0 } unless result[:success]
+
+    ids = result[:output].to_s.strip.split("\n").reject(&:blank?)
+    return { success: true, removed: 0 } if ids.empty?
+    return { success: true, removed: ids.length } if dry_run
+
+    rm_result = run("docker stop #{ids.join(' ')} && docker rm #{ids.join(' ')}")
+    { success: rm_result[:success], removed: ids.length, output: rm_result[:output] }
+  rescue => e
+    Rails.logger.warn "Stale upcoming container prune failed: #{e.message}"
+    { success: false, removed: 0, output: e.message }
+  end
+
   # ── Dokku container helpers ─────────────────
 
   # Dokku web containers are named <app>.web.1
