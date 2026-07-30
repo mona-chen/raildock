@@ -48,19 +48,16 @@ source = { type = "docker" }
     WORDPRESS_DISALLOW_FILE_EDIT = "true"
 
     # Extra wp-config code. Runs as eval() in the generated wp-config.php,
-    # before wp-settings.php loads. Key items:
+    # before wp-settings.php loads.
     #   - ini_set display_errors — suppresses plugin-level PHP notices
-    #   - $_SERVER["HTTPS"] — forces HTTPS detection behind Traefik/Cloudflare
-    #   - upload_max_filesize etc. — .user.ini in the persistent volume
-    #     overrides these on deploy (documented below)
+    #   - $_SERVER["HTTPS"] — forces HTTPS behind Traefik/Cloudflare
+    # Upload limits (upload_max_filesize, post_max_size) are PHP_INI_PERDIR
+    # and can't be set at runtime. To increase them, create a php.ini on
+    # the host and add a storage mount:
+    #   [[services.storage]]
+    #   host = "/var/lib/dokku/data/storage/wordpress-php/zz-raildock.ini"
+    #   container = "/usr/local/etc/php/conf.d/zz-raildock.ini"
     WORDPRESS_CONFIG_EXTRA = "define('AUTOMATIC_UPDATER_DISABLED', false); define('WP_AUTO_UPDATE_CORE', 'minor'); define('DISALLOW_FILE_EDIT', true); define('FS_METHOD', 'direct'); ini_set('display_errors', '0'); error_reporting(0); $_SERVER['HTTPS']='on';"
-
-    # Upload limits via .user.ini — PHP reads .user.ini from the document
-    # root on every request. The .user.ini file is placed in the persistent
-    # wp-content volume at deploy time and copied to the web root. It
-    # survives container restarts. On a full image rebuild pull it from the
-    # volume: docker cp /storage/wordpress-content/user.ini <container>:/var/www/html/
-    # Limits: 256M upload, 512M memory, 300s timeout.
 
     # Persist plugins, themes, uploads, so image tag upgrades don't wipe them.
     [[services.storage]]
