@@ -433,7 +433,25 @@ class DeploymentJob < ApplicationJob
     )
     update_service_status_after(deployment, service, success: true)
 
-    # 16. Prune exited containers for this app. Dokku's scheduler stops
+    # 16. Sync overlay files from storage mounts to the container web root.
+    #     Docker volumes are mounted at their container_path (e.g. wp-content/),
+    #     but files at the docroot level (.user.ini, .htaccess) are ephemeral
+    #     and lost on container rebuild.  By convention, overlay files placed
+    #     alongside the storage mount on the host are copied into the container
+    #     after each deploy.
+    container_name = host_engine.dokku_container_name(service.dokku_app_name)
+    if container_name.present?
+      service.storage_mounts.where(kind: "volume").each do |mount|
+        overlay_dir = File.dirname(mount.host_path.to_s)
+        next unless Dir.exist?(overlay_dir)
+
+        Dir.glob(File.join(overlay_dir, ".user.ini")).each do |f|
+          host_engine.run("docker cp #{Shellwords.escape(f)} #{Shellwords.escape(container_name)}:/var/www/html/.user.ini")
+        end
+      end
+    end
+
+    # 17. Prune exited containers for this app. Dokku's scheduler stops
     #     retired containers but leaves them as Exited — they accumulate
     #     as `.upcoming-<rand>` and can confuse Docker DNS / load balancers.
     prune_result = host_engine.prune_exited_containers_for_app(service.dokku_app_name)
