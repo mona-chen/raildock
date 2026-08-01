@@ -52,12 +52,11 @@ source = { type = "docker" }
     #   - ini_set display_errors — suppresses plugin-level PHP notices
     #   - $_SERVER["HTTPS"] — forces HTTPS behind Traefik/Cloudflare
     # Upload limits (upload_max_filesize, post_max_size) are PHP_INI_PERDIR
-    # and can't be set at runtime. To increase them, create a php.ini on
-    # the host and add a storage mount:
-    #   [[services.storage]]
-    #   host = "/var/lib/dokku/data/storage/wordpress-php/zz-raildock.ini"
-    #   container = "/usr/local/etc/php/conf.d/zz-raildock.ini"
-    WORDPRESS_CONFIG_EXTRA = "define('AUTOMATIC_UPDATER_DISABLED', false); define('WP_AUTO_UPDATE_CORE', 'minor'); define('DISALLOW_FILE_EDIT', true); define('FS_METHOD', 'direct'); ini_set('display_errors', '0'); error_reporting(0); $_SERVER['HTTPS']='on';"
+    # and can't be set at runtime. To increase them, add a storage mount for
+    # a php.ini file in the Docker entrypoint config directory:
+    #   storage mount host="wordpress-php" container="/usr/local/etc/php/conf.d"
+    # then create a php.ini in the volume from the container's first start.
+    WORDPRESS_CONFIG_EXTRA = 'define("DISALLOW_FILE_EDIT", true); define("DISALLOW_FILE_MODS", true); define("FS_METHOD", "direct"); if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"])) { $_SERVER["HTTPS"]="on"; } ini_set("display_errors", "0"); error_reporting(0);'
 
     # Persist plugins, themes, uploads, so image tag upgrades don't wipe them.
     [[services.storage]]
@@ -71,7 +70,7 @@ source = { type = "docker" }
     path = "/wp-login.php"
 
   [services.resources]
-    memory = "512m"
+    memory = "1024m"
     cpus = "0.5"
 
 [[services]]
