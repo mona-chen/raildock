@@ -3,6 +3,7 @@ class CreateServiceMetrics < ActiveRecord::Migration[8.1]
     create_table :service_metrics do |t|
       t.references :service, null: false, foreign_key: true
       t.float :cpu
+      t.float :cpu_cores
       t.float :memory
       t.float :memory_used
       t.float :memory_limit

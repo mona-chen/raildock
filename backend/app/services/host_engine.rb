@@ -243,6 +243,10 @@ class HostEngine
   # the Go template on the remote host:
   #   CPUPerc  MemUsage
   #   52.54%   696.4MiB / 5GiB
+  # Docker reports CPUPerc relative to ONE host core (100% = 1 core), so a
+  # container capped at N cores can read up to N*100%. We include the
+  # container's NanoCpus (cores allowed) so callers can normalize CPU against
+  # the actual limit instead of showing >100% misleadingly.
   def docker_stats(container)
     result = run(
       "docker stats --no-stream --format " \
@@ -261,7 +265,18 @@ class HostEngine
     used = human_size_to_bytes(used_str)
     limit = human_size_to_bytes(limit_str)
     memory = limit.positive? ? (used * 100.0 / limit).round(1) : nil
-    { cpu: cpu, memory: memory, memory_used: used, memory_limit: limit }
+
+    # CPU limit in cores (NanoCpus / 1e9), 0 = unlimited.
+    nano = run("docker inspect --format '{{.HostConfig.NanoCpus}}' #{Shellwords.escape(container)}")
+    cpu_cores = nano[:success] ? nano[:output].to_s.strip.to_f / 1_000_000_000 : 0.0
+
+    {
+      cpu: cpu,
+      cpu_cores: cpu_cores,
+      memory: memory,
+      memory_used: used,
+      memory_limit: limit
+    }
   end
 
   private

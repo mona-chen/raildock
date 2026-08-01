@@ -34,9 +34,16 @@ export default function MetricsTab({ svc }: { svc: Service }) {
   const { data: live } = useServiceMetrics(svc.id)
   const { data: history } = useServiceMetricsHistory(svc.id, hours)
 
+  // Docker reports CPU as % of one core; a container capped at N cores can
+  // read up to N*100%. Normalize against the configured core limit so the
+  // chart tops out at 100% = the limit, never misleadingly above it.
+  const cpuCores = live?.cpuCores || history?.samples[0]?.cpu_cores || 1
+  const cpuNorm = (v: number | null | undefined) =>
+    v == null ? null : Math.min(Math.round((v / (cpuCores || 1)) * 10) / 10, 100)
+
   const samples = (history?.samples ?? []).map((s) => ({
     time: formatAt(s.at, hours),
-    cpu: s.cpu,
+    cpu: cpuNorm(s.cpu),
     memory: s.memory,
   }))
 
@@ -114,7 +121,9 @@ export default function MetricsTab({ svc }: { svc: Service }) {
           <div className="flex items-center gap-6 px-1 pt-1 text-[11px] text-white/40">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-violet-500" /> Live CPU
-              <span className="text-white/70 ml-1">{live?.cpu != null ? `${live.cpu.toFixed(1)}%` : '—'}</span>
+              <span className="text-white/70 ml-1">
+                {live?.cpu != null ? `${cpuNorm(live.cpu).toFixed(1)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}` : '—'}
+              </span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500" /> Live Memory
@@ -130,7 +139,8 @@ export default function MetricsTab({ svc }: { svc: Service }) {
           </div>
           {live && (
             <div className="mt-4 text-[12px] text-white/60">
-              Live: CPU {live.cpu?.toFixed(1)}% · Memory {live.memory?.toFixed(1)}%
+              Live: CPU {cpuNorm(live.cpu)?.toFixed(1)}% of {cpuCores} core{cpuCores > 1 ? 's' : ''} · Memory{' '}
+              {live.memory?.toFixed(1)}%
             </div>
           )}
         </div>

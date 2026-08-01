@@ -36,6 +36,7 @@ class MetricsSamplerJob < ApplicationJob
 
     service.service_metrics.create!(
       cpu: stats[:cpu],
+      cpu_cores: stats[:cpu_cores],
       memory: stats[:memory],
       memory_used: stats[:memory_used],
       memory_limit: stats[:memory_limit],

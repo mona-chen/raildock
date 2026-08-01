@@ -457,6 +457,7 @@ module Api
           if stats
             return render json: {
               cpu: stats[:cpu],
+              cpuCores: stats[:cpu_cores],
               memory: stats[:memory],
               memoryUsed: stats[:memory_used],
               memoryLimit: stats[:memory_limit],
@@ -479,15 +480,16 @@ module Api
       samples = @service.service_metrics
         .where(sampled_at: since..)
         .order(:sampled_at)
-        .pluck(:sampled_at, :cpu, :memory, :memory_used, :memory_limit)
+        .pluck(:sampled_at, :cpu, :cpu_cores, :memory, :memory_used, :memory_limit)
 
       render json: {
         service: @service.name,
         window_hours: hours,
-        samples: samples.map do |t, cpu, mem, used, limit|
+        samples: samples.map do |t, cpu, cores, mem, used, limit|
           {
             at: t.iso8601,
             cpu: cpu,
+            cpu_cores: cores,
             memory: mem,
             memory_used: used,
             memory_limit: limit
