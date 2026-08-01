@@ -70,8 +70,8 @@ source = { type = "docker" }
     path = "/wp-login.php"
 
   [services.resources]
-    memory = "1024m"
-    cpus = "0.5"
+    memory = "5120m"
+    cpus = "2.0"
 
 [[services]]
 name = "mariadb"
