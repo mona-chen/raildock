@@ -235,6 +235,36 @@ class HostEngine
     run("docker inspect #{fmt}#{Shellwords.escape(container)}")
   end
 
+  # Live resource usage for a container via `docker stats --no-stream`.
+  # Returns parsed cpu/mem/network numbers or nil when the container
+  # doesn't exist / stats cannot be read. One SSH round-trip.
+  def docker_stats(container)
+    result = run(
+      "docker stats --no-stream --format " \
+      "'{{\"cpu\":{{.CPUPerc}},\"mem\":{{.MemUsage}}}}' " \
+      "#{Shellwords.escape(container)}"
+    )
+    return nil unless result[:success]
+
+    output = result[:output].to_s
+    cpu = output[/cpu[":\s]+(\d+(?:\.\d+)?)/, 1]&.to_f
+    # MemUsage format: "574.5MiB / 1GiB" — extract the used bytes.
+    mem_match = output.match(/mem[":\s]+([\d.]+)([KMGT]i?B)\s*\/\s*([\d.]+)([KMGT]i?B)/)
+    return { cpu: cpu, memory: nil } unless mem_match
+
+    used = human_to_bytes(mem_match[1].to_f, mem_match[2])
+    limit = human_to_bytes(mem_match[3].to_f, mem_match[4])
+    memory = limit.positive? ? (used * 100.0 / limit).round(1) : nil
+    { cpu: cpu, memory: memory, memory_used: used, memory_limit: limit }
+  end
+
+  private
+
+  def human_to_bytes(value, unit)
+    multiplier = { "K" => 1024, "M" => 1024**2, "G" => 1024**3, "T" => 1024**4 }
+    value * (multiplier[unit[0].upcase] || 1)
+  end
+
   def builder_capabilities
     result = run(<<~SH.squish)
       for builder in nixpacks railpack pack; do

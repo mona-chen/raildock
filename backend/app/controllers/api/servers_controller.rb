@@ -133,13 +133,14 @@ module Api
       if @server.ssh_key.present?
         engine = DokkuEngine.new(@server)
 
-        # Try to get real system metrics via SSH
-        cpu_result = engine.run("docker system info --format '{{.NCPU}}'")
+        # Try to get real system metrics via SSH.
+        # cpu = % of all cores in use (not core count).
+        cpu_result = engine.run("top -bn1 | awk '/%Cpu/{gsub(/,/, \".\"); print 100-\$8}'")
         mem_result = engine.run("free -m | awk 'NR==2{printf \"%.0f\", $3*100/$2 }'")
         disk_result = engine.run("df -h / | awk 'NR==2{print $5}' | sed 's/%//'")
 
         return render json: {
-          cpu: cpu_result[:success] ? cpu_result[:output].to_i : 0,
+          cpu: cpu_result[:success] ? cpu_result[:output].to_f.round : 0,
           memory: mem_result[:success] ? mem_result[:output].to_i : 0,
           disk: disk_result[:success] ? disk_result[:output].to_i : 0,
           uptime: @server.uptime || "0d 0h 0m"

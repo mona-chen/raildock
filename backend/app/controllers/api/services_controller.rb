@@ -448,15 +448,26 @@ module Api
     end
 
     def metrics
-      with_dokku_engine(@service) do |engine|
-        result = engine.metrics(@service.dokku_app_name)
-        if result[:success]
-          return render json: parse_metrics(result[:output])
+      server = @service.project&.server
+      if server&.ssh_key.present?
+        host_engine = HostEngine.new(server)
+        container = host_engine.dokku_container_name(@service.dokku_app_name)
+        if container.present?
+          stats = host_engine.docker_stats(container)
+          if stats
+            return render json: {
+              cpu: stats[:cpu],
+              memory: stats[:memory],
+              memoryUsed: stats[:memory_used],
+              memoryLimit: stats[:memory_limit],
+              networkIn: 0,
+              networkOut: 0
+            }
+          end
         end
       end
 
-      # Fallback placeholder
-      render json: { cpu: rand(10..80), memory: rand(20..90), networkIn: 0, networkOut: 0 }
+      render json: { cpu: nil, memory: nil, networkIn: 0, networkOut: 0 }
     end
 
     def database_info
@@ -954,20 +965,5 @@ module Api
             .tap { |p| p[:metadata] = { "destination_ids" => Array(p.delete(:destination_ids)).compact_blank } }
     end
 
-    def parse_metrics(output)
-      cpu_match = output.match(/cpu\s+(\d+)/i)
-      memory_match = output.match(/memory\s+(\d+)/i)
-
-      unless cpu_match && memory_match
-        Rails.logger.warn "Metrics parsing failed - Dokku ps:report output may have changed format. Output: #{output[0..500]}"
-      end
-
-      {
-        cpu: cpu_match ? cpu_match[1].to_i : nil,
-        memory: memory_match ? memory_match[1].to_i : nil,
-        networkIn: 0,
-        networkOut: 0
-      }
-    end
   end
 end
