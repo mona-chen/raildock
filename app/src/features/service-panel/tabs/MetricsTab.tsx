@@ -1,123 +1,140 @@
-import { useRef, useEffect } from 'react'
-import { useServiceMetrics } from '@/hooks/useServices'
+import { useState } from 'react'
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { useServiceMetrics, useServiceMetricsHistory } from '@/hooks/useServices'
 import type { Service } from '@/types'
 
-function useMetricHistory(serviceId: string, maxPoints = 30) {
-  const { data: metrics } = useServiceMetrics(serviceId)
-  const historyRef = useRef<{
-    cpu: number[]
-    memory: number[]
-    networkIn: number[]
-    networkOut: number[]
-  }>({
-    cpu: [],
-    memory: [],
-    networkIn: [],
-    networkOut: [],
-  })
+const WINDOWS = [
+  { label: '1h', hours: 1 },
+  { label: '6h', hours: 6 },
+  { label: '24h', hours: 24 },
+  { label: '7d', hours: 168 },
+]
 
-  useEffect(() => {
-    if (!metrics) return
-    const h = historyRef.current
-    h.cpu.push(metrics.cpu || 0)
-    h.memory.push(metrics.memory || 0)
-    h.networkIn.push(metrics.networkIn || 0)
-    h.networkOut.push(metrics.networkOut || 0)
-    if (h.cpu.length > maxPoints) h.cpu.shift()
-    if (h.memory.length > maxPoints) h.memory.shift()
-    if (h.networkIn.length > maxPoints) h.networkIn.shift()
-    if (h.networkOut.length > maxPoints) h.networkOut.shift()
-  }, [metrics, maxPoints])
-
-  return {
-    current: metrics || { cpu: 0, memory: 0, networkIn: 0, networkOut: 0 },
-    history: historyRef.current,
-  }
-}
-
-function Sparkline({ data, color, maxVal = 100 }: { data: number[]; color: string; maxVal?: number }) {
-  if (data.length === 0) {
-    return (
-      <div className="h-16 bg-black/20 rounded-lg flex items-center justify-center">
-        <span className="text-[10px] text-white/20">Collecting data...</span>
-      </div>
-    )
-  }
-  const padded = data.length < 2 ? [...Array(Math.max(0, 2 - data.length)).fill(0), ...data] : data
-  const h = 64
-  const w = 280
-  const step = w / (padded.length - 1)
-  const points = padded
-    .map((v, i) => {
-      const x = i * step
-      const y = h - (Math.min(v, maxVal) / maxVal) * (h - 4) - 2
-      return `${x},${y}`
-    })
-    .join(' ')
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-16 w-full bg-black/20 rounded-lg" preserveAspectRatio="none">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-        opacity={0.8}
-      />
-      {padded.map((v, i) => (
-        <circle
-          key={i}
-          cx={i * step}
-          cy={h - (Math.min(v, maxVal) / maxVal) * (h - 4) - 2}
-          r={1.5}
-          fill={color}
-          opacity={0.6}
-        />
-      ))}
-    </svg>
-  )
+function formatAt(iso: string, hours: number): string {
+  const d = new Date(iso)
+  const opts: Intl.DateTimeFormatOptions =
+    hours <= 1
+      ? { hour: '2-digit', minute: '2-digit', second: '2-digit' }
+      : hours <= 24
+        ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { month: 'short', day: 'numeric' }
+  return d.toLocaleString(undefined, opts)
 }
 
 export default function MetricsTab({ svc }: { svc: Service }) {
-  const { current: m, history } = useMetricHistory(svc.id)
+  const [hours, setHours] = useState(1)
+  const { data: live } = useServiceMetrics(svc.id)
+  const { data: history } = useServiceMetricsHistory(svc.id, hours)
 
-  const items = [
-    { label: 'CPU', value: `${(m.cpu ?? 0).toFixed(1)}%`, color: '#8b5cf6', data: history.cpu, max: 100 },
-    { label: 'Memory', value: `${(m.memory ?? 0).toFixed(1)}%`, color: '#22c55e', data: history.memory, max: 100 },
-    {
-      label: 'Network In',
-      value: `${(m.networkIn ?? 0).toFixed(1)} MB/s`,
-      color: '#3b82f6',
-      data: history.networkIn,
-      max: 50,
-    },
-    {
-      label: 'Network Out',
-      value: `${(m.networkOut ?? 0).toFixed(1)} MB/s`,
-      color: '#f59e0b',
-      data: history.networkOut,
-      max: 50,
-    },
-  ]
+  const samples = (history?.samples ?? []).map((s) => ({
+    time: formatAt(s.at, hours),
+    cpu: s.cpu,
+    memory: s.memory,
+  }))
 
   return (
     <div className="p-5">
-      <div className="text-[14px] font-medium text-white/70 mb-4">Metrics</div>
-      <div className="grid grid-cols-2 gap-3">
-        {items.map((item) => (
-          <div key={item.label} className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-            <div className="text-[11px] text-white/40 mb-2">{item.label}</div>
-            <div className="text-[20px] font-semibold" style={{ color: item.color }}>
-              {item.value}
-            </div>
-            <div className="mt-3">
-              <Sparkline data={item.data} color={item.color} maxVal={item.max} />
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[14px] font-medium text-white/70">Metrics</div>
+        <div className="flex gap-1">
+          {WINDOWS.map((w) => (
+            <button
+              key={w.hours}
+              onClick={() => setHours(w.hours)}
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
+                hours === w.hours
+                  ? 'bg-violet-500/20 text-violet-300'
+                  : 'bg-white/[0.04] text-white/40 hover:text-white/70'
+              }`}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {history && history.samples.length > 0 ? (
+        <div className="space-y-4">
+          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+            <div className="text-[11px] text-white/40 mb-2">CPU (%)</div>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={samples} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="time" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} minTickGap={30} />
+                  <YAxis domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} />
+                  <Tooltip
+                    contentStyle={{ background: '#151518', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+                  />
+                  <Area type="monotone" dataKey="cpu" stroke="#8b5cf6" strokeWidth={2} fill="url(#cpuGrad)" name="CPU" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        ))}
-      </div>
+
+          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+            <div className="text-[11px] text-white/40 mb-2">Memory (%)</div>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={samples} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="time" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} minTickGap={30} />
+                  <YAxis domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} />
+                  <Tooltip
+                    contentStyle={{ background: '#151518', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+                  />
+                  <Area type="monotone" dataKey="memory" stroke="#22c55e" strokeWidth={2} fill="url(#memGrad)" name="Memory" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 px-1 pt-1 text-[11px] text-white/40">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-violet-500" /> Live CPU
+              <span className="text-white/70 ml-1">{live?.cpu != null ? `${live.cpu.toFixed(1)}%` : '—'}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-500" /> Live Memory
+              <span className="text-white/70 ml-1">{live?.memory != null ? `${live.memory.toFixed(1)}%` : '—'}</span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
+          <div className="text-white/40 text-[13px] mb-2">No historical data yet</div>
+          <div className="text-white/20 text-[11px] max-w-xs">
+            Metrics are sampled every 5 minutes. Check back shortly to see CPU and memory graphs for this service.
+          </div>
+          {live && (
+            <div className="mt-4 text-[12px] text-white/60">
+              Live: CPU {live.cpu?.toFixed(1)}% · Memory {live.memory?.toFixed(1)}%
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

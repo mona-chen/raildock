@@ -291,6 +291,14 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
+  metricsHistory: async (id: string, hours = 24): Promise<{
+    service: string
+    window_hours: number
+    samples: Array<{ at: string; cpu: number | null; memory: number | null; memory_used: number | null; memory_limit: number | null }>
+  }> => {
+    return fetchJson(`/api/services/${id}/metrics_history?hours=${hours}`)
+  },
+
   deployments: async (id: string): Promise<ApiDeployment[]> => {
     return fetchJson(`/api/services/${id}/deployments`)
   },

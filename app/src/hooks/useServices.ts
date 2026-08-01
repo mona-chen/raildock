@@ -236,6 +236,15 @@ export function useServiceMetrics(id: string) {
   })
 }
 
+export function useServiceMetricsHistory(id: string, hours = 24) {
+  return useQuery({
+    queryKey: ['services', id, 'metrics_history', hours],
+    queryFn: () => api.services.metricsHistory(id, hours),
+    enabled: !!id,
+    refetchInterval: 60000,
+  })
+}
+
 export function useServiceDeployments(id: string) {
   return useQuery({
     queryKey: ['services', id, 'deployments'],
