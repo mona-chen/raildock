@@ -97,6 +97,17 @@ Rails.application.configure do
   # Allow any host since RailDock is self-hosted and the server owner controls access.
   config.hosts = nil
 
+  # Allow the configured FRONTEND_URL to open ActionCable WebSocket
+  # connections. The default origin check compares against the request's
+  # base URL, which fails behind a reverse proxy that sets a different
+  # Host header than what the client sees, causing every /cable upgrade
+  # to be rejected after hijack.
+  config.action_cable.allowed_request_origins = [
+    ENV.fetch("FRONTEND_URL", "http://localhost"),
+    ENV["RAILDOCK_PUBLIC_URL"].presence,
+    ENV["APP_URL"].presence
+  ].compact.flat_map { |u| u.to_s.split(",").map(&:strip) }.reject(&:blank?)
+
   # Skip DNS rebinding protection for health check endpoints.
   config.host_authorization = { exclude: ->(request) { request.path == "/up" || request.path == "/api/health" } }
 end
