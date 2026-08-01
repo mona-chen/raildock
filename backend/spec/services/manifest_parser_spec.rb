@@ -32,6 +32,28 @@ RSpec.describe ManifestParser do
         TOML
       end
 
+      it 'maps [services.resources] to per-process limits' do
+        toml_with_resources = <<~TOML
+          name = "Resourced"
+
+          [[services]]
+          name = "web"
+          category = "app"
+          subtype = "rails"
+          builder = "nixpacks"
+          source = { type = "git", repo = "https://github.com/test/app", branch = "main" }
+
+            [services.resources]
+            memory = "512m"
+            cpus = "0.5"
+        TOML
+
+        result = described_class.parse(toml_with_resources, filename: "raildock.toml")
+        web = result.find_service("web")
+
+        expect(web[:limits]).to eq({ "web" => { memory: "512m", cpu: "0.5" } })
+      end
+
       it 'parses services and links' do
         result = described_class.parse(toml, filename: "raildock.toml")
 

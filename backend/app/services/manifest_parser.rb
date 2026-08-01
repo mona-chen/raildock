@@ -448,7 +448,10 @@ class ManifestParser
     source = normalize_source(svc_hash["source"] || svc_hash[:source])
     proxy = normalize_proxy(svc_hash["proxy"] || svc_hash[:proxy])
     scaling = normalize_scaling(svc_hash["scaling"] || svc_hash[:scaling])
-    limits = normalize_limits(svc_hash["limits"] || svc_hash[:limits])
+    # [services.resources] is the TOML alias for hard limits (memory/cpus).
+    # Map it onto limits so manifests declaring `resources` get enforced.
+    resources = svc_hash["resources"] || svc_hash[:resources]
+    limits = normalize_limits(svc_hash["limits"] || svc_hash[:limits] || resources)
     reservations = normalize_limits(svc_hash["reservations"] || svc_hash[:reservations])
     checks = normalize_checks(svc_hash["checks"] || svc_hash[:checks])
     cron = normalize_cron(svc_hash["cron"] || svc_hash[:cron])
@@ -572,11 +575,20 @@ class ManifestParser
   def normalize_limits(limits)
     return {} unless limits.is_a?(Hash)
     result = {}
+
+    # Flat shape: [services.resources] with memory/cpu/nvidia_gpu directly
+    # (e.g. { memory: "512m", cpus: "0.5" }). Applies to the web process.
+    if limits.key?("memory") || limits.key?(:memory) || limits.key?("cpus") || limits.key?(:cpus)
+      limits = { "web" => limits }
+    end
+
     limits.each do |process_type, cfg|
       next unless cfg.is_a?(Hash)
+      # Accept both cpus (resources style) and cpu (limits style).
+      cpu = cfg["cpu"] || cfg[:cpu] || cfg["cpus"] || cfg[:cpus]
       result[process_type.to_s] = {
         memory: cfg["memory"] || cfg[:memory],
-        cpu: cfg["cpu"] || cfg[:cpu],
+        cpu: cpu,
         nvidia_gpu: cfg["nvidia_gpu"] || cfg[:nvidia_gpu]
       }.compact
     end
