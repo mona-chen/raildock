@@ -122,7 +122,9 @@ export default function MetricsTab({ svc }: { svc: Service }) {
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-violet-500" /> Live CPU
               <span className="text-white/70 ml-1">
-                {live?.cpu != null ? `${cpuNorm(live.cpu).toFixed(1)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}` : '—'}
+                {live?.cpu != null && cpuNorm(live.cpu) != null
+                  ? `${cpuNorm(live.cpu)!.toFixed(1)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}`
+                  : '—'}
               </span>
             </span>
             <span className="flex items-center gap-1.5">
