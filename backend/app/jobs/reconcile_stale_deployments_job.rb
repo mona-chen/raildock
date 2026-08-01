@@ -44,7 +44,7 @@ class ReconcileStaleDeploymentsJob < ApplicationJob
   end
 
   def prune_stale_upcoming_containers
-    Server.where.not(ssh_key: [ nil, "" ]).find_each do |server|
+    Server.where.not(ssh_key_ciphertext: [ nil, "" ]).find_each do |server|
       result = HostEngine.new(server).prune_stale_upcoming_containers(older_than: STALE_UPCOMING_AGE)
       next unless result[:success] && result[:removed].positive?
 
