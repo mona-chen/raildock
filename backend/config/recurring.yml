@@ -33,3 +33,7 @@ production:
   check_app_update:
     class: CheckAppUpdateJob
     schedule: every 6 hours
+
+  malware_scan:
+    class: MalwareScanJob
+    schedule: every hour at minute 5
