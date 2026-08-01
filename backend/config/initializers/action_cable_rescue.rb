@@ -13,12 +13,14 @@
 # whole cable broker.
 Rails.application.config.after_initialize do
   ActionCable::Connection::Base.class_eval do
-    def handle_channel_command(identifier, command, data)
-      subscriptions.execute_command(identifier, command, data)
+    def handle_channel_command(payload)
+      run_callbacks :command do
+        subscriptions.execute_command(payload)
+      end
     rescue => error
       Rails.logger.warn(
         "[ActionCable] dropping bad channel command " \
-        "identifier=#{identifier} command=#{command} " \
+        "payload=#{payload.inspect} " \
         "error=#{error.class}: #{error.message}"
       )
     end
