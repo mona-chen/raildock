@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_06_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -422,6 +422,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_06_000002) do
     t.index ["to_service_id"], name: "index_service_links_on_to_service_id"
   end
 
+  create_table "service_metrics", force: :cascade do |t|
+    t.float "cpu"
+    t.datetime "created_at", null: false
+    t.float "memory"
+    t.float "memory_limit"
+    t.float "memory_used"
+    t.float "network_in"
+    t.float "network_out"
+    t.datetime "sampled_at", null: false
+    t.bigint "service_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["service_id", "sampled_at"], name: "index_service_metrics_on_service_id_and_sampled_at"
+    t.index ["service_id"], name: "index_service_metrics_on_service_id"
+  end
+
   create_table "service_subtypes", force: :cascade do |t|
     t.jsonb "capabilities", default: []
     t.string "color"
@@ -560,6 +575,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_06_000002) do
   add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"
   add_foreign_key "service_links", "services", column: "to_service_id"
+  add_foreign_key "service_metrics", "services"
   add_foreign_key "service_subtypes", "plugins"
   add_foreign_key "services", "projects"
   add_foreign_key "storage_mounts", "services"

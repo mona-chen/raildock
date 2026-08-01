@@ -37,3 +37,7 @@ production:
   malware_scan:
     class: MalwareScanJob
     schedule: every hour at minute 5
+
+  metrics_sampler:
+    class: MetricsSamplerJob
+    schedule: every 5 minutes

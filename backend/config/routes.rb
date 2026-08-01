@@ -39,6 +39,7 @@ Rails.application.routes.draw do
           post :scale
           get :logs
           get :metrics
+          get :metrics_history
           get :container_status
           get :database_info
           get :backups

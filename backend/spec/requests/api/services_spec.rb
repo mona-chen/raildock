@@ -375,17 +375,19 @@ RSpec.describe "Api::ServicesController", type: :request do
 
     context "when authenticated" do
       context "with server ssh_key present" do
-        it "returns parsed metrics from DokkuEngine" do
-          allow_any_instance_of(DokkuEngine).to receive(:metrics).and_return(
-            { success: true, output: "cpu 45\nmemory 78" }
+        it "returns real docker stats metrics" do
+          allow_any_instance_of(HostEngine).to receive(:dokku_container_name).and_return("app.web.1")
+          allow_any_instance_of(HostEngine).to receive(:docker_stats).and_return(
+            cpu: 35.5, memory: 50.0, memory_used: 1073741824, memory_limit: 2147483648
           )
 
           get "/api/services/#{service.id}/metrics", headers: auth_headers(user)
 
           expect(response).to have_http_status(:ok)
           json = JSON.parse(response.body)
-          expect(json["cpu"]).to eq(45)
-          expect(json["memory"]).to eq(78)
+          expect(json["cpu"]).to eq(35.5)
+          expect(json["memory"]).to eq(50.0)
+          expect(json["memoryLimit"]).to eq(2147483648)
         end
       end
 
@@ -409,6 +411,38 @@ RSpec.describe "Api::ServicesController", type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+    end
+  end
+
+  describe "GET /api/services/:id/metrics_history" do
+    it "returns ordered time series samples" do
+      create(:service_metric, service: service, cpu: 10, memory: 20, sampled_at: 10.minutes.ago)
+      create(:service_metric, service: service, cpu: 15, memory: 25, sampled_at: 5.minutes.ago)
+
+      get "/api/services/#{service.id}/metrics_history?hours=24", headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["service"]).to eq(service.name)
+      expect(json["window_hours"]).to eq(24)
+      expect(json["samples"].length).to eq(2)
+      expect(json["samples"].map { |s| s["cpu"] }).to eq([ 10, 15 ])
+      expect(json["samples"].first["at"]).to be_present
+    end
+
+    it "defaults to a 24h window" do
+      get "/api/services/#{service.id}/metrics_history", headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["window_hours"]).to eq(24)
+    end
+
+    it "excludes samples outside the window" do
+      create(:service_metric, service: service, sampled_at: 3.days.ago)
+
+      get "/api/services/#{service.id}/metrics_history?hours=24", headers: auth_headers(user)
+
+      expect(JSON.parse(response.body)["samples"]).to be_empty
     end
   end
 

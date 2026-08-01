@@ -1,0 +1,71 @@
+- generic [ref=f2e3]:
+  - generic [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - link [ref=f2e6] [cursor=pointer]:
+        - /url: "#/"
+        - img "RailDock" [ref=f2e7]
+      - button "EM" [ref=f2e14] [cursor=pointer]
+      - navigation [ref=f2e17]:
+        - link "Projects" [ref=f2e18] [cursor=pointer]:
+          - /url: "#/dashboard/projects"
+        - link "Servers" [ref=f2e21] [cursor=pointer]:
+          - /url: "#/dashboard/servers"
+        - link "Activity" [ref=f2e25] [cursor=pointer]:
+          - /url: "#/dashboard/activity"
+        - link "Platform" [ref=f2e28] [cursor=pointer]:
+          - /url: "#/dashboard/settings"
+      - generic [ref=f2e32]:
+        - generic "Emmanuel Ezeani" [ref=f2e33]
+        - button "Sign out" [ref=f2e37] [cursor=pointer]
+    - main [ref=f2e41]:
+      - generic [ref=f2e42]:
+        - generic [ref=f2e43]:
+          - generic [ref=f2e44]:
+            - button "Back to projects" [ref=f2e45] [cursor=pointer]
+            - button "Ruut Sign" [ref=f2e50] [cursor=pointer]
+            - generic [ref=f2e55]: production
+            - generic "Project state synchronization" [ref=f2e56]: Live
+          - button "Actions" [ref=f2e59] [cursor=pointer]
+        - generic [ref=f2e67]:
+          - button "Services" [ref=f2e68] [cursor=pointer]
+          - button "Activity" [ref=f2e72] [cursor=pointer]
+          - button "Manifest" [ref=f2e75] [cursor=pointer]
+          - button "Settings" [ref=f2e81] [cursor=pointer]
+        - generic [ref=f2e86]:
+          - generic:
+            - button "ruut-sign app — running" [ref=f2e89]:
+              - generic [ref=f2e91]:
+                - generic [ref=f2e92]:
+                  - img "Docker" [ref=f2e94]
+                  - generic [ref=f2e96]: ruut-sign
+                  - button "Link services" [ref=f2e99] [cursor=pointer]
+                - generic [ref=f2e103]: Online
+            - button "ruut-sign-postgres database — running" [ref=f2e106]:
+              - generic [ref=f2e108]:
+                - generic [ref=f2e109]:
+                  - img "PostgreSQL" [ref=f2e111]
+                  - generic [ref=f2e113]: ruut-sign-postgres
+                  - button "Link services" [ref=f2e116] [cursor=pointer]
+                - generic [ref=f2e120]: Online
+              - generic [ref=f2e123]: ruut-sign-postgres-volume
+          - generic:
+            - generic [ref=f2e128]:
+              - textbox "Filter services..." [ref=f2e133]
+              - generic [ref=f2e134]:
+                - button "All" [ref=f2e135] [cursor=pointer]
+                - button "Apps" [ref=f2e136] [cursor=pointer]
+                - button "Databases" [ref=f2e137] [cursor=pointer]
+                - button "Caches" [ref=f2e138] [cursor=pointer]
+                - button "Services" [ref=f2e139] [cursor=pointer]
+            - button "Add" [ref=f2e140] [cursor=pointer]
+          - generic [ref=f2e142]:
+            - button "Auto layout services" [ref=f2e143] [cursor=pointer]
+            - generic [ref=f2e149]:
+              - button "Zoom in" [ref=f2e150] [cursor=pointer]
+              - button "Zoom out" [ref=f2e152] [cursor=pointer]
+              - button "Fit canvas to view" [ref=f2e154] [cursor=pointer]
+            - generic [ref=f2e160]:
+              - button "Undo last action" [disabled] [ref=f2e161]
+              - button "Redo last action" [disabled] [ref=f2e165]
+            - button "Toggle layers" [ref=f2e169] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -13,7 +13,7 @@ module Api
     before_action :set_and_authorize_service!, only: [
       :show, :update, :destroy, :deploy, :rollback, :container_status,
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
-      :metrics, :backup, :restore, :restore_backup, :download_backup, :destroy_backup,
+      :metrics, :metrics_history, :backup, :restore, :restore_backup, :download_backup, :destroy_backup,
       :database_info, :backups, :snapshots, :backup_schedules,
       :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
       :generate_domain
@@ -468,6 +468,32 @@ module Api
       end
 
       render json: { cpu: nil, memory: nil, networkIn: 0, networkOut: 0 }
+    end
+
+    # Historical time series from service_metrics. Optional ?hours= window
+    # (default 24h, max 168h). Returns chronologically ordered samples.
+    def metrics_history
+      hours = [ params[:hours].to_i.clamp(1, 168), 24 ].max
+      since = hours.hours.ago
+
+      samples = @service.service_metrics
+        .where(sampled_at: since..)
+        .order(:sampled_at)
+        .pluck(:sampled_at, :cpu, :memory, :memory_used, :memory_limit)
+
+      render json: {
+        service: @service.name,
+        window_hours: hours,
+        samples: samples.map do |t, cpu, mem, used, limit|
+          {
+            at: t.iso8601,
+            cpu: cpu,
+            memory: mem,
+            memory_used: used,
+            memory_limit: limit
+          }
+        end
+      }
     end
 
     def database_info

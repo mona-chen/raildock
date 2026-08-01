@@ -236,33 +236,43 @@ class HostEngine
   end
 
   # Live resource usage for a container via `docker stats --no-stream`.
-  # Returns parsed cpu/mem/network numbers or nil when the container
-  # doesn't exist / stats cannot be read. One SSH round-trip.
+  # Returns parsed cpu/mem numbers or nil when the container doesn't
+  # exist / stats cannot be read. One SSH round-trip.
+  #
+  # Uses a tab-separated output (no braces/quotes) to avoid shell-escaping
+  # the Go template on the remote host:
+  #   CPUPerc  MemUsage
+  #   52.54%   696.4MiB / 5GiB
   def docker_stats(container)
     result = run(
       "docker stats --no-stream --format " \
-      "'{{\"cpu\":{{.CPUPerc}},\"mem\":{{.MemUsage}}}}' " \
+      "'{{.CPUPerc}}\t{{.MemUsage}}' " \
       "#{Shellwords.escape(container)}"
     )
     return nil unless result[:success]
 
-    output = result[:output].to_s
-    cpu = output[/cpu[":\s]+(\d+(?:\.\d+)?)/, 1]&.to_f
-    # MemUsage format: "574.5MiB / 1GiB" — extract the used bytes.
-    mem_match = output.match(/mem[":\s]+([\d.]+)([KMGT]i?B)\s*\/\s*([\d.]+)([KMGT]i?B)/)
-    return { cpu: cpu, memory: nil } unless mem_match
+    cpu_str, mem_usage = result[:output].to_s.split("\t", 2)
+    return nil if cpu_str.blank? || mem_usage.blank?
 
-    used = human_to_bytes(mem_match[1].to_f, mem_match[2])
-    limit = human_to_bytes(mem_match[3].to_f, mem_match[4])
+    cpu = cpu_str.to_s.delete("%").to_f
+    used_str, limit_str = mem_usage.split("/", 2).map(&:strip)
+    return { cpu: cpu, memory: nil } if used_str.blank? || limit_str.blank?
+
+    used = human_size_to_bytes(used_str)
+    limit = human_size_to_bytes(limit_str)
     memory = limit.positive? ? (used * 100.0 / limit).round(1) : nil
     { cpu: cpu, memory: memory, memory_used: used, memory_limit: limit }
   end
 
   private
 
-  def human_to_bytes(value, unit)
+  def human_size_to_bytes(size)
+    match = size.to_s.match(/([\d.]+)\s*([KMGT]i?B)/i)
+    return 0 unless match
+
+    value = match[1].to_f
     multiplier = { "K" => 1024, "M" => 1024**2, "G" => 1024**3, "T" => 1024**4 }
-    value * (multiplier[unit[0].upcase] || 1)
+    value * (multiplier[match[2][0].upcase] || 1)
   end
 
   def builder_capabilities
@@ -369,6 +379,7 @@ class HostEngine
   end
 
   # ── Dokku container helpers ─────────────────
+  public
 
   # Dokku web containers are named <app>.web.1
   # Dokku plugin containers are named dokku.<plugin>.<app>
