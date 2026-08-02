@@ -151,5 +151,18 @@ RSpec.describe DatabaseViewer, type: :service do
 
       expect(mysql_viewer.tables).to eq([])
     end
+
+    it "parses the non-interactive batch format as dokku connect emits it" do
+      batch = <<~OUTPUT
+        _raildock_json
+        [{"name":"users","schema":"skillmango_mariadb"},{"name":"orders","schema":"skillmango_mariadb"}]
+      OUTPUT
+      allow(engine).to receive(:datastore_query).and_return({ success: true, output: batch })
+
+      expect(mysql_viewer.tables).to eq([
+        { "name" => "users", "schema" => "skillmango_mariadb" },
+        { "name" => "orders", "schema" => "skillmango_mariadb" }
+      ])
+    end
   end
 end

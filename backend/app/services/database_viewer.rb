@@ -114,17 +114,23 @@ class DatabaseViewer
     %w[mysql mariadb].include?(@subtype)
   end
 
-  # MySQL/MariaDB clients print an ASCII box. Each query returns a single JSON
-  # payload row; the boxed row is the last `| ... |` line before the closing
-  # border, and mysql escapes newlines inside values so the payload stays whole.
-  def extract_mysql_json(output)
-    cell = output.lines.select { |l| l.start_with?("| ") }
-                      .map { |l| l.sub(/\A\|\s*/, "").sub(/\s*\|\s*\z/, "") }
-                      .last.to_s.strip
-    return [] if cell.empty? || cell == "NULL"
+# MySQL/MariaDB clients print one JSON payload row per query, but the framing
+# depends on the invocation: Dokku's `connect` runs non-interactively, so the
+# client emits a header line (`_raildock_json`) followed by the bare JSON on the
+# next line — no ASCII box. With a pty it prints `| ... |` boxed rows instead.
+# Strip the borders if present, drop the header, and return the first line that
+# is actually the payload (begins with `[`/`{` or is `NULL`).
+def extract_mysql_json(output)
+  lines = output.lines.map(&:strip).reject(&:empty?)
+  lines.shift if lines.first == "_raildock_json"
 
-    JSON.parse(cell)
-  end
+  cell = lines.map { |l| l.start_with?("|") ? l.sub(/\A\|\s*/, "").sub(/\s*\|\s*\z/, "") : l }
+              .reject(&:empty?)
+              .find { |l| l.start_with?("[", "{") || l == "NULL" }
+  return [] if cell.nil? || cell == "NULL"
+
+  JSON.parse(cell)
+end
 
   def normalize_table_name(raw)
     name = raw.to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").delete("\x00")
