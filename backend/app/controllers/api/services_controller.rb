@@ -789,11 +789,12 @@ module Api
         temporary: true
       )
 
-      # Sync to Dokku
+      # Sync to Dokku. Temporary magic domains never get TLS — only map https
+      # when the domain actually supports SSL (non-magic domain).
       if server.ssh_key.present?
         engine = DokkuEngine.new(server)
         engine.domain_add(@service.dokku_app_name, hostname)
-        engine.sync_port_mappings(@service.dokku_app_name, target)
+        engine.sync_port_mappings(@service.dokku_app_name, target, https: use_ssl)
       end
 
       render json: domain, status: :created

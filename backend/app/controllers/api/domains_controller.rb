@@ -151,11 +151,12 @@ module Api
 
     def sync_port_mapping(domain, engine)
       target = domain.target_port || @service.detected_port || 5000
-      engine.ports_set(
-        @service.dokku_app_name,
-        "http:80:#{target.to_i}",
-        "https:443:#{target.to_i}"
-      )
+      # Only map https when the domain has SSL. A stray https:443 mapping on a
+      # managed Traefik without letsencrypt makes Dokku emit an https router
+      # for a nonexistent certresolver, breaking routing for the whole app.
+      mappings = [ "http:80:#{target.to_i}" ]
+      mappings << "https:443:#{target.to_i}" if domain.ssl
+      engine.ports_set(@service.dokku_app_name, *mappings)
     end
 
     def escape(value)

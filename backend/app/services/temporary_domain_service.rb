@@ -53,7 +53,8 @@ class TemporaryDomainService
 
     if engine && @server.ssh_key.present?
       engine.domain_add(service.dokku_app_name, hostname)
-      engine.sync_port_mappings(service.dokku_app_name, target_port)
+      # Temporary magic (sslip.io) domains never get TLS certs — always HTTP-only.
+      engine.sync_port_mappings(service.dokku_app_name, target_port, https: false)
     end
 
     domain

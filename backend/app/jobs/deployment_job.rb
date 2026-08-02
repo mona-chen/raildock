@@ -861,11 +861,17 @@ class DeploymentJob < ApplicationJob
   def apply_container_port_mapping(service, engine, target, deployment)
     return { success: true } if service.project.server&.external_proxy?
 
-    result = engine.ports_set(
-      service.dokku_app_name,
-      "http:80:#{target.to_i}",
-      "https:443:#{target.to_i}"
-    )
+    # Managed Traefik without letsencrypt is HTTP-only (TLS terminates at
+    # Cloudflare/reverse proxy). Adding a https:443 mapping makes Dokku's
+    # traefik-vhosts emit an https router referencing a certresolver that
+    # doesn't exist, which breaks routing for the whole app (504s). Only map
+    # https when letsencrypt is actually enabled on the service.
+    mappings = [ "http:80:#{target.to_i}" ]
+    if service.config&.dig("letsencrypt", "enabled")
+      mappings << "https:443:#{target.to_i}"
+    end
+
+    result = engine.ports_set(service.dokku_app_name, *mappings)
     return mark_failed(deployment, service, "Port mapping failed", result[:output]) unless result[:success]
 
     result

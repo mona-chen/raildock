@@ -544,10 +544,16 @@ class DokkuEngine
   end
 
   # Bulk set standard web port mappings for an app.
-  # Maps public 80/443 to the app's internal container port.
-  def sync_port_mappings(app_name, target_port)
+  # Maps public 80 (and 443 only when https: true) to the app's internal
+  # container port. https defaults to false because managed Traefik without
+  # letsencrypt is HTTP-only — a stray https:443 mapping makes Dokku's
+  # traefik-vhosts emit an https router for a nonexistent certresolver,
+  # which breaks routing for the whole app.
+  def sync_port_mappings(app_name, target_port, https: false)
     run("ports:clear #{escape(app_name)}")
-    run("ports:set #{escape(app_name)} http:80:#{target_port.to_i} https:443:#{target_port.to_i}")
+    mapping = "http:80:#{target_port.to_i}"
+    mapping = "#{mapping} https:443:#{target_port.to_i}" if https
+    run("ports:set #{escape(app_name)} #{mapping}")
   end
 
   # ── App Locking ──────────────────────────────
