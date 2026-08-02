@@ -181,7 +181,7 @@ class PluginRegistry
           default_version: "16",
           icon: "postgres",
           color: "#336791",
-          capabilities: %w[create destroy link unlink info logs backup restore export point_in_time_recovery],
+          capabilities: %w[create destroy link unlink info logs backup restore export point_in_time_recovery query],
           env_var_prefix: "DATABASE_URL",
           metadata: {
             url_scheme: "postgres",
@@ -197,7 +197,7 @@ class PluginRegistry
           default_version: "8.0",
           icon: "mysql",
           color: "#4479A1",
-          capabilities: %w[create destroy link unlink info logs backup restore export],
+          capabilities: %w[create destroy link unlink info logs backup restore export query],
           env_var_prefix: "DATABASE_URL",
           metadata: {
             url_scheme: "mysql"
@@ -213,7 +213,7 @@ class PluginRegistry
           default_version: "10.11",
           icon: "mariadb",
           color: "#003545",
-          capabilities: %w[create destroy link unlink info logs backup restore export],
+          capabilities: %w[create destroy link unlink info logs backup restore export query],
           env_var_prefix: "DATABASE_URL",
           metadata: {
             url_scheme: "mysql"

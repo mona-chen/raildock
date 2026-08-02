@@ -76,6 +76,7 @@ export interface Service {
   rootDirectory?: string
   startCommand?: string
   maintenanceMode: boolean
+  dataView?: boolean
   managedBy?: 'ui' | 'manifest' | 'hybrid'
   configOverrides?: Record<string, any>
   config?: Record<string, any>
@@ -538,7 +539,6 @@ export interface InvitationDetails {
 // ───────────────────────────────────────────────
 // Activity / Events
 // ───────────────────────────────────────────────
-
 export interface ActivityEvent {
   id: string
   projectId: string
@@ -546,4 +546,36 @@ export interface ActivityEvent {
   action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'warning'
   message: string
   timestamp: string
+}
+
+// ───────────────────────────────────────────────
+// Database viewer (Railway-style Data tab)
+// ───────────────────────────────────────────────
+
+export interface DataColumn {
+  name: string
+  type: string
+}
+
+export interface DataTableInfo {
+  name: string
+  schema: string
+}
+
+export interface DataTablesResponse {
+  success: boolean
+  type?: string
+  tables?: DataTableInfo[]
+  error?: string
+}
+
+export interface DataRowsResponse {
+  success: boolean
+  table?: string
+  columns?: DataColumn[]
+  rows?: Record<string, unknown>[]
+  limit?: number
+  offset?: number
+  has_more?: boolean
+  error?: string
 }

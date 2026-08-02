@@ -15,6 +15,7 @@ import { SettingsPanel } from '@/features/service-settings/SettingsPanel'
 import OverviewTab from '@/features/service-panel/tabs/OverviewTab'
 import DeployTab from '@/features/service-panel/tabs/DeployTab'
 import DatabaseTab from '@/features/service-panel/tabs/DatabaseTab'
+import DataTab from '@/features/service-panel/tabs/DataTab'
 import BackupsTab from '@/features/service-panel/tabs/BackupsTab'
 import VariablesTab from '@/features/service-panel/tabs/VariablesTab'
 import MetricsTab from '@/features/service-panel/tabs/MetricsTab'
@@ -117,7 +118,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
 
   const db = svc.type === 'database'
   const tabs = db
-    ? ['overview', 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
+    ? ['overview', ...(svc.dataView ? ['data'] : []), 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
   const color = getServiceColor(svc.subtype, svc.dockerImage)
@@ -249,6 +250,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         {tab === 'logs' && <LogsTab serviceId={serviceId} />}
         {tab === 'console' && <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />}
         {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}
+        {tab === 'data' && svc.dataView && <DataTab serviceId={serviceId} />}
         {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
         {tab === 'variables' && <VariablesTab svc={svc} />}
         {tab === 'domains' && <DomainsTab svc={svc} />}

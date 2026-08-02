@@ -34,6 +34,8 @@ import type {
   DockerContainer,
   StorageMountKind,
   StorageMountEntry,
+  DataTablesResponse,
+  DataRowsResponse,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -285,6 +287,14 @@ export const servicesApi = {
     internal_ip?: string
   }> => {
     return fetchJson(`/api/services/${id}/database_info`)
+  },
+
+  dataTables: async (id: string): Promise<DataTablesResponse> => {
+    return fetchJson(`/api/services/${id}/data`)
+  },
+
+  dataTableRows: async (id: string, table: string, limit = 50, offset = 0): Promise<DataRowsResponse> => {
+    return fetchJson(`/api/services/${id}/data/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`)
   },
 
   metrics: async (id: string): Promise<{ cpu: number; cpuCores: number; memory: number; networkIn: number; networkOut: number }> => {

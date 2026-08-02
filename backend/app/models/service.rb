@@ -181,9 +181,14 @@ class Service < ApplicationRecord
     port || detected_port || 5000
   end
 
+  # Whether the built-in database viewer supports this service.
+  def data_view
+    subtype_record&.has_capability?(:query) || false
+  end
+
   def as_json(options = {})
     super(options.merge(
-      methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url ],
+      methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url, :data_view ],
       include: {
         environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },
         domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ] },

@@ -101,6 +101,8 @@ Rails.application.routes.draw do
       delete "domains/*hostname", to: "domains#destroy", format: false
       delete "storage/*host_path", to: "storage_mounts#destroy", format: false
       get "storage/:id/browse", to: "storage_mounts#browse"
+      get "data", to: "database_viewer#tables"
+      get "data/:table", to: "database_viewer#rows"
       delete "backup_schedules/:schedule_id", to: "services#destroy_backup_schedule"
       get "backups/:backup_id/download", to: "services#download_backup"
       post "backups/:backup_id/restore", to: "services#restore_backup"

@@ -227,6 +227,24 @@ export function useDatabaseInfo(id: string) {
   })
 }
 
+export function useDataTables(id: string) {
+  return useQuery({
+    queryKey: ['services', id, 'data', 'tables'],
+    queryFn: () => api.services.dataTables(id),
+    enabled: !!id,
+    staleTime: 30000,
+  })
+}
+
+export function useDataTableRows(id: string, table: string | null, limit = 50, offset = 0) {
+  return useQuery({
+    queryKey: ['services', id, 'data', 'rows', table, limit, offset],
+    queryFn: () => api.services.dataTableRows(id, table!, limit, offset),
+    enabled: !!id && !!table,
+    staleTime: 15000,
+  })
+}
+
 export function useServiceMetrics(id: string) {
   return useQuery({
     queryKey: ['services', id, 'metrics'],

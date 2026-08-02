@@ -822,6 +822,20 @@ class DokkuEngine
     run_with_stdin("#{st.dokku_command(:import)} #{escape(service.dokku_app_name)}", data)
   end
 
+  # Generic dispatch: run a read-only SQL script via the datastore client.
+  # Dokku's datastore `connect` commands attach stdin to the database CLI inside
+  # the container, so the script is piped through without ever touching a shell.
+  # Returns { success:, output: } — structured JSON parsing is left to callers.
+  def datastore_query(service, sql)
+    st = PluginRegistry.find_subtype(service.subtype)
+    return unsupported_subtype(service.subtype) unless st&.has_capability?(:query)
+
+    result = run_with_stdin("#{st.dokku_command(:connect)} #{escape(service.dokku_app_name)}", sql)
+    return { success: false, error: result[:output].presence || "Query failed" } unless result[:success]
+
+    { success: true, output: result[:output] }
+  end
+
   # Legacy per-subtype helpers for callers that pass a name instead of a Service.
   %w[postgres redis mysql mongo mariadb].each do |subtype|
     define_method("#{subtype}_create") { |service_name| run_legacy_command(subtype, :create, service_name) }
