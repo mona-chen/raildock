@@ -315,10 +315,12 @@ class DeploymentJob < ApplicationJob
     if !result[:success] && deploy_output.include?("No changes detected")
       result = { success: true, output: deploy_output }
 
-      # git:from-image skips rebuild when the image hasn't changed, but env vars
-      # may have changed in the config sync above. Restart the app so the new env
-      # takes effect in the running container. Also rebuild proxy + network config.
-      engine.run("ps:restart #{service.dokku_app_name}")
+      # git:from-image skips the git commit when the image hasn't changed, but
+      # env vars may have changed in the config sync above. Use ps:rebuild —
+      # not ps:restart — so Dokku fully reconciles the container (recreates +
+      # renames to <app>.web.1) instead of stranding a .upcoming-* container.
+      # ps:restart can leave the app in a broken state that loops deploys.
+      engine.run("ps:rebuild #{service.dokku_app_name}")
       engine.run("network:rebuild #{service.dokku_app_name}")
       engine.run("proxy:build-config #{service.dokku_app_name}")
     end
