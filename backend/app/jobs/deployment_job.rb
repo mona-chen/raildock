@@ -435,16 +435,6 @@ class DeploymentJob < ApplicationJob
     )
     update_service_status_after(deployment, service, success: true)
 
-    # 15.5. Force Traefik to re-discover the container. Docker assigns a new
-    #      bridge IP on every recreation, and Traefik's Docker provider can
-    #      hold a stale IP briefly — routing traffic to a dead address and
-    #      causing 504s right after a deploy. Restart clears the cache.
-    #      Best-effort: only run when Traefik is the active proxy.
-    if engine.run("proxy:report --global --proxy-global-type")[:output].to_s.include?("traefik")
-      engine.run("traefik:stop")
-      engine.run("traefik:start")
-    end
-
     # 16. Prune exited containers for this app. Dokku's scheduler stops
     #     retired containers but leaves them as Exited — they accumulate
     #     as `.upcoming-<rand>` and can confuse Docker DNS / load balancers.
