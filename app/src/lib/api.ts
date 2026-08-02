@@ -100,7 +100,10 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
         useAuthStore.getState().logout()
       }
       const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || `HTTP ${res.status}`)
+      const error = new Error((err?.error as string) || `HTTP ${res.status}`) as Error & { code?: string; actionable?: boolean }
+      if (err?.code) error.code = err.code
+      if (err?.actionable != null) error.actionable = err.actionable
+      throw error
     }
     // 204 No Content — nothing to parse
     if (res.status === 204) {

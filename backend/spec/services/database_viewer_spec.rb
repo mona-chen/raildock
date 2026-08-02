@@ -35,6 +35,24 @@ RSpec.describe DatabaseViewer, type: :service do
       ])
     end
 
+    it "joins a long JSON payload split across many psql continuation lines" do
+      rows = [ { "name" => "users", "schema" => "public" }, { "name" => "orders", "schema" => "public" } ]
+      wrapped = rows.to_json.gsub(/, /, ",\n {")
+      stub_outputs({ success: true, output: "Output format is unaligned.\nTuples only is on.\n#{wrapped}\n" })
+
+      expect(viewer.tables).to eq(rows)
+    end
+
+    it "raises Auth (not QueryFailed) when the datastore rejects our credentials" do
+      stub_outputs({ success: false, error: 'ERROR 1045 (28000): Access denied \u00a8user\u00a8mysql\u00a8\u00a8localhost' })
+      expect { viewer.tables }.to raise_error(DatabaseViewer::Auth)
+    end
+
+    it "raises Auth on postgres password-authentication failures" do
+      stub_outputs({ success: false, error: "FATAL: password authentication failed for user 'mysql'" })
+      expect { viewer.tables }.to raise_error(DatabaseViewer::Auth)
+    end
+
     it "raises Unsupported for non-SQL datastores" do
       redis = described_class.new(create(:service, service_type: :cache, subtype: "redis"), engine)
       expect { redis.tables }.to raise_error(DatabaseViewer::Unsupported)

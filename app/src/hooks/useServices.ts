@@ -233,6 +233,7 @@ export function useDataTables(id: string) {
     queryFn: () => api.services.dataTables(id),
     enabled: !!id,
     staleTime: 30000,
+    retry: (failureCount, error) => (error as Error & { code?: string })?.code === 'auth_drift' ? false : failureCount < 2,
   })
 }
 
@@ -242,6 +243,8 @@ export function useDataTableRows(id: string, table: string | null, limit = 50, o
     queryFn: () => api.services.dataTableRows(id, table!, limit, offset),
     enabled: !!id && !!table,
     staleTime: 15000,
+    retry: (failureCount, error) =>
+      (error as Error & { code?: string })?.code === 'auth_drift' ? false : failureCount < 2,
   })
 }
 

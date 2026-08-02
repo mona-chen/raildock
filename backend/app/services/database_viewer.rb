@@ -16,6 +16,13 @@ class DatabaseViewer
   class Unsupported < Error; end
   class QueryFailed < Error; end
 
+  # Raised when the datastore rejects our credentials. This is almost always a
+  # credential-drift situation: the live database's users no longer match what
+  # Dokku/RailDock have stored (e.g. passwords rotated out of band). It is
+  # surfaced to the UI as an actionable "out of sync" state rather than a
+  # generic query failure so the client stops retrying.
+  class Auth < Error; end
+
   SQL_ENGINES = %w[postgres mysql mariadb].freeze
 
   def initialize(service, engine)
@@ -62,9 +69,22 @@ class DatabaseViewer
   def run_sql(sql)
     script = @subtype == "postgres" ? "\\a\n\\t\n#{sql}\n" : sql
     result = @engine.datastore_query(@service, script)
-    raise QueryFailed, result[:error] unless result[:success]
+    return result[:output] if result[:success]
 
-    result[:output]
+    classify_failure(result[:error].presence || "Query failed")
+  end
+
+  # Accepts a raw failure message (from DatastoreError output or the engine's
+  # `error` field) and raises the right error class so callers can tell a
+  # credential/auth problem apart from a plain query failure.
+  def classify_failure(message)
+    raise Auth, message if auth_failure?(message.to_s)
+
+    raise QueryFailed, message
+  end
+
+  def auth_failure?(message)
+    message.match?(/Access denied|using password:\s*YES|ERROR\s+1045|\(28000\)|password authentication failed|Peer authentication failed|pg_hba/i)
   end
 
   # Every payload query is crafted to emit a single JSON value.
@@ -72,11 +92,22 @@ class DatabaseViewer
     if mysql_family?
       extract_mysql_json(output)
     else
-      line = output.lines.map(&:strip).find { |l| l.start_with?("[", "{") }
-      JSON.parse(line || output.strip)
+      JSON.parse(extract_json_payload(output))
     end
   rescue JSON::ParserError
     raise QueryFailed, "Could not parse database response"
+  end
+
+  # psql wraps a long json_agg value over many continuation lines regardless of
+  # `\a`/`\t`, so the whole JSON envelope is the payload: everything from the
+  # first `[`/`{` to the last `]`/`}` is joined and parsed. Truncating to the
+  # first line (as some naive parsers do) silently loses the rest of the value.
+  def extract_json_payload(output)
+    start_idx = output.index(/[\[{]/)
+    end_idx = output.rindex(/[\]}]/)
+    return output.strip if start_idx.nil? || end_idx.nil? || start_idx > end_idx
+
+    output[start_idx..end_idx]
   end
 
   def mysql_family?

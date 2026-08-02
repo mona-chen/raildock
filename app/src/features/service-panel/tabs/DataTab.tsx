@@ -25,6 +25,23 @@ function CellValue({ value }: { value: unknown }) {
   )
 }
 
+const isAuthDrift = (error: unknown) =>
+  (error as Error & { code?: string })?.code === 'auth_drift'
+
+function DriftBanner() {
+  return (
+    <div className="px-3 py-3 text-[12px] leading-relaxed">
+      <p className="text-amber-400/90 font-medium mb-1">Database credentials are out of sync</p>
+      <p className="text-white/45">
+        The stored connection details no longer match the running database (credentials were likely
+        rotated outside RailDock). Resync the datastore's users on the host — go to the{' '}
+        <span className="text-white/70">Credentials</span> section and run Resync — or reconnect
+        using updated credentials, then reload.
+      </p>
+    </div>
+  )
+}
+
 export default function DataTab({ serviceId }: { serviceId: string }) {
   const [table, setTable] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
@@ -68,9 +85,13 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
               ))}
             </div>
           ) : tablesError ? (
-            <div className="px-3 py-3 text-[12px] text-red-400/80 leading-relaxed">
-              {tablesData?.error || 'Failed to load tables'}
-            </div>
+            isAuthDrift(tablesError) ? (
+              <DriftBanner />
+            ) : (
+              <div className="px-3 py-3 text-[12px] text-red-400/80 leading-relaxed">
+                {tablesData?.error || 'Failed to load tables'}
+              </div>
+            )
           ) : tables.length === 0 ? (
             <div className="px-3 py-3 text-[12px] text-white/30">No tables found</div>
           ) : (
@@ -110,7 +131,13 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
           </div>
         ) : rowsError || !rowsData?.success ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <p className="text-[13px] text-red-400/80">{rowsData?.error || 'Failed to load rows'}</p>
+            {isAuthDrift(rowsError) ? (
+              <div className="max-w-sm text-left">
+                <DriftBanner />
+              </div>
+            ) : (
+              <p className="text-[13px] text-red-400/80">{rowsData?.error || 'Failed to load rows'}</p>
+            )}
           </div>
         ) : (
           <>

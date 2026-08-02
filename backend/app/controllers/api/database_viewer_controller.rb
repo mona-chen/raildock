@@ -10,6 +10,8 @@ module Api
       return unsupported unless viewer
 
       render json: { success: true, type: @service.subtype, tables: viewer.tables }
+    rescue DatabaseViewer::Auth => e
+      render_auth_drift(e.message)
     rescue DatabaseViewer::Error => e
       render_error(e.message)
     end
@@ -21,6 +23,8 @@ module Api
 
       result = viewer.rows(params[:table], limit: params[:limit], offset: params[:offset])
       render json: { success: true }.merge(result)
+    rescue DatabaseViewer::Auth => e
+      render_auth_drift(e.message)
     rescue DatabaseViewer::Error => e
       render_error(e.message)
     end
@@ -45,6 +49,18 @@ module Api
 
     def render_error(message)
       render json: { success: false, error: message }, status: :unprocessable_entity
+    end
+
+    # Credentials no longer match the live database. Distinct code + status so
+    # the client can surface a clear "creds out of sync / needs resync" state
+    # instead of an endless retry spinner.
+    def render_auth_drift(message)
+      render json: {
+        success: false,
+        code: "auth_drift",
+        error: message,
+        actionable: true
+      }, status: :service_unavailable
     end
   end
 end
