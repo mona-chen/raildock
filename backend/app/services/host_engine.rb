@@ -336,6 +336,8 @@ class HostEngine
     nil
   end
 
+  public
+
   # Check if a container is running
   def container_running?(container_name)
     return false if container_name.blank?
