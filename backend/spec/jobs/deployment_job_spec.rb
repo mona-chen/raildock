@@ -440,13 +440,13 @@ RSpec.describe DeploymentJob, type: :job do
         allow(engine).to receive(:run_streaming).and_yield("No changes detected, skipping git commit").and_return(
           { success: false, output: "No changes detected, skipping git commit" }
         )
-        allow(engine).to receive(:run).with("ps:restart #{service.dokku_app_name}").and_return({ success: true, output: "" })
+        allow(engine).to receive(:run).with("ps:rebuild #{service.dokku_app_name}").and_return({ success: true, output: "" })
       end
 
-      it "restarts the container and rebuilds proxy and network config" do
+      it "rebuilds the container and rebuilds proxy and network config" do
         DeploymentJob.perform_now(service.id, deployment.id)
 
-        expect(engine).to have_received(:run).with("ps:restart #{service.dokku_app_name}")
+        expect(engine).to have_received(:run).with("ps:rebuild #{service.dokku_app_name}")
         expect(engine).to have_received(:run).with("network:rebuild #{service.dokku_app_name}")
         expect(engine).to have_received(:run).with("proxy:build-config #{service.dokku_app_name}")
         expect(deployment.reload.status).to eq("succeeded")

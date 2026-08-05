@@ -279,6 +279,18 @@ class HostEngine
     }
   end
 
+  # Report whether a builder binary is present and usable on the host. Public
+  # because DeploymentJob consults it before choosing a build strategy.
+  def builder_available?(builder)
+    capabilities = builder_capabilities
+    case builder.to_s
+    when "nixpacks" then capabilities["nixpacks"] == true
+    when "pack" then capabilities["pack"] == true
+    when "railpack" then capabilities["railpack"] == true && capabilities["buildkit"] == true
+    else true
+    end
+  end
+
   private
 
   def human_size_to_bytes(size)
@@ -302,16 +314,6 @@ class HostEngine
     result[:output].lines.to_h do |line|
       name, status = line.strip.split("=", 2)
       [ name, status == "available" ]
-    end
-  end
-
-  def builder_available?(builder)
-    capabilities = builder_capabilities
-    case builder.to_s
-    when "nixpacks" then capabilities["nixpacks"] == true
-    when "pack" then capabilities["pack"] == true
-    when "railpack" then capabilities["railpack"] == true && capabilities["buildkit"] == true
-    else true
     end
   end
 
