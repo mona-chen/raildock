@@ -34,6 +34,7 @@ RSpec.describe ExternalProxyConfigurator do
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
     allow(engine).to receive(:docker_option_add).and_return(success: true, output: "")
     allow(engine).to receive(:docker_option_remove).and_return(success: true, output: "")
+    allow(host_engine).to receive(:dokku_container_name).and_return(nil)
   end
 
   it "applies generated, global, and per-service labels to the web process" do
@@ -116,7 +117,42 @@ RSpec.describe ExternalProxyConfigurator do
       a_string_including('traefik.http.services.'),
       process: "web"
     ) do |_, _, label, _|
-      expect(label).to include('loadbalancer.server.port=3000')
+      expect(label).to include('loadbalancer.server.url=http://app.web.1:3000')
+      expect(label).not_to include('loadbalancer.server.port')
     end
+  end
+
+  it "pins the backend to the running container name when one is resolvable" do
+    service.update!(detected_port: 3000)
+    service.domains.update_all(target_port: 3000)
+    allow(host_engine).to receive(:dokku_container_name).with(service.dokku_app_name).and_return("proj-web.web.1")
+
+    described_class.new(service, engine, host_engine).apply!
+
+    expect(engine).to have_received(:docker_option_add).with(
+      service.dokku_app_name,
+      "deploy",
+      a_string_including('loadbalancer.server.url=http://proj-web.web.1:3000'),
+      process: "web"
+    )
+  end
+
+  it "falls back to a port label when the container is not yet running" do
+    allow(host_engine).to receive(:dokku_container_name).and_return(nil)
+
+    described_class.new(service, engine, host_engine).apply!
+
+    expect(engine).to have_received(:docker_option_add).with(
+      service.dokku_app_name,
+      "deploy",
+      a_string_including('loadbalancer.server.port=5000'),
+      process: "web"
+    )
+    expect(engine).not_to have_received(:docker_option_add).with(
+      service.dokku_app_name,
+      "deploy",
+      a_string_including('loadbalancer.server.url'),
+      process: "web"
+    )
   end
 end

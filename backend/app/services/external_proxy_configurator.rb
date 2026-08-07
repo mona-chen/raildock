@@ -60,10 +60,25 @@ class ExternalProxyConfigurator
     # generates it per-domain with the same key — the last domain processed
     # wins.  Temporary/sslip domains can have a stale target_port (e.g. 5000)
     # that overwrites the correct port from the primary domain.
-    # Determine the port once, using the authoritative priority chain.
+    # Determine the port once, using the authoritative priority chain, then
+    # drop every per-domain port label so only the resolved target survives.
     app_name = service.dokku_app_name
     target = effective_target_port
-    generated["traefik.http.services.#{app_name}-web.loadbalancer.server.port"] = target.to_s
+    generated.delete_if { |key, _| key.include?("loadbalancer.server.port") }
+
+    # Pin the backend to the running container by NAME rather than letting
+    # Traefik auto-detect a network IP.  When an app sits on several networks
+    # (app network + external proxy network + docker0), Traefik can pick an IP
+    # that is not routable from the proxy container and requests hang.
+    # <app>.web.1 resolves via Docker's embedded DNS inside Traefik's namespace,
+    # which is always routable.  Fall back to the plain port label when the
+    # container is not running yet (e.g. first-time service creation).
+    container = host_engine.dokku_container_name(app_name)
+    if container.present?
+      generated["traefik.http.services.#{app_name}-web.loadbalancer.server.url"] = "http://#{container}:#{target}"
+    else
+      generated["traefik.http.services.#{app_name}-web.loadbalancer.server.port"] = target.to_s
+    end
 
     traefik_config = service.config&.dig("traefik") || {}
     configured = traefik_config["labels"].is_a?(Hash) ? traefik_config["labels"] : traefik_config
