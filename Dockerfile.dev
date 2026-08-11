@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+#
+# Dev image for RailDock.
+#
+# Extends the production image with build tools so the development/test gem
+# group can be compiled inside a writable bundle volume, and snapshots the
+# production gems so a fresh bundle volume can be seeded cheaply by
+# scripts/dev-entrypoint.sh (only dev/test gems are then downloaded).
+#
+# Runs as root so the bind-mounted ./backend directory is writable without
+# UID remapping games.
+#
+# Build:  docker build --build-arg RAILDOCK_IMAGE=... -t raildock:dev .
+# Use:    docker compose -f docker-compose.dev.yml up -d --build
+
+ARG RAILDOCK_IMAGE=ghcr.io/mona-chen/raildock/raildock:latest
+FROM ${RAILDOCK_IMAGE}
+
+USER root
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+        build-essential libpq-dev libyaml-dev pkg-config git \
+    && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Snapshot the production bundle so dev-entrypoint can seed a fresh bundle
+# volume from the image instead of recompiling every gem.
+RUN cp -a /usr/local/bundle /opt/bundle-seed
+
+WORKDIR /rails

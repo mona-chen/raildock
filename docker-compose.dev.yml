@@ -1,48 +1,117 @@
-# Development override for live code reloading with hot reload.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# RailDock Development Stack
 #
-# Overrides the production build with live volume mounts so changes to
-# app/ and backend/ are reflected immediately without rebuilding.
+# Standalone dev compose that mounts the entire project for hot reloads:
+#   - backend:  Rails (Puma) in development mode, source mounted at /rails
+#   - frontend: Vite dev server with HMR, source mounted at /app
+#   - db:       PostgreSQL for the primary + queue/cache/cable databases
+#
+# Usage:
+#   make setup-dev    # one-time: .env, keys, image build, migrations
+#   make start        # start the stack (hot reload)
+#
+# URLs:
+#   Frontend (Vite):  http://localhost:5173  (proxies /api and /cable to backend)
+#   Backend  (Rails): http://localhost:3001
+#
+# Requires a .env with POSTGRES_PASSWORD (create via `make setup-dev`).
+# Builds Dockerfile.dev on top of the published production image.
+
+name: raildock
 
 services:
-  raildock:
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+      args:
+        RAILDOCK_IMAGE: ${RAILDOCK_IMAGE:-ghcr.io/mona-chen/raildock/raildock:latest}
     image: ghcr.io/mona-chen/raildock/raildock:dev
-    volumes:
-      # Mount source directories over the built files inside the container
-      - ./app:/app:ro
-      - ./backend:/rails:ro
-      - frontend_node_modules:/usr/share/nginx/html/node_modules
-      - raildock_bundle:/usr/local/bundle
+    entrypoint: ["/usr/local/bin/dev-entrypoint"]
+    command: ["bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
+    ports:
+      - "${BACKEND_PORT:-3001}:3000"
     environment:
       RAILS_ENV: development
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production
-      QUEUE_DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production_queue
-      CABLE_DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_production_cable
+      RAILS_LOG_TO_STDOUT: "1"
+      PORT: "3000"
+      # Override the production image's bundler settings so dev/test gems install.
+      BUNDLE_WITHOUT: ""
+      BUNDLE_DEPLOYMENT: "false"
+      # Secrets (optional in dev; app falls back to random boot keys).
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      LOCKBOX_MASTER_KEY: ${LOCKBOX_MASTER_KEY:-}
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY:-}
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: ${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY:-}
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT:-}
+      # Databases
+      DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_development
+      QUEUE_DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_development_queue
+      CABLE_DATABASE_URL: postgres://raildock:${POSTGRES_PASSWORD:-raildock}@db:5432/raildock_development_cable
       DB_HOST: db
-      DB_PORT: 5432
+      DB_PORT: "5432"
       DB_USER: raildock
       DB_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
-      FRONTEND_URL: http://localhost
-      RAILS_SERVE_STATIC_FILES: "true"
-      RAILS_LOG_TO_STDOUT: "1"
-    # Override the CMD to start only puma (nginx serves built files from /app volume)
-    command: >
-      sh -c "
-        echo '==> Starting Rails server (development mode)...' &&
-        cd /rails &&
-        bundle exec rails server -p 3000 -b 0.0.0.0"
+      # Run the Solid Queue supervisor inside Puma so background jobs work in dev.
+      SOLID_QUEUE_IN_PUMA: "1"
+      # Public URL used for invitation links / bootstrap scripts.
+      APP_URL: http://localhost:${BACKEND_PORT:-3001}
+      RAILDOCK_PUBLIC_URL: http://localhost:${BACKEND_PORT:-3001}
+      APP_HOST: localhost
+      APP_PORT: ${BACKEND_PORT:-3001}
+      APP_PROTOCOL: http
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
+    volumes:
+      # Whole project mounted for hot reload; Rails picks up code changes live.
+      - ./backend:/rails
+      - ./scripts/dev-entrypoint.sh:/usr/local/bin/dev-entrypoint:ro
+      - bundle:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    image: node:24-alpine
+    working_dir: /app
+    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+    ports:
+      - "${FRONTEND_PORT:-5173}:3000"
+    environment:
+      # Vite dev-server proxy target (browser never sees this; see vite.config.ts).
+      VITE_DEV_API_PROXY: http://backend:3000
+    volumes:
+      - ./app:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: raildock
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-raildock}
+      POSTGRES_DB: raildock_development
+    ports:
+      - "${POSTGRES_PORT:-5437}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raildock -d raildock_development"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
+  bundle:
   frontend_node_modules:
-  raildock_bundle:
+  postgres_data:

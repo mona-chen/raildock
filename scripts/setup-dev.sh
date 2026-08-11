@@ -7,10 +7,10 @@ set -e
 
 # ── Config ────────────────────────────────────
 RAILDOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE="docker compose -f $RAILDOCK_DIR/docker-compose.yml -f $RAILDOCK_DIR/docker-compose.dev.yml"
-SSH_KEY_DIR="$RAILDOCK_DIR/data/dokku-ssh"
+COMPOSE="docker compose -f $RAILDOCK_DIR/docker-compose.dev.yml"
 ENV_FILE="$RAILDOCK_DIR/.env"
 BACKEND_CONTAINER="raildock-backend-1"
+BASE_IMAGE="ghcr.io/mona-chen/raildock/raildock:latest"
 
 # ── Colors ────────────────────────────────────
 B="\033[0;34m"
@@ -41,11 +41,12 @@ print_success() {
   printf "${G}║${N}          ${G}🎉 RailDock dev is ready!${N}                            ${G}║${N}\n"
   printf "${G}║${N}                                                              ${G}║${N}\n"
   printf "${G}╚══════════════════════════════════════════════════════════════╝${N}\n\n"
-  printf "  ${B}Dashboard:${N}     http://localhost:8090\n"
-  printf "  ${B}Dokku SSH:${N}     ssh -p 3022 dokku@localhost\n"
-  printf "  ${B}Setup:${N}         Open dashboard → Create admin account → Create project → Deploy\n"
-  printf "  ${B}Logs:${N}          make logs\n"
-  printf "  ${B}Console:${N}       make console\n\n"
+  printf "  ${B}Dashboard:${N}     http://localhost:5173\n"
+  printf "  ${B}API:${N}          http://localhost:3001\n"
+  printf "  ${B}Setup:${N}         Open the dashboard → Create admin account → Add a server → Deploy\n"
+  printf "  ${B}Logs:${N}          make logs-backend   (Rails)   ·   make logs-frontend (Vite)\n"
+  printf "  ${B}Console:${N}       make console\n"
+  printf "  ${B}DB:${N}            make db\n\n"
 }
 
 generate_password() {
@@ -87,38 +88,6 @@ EOF
   log_ok "Created .env with secure credentials"
 }
 
-generate_ssh_key() {
-  mkdir -p "$SSH_KEY_DIR"
-  chmod 700 "$SSH_KEY_DIR"
-  if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
-    ssh-keygen -t ed25519 -f "$SSH_KEY_DIR/id_ed25519" -N "" -C "raildock-dev" >/dev/null 2>&1
-    log_ok "Generated Ed25519 SSH key pair for Dokku"
-  fi
-}
-
-inject_dokku_ssh_key() {
-  local pub_key="$SSH_KEY_DIR/id_ed25519.pub"
-  local dokku_container="raildock-dokku-1"
-
-  if [ ! -f "$pub_key" ]; then
-    log_error "SSH public key not found at $pub_key"
-    exit 1
-  fi
-
-  # Check if key is already added
-  if docker exec "$dokku_container" dokku ssh-keys:list 2>/dev/null | grep -q "raildock"; then
-    log_ok "SSH key already registered with Dokku"
-    return 0
-  fi
-
-  # Copy pubkey into container and add it
-  docker cp "$pub_key" "$dokku_container:/tmp/raildock.pub"
-  docker exec "$dokku_container" dokku ssh-keys:add raildock /tmp/raildock.pub
-  docker exec "$dokku_container" rm -f /tmp/raildock.pub
-
-  log_ok "Injected SSH key into Dokku"
-}
-
 check_docker() {
   if ! command -v docker >/dev/null 2>&1; then
     log_error "Docker is not installed"
@@ -145,18 +114,10 @@ is_stack_running() {
   docker ps --format '{{.Names}}' | grep -q "^${BACKEND_CONTAINER}$"
 }
 
-start_stack() {
-  if is_stack_running; then
-    log_ok "RailDock stack is already running"
-    return 0
-  fi
-
-  log_step "Starting RailDock dev stack..."
-  $COMPOSE up -d --build
-
+wait_for_backend() {
   log_step "Waiting for backend to be healthy..."
-  for i in $(seq 1 30); do
-    if docker exec "$BACKEND_CONTAINER" curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+  for i in $(seq 1 45); do
+    if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
       log_ok "Backend is healthy"
       return 0
     fi
@@ -168,107 +129,54 @@ start_stack() {
   exit 1
 }
 
-run_migrations() {
-  log_step "Running database migrations..."
-  docker exec "$BACKEND_CONTAINER" bin/rails db:prepare >/dev/null 2>&1 || {
-    log_warn "Migration may have already run"
-  }
-  log_ok "Database is ready"
+build_base_image() {
+  # The published GHCR image is amd64-only, so the dev image (Dockerfile.dev)
+  # builds on top of a production image built locally for this machine.
+  if docker image inspect "$BASE_IMAGE" >/dev/null 2>&1; then
+    log_ok "Base production image already built locally"
+    return 0
+  fi
+  log_step "Building base production image locally (first time only, takes a few minutes)..."
+  docker build -t "$BASE_IMAGE" "$RAILDOCK_DIR"
+  log_ok "Base production image built"
 }
 
-configure_dokku_proxy() {
-  local dokku_container="raildock-dokku-1"
-
-  log_step "Configuring Dokku proxy and network..."
-
-  # Patch Dokku's traefik-vhosts plugin to prevent it from starting its own Traefik
-  # RailDock manages a single Traefik instance that routes to both UI and app containers
-  docker exec "$dokku_container" bash -c '
-    PLUGIN_DIR="/var/lib/dokku/plugins/enabled/traefik-vhosts/subcommands"
-    if [ -d "$PLUGIN_DIR" ]; then
-      cat > "$PLUGIN_DIR/start" <<"EOF"
-#!/usr/bin/env bash
-echo "RailDock manages Traefik. Use docker compose restart traefik instead."
-exit 0
-EOF
-      chmod +x "$PLUGIN_DIR/start"
-
-      cat > "$PLUGIN_DIR/stop" <<"EOF"
-#!/usr/bin/env bash
-echo "RailDock manages Traefik. Use docker compose restart traefik instead."
-exit 0
-EOF
-      chmod +x "$PLUGIN_DIR/stop"
-    fi
-  '
-
-  # Set global proxy to traefik so Dokku adds traefik labels to app containers
-  docker exec "$dokku_container" dokku proxy:set --global traefik 2>/dev/null || true
-
-  # Configure Dokku apps to join the RailDock network so our Traefik can route to them
-  docker exec "$dokku_container" dokku network:set --global initial-network raildock 2>/dev/null || true
-  docker exec "$dokku_container" dokku network:set --global attach-post-deploy raildock 2>/dev/null || true
-
-  log_ok "Dokku proxy and network configured"
-}
-
-inject_server() {
-  log_step "Configuring local Dokku server..."
-
-  if [ ! -f "$SSH_KEY_DIR/id_ed25519" ]; then
-    log_error "SSH key not found at $SSH_KEY_DIR/id_ed25519"
-    exit 1
+start_stack() {
+  if is_stack_running; then
+    log_ok "RailDock stack is already running"
+    return 0
   fi
 
-  local tmp_key
-  tmp_key=$(mktemp /tmp/raildock-dev-key.XXXXXX)
-  chmod 600 "$tmp_key"
-  trap 'rm -f "$tmp_key"' EXIT
+  log_step "Starting RailDock dev stack (first run compiles the dev/test gems — a few minutes)..."
+  $COMPOSE up -d --build
 
-  # Copy SSH key into container
-  docker cp "$SSH_KEY_DIR/id_ed25519" "$BACKEND_CONTAINER:$tmp_key"
-  docker exec --user root "$BACKEND_CONTAINER" chmod 600 "$tmp_key"
+  wait_for_backend
+}
 
-  # Inline Ruby to create/update server and assign to projects
-  docker exec "$BACKEND_CONTAINER" bin/rails runner "
-    privkey = File.read('$tmp_key')
-    server = Server.first
+ensure_credentials() {
+  # The dev entrypoint does not require credentials, but generate them so the
+  # production compose file (which mounts them read-only) works too.
+  local master_key_file="$RAILDOCK_DIR/backend/config/master.key"
+  local creds_file="$RAILDOCK_DIR/backend/config/credentials.yml.enc"
 
-    if server
-      server.update!(
-        name: 'Local Dokku',
-        host: 'dokku',
-        ssh_key: privkey,
-        status: :connected,
-        dokku_version: '0.38.1',
-        docker_version: '26.1.0',
-        os: 'Alpine Linux',
-        default_proxy: 'traefik'
-      )
-      puts \"Updated server: #{server.name}\"
+  if [ -f "$creds_file" ]; then
+    log_ok "Credentials already present"
+  else
+    log_step "Generating Rails credentials..."
+    if docker exec "$BACKEND_CONTAINER" sh -c 'cd /rails && EDITOR=true bin/rails credentials:edit' >/dev/null 2>&1; then
+      log_ok "Generated credentials.yml.enc"
     else
-      server = Server.create!(
-        name: 'Local Dokku',
-        host: 'dokku',
-        ssh_key: privkey,
-        status: :connected,
-        dokku_version: '0.38.1',
-        docker_version: '26.1.0',
-        os: 'Alpine Linux',
-        default_proxy: 'traefik'
-      )
-      puts \"Created server: #{server.name}\"
-    end
+      log_warn "Could not generate credentials — the dev server works without them (app falls back to RAILS_MASTER_KEY)"
+    fi
+  fi
 
-    Project.where(server_id: nil).find_each do |project|
-      project.update!(server: server)
-      puts \"Assigned server to project: #{project.name}\"
-    end
-  "
-
-  docker exec --user root "$BACKEND_CONTAINER" rm -f "$tmp_key"
-
-  log_ok "Local Dokku server configured"
+  # `rails credentials:edit` skips writing master.key when RAILS_MASTER_KEY is
+  # set, but docker-compose.yml mounts it read-only — write it for parity.
+  if [ -f "$creds_file" ] && [ ! -f "$master_key_file" ] && [ -n "$(grep '^RAILS_MASTER_KEY=' "$ENV_FILE" | cut -d= -f2-)" ]; then
+    grep '^RAILS_MASTER_KEY=' "$ENV_FILE" | cut -d= -f2- > "$master_key_file"
+    chmod 600 "$master_key_file"
+    log_ok "Wrote backend/config/master.key"
+  fi
 }
 
 # ── Main ──────────────────────────────────────
@@ -280,13 +188,10 @@ main() {
 
   log_step "Generating credentials..."
   create_env
-  generate_ssh_key
 
+  build_base_image
   start_stack
-  inject_dokku_ssh_key
-  configure_dokku_proxy
-  run_migrations
-  inject_server
+  ensure_credentials
 
   print_success
 }

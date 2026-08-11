@@ -15,11 +15,19 @@ This file contains conventions and operational details for agents working on Rai
 ### Local development
 
 ```bash
-make setup-dev   # First time
-make start       # Dev stack with live reload
-make test        # Frontend tests
-cd backend && bundle exec rspec
+make setup-dev   # First time: .env, local base image, dev image, credentials
+make start       # Dev stack with live reload (Vite on :5173, Rails on :3001)
+make test        # Frontend tests (in the frontend container)
+make test-backend  # Backend RSpec (in the backend container)
 ```
+
+Dev runs from `docker-compose.dev.yml` (standalone, not layered on
+`docker-compose.yml`): the `backend` service builds `Dockerfile.dev` on top of a
+locally-built production image and mounts `./backend` at `/rails`; the
+`frontend` service runs Vite with HMR and mounts `./app` at `/app`.
+`scripts/dev-entrypoint.sh` seeds the bundle volume, installs dev/test gems,
+runs `db:prepare`, then starts Puma with the Solid Queue supervisor in-process
+(`SOLID_QUEUE_IN_PUMA`).
 
 ### Production install
 

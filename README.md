@@ -235,17 +235,20 @@ RAILDOCK_VERSION=latest ./install.sh
 
 ### Requirements
 
-- Ruby 3.4+
-- Node.js 20+
-- PostgreSQL 14+
-- Docker
+- Docker (with Docker Compose v2)
 
 ### Start the dev stack
 
+The dev stack runs in Docker with the entire project bind-mounted, so both the
+Rails API and the Vite frontend hot-reload as you edit code.
+
 ```bash
-make setup-dev   # env, keys, migrations
+make setup-dev   # one-time: .env, keys, image build, migrations
 make start       # full stack with live reload
 ```
+
+Then open **http://localhost:5173** (Vite) — the API is at
+**http://localhost:3001**.
 
 ### Useful commands
 
@@ -253,10 +256,11 @@ make start       # full stack with live reload
 make stop           # stop all containers
 make logs           # tail all logs
 make logs-backend   # tail Rails logs
+make logs-frontend  # tail Vite logs
 make db             # psql console
 make console        # Rails console
-make test           # frontend Vitest tests
-cd backend && bundle exec rspec  # backend tests
+make test           # frontend Vitest tests (in the frontend container)
+make test-backend   # backend RSpec tests (in the backend container)
 ```
 
 ---

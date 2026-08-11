@@ -8,10 +8,10 @@ Y := \033[1;33m
 R := \033[0;31m
 N := \033[0m
 
-COMPOSE_DEV := docker compose -f docker-compose.yml -f docker-compose.dev.yml
+COMPOSE_DEV := docker compose -f docker-compose.dev.yml
 COMPOSE_PROD := docker compose -f docker-compose.yml
 
-.PHONY: help install uninstall start stop restart status logs ps db console test seed setup-dev reset-db fix-hmr build build-prod push tag
+.PHONY: help install uninstall start stop restart status logs logs-backend logs-frontend logs-db ps db console test test-backend seed setup-dev reset-db fix-hmr build build-prod push tag
 
 help:
 	@printf "\n$(B)RailDock Commands$(N)\n\n"
@@ -24,7 +24,8 @@ help:
 	@printf "  $(G)make ps$(N)             Show running containers\n"
 	@printf "  $(G)make db$(N)             Open PostgreSQL console\n"
 	@printf "  $(G)make console$(N)        Open Rails console\n"
-	@printf "  $(G)make test$(N)           Run frontend Vitest tests\n"
+	@printf "  $(G)make test$(N)           Run frontend Vitest tests (in the frontend container)\n"
+	@printf "  $(G)make test-backend$(N)    Run backend RSpec tests (in the backend container)\n"
 	@printf "  $(G)make seed$(N)           Run Rails db:seed\n"
 	@printf "  $(G)make setup-dev$(N)      One-click dev setup (env, keys, server, migrations)\n"
 	@printf "  $(G)make reset-db$(N)        Wipe and recreate dev database\n"
@@ -33,7 +34,7 @@ help:
 	@printf "  $(G)make uninstall$(N)      Uninstall RailDock\n"
 	@printf "  $(G)make build-prod$(N)     Build production Docker image locally\n"
 	@printf "  $(G)make push$(N)           Push image to GHCR (run build first)\n"
-	@printf "\n  URL: http://localhost:3000 (backend) + http://localhost:5173 (Vite dev)\n\n"
+	@printf "\n  URL: http://localhost:5173 (Vite dev, hot reload) — http://localhost:3001 (Rails API)\n\n"
 
 status:
 	@printf "$(B)=== Containers ===$(N)\n"
@@ -44,18 +45,18 @@ start:
 	@$(COMPOSE_DEV) up -d --build
 	@printf "$(B)[make]$(N) Waiting for backend health...\n"
 	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
-		if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then \
-			printf "$(G)[make]$(N) Backend is healthy at :3000\n"; \
+		if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then \
+			printf "$(G)[make]$(N) Backend is healthy at :3001\n"; \
 			break; \
 		fi; \
 		sleep 2; \
 		if [ $$i -eq 15 ]; then \
-			printf "$(Y)[make]$(N) Backend not healthy yet — check: make logs\n"; \
+			printf "$(Y)[make]$(N) Backend not healthy yet — check: make logs-backend\n"; \
 		fi; \
 	done
 	@printf "$(G)[make]$(N) Dev stack is up\n"
-	@printf "$(B)[make]$(N) Backend:  http://localhost:3000\n"
-	@printf "$(B)[make]$(N) Vite:     http://localhost:5173\n"
+	@printf "$(B)[make]$(N) Frontend: http://localhost:5173\n"
+	@printf "$(B)[make]$(N) Backend:  http://localhost:3001\n"
 
 stop:
 	@printf "$(B)[make]$(N) Stopping containers...\n"
@@ -67,6 +68,12 @@ restart: stop start
 logs:
 	@$(COMPOSE_DEV) logs -f
 
+logs-backend:
+	@$(COMPOSE_DEV) logs -f backend
+
+logs-frontend:
+	@$(COMPOSE_DEV) logs -f frontend
+
 logs-db:
 	@$(COMPOSE_DEV) logs -f db
 
@@ -77,14 +84,30 @@ db:
 	@docker exec -it raildock-db-1 psql -U raildock -d raildock_development
 
 console:
-	@docker exec -it raildock-raildock-1 bin/rails console
+	@docker exec -it raildock-backend-1 bin/rails console
 
 test:
-	@cd app && npm test
+	@$(COMPOSE_DEV) exec frontend npm test
+
+test-backend:
+	@printf "$(B)[make]$(N) Preparing test DB and running RSpec...\n"
+	@PASS=$$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2); \
+	MK=$$(grep '^RAILS_MASTER_KEY=' .env | cut -d= -f2); \
+	docker exec raildock-backend-1 sh -c "cd /rails && \
+		export RAILS_ENV=test && \
+		export DATABASE_URL=postgres://raildock:$$PASS@db:5432/raildock_test && \
+		export JWT_SECRET_KEY=test_jwt_secret_key_for_ci_only_not_real_production_key && \
+		export LOCKBOX_MASTER_KEY=test_lockbox_master_key_for_ci_only_not_real && \
+		export RAILS_MASTER_KEY=$$MK && \
+		export DISABLE_BOOTSNAP_COMPILE_CACHE=1 && \
+		(PGPASSWORD=$$PASS psql -h db -U raildock -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='raildock_test'\" | grep -q 1 || PGPASSWORD=$$PASS createdb -h db -U raildock raildock_test) && \
+		bin/rails db:test:prepare && \
+		bundle exec rspec"
+	@printf "$(G)[make]$(N) Done\n"
 
 seed:
 	@printf "$(B)[make]$(N) Running db:seed...\n"
-	@docker exec raildock-raildock-1 sh -c 'cd /rails && bin/rails db:seed'
+	@docker exec raildock-backend-1 bin/rails db:seed
 	@printf "$(G)[make]$(N) Done\n"
 
 setup-dev:
@@ -99,7 +122,7 @@ uninstall:
 reset-db:
 	@printf "$(Y)[make]$(N) WARNING: This destroys all data in the dev database\n"
 	@read -p "Are you sure? [y/N] " confirm && [ "$${confirm}" = "y" ] || exit 0
-	@docker exec raildock-raildock-1 sh -c 'cd /rails && DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:drop db:create db:migrate'
+	@docker exec raildock-backend-1 sh -c 'cd /rails && DISABLE_DATABASE_ENVIRONMENT_CHECK=1 bin/rails db:drop db:create db:migrate'
 	@printf "$(G)[make]$(N) Database reset\n"
 
 fix-hmr:
