@@ -68,12 +68,20 @@ module Api
         detected = proxy_type_result[:output].to_s.strip.presence
         detected ||= %w[traefik caddy haproxy openresty].find { |p| engine.run("proxy:report")[:output].to_s.downcase.include?(p) }
         detected ||= "nginx"
+
+        host_info = begin
+          HostEngine.new(server).host_info
+        rescue => e
+          Rails.logger.warn "Setup: host info unavailable for #{server.host}: #{e.message}"
+          { os: "Unknown", uptime: "unknown" }
+        end
+
         server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],
           docker_version: result[:docker_version],
-          os: result[:os],
-          uptime: result[:uptime],
+          os: result[:os].presence || host_info[:os],
+          uptime: result[:uptime].presence || host_info[:uptime],
           default_proxy: detected
         )
       else

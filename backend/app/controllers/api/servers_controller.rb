@@ -68,7 +68,12 @@ module Api
         proxy_mode: provision_params[:proxy_mode].to_s.presence || "managed",
         server_name: provision_params[:server_name].to_s.strip.presence,
         base_domain: provision_params[:base_domain].to_s.strip.presence,
-        auto_domains: provision_params[:auto_domains] != false
+        auto_domains: provision_params[:auto_domains] != false,
+        external_proxy_network: provision_params[:external_proxy_network].to_s.strip.presence,
+        external_proxy_http_entrypoint: provision_params[:external_proxy_http_entrypoint].to_s.strip.presence,
+        external_proxy_https_entrypoint: provision_params[:external_proxy_https_entrypoint].to_s.strip.presence,
+        external_proxy_cert_resolver: provision_params[:external_proxy_cert_resolver].to_s.strip.presence,
+        external_proxy_redirect_middleware: provision_params[:external_proxy_redirect_middleware].to_s.strip.presence
       )
 
       audit_log(
@@ -109,12 +114,21 @@ module Api
         detected_proxy = proxy_type_result[:output].to_s.strip.presence
         detected_proxy ||= detect_proxy_type(engine.run("proxy:report")[:output])
 
+        # The dokku SSH user cannot run raw shell commands; detect OS/uptime
+        # via the root user. Best-effort — falls back to defaults.
+        host_info = begin
+          HostEngine.new(@server).host_info
+        rescue => e
+          Rails.logger.warn "Server validate: host info unavailable for #{@server.host}: #{e.message}"
+          { os: "Unknown", uptime: "unknown" }
+        end
+
         @server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],
           docker_version: result[:docker_version],
-          os: result[:os],
-          uptime: result[:uptime],
+          os: result[:os].presence || host_info[:os],
+          uptime: result[:uptime].presence || host_info[:uptime],
           default_proxy: detected_proxy,
           public_ip: result[:public_ip]
         )
@@ -123,7 +137,11 @@ module Api
       end
 
       audit_log(action: "server.validate", server: @server, metadata: { host: @server.host, success: result[:success] })
-      render json: result.merge(default_proxy: @server.default_proxy)
+      render json: result.merge(
+        default_proxy: @server.default_proxy,
+        os: @server.os,
+        uptime: @server.uptime
+      )
     end
 
     def metrics
@@ -131,7 +149,9 @@ module Api
       return if performed?
 
       if @server.ssh_key.present?
-        engine = DokkuEngine.new(@server)
+        # The restricted dokku SSH user cannot run raw shell commands (top,
+        # free, df) — they must go through the root user via HostEngine.
+        engine = HostEngine.new(@server)
 
         # Try to get real system metrics via SSH.
         # cpu = % of all cores in use (not core count).
@@ -190,9 +210,19 @@ module Api
     end
 
     def provision_params
-      params.require(:server).permit(:host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains)
+      params.require(:server).permit(
+        :host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :external_proxy_network, :external_proxy_http_entrypoint,
+        :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
+        :external_proxy_redirect_middleware
+      )
     rescue ActionController::ParameterMissing
-      params.permit(:host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains)
+      params.permit(
+        :host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :external_proxy_network, :external_proxy_http_entrypoint,
+        :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
+        :external_proxy_redirect_middleware
+      )
     end
 
     def build_server_from_params

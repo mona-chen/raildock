@@ -128,6 +128,52 @@ ensure_user_and_key() {
   chown -R "$user:$user" "$home/.ssh" 2>/dev/null || true
 }
 
+register_dokku_key() {
+  # Dokku routes `ssh dokku@host <subcommand>` through the sshcommand wrapper
+  # that `dokku ssh-keys:add` writes into authorized_keys (a command="..."
+  # prefix invoking /usr/bin/dokku). Appending a raw key would grant the dokku
+  # user a plain bash shell and break all DokkuEngine command routing, so the
+  # key must be registered via Dokku's own command.
+  if ! command -v dokku >/dev/null 2>&1; then
+    log_warn "dokku binary not found; cannot register key with sshcommand wrapper"
+    return 1
+  fi
+
+  # Remove any raw (non-wrapped) occurrence of this key from previous
+  # bootstraps. A raw line would be matched by sshd before the sshcommand
+  # wrapper and bypass Dokku's command routing. Wrapped entries (starting
+  # with command=) are left intact.
+  local auth_keys="/home/dokku/.ssh/authorized_keys"
+  if [ -f "$auth_keys" ] && grep -qF "$PUBLIC_KEY" "$auth_keys"; then
+    local tmp_auth
+    tmp_auth=$(mktemp /tmp/raildock-authorized_keys.XXXXXX)
+    awk -v key="$PUBLIC_KEY" 'index($0, key) == 0 || $0 ~ /^command=/ { print }' "$auth_keys" > "$tmp_auth"
+    cat "$tmp_auth" > "$auth_keys"
+    rm -f "$tmp_auth"
+    chmod 600 "$auth_keys"
+    chown dokku:dokku "$auth_keys"
+    log_info "Removed raw (non-wrapped) key from dokku authorized_keys"
+  fi
+
+  local tmp_key
+  tmp_key=$(mktemp /tmp/raildock-ssh-key.XXXXXX)
+  printf '%s\n' "$PUBLIC_KEY" > "$tmp_key"
+
+  # sshcommand list reports FINGERPRINT NAME="..." — never the raw key — so
+  # match on the registration name instead of the key material.
+  if ! dokku ssh-keys:list 2>/dev/null | grep -q "raildock"; then
+    if dokku ssh-keys:add raildock "$tmp_key" 2>/dev/null; then
+      log_info "Registered public key with Dokku (sshcommand-wrapped)"
+    else
+      log_warn "dokku ssh-keys:add failed; the dokku user will not route RailDock commands"
+    fi
+  else
+    log_info "Public key already registered with Dokku"
+  fi
+
+  rm -f "$tmp_key"
+}
+
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
     log_info "Docker already installed: $(docker --version)"
@@ -250,6 +296,6 @@ configure_dokku_proxy
 ensure_dokku_plugins
 ensure_builder_binaries
 # Dokku must be installed before the dokku user exists, so add the key after.
-ensure_user_and_key dokku
+register_dokku_key
 
 log_info "Bootstrap complete. Return to RailDock and click Validate Server."

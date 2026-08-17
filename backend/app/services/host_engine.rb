@@ -43,6 +43,28 @@ class HostEngine
     end
   end
 
+  # Best-effort OS and uptime detection. Returns a hash that is safe to merge
+  # into a validation result; any field that can't be read falls back to a
+  # sensible default rather than failing the call.
+  def host_info
+    info = { os: "Unknown", uptime: "unknown" }
+    return info if server.ssh_key.blank?
+
+    os_result = run("(. /etc/os-release && echo \"$PRETTY_NAME\") 2>/dev/null || lsb_release -ds 2>/dev/null || hostnamectl --static 2>/dev/null")
+    info[:os] = os_result[:output].strip.presence || "Unknown" if os_result[:success]
+
+    uptime_result = run("uptime -p 2>/dev/null || cat /proc/uptime 2>/dev/null")
+    if uptime_result[:success]
+      output = uptime_result[:output].strip
+      info[:uptime] = output.presence || "unknown"
+    end
+
+    info
+  rescue => e
+    Rails.logger.warn "Host info detection failed for #{server.host}: #{e.message}"
+    info
+  end
+
   def run_to_file(command, path)
     return { success: false, output: "No SSH key configured" } if server.ssh_key.blank?
 

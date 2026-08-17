@@ -56,6 +56,10 @@ RSpec.describe "Automated remote server setup flow", type: :request do
       { success: true, output: "traefik" }
     )
 
+    host_engine = instance_double(HostEngine)
+    allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
+    allow(host_engine).to receive(:host_info).and_return({ os: "Ubuntu 22.04.4 LTS", uptime: "up 2 days" })
+
     post "/api/servers/#{server.id}/validate", headers: org_headers
     expect(response).to have_http_status(:ok)
 
@@ -63,6 +67,7 @@ RSpec.describe "Automated remote server setup flow", type: :request do
     expect(server.status).to eq("connected")
     expect(server.dokku_version).to eq("0.35.0")
     expect(server.default_proxy).to eq("traefik")
+    expect(server.os).to eq("Ubuntu 22.04.4 LTS")
   end
 
   it "does not create a server when the pre-save connection test fails" do

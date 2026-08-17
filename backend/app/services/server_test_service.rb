@@ -22,11 +22,20 @@ class ServerTestService
     result = DokkuEngine.new(server).validate_connection
 
     if result[:success]
+      # The dokku user cannot run raw shell commands, so detect OS/uptime via
+      # the root user. Best-effort: missing root access falls back to defaults.
+      host_info = begin
+        HostEngine.new(server).host_info
+      rescue => e
+        Rails.logger.warn "Server test: host info unavailable for #{@host}: #{e.message}"
+        { os: "Unknown", uptime: "unknown" }
+      end
+
       logs = [
         "Connected to #{server.host} as #{server.ssh_user}",
         "Host key fingerprint: #{server.host_key_fingerprint}",
-        "OS: #{result[:os]}",
-        "Uptime: #{result[:uptime]}",
+        "OS: #{host_info[:os]}",
+        "Uptime: #{host_info[:uptime]}",
         "Docker: #{result[:docker_version]}",
         "Dokku: #{result[:dokku_version]}"
       ]
@@ -40,8 +49,8 @@ class ServerTestService
         host_key_fingerprint: server.host_key_fingerprint,
         dokku_version: result[:dokku_version],
         docker_version: result[:docker_version],
-        os: result[:os],
-        uptime: result[:uptime],
+        os: host_info[:os],
+        uptime: host_info[:uptime],
         public_ip: result[:public_ip],
         logs: logs
       }

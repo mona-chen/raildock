@@ -240,7 +240,7 @@ class DokkuEngine
       success: true,
       dokku_version: dokku_version,
       docker_version: docker_version,
-      os: "Ubuntu (detected)",
+      os: "Unknown",
       uptime: "unknown",
       public_ip: public_ip
     }

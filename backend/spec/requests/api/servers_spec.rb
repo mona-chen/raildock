@@ -134,6 +134,10 @@ RSpec.describe "Api::ServersController", type: :request do
           { success: true, output: "nginx" }
         )
 
+        host_engine = instance_double(HostEngine)
+        allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
+        allow(host_engine).to receive(:host_info).and_return({ os: "Ubuntu 22.04", uptime: "up 10 days" })
+
         post "/api/servers/#{server.id}/validate", headers: org_headers
 
         expect(response).to have_http_status(:ok)
@@ -144,6 +148,7 @@ RSpec.describe "Api::ServersController", type: :request do
         server.reload
         expect(server.status).to eq("connected")
         expect(server.dokku_version).to eq("0.35.0")
+        expect(server.os).to eq("Ubuntu 22.04")
       end
 
       it "sets server status to error on failed validation" do
@@ -181,10 +186,10 @@ RSpec.describe "Api::ServersController", type: :request do
 
     context "when authenticated" do
       it "returns real metrics when ssh_key is present" do
-        engine = instance_double(DokkuEngine)
-        allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
-        allow(engine).to receive(:run).with("docker system info --format '{{.NCPU}}'").and_return(
-          { success: true, output: "4" }
+        engine = instance_double(HostEngine)
+        allow(HostEngine).to receive(:new).with(server).and_return(engine)
+        allow(engine).to receive(:run).with("top -bn1 | awk '/%Cpu/{gsub(/,/, \".\"); print 100-$8}'").and_return(
+          { success: true, output: "38" }
         )
         allow(engine).to receive(:run).with("free -m | awk 'NR==2{printf \"%.0f\", $3*100/$2 }'").and_return(
           { success: true, output: "62" }
@@ -197,7 +202,7 @@ RSpec.describe "Api::ServersController", type: :request do
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json["cpu"]).to eq(4)
+        expect(json["cpu"]).to eq(38)
         expect(json["memory"]).to eq(62)
         expect(json["disk"]).to eq(38)
       end

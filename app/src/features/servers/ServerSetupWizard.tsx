@@ -30,6 +30,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [sshUser, setSshUser] = useState('dokku')
   const [adminUser, setAdminUser] = useState('root')
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
+  const [externalProxyNetwork, setExternalProxyNetwork] = useState('')
   const [baseDomain, setBaseDomain] = useState('')
   const [autoDomains, setAutoDomains] = useState(true)
   const [setupId, setSetupId] = useState<string | null>(null)
@@ -67,6 +68,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setSshUser('dokku')
     setAdminUser('root')
     setProxyMode('managed')
+    setExternalProxyNetwork('')
     setBaseDomain('')
     setAutoDomains(true)
     setSetupId(null)
@@ -79,11 +81,29 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
 
   if (!isOpen) return null
 
-  const scriptUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const scriptUrl = (() => {
+    // Prefer the base URL baked into the server-provided bootstrap command
+    // (it honors Rails' app_url config); fall back to the browser origin.
+    const match = bootstrap?.command?.match(/curl\s+-fsSL\s+(\S+\/bootstrap\.sh)/)
+    if (match?.[1]) {
+      return match[1].replace(/\/bootstrap\.sh$/, '')
+    }
+    return typeof window !== 'undefined' ? window.location.origin : ''
+  })()
+
   const bootstrapCommand =
     bootstrap?.publicKey && scriptUrl
-      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | ${proxyMode === 'external' ? "PROXY_MODE='external' " : ''}bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
+      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
       : bootstrap?.command || ''
+
+  const bootstrapEnv =
+    proxyMode === 'external'
+      ? `PROXY_MODE='external' ${externalProxyNetwork.trim() ? `EXTERNAL_PROXY_NETWORK='${externalProxyNetwork.trim()}' ` : ''}`
+      : ''
+  const manualBootstrapCommand =
+    bootstrap?.publicKey && scriptUrl
+      ? `curl -fsSL ${scriptUrl}/bootstrap.sh | ${bootstrapEnv}bash -s -- '${bootstrap.publicKey.replace(/'/g, "'\"'\"'")}'`
+      : bootstrapCommand
 
   function generateSetupId(): string {
     const crypto = window.crypto
@@ -106,6 +126,10 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       toast.error('Server name and host are required')
       return
     }
+    if (proxyMode === 'external' && !externalProxyNetwork.trim()) {
+      toast.error('External proxy network is required in external proxy mode')
+      return
+    }
 
     setConnectionTimeout(false)
     const id = generateSetupId()
@@ -117,6 +141,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       baseDomain: baseDomain.trim() || undefined,
       autoDomains,
       proxyMode,
+      externalProxyNetwork: proxyMode === 'external' ? externalProxyNetwork.trim() : undefined,
       setupId: id,
     })
   }
@@ -234,9 +259,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[10px] text-[#6B6B7B]">Bootstrap command</label>
-                    {bootstrapCommand && (
+                    {manualBootstrapCommand && (
                       <button
-                        onClick={() => copy(bootstrapCommand, 'command')}
+                        onClick={() => copy(manualBootstrapCommand, 'command')}
                         className="text-[10px] flex items-center gap-1 text-rail-purple hover:text-rail-purple-light transition-all"
                       >
                         {copiedKey === 'command' ? <Check size={11} /> : <Copy size={11} />}
@@ -246,7 +271,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   </div>
                   <textarea
                     readOnly
-                    value={bootstrapCommand}
+                    value={manualBootstrapCommand}
                     placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
                     rows={3}
                     style={{ whiteSpace: 'nowrap' }}
@@ -326,6 +351,22 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   </SelectContent>
                 </Select>
               </div>
+
+              {proxyMode === 'external' && (
+                <div className="col-span-2">
+                  <label htmlFor="external-proxy-network" className="text-[11px] text-[#6B6B7B] block mb-1.5">External Proxy Network</label>
+                  <input
+                    id="external-proxy-network"
+                    value={externalProxyNetwork}
+                    onChange={(e) => setExternalProxyNetwork(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                    placeholder="proxy"
+                  />
+                  <p className="text-[10px] text-[#4A4A55] mt-1">
+                    The Docker network your existing Traefik container is attached to. RailDock applies process-scoped labels so routing works without touching your Traefik.
+                  </p>
+                </div>
+              )}
 
               <div className="col-span-2">
                 <div className="flex items-center justify-between mb-1.5">

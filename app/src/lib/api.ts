@@ -513,7 +513,20 @@ export const serversApi = {
     return fetchJson('/api/servers/test', { method: 'POST', body: wrapBody('server', data) })
   },
 
-  provision: async (data: { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external'; name?: string; baseDomain?: string; autoDomains?: boolean }): Promise<{ setupId: string }> => {
+  provision: async (data: {
+    host: string
+    adminUser?: string
+    setupId: string
+    proxyMode?: 'managed' | 'external'
+    name?: string
+    baseDomain?: string
+    autoDomains?: boolean
+    externalProxyNetwork?: string
+    externalProxyHttpEntrypoint?: string
+    externalProxyHttpsEntrypoint?: string
+    externalProxyCertResolver?: string
+    externalProxyRedirectMiddleware?: string
+  }): Promise<{ setupId: string }> => {
     return fetchJson('/api/servers/provision', { method: 'POST', body: wrapBody('server', data) })
   },
 

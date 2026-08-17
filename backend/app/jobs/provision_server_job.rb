@@ -5,7 +5,9 @@ require "digest"
 class ProvisionServerJob < ApplicationJob
   queue_as :default
 
-  def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed", server_name: nil, base_domain: nil, auto_domains: true)
+  def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed", server_name: nil, base_domain: nil, auto_domains: true,
+              external_proxy_network: nil, external_proxy_http_entrypoint: nil, external_proxy_https_entrypoint: nil,
+              external_proxy_cert_resolver: nil, external_proxy_redirect_middleware: nil)
     organization = Organization.find(organization_id)
     org_key = organization.ensure_ssh_key!
 
@@ -18,6 +20,11 @@ class ProvisionServerJob < ApplicationJob
     private_key = org_key.private_key
     proxy_mode = proxy_mode.to_s.presence || "managed"
 
+    if proxy_mode == "external" && external_proxy_network.blank?
+      broadcast(setup_id, type: "failed", error: "External proxy mode requires EXTERNAL_PROXY_NETWORK")
+      return
+    end
+
     broadcast(setup_id, type: "log", line: "Starting automated provisioning for #{host} (PROXY_MODE=#{proxy_mode})")
 
     admin_server = build_admin_server(host, admin_user, private_key)
@@ -26,11 +33,11 @@ class ProvisionServerJob < ApplicationJob
     begin
       Net::SSH.start(host, admin_user, builder.options) do |ssh|
         broadcast(setup_id, type: "log", line: "Connected to #{host} as #{admin_user}")
-        run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
+        run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode, external_proxy_network: external_proxy_network)
         host_keys = read_host_keys(ssh)
         if host_keys.present?
           admin_server.host_key = host_keys
-          admin_server.host_key_fingerprint = fingerprint_for_host_key_line(host_keys.lines.first)
+          admin_server.host_key_fingerprint = host_key_fingerprints(host_keys).join(", ")
           broadcast(setup_id, type: "log", line: "Captured #{host_keys.lines.count} host key(s)")
         end
       end
@@ -55,8 +62,8 @@ class ProvisionServerJob < ApplicationJob
       ssh_user: "dokku",
       ssh_key: private_key,
       status: :connected,
-      host_key: result[:host_key],
-      host_key_fingerprint: result[:host_key_fingerprint],
+      host_key: result[:host_key] || admin_server.host_key,
+      host_key_fingerprint: result[:host_key_fingerprint].presence || admin_server.host_key_fingerprint,
       dokku_version: result[:dokku_version],
       docker_version: result[:docker_version],
       os: result[:os],
@@ -65,7 +72,12 @@ class ProvisionServerJob < ApplicationJob
       base_domain: base_domain,
       auto_domains: auto_domains,
       default_proxy: "traefik",
-      proxy_mode: proxy_mode
+      proxy_mode: proxy_mode,
+      external_proxy_network: external_proxy_network,
+      external_proxy_http_entrypoint: external_proxy_http_entrypoint,
+      external_proxy_https_entrypoint: external_proxy_https_entrypoint,
+      external_proxy_cert_resolver: external_proxy_cert_resolver,
+      external_proxy_redirect_middleware: external_proxy_redirect_middleware
     )
 
     broadcast(setup_id, type: "completed", server_id: server.id, host: server.host)
@@ -101,6 +113,10 @@ class ProvisionServerJob < ApplicationJob
     exit_status == 0 && output.present? ? output : nil
   end
 
+  def host_key_fingerprints(host_keys)
+    host_keys.to_s.each_line.filter_map { |line| fingerprint_for_host_key_line(line) }
+  end
+
   def fingerprint_for_host_key_line(line)
     match = line.to_s.match(/(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-\S+)\s+(\S+)/)
     return nil unless match
@@ -111,10 +127,12 @@ class ProvisionServerJob < ApplicationJob
     nil
   end
 
-  def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode)
+  def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode, external_proxy_network: nil)
     script_url = "#{base_url.chomp('/')}/bootstrap.sh"
     escaped_key = public_key.gsub("'", "'\"'\"'")
-    command = "curl -fsSL #{script_url} | PROXY_MODE='#{proxy_mode}' bash -s -- '#{escaped_key}'"
+    env = +"PROXY_MODE='#{proxy_mode}'"
+    env << " EXTERNAL_PROXY_NETWORK='#{external_proxy_network}'" if external_proxy_network.present?
+    command = "curl -fsSL #{script_url} | #{env} bash -s -- '#{escaped_key}'"
 
     broadcast(setup_id, type: "log", line: "$ #{command}")
 
