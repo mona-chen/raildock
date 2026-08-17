@@ -4,410 +4,521 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RailDock — Self-Hosted PaaS for Your Own Servers</title>
-<meta name="description" content="RailDock is a self-hosted PaaS. Deploy and manage apps, databases, teams, and backups on your own hardware from a web UI and API.">
+<meta name="description" content="RailDock turns any Linux server into a deployment platform. Apps, databases, domains, backups, and teams — declared in a manifest, managed from a web UI, orchestrated over SSH.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════════════
-   DESIGN TOKENS
+   DESIGN TOKENS — mirrors app/src/index.css so the landing
+   page feels like the product you'll use after installing.
    ═══════════════════════════════════════════════════════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root {
-  --void:      #07070B;
-  --base:      #0C0C12;
-  --surface:   #12121A;
-  --raised:    #181822;
-  --raised-2:  #1E1E2A;
-  --border:       rgba(255,255,255,0.07);
-  --border-med:   rgba(255,255,255,0.13);
-  --border-strong: rgba(255,255,255,0.2);
-  --text:      #EDEDF5;
-  --muted:     rgba(237,237,245,0.55);
-  --dim:       rgba(237,237,245,0.28);
-  --violet:    #7C5CFC;
-  --violet-bright: #A78BFA;
-  --violet-dim:   rgba(124,92,252,0.10);
-  --violet-border: rgba(124,92,252,0.30);
-  --teal:      #2BD9A5;
-  --teal-dim:     rgba(43,217,165,0.10);
-  --amber:     #F5A623;
-  --red:       #F05252;
+  --bg:        #0B0B0E;
+  --bg-2:      #121216;
+  --surface:   #17171C;
+  --surface-2: #1D1D23;
+  --surface-3: #25252D;
+  --border:    rgba(255,255,255,0.08);
+  --border-2:  rgba(255,255,255,0.15);
+  --border-3:  rgba(255,255,255,0.26);
+  --text:      #F5F5FA;
+  --muted:     #B7B7C6;
+  --dim:       #8A8A9B;
+  --accent:    #8B5CF6;
+  --accent-hover: #7C3AED;
+  --accent-soft:  rgba(139,92,246,0.13);
+  --accent-soft-2: rgba(139,92,246,0.08);
+  --accent-text:  #A78BFA;
+  --green:     #22C55E;
+  --green-soft: rgba(34,197,94,0.1);
+  --yellow:    #EAB308;
+  --yellow-soft: rgba(234,179,8,0.1);
+  --red:       #EF4444;
+  --red-soft:  rgba(239,68,68,0.1);
   --sky:       #60A5FA;
-  --grad:      linear-gradient(135deg,#7C5CFC 0%,#A78BFA 45%,#2BD9A5 100%);
-  --grad-soft: linear-gradient(135deg,rgba(124,92,252,0.16),rgba(43,217,165,0.10));
-  --mono:  'JetBrains Mono', monospace;
-  --sans:  'Inter', system-ui, sans-serif;
-  --display:'Space Grotesk', system-ui, sans-serif;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 12px 40px rgba(0,0,0,0.45);
-  --glow-violet: 0 0 0 1px rgba(124,92,252,0.25), 0 8px 40px rgba(124,92,252,0.14);
+  --sky-soft:  rgba(96,165,250,0.12);
+  --teal:      #14B8A6;
+  --font:      'Inter', system-ui, -apple-system, sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+  --radius:    10px;
+  --radius-sm: 7px;
 }
 
 html { scroll-behavior: smooth; }
 body {
-  background: var(--void);
+  background: var(--bg);
   color: var(--text);
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.68;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
-body::before {
-  content:""; position: fixed; inset:0; z-index:0; pointer-events:none;
-  background:
-    radial-gradient(900px 500px at 12% -8%, rgba(124,92,252,0.10) 0%, transparent 60%),
-    radial-gradient(700px 500px at 88% -4%, rgba(43,217,165,0.07) 0%, transparent 55%);
+::selection { background: rgba(139,92,246,0.3); color:#fff; }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.2); }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════════ */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  font-family:var(--font); font-size:14px; font-weight:500;
+  padding:10px 18px; border-radius:var(--radius-sm);
+  border:1px solid transparent; text-decoration:none; cursor:pointer;
+  transition:all .15s ease; white-space:nowrap;
 }
-::selection { background: rgba(124,92,252,0.35); color: #fff; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-hover); transform:translateY(-1px); }
+.btn-primary:active { transform:scale(.98); }
+.btn-secondary { background:transparent; color:var(--muted); border-color:var(--border-2); }
+.btn-secondary:hover { background:rgba(255,255,255,0.04); color:var(--text); border-color:var(--border-3); }
+.btn-hero-primary { box-shadow:0 2px 4px rgba(0,0,0,.35), 0 8px 24px rgba(139,92,246,.28); }
+.btn-ghost { background:transparent; color:var(--muted); padding:7px 13px; font-size:14px; }
+.btn-ghost:hover { color:var(--text); background:rgba(255,255,255,0.05); }
+.btn-lg { padding:13px 24px; font-size:15px; }
 
 /* ═══════════════════════════════════════════════════════════
    NAV
    ═══════════════════════════════════════════════════════════ */
 .nav {
-  position: fixed; top:0; left:0; right:0; z-index:200;
-  height: 60px;
+  position:fixed; top:0; left:0; right:0; z-index:200;
+  height:64px;
   display:flex; align-items:center;
-  padding: 0 clamp(1rem, 4vw, 2.5rem);
-  background: rgba(7,7,11,0.72);
-  backdrop-filter: blur(22px) saturate(1.5);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
-  border-bottom: 1px solid var(--border);
+  padding:0 clamp(1.25rem,4vw,3rem);
+  background:rgba(13,13,15,0.8);
+  backdrop-filter:blur(16px) saturate(1.4);
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);
+  border-bottom:1px solid var(--border);
 }
-.nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; margin-right:2.5rem; }
-.nav-logo-icon {
-  width:32px; height:32px; border-radius:9px;
-  background: var(--grad);
-  display:flex; align-items:center; justify-content:center;
-  font-family:var(--mono); font-size:12px; font-weight:600; color:#fff;
-  letter-spacing:-0.03em; flex-shrink:0;
-  box-shadow: 0 4px 18px rgba(124,92,252,0.35);
-}
-.nav-logo-name { font-family:var(--display); font-weight:600; font-size:16px; color:var(--text); letter-spacing:-0.02em; }
+.nav-logo { display:flex; align-items:center; gap:9px; text-decoration:none; margin-right:2rem; }
+.nav-logo svg { width:28px; height:28px; display:block; }
+.nav-logo-name { font-weight:700; font-size:16px; letter-spacing:-0.01em; color:var(--text); }
 .nav-links { display:flex; align-items:center; gap:2px; }
 .nav-link {
-  padding:6px 12px; border-radius:8px;
-  font-size:13px; color:var(--muted); text-decoration:none;
-  transition: color .12s, background .12s;
-  cursor:pointer; border:none; background:none;
+  padding:7px 13px; border-radius:7px;
+  font-size:14px; color:var(--muted); text-decoration:none;
+  background:none; border:none; cursor:pointer;
+  transition:color .12s, background .12s;
 }
 .nav-link:hover { color:var(--text); background:rgba(255,255,255,0.05); }
-.nav-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
-.btn-ghost {
-  padding:7px 14px; border-radius:9px;
-  font-size:13px; color:var(--muted); text-decoration:none;
-  border:1px solid var(--border-med); background:transparent;
-  transition: color .12s, border-color .12s, background .12s; cursor:pointer;
-}
-.btn-ghost:hover { color:var(--text); border-color:var(--border-strong); background:rgba(255,255,255,0.03); }
-.btn-primary {
-  padding:8px 16px; border-radius:9px;
-  font-size:13px; font-weight:500; color:#fff;
-  background: linear-gradient(135deg,#7C5CFC,#6C4CE0);
-  text-decoration:none; border:none; cursor:pointer;
-  transition: transform .1s, box-shadow .15s, opacity .12s;
-  display:inline-flex; align-items:center; gap:6px;
-  box-shadow: 0 4px 18px rgba(124,92,252,0.28);
-}
-.btn-primary:hover { opacity:.92; box-shadow:0 6px 26px rgba(124,92,252,0.4); }
-.btn-primary:active { transform:scale(.97); }
-.btn-primary-lg {
-  padding:13px 24px; border-radius:12px;
-  font-size:15px; font-weight:500; color:#fff;
-  background: linear-gradient(135deg,#7C5CFC,#6C4CE0);
-  text-decoration:none; border:none; cursor:pointer;
-  transition: transform .12s, box-shadow .18s;
-  display:inline-flex; align-items:center; gap:9px;
-  box-shadow: 0 6px 26px rgba(124,92,252,0.32);
-}
-.btn-primary-lg:hover { transform:translateY(-1px); box-shadow:0 10px 34px rgba(124,92,252,0.44); }
-.btn-outline-lg {
-  padding:13px 24px; border-radius:12px;
-  font-size:15px; color:var(--text);
-  background:rgba(255,255,255,0.02);
-  border:1px solid var(--border-med);
-  text-decoration:none; cursor:pointer;
-  transition: border-color .12s, background .12s, transform .12s;
-  display:inline-flex; align-items:center; gap:8px;
-}
-.btn-outline-lg:hover { border-color:var(--border-strong); background:rgba(255,255,255,0.05); transform:translateY(-1px); }
+.nav-actions { margin-left:auto; display:flex; align-items:center; gap:6px; }
 
 /* ═══════════════════════════════════════════════════════════
-   LAYOUT / PAGES
+   LAYOUT
    ═══════════════════════════════════════════════════════════ */
-.container { max-width: 1120px; margin:0 auto; padding:0 clamp(1.2rem, 4vw, 2rem); position:relative; z-index:1; }
+.container { max-width:1160px; margin:0 auto; padding:0 clamp(1rem, 4.5vw, 3rem); position:relative; z-index:1; }
 #landing { display:block; }
 #landing.hidden { display:none; }
 #docs { display:none; }
 #docs.visible { display:block; }
 
 /* ═══════════════════════════════════════════════════════════
-   LANDING
+   HERO
    ═══════════════════════════════════════════════════════════ */
-
-/* HERO */
 .hero {
-  min-height: 100vh;
-  display:flex; flex-direction:column; justify-content:center;
-  padding: 8rem 0 5rem;
+  padding:9.5rem 0 5rem;
   position:relative; overflow:hidden;
+}
+.hero::before {
+  content:""; position:absolute; top:-260px; left:50%; transform:translateX(-50%);
+  width:920px; height:540px;
+  background:radial-gradient(ellipse at center, rgba(139,92,246,0.08) 0%, transparent 65%);
+  pointer-events:none;
 }
 .hero-grid-bg {
   position:absolute; inset:0; pointer-events:none; opacity:.5;
   background-image:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 20%, #000 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 20%, #000 30%, transparent 75%);
+    radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+  background-size:22px 22px;
+  mask-image:radial-gradient(ellipse 70% 60% at 50% 0%, #000 25%, transparent 70%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 0%, #000 25%, transparent 70%);
 }
-.hero-orb { position:absolute; border-radius:50%; filter:blur(90px); pointer-events:none; }
-.hero-orb-1 { width:520px; height:520px; left:-120px; top:-80px; background:rgba(124,92,252,0.16); animation:orbFloat 14s ease-in-out infinite; }
-.hero-orb-2 { width:420px; height:420px; right:-100px; top:30%; background:rgba(43,217,165,0.10); animation:orbFloat 18s ease-in-out infinite reverse; }
-@keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
-
 .hero-eyebrow {
   display:inline-flex; align-items:center; gap:8px;
-  padding:6px 14px 6px 10px;
-  background: var(--violet-dim); border:1px solid var(--violet-border);
-  border-radius:100px; margin-bottom:1.9rem;
-  font-family:var(--mono); font-size:11px; color:#C4B5FD; width:fit-content;
+  padding:5px 12px 5px 5px;
+  background:var(--accent-soft);
+  border:1px solid rgba(139,92,246,0.25);
+  border-radius:100px; margin-bottom:1.6rem;
+  font-family:var(--mono); font-size:11px; color:var(--accent-text);
 }
-.hero-eyebrow-dot { width:18px; height:18px; border-radius:6px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; }
+.hero-eyebrow-ico {
+  width:20px; height:20px; border-radius:6px;
+  background:var(--accent); color:#fff;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:10px;
+}
 .hero-h1 {
-  font-family:var(--display);
-  font-size: clamp(2.6rem, 6vw, 4.2rem);
-  font-weight:700; line-height:1.05;
-  letter-spacing:-0.04em; margin-bottom:1.5rem; max-width:820px;
-  color:var(--text);
+  font-size:clamp(2.75rem, 6.2vw, 4rem);
+  font-weight:800; line-height:1.04;
+  letter-spacing:-0.035em; margin-bottom:1.4rem; max-width:760px;
+  color:var(--text); text-wrap:balance;
 }
-.hero-h1 .grad-text {
-  background: var(--grad);
-  -webkit-background-clip:text; background-clip:text;
-  -webkit-text-fill-color:transparent; color:transparent;
+.hero-sub {
+  font-size:1.15rem; color:var(--muted); max-width:620px;
+  margin-bottom:2.4rem; line-height:1.75;
 }
-.hero-sub { font-size:1.08rem; color:var(--muted); max-width:600px; margin-bottom:2.6rem; line-height:1.8; }
-.hero-ctas { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:4.5rem; }
-.hero-note { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:.9rem; }
+.hero-ctas { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:3.5rem; }
+.hero-hint { margin-top:1.4rem; margin-bottom:1.6rem; font-family:var(--mono); font-size:11px; color:var(--dim); }
 
-/* DEPLOY STRIP */
+/* Deploy pipeline — the product's real signature view */
 .deploy-strip {
-  background: rgba(12,12,18,0.85);
-  border:1px solid var(--border-med);
-  border-radius: var(--radius);
-  overflow:hidden; max-width:780px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+  background:var(--surface);
+  border:1px solid var(--border-2);
+  border-radius:var(--radius);
+  overflow:hidden; max-width:840px;
+  box-shadow:0 4px 12px rgba(0,0,0,.4), 0 24px 60px rgba(0,0,0,.5);
 }
 .deploy-strip-bar {
   display:flex; align-items:center; gap:6px;
-  padding:12px 16px;
+  padding:10px 14px;
   border-bottom:1px solid var(--border);
-  background: rgba(24,24,34,0.9);
+  background:var(--surface-2);
 }
-.strip-dot { width:10px; height:10px; border-radius:50%; }
+.strip-dot { width:9px; height:9px; border-radius:50%; }
 .strip-dot-r { background:#FF5F57; }
 .strip-dot-y { background:#FEBC2E; }
 .strip-dot-g { background:#28C840; }
-.strip-title { font-family:var(--mono); font-size:11px; color:var(--dim); margin-left:auto; }
-.strip-title b { color:var(--teal); font-weight:500; }
-.deploy-strip-body { padding:1.2rem 1.5rem 1.4rem; }
+.strip-title { font-family:var(--mono); font-size:10.5px; color:var(--dim); margin-left:auto; }
+.strip-title b { color:var(--green); font-weight:500; }
+.deploy-strip-body { padding:1.3rem 1.6rem 1.4rem; }
 .deploy-commit {
   display:flex; align-items:center; gap:12px;
-  padding:10px 12px; border-radius:10px;
-  background:var(--violet-dim); border:1px solid var(--violet-border);
-  margin-bottom:1.1rem;
+  padding:10px 12px; border-radius:9px;
+  background:var(--accent-soft-2); border:1px solid rgba(139,92,246,0.2);
+  margin-bottom:1.35rem;
 }
-.deploy-commit-sha { font-family:var(--mono); font-size:11px; color:#C4B5FD; }
+.deploy-commit-sha { font-family:var(--mono); font-size:11px; color:var(--accent-text); }
 .deploy-commit-msg { font-size:12px; color:var(--muted); }
 .deploy-commit-time { font-family:var(--mono); font-size:10px; color:var(--dim); margin-left:auto; }
-.deploy-steps { display:flex; flex-direction:column; gap:2px; }
-.deploy-step { display:flex; align-items:center; gap:11px; padding:7px 0; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:12px; }
+.deploy-steps { display:flex; flex-direction:column; }
+.deploy-step { display:flex; align-items:center; gap:11px; padding:8px 0; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:12.5px; }
 .deploy-step:last-child { border-bottom:none; }
 .step-icon { width:20px; flex-shrink:0; text-align:center; font-size:11px; }
-.step-label { color:var(--muted); flex:1; }
+.step-icon-ok { color:var(--green); }
+.step-label { color:var(--muted); flex:1; font-size:12.5px; }
 .step-time { color:var(--dim); font-size:10px; }
-.step-done { color:var(--teal); }
-.step-building .step-icon { animation:spin 1s linear infinite; display:inline-block; }
+.step-building .step-icon { color:var(--accent-text); animation:spin 1.2s linear infinite; display:inline-block; }
 @keyframes spin { to { transform:rotate(360deg); } }
+.step-building .step-label { color:var(--text); }
 .step-pending .step-label { color:var(--dim); }
+.step-pending .step-icon { color:var(--dim); }
 .deploy-progress {
-  margin-top:1.1rem; padding:11px 13px;
-  background:var(--surface); border-radius:10px;
+  margin-top:1rem; padding:10px 12px;
+  background:var(--surface-2); border-radius:9px;
   display:flex; align-items:center; gap:12px;
 }
-.progress-bar-wrap { flex:1; height:4px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden; }
-.progress-bar-fill { height:100%; width:62%; background:var(--grad); border-radius:2px; animation:progress-pulse 1.8s ease-in-out infinite alternate; }
+.progress-bar-wrap { flex:1; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+.progress-bar-fill { height:100%; width:62%; background:var(--accent); border-radius:2px; animation:progress-pulse 1.8s ease-in-out infinite alternate; }
 @keyframes progress-pulse { from{opacity:.75} to{opacity:1} }
 .progress-label { font-family:var(--mono); font-size:10px; color:var(--muted); white-space:nowrap; }
-.progress-live { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:live-pulse 1.2s ease-in-out infinite; flex-shrink:0; }
+.progress-live { width:7px; height:7px; border-radius:50%; background:var(--green); animation:live-pulse 1.2s ease-in-out infinite; flex-shrink:0; }
 @keyframes live-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.7)} }
 
-/* SECTIONS */
-.section { padding: clamp(4rem, 9vw, 7rem) 0; position:relative; }
-.section-alt { background: var(--base); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+/* Streaming build log inside the deploy strip */
+.deploy-log {
+  margin-top:.85rem;
+  padding:.8rem 1rem;
+  background:#0A0A0C;
+  border:1px solid var(--border);
+  border-radius:9px;
+  font-family:var(--mono);
+  font-size:10.5px;
+  line-height:1.9;
+  color:var(--dim);
+  overflow:hidden;
+}
+.log-line { animation:logIn .18s ease-out; }
+@keyframes logIn { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
+
+/* Scroll progress bar */
+.scroll-progress {
+  position:fixed; top:0; left:0; height:2px; width:0;
+  background:linear-gradient(90deg, var(--accent), var(--accent-text));
+  z-index:300;
+}
+
+/* Floating install CTA after scrolling past the hero */
+.float-cta {
+  position:fixed; bottom:1.2rem; left:50%; transform:translate(-50%, 160%);
+  z-index:250;
+  transition:transform .28s ease;
+}
+.float-cta.show { transform:translate(-50%, 0); }
+.float-cta-inner {
+  display:flex; align-items:center; gap:14px;
+  padding:.55rem .6rem .55rem 1.1rem;
+  background:rgba(26,26,31,.94);
+  border:1px solid var(--border-3);
+  border-radius:100px;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+.float-cta-text { font-size:12.5px; color:var(--muted); white-space:nowrap; }
+.float-cta-btn { padding:8px 16px; font-size:13px; }
+
+/* RailDock container-tile icon motif — echoes the shipping-container logo */
+.how-ico, .feature-ico { position:relative; }
+.how-ico::before, .how-ico::after,
+.feature-ico::before, .feature-ico::after {
+  content:""; position:absolute;
+  width:7px; height:7px;
+  border:0 solid currentColor;
+  opacity:.55;
+  pointer-events:none;
+}
+.how-ico::before, .feature-ico::before { top:-2px; left:-2px; border-top-width:1.5px; border-left-width:1.5px; }
+.how-ico::after, .feature-ico::after  { bottom:-2px; right:-2px; border-bottom-width:1.5px; border-right-width:1.5px; }
+
+/* ═══════════════════════════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════════════════════════ */
+.section { padding:clamp(4.5rem, 9vw, 7rem) 0; position:relative; }
+.section-alt { background:var(--bg-2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.section-tint { background:linear-gradient(180deg,#0F0F14 0%,#0D0D0F 100%); }
 .eyebrow {
-  font-family:var(--mono); font-size:10px; letter-spacing:0.14em;
-  text-transform:uppercase; color:var(--violet-bright); margin-bottom:.8rem;
+  font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--accent-text); margin-bottom:.9rem;
   display:flex; align-items:center; gap:10px;
 }
-.eyebrow::before { content:""; width:26px; height:1px; background:var(--violet-border); }
+.eyebrow::before { content:""; width:36px; height:2px; background:linear-gradient(90deg, var(--accent), rgba(139,92,246,.15)); border-radius:1px; }
 .section-h2 {
-  font-family:var(--display); font-size:clamp(1.7rem, 3.2vw, 2.4rem);
-  font-weight:700; letter-spacing:-0.03em; line-height:1.15;
-  margin-bottom:.9rem; color:var(--text);
+  font-size:clamp(1.9rem, 3.6vw, 2.6rem);
+  font-weight:700; letter-spacing:-0.03em; line-height:1.12;
+  margin-bottom:.9rem; color:var(--text); text-wrap:balance;
 }
-.section-sub { font-size:.98rem; color:var(--muted); max-width:560px; line-height:1.75; margin-bottom:3rem; }
+.section-sub { font-size:1.08rem; color:var(--muted); max-width:620px; line-height:1.75; margin-bottom:3rem; }
 
-/* HOW IT WORKS */
-.how-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-.how-cell { background:var(--surface); padding:1.9rem; position:relative; transition:background .15s; }
-.how-cell:hover { background:var(--raised); }
-.how-cell::before {
-  content:attr(data-n);
-  position:absolute; top:1.6rem; right:1.6rem;
-  font-family:var(--mono); font-size:10px; color:var(--dim);
-  letter-spacing:0.08em;
+/* ═══════════════════════════════════════════════════════════
+   STACK STRIP
+   ═══════════════════════════════════════════════════════════ */
+.stack-strip {
+  display:flex; align-items:center; justify-content:center; gap:clamp(1.2rem,4vw,3rem);
+  flex-wrap:wrap; padding:.4rem 0 0;
+  border-top:1px solid var(--border); margin-top:3.5rem; padding-top:1.6rem;
 }
-.how-icon {
-  width:40px; height:40px; border-radius:11px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:17px; margin-bottom:1.1rem;
-}
-.how-title { font-family:var(--display); font-weight:600; font-size:14px; margin-bottom:.5rem; }
-.how-desc { font-size:12.5px; color:var(--muted); line-height:1.7; }
-.how-desc code { font-family:var(--mono); font-size:11px; color:#C4B5FD; }
+.stack-item { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); font-family:var(--mono); }
+.stack-item svg { opacity:.55; color:var(--muted); }
+.stack-item strong { color:var(--muted); font-weight:600; }
 
-/* STAT ROW */
-.stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+/* STATS — de-carded: numbers are the anchor, dividers instead of boxes */
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
 .stat-cell {
-  background:linear-gradient(180deg, rgba(124,92,252,0.05), transparent 60%), var(--surface);
-  border:1px solid var(--border); border-radius:var(--radius);
-  padding:1.8rem 1.6rem; transition:transform .15s, border-color .15s;
+  padding:2rem 2rem .5rem 0;
+  border-right:1px solid var(--border);
+  background:none;
 }
-.stat-cell:hover { transform:translateY(-3px); border-color:var(--border-med); }
-.stat-num { font-family:var(--display); font-size:2.8rem; font-weight:700; letter-spacing:-0.04em; margin-bottom:.4rem; }
-.stat-num em { font-style:normal; background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.stat-desc { font-size:12.5px; color:var(--muted); line-height:1.6; }
+.stat-cell:last-child { border-right:none; padding-right:0; }
+.stat-cell:first-child { padding-left:0; }
+.stat-num { font-size:clamp(2.8rem, 5vw, 3.75rem); font-weight:800; letter-spacing:-0.04em; line-height:1; color:var(--text); }
+.stat-num span { color:var(--accent); }
+.stat-label { margin-top:1rem; font-size:13.5px; font-weight:600; color:var(--text); letter-spacing:.01em; }
+.stat-desc { margin-top:.3rem; font-size:12.5px; color:var(--dim); line-height:1.6; max-width:22ch; }
 
-/* FEATURES */
-.features-2col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.feature-item {
-  border:1px solid var(--border); border-radius:var(--radius);
-  background:var(--surface); padding:1.5rem 1.6rem;
-  transition:transform .15s, border-color .15s, background .15s;
-  position:relative; overflow:hidden;
+/* ═══════════════════════════════════════════════════════════
+   MENTAL MODEL
+   ═══════════════════════════════════════════════════════════ */
+.how-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.how-cell { background:var(--surface); padding:1.8rem; position:relative; transition:background .15s; }
+.how-cell:nth-child(even) { background:#141418; }
+.how-cell:hover { background:var(--surface-2); }
+.how-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.1rem; }
+.how-ico {
+  width:36px; height:36px; border-radius:10px;
+  background:var(--accent-soft); border:1px solid rgba(139,92,246,0.2);
+  display:flex; align-items:center; justify-content:center; color:var(--accent-text);
 }
-.feature-item::before {
-  content:""; position:absolute; inset:0 0 auto 0; height:1px;
-  background:var(--grad); opacity:0; transition:opacity .2s;
+.how-ico svg { width:18px; height:18px; }
+.how-ico-t { background:var(--green-soft); border-color:rgba(34,197,94,0.2); color:var(--green); }
+.how-ico-y { background:var(--yellow-soft); border-color:rgba(234,179,8,0.2); color:var(--yellow); }
+.how-ico-s { background:var(--sky-soft); border-color:rgba(96,165,250,0.2); color:var(--sky); }
+.how-num { font-family:var(--mono); font-size:10.5px; color:var(--dim); letter-spacing:.08em; }
+.how-title { font-weight:600; font-size:15px; margin-bottom:.5rem; color:var(--text); }
+.how-desc { font-size:13px; color:var(--muted); line-height:1.7; }
+.how-desc code { font-family:var(--mono); font-size:11.5px; color:var(--accent-text); background:var(--accent-soft-2); padding:1px 5px; border-radius:4px; }
+
+/* FEATURES — de-carded: list rows with hairline dividers, not boxes */
+.features-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 2.75rem; }
+.feature-card {
+  display:flex; gap:1.15rem; align-items:flex-start;
+  padding:1.7rem 0;
+  border-bottom:1px solid var(--border);
+  background:none;
 }
-.feature-item:hover { transform:translateY(-3px); border-color:var(--border-med); background:var(--raised); }
-.feature-item:hover::before { opacity:.7; }
-.feature-label { font-family:var(--display); font-weight:600; font-size:14px; margin-bottom:.5rem; display:flex; align-items:center; gap:9px; }
-.feature-body { font-size:13px; color:var(--muted); line-height:1.7; }
-.feature-body code { font-family:var(--mono); font-size:11.5px; color:#C4B5FD; background:var(--violet-dim); padding:1px 5px; border-radius:4px; }
-.feature-tag {
-  display:inline-block; margin-top:.7rem;
-  padding:2px 9px; border-radius:5px; font-size:10px;
+.feature-card:nth-last-child(-n+2):not(:nth-child(odd):last-child) { border-bottom:none; }
+.feature-card:nth-last-child(-n+2) { border-bottom:none; }
+.feature-ico {
+  width:42px; height:42px; border-radius:10px; flex-shrink:0;
+  background:var(--accent-soft-2); border:1px solid rgba(139,92,246,0.22);
+  display:flex; align-items:center; justify-content:center; color:var(--accent-text);
+}
+.feature-ico svg { width:20px; height:20px; }
+.feature-title { font-weight:600; font-size:16.5px; margin-bottom:.4rem; color:var(--text); }
+.feature-body { font-size:14.5px; color:var(--muted); line-height:1.72; }
+.feature-body code { font-family:var(--mono); font-size:12px; color:var(--accent-text); background:var(--accent-soft-2); padding:1px 5px; border-radius:4px; }
+.feature-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:.9rem; }
+.tag {
+  display:inline-block; padding:2px 9px; border-radius:5px; font-size:10px;
   font-family:var(--mono); font-weight:500;
 }
-.tag-v { background:var(--violet-dim); color:#C4B5FD; }
-.tag-t { background:var(--teal-dim); color:var(--teal); }
-.tag-s { background:rgba(96,165,250,0.12); color:var(--sky); }
+.tag-v { background:var(--accent-soft); color:var(--accent-text); }
+.tag-g { background:var(--green-soft); color:var(--green); }
+.tag-y { background:var(--yellow-soft); color:var(--yellow); }
+.tag-s { background:var(--sky-soft); color:var(--sky); }
 
-/* MANIFEST */
-.manifest-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.6rem; align-items:start; }
-.code-panel { background:var(--base); border:1px solid var(--border-med); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
-.code-panel-bar { padding:11px 15px; border-bottom:1px solid var(--border); background:var(--surface); display:flex; align-items:center; gap:6px; }
-.code-panel-dots { display:flex; gap:5px; }
-.code-panel-name { font-family:var(--mono); font-size:10px; color:var(--dim); margin-left:auto; }
-.code-body { padding:1.2rem 1.4rem; font-family:var(--mono); font-size:12px; line-height:1.9; overflow-x:auto; }
-.c-key { color:#C4B5FD; }
+/* ═══════════════════════════════════════════════════════════
+   MANIFEST
+   ═══════════════════════════════════════════════════════════ */
+.manifest-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; align-items:start; }
+.code-panel { background:var(--bg); border:1px solid var(--border-2); border-radius:var(--radius); overflow:hidden; position:relative; display:flex; flex-direction:column; height:470px; }
+.code-panel::before { content:""; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, rgba(139,92,246,.55), rgba(139,92,246,.05)); }
+.code-bar { padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface); display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.code-name { font-family:var(--mono); font-size:10px; color:var(--dim); margin-left:auto; }
+.code-body { padding:1.1rem 1.3rem; font-family:var(--mono); font-size:12px; line-height:1.65; overflow:auto; white-space:pre; flex:1; }
+.c-key { color:var(--accent-text); }
 .c-str { color:#86EFAC; }
-.c-var { color:var(--amber); }
+.c-var { color:var(--yellow); }
 .c-dim { color:var(--dim); }
 .c-tbl { color:var(--sky); }
-.c-num { color:#FB923C; }
-.diff-panel { background:var(--base); border:1px solid var(--border-med); border-radius:var(--radius); overflow:hidden; }
-.diff-header { padding:11px 15px; border-bottom:1px solid var(--border); background:var(--surface); font-family:var(--mono); font-size:11px; color:var(--muted); display:flex; align-items:center; gap:8px; }
-.diff-body { padding:0.9rem; }
-.diff-change { padding:9px 11px; border-radius:9px; margin-bottom:7px; display:flex; align-items:flex-start; gap:9px; font-size:12px; }
+.c-num { color:#FDBA74; }
+.diff-panel { background:var(--bg); border:1px solid var(--border-2); border-radius:var(--radius); overflow:hidden; }
+.diff-header { padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface); font-family:var(--mono); font-size:10.5px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+.diff-header svg { width:11px; height:11px; color:var(--dim); }
+.diff-body { padding:.85rem; }
+.diff-change { padding:10px 11px; border-radius:8px; margin-bottom:6px; display:flex; align-items:flex-start; gap:9px; font-size:12.5px; }
 .diff-change:last-child { margin-bottom:0; }
-.diff-reload { background:rgba(43,217,165,0.07); }
-.diff-restart { background:rgba(245,166,35,0.07); }
-.diff-redeploy { background:rgba(240,82,82,0.07); }
-.diff-sev { font-family:var(--mono); font-size:10px; padding:2px 7px; border-radius:5px; margin-top:1px; flex-shrink:0; }
-.sev-r { background:rgba(43,217,165,0.14); color:var(--teal); }
-.sev-w { background:rgba(245,166,35,0.14); color:var(--amber); }
-.sev-d { background:rgba(240,82,82,0.14); color:var(--red); }
-.diff-text { color:var(--muted); flex:1; line-height:1.6; }
+.diff-reload { background:var(--green-soft); }
+.diff-restart { background:var(--yellow-soft); }
+.diff-redeploy { background:var(--red-soft); }
+.diff-sev { font-family:var(--mono); font-size:9.5px; padding:2px 7px; border-radius:5px; margin-top:1px; flex-shrink:0; font-weight:500; }
+.sev-r { background:rgba(34,197,94,0.14); color:var(--green); }
+.sev-w { background:rgba(234,179,8,0.14); color:var(--yellow); }
+.sev-d { background:rgba(239,68,68,0.14); color:var(--red); }
+.diff-text { color:var(--muted); flex:1; line-height:1.6; font-size:12px; }
 .diff-text strong { color:var(--text); font-weight:500; }
-.mini-card { padding:1rem 1.1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; color:var(--muted); }
-.mini-card-label { font-family:var(--mono); font-size:10px; color:var(--dim); margin-bottom:.5rem; letter-spacing:.08em; text-transform:uppercase; }
-.mini-card-row { display:flex; align-items:center; gap:8px; margin-bottom:.5rem; }
-.mini-card-note { color:var(--dim); margin-top:.4rem; line-height:1.6; }
-.violet-note { margin-top:1rem; padding:.9rem 1.1rem; background:var(--violet-dim); border:1px solid var(--violet-border); border-radius:var(--radius-sm); font-size:12px; color:#C4B5FD; line-height:1.7; }
+.mini-card { padding:1rem 1.1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12.5px; color:var(--muted); }
+.mini-card-label { font-family:var(--mono); font-size:9.5px; color:var(--dim); margin-bottom:.4rem; letter-spacing:.08em; text-transform:uppercase; }
+.mini-card-row { display:flex; align-items:center; gap:8px; margin-bottom:.3rem; }
+.mini-card-note { color:var(--dim); margin-top:.3rem; line-height:1.6; font-size:11.5px; }
+.violet-note { margin-top:.9rem; padding:1rem 1.1rem; background:var(--accent-soft); border:1px solid rgba(139,92,246,0.2); border-radius:var(--radius-sm); font-size:12.5px; color:var(--accent-text); line-height:1.7; }
 .violet-note strong { color:var(--text); font-weight:500; }
+.manifest-side { display:flex; flex-direction:column; height:470px; overflow-y:auto; padding-right:2px; }
+.pill { display:inline-block; padding:2px 9px; border-radius:100px; font-family:var(--mono); font-size:10.5px; font-weight:500; }
+.pill-green { background:var(--green-soft); color:var(--green); }
+.pill-amber { background:var(--yellow-soft); color:var(--yellow); }
+.pill-red   { background:var(--red-soft); color:var(--red); }
+.pill-violet{ background:var(--accent-soft); color:var(--accent-text); }
+.pill-sky   { background:var(--sky-soft); color:var(--sky); }
 
-/* TEMPLATES */
-.templates-row { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:2rem; }
+/* ═══════════════════════════════════════════════════════════
+   COMPARISON
+   ═══════════════════════════════════════════════════════════ */
+.compare-intro { font-size:1.15rem; font-weight:600; color:var(--text); letter-spacing:-0.01em; margin-bottom:1.5rem; }
+.compare-intro span { color:var(--accent-text); }
+.compare-wrap { overflow-x:auto; border:1px solid var(--border-2); border-radius:var(--radius); }
+.compare-table { width:100%; border-collapse:collapse; font-size:14px; min-width:680px; background:var(--surface); }
+.compare-table th, .compare-table td { padding:14px 18px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
+.compare-table th { color:var(--dim); font-weight:600; font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+.compare-table th:first-child { font-family:var(--mono); }
+.compare-table th:nth-child(2), .compare-table td:nth-child(2) { background:rgba(139,92,246,0.06); }
+.compare-table td { color:var(--muted); line-height:1.65; }
+.compare-table td:nth-child(2) { color:var(--text); font-weight:500; }
+.compare-table tr:last-child td { border-bottom:none; }
+.compare-table td:first-child { font-family:var(--mono); font-size:12px; color:var(--text); white-space:nowrap; }
+.compare-table .yes { color:var(--green); }
+.compare-table .no { color:var(--dim); }
+.compare-table .yes::before { content:"✓ "; font-family:var(--mono); }
+.compare-table .no::before { content:"— "; font-family:var(--mono); }
+.compare-hl td { color:var(--text); background:rgba(139,92,246,0.04); }
+.compare-hl td:first-child { color:var(--accent-text); }
+.compare-verdict { margin-top:1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.verdict-card { padding:1.2rem 1.3rem; border-radius:var(--radius); border:1px solid var(--border-2); background:var(--surface); }
+.verdict-card h4 { font-size:13px; font-weight:600; margin-bottom:.4rem; color:var(--text); }
+.verdict-card p { font-size:12.5px; color:var(--muted); line-height:1.7; }
+
+/* ═══════════════════════════════════════════════════════════
+   TEMPLATES
+   ═══════════════════════════════════════════════════════════ */
+.templates-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2rem; }
 .template-chip {
   padding:6px 14px;
   background:var(--surface); border:1px solid var(--border);
   border-radius:100px; font-size:12px; color:var(--muted);
-  white-space:nowrap; transition:color .12s, border-color .12s, transform .12s;
+  white-space:nowrap; transition:color .12s, border-color .12s;
 }
-.template-chip:hover { color:var(--text); border-color:var(--border-med); transform:translateY(-1px); }
-.template-chip.highlight { border-color:var(--violet-border); color:#C4B5FD; background:var(--violet-dim); }
+.template-chip:hover { color:var(--text); border-color:var(--border-2); }
+.template-chip.highlight { border-color:rgba(139,92,246,0.3); color:var(--accent-text); background:var(--accent-soft); }
+.templates-note { font-size:11.5px; color:var(--dim); font-family:var(--mono); }
 
-/* INSTALL */
-.install-block { background:var(--base); border:1px solid var(--border-med); border-radius:var(--radius); overflow:hidden; max-width:760px; box-shadow:var(--shadow); }
-.install-bar { padding:11px 16px; border-bottom:1px solid var(--border); background:var(--surface); display:flex; align-items:center; gap:6px; }
-.install-body { padding:1.3rem 1.6rem; font-family:var(--mono); font-size:13px; line-height:2.1; overflow-x:auto; }
+/* ═══════════════════════════════════════════════════════════
+   INSTALL
+   ═══════════════════════════════════════════════════════════ */
+.install-block { background:var(--surface); border:1px solid var(--border-2); border-radius:var(--radius); overflow:hidden; max-width:880px; }
+.install-bar { padding:12px 18px; border-bottom:1px solid var(--border); background:var(--surface-2); display:flex; align-items:center; gap:6px; }
+.install-body { padding:1.5rem 1.7rem; font-family:var(--mono); font-size:13.5px; line-height:2.1; overflow-x:auto; }
 .i-prompt { color:var(--dim); }
 .i-cmd { color:var(--text); }
-.i-flag { color:#C4B5FD; }
+.i-flag { color:var(--accent-text); }
 .i-url { color:var(--sky); }
 .i-comment { color:var(--dim); font-size:11px; }
-.i-success { color:var(--teal); }
-.install-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:1.6rem; max-width:760px; }
+.i-success { color:var(--green); }
+.install-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:1.5rem; max-width:760px; }
 .install-fact { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; }
 .install-fact-label { font-size:10px; font-family:var(--mono); color:var(--dim); margin-bottom:4px; letter-spacing:.08em; text-transform:uppercase; }
 .install-fact-val { font-size:12.5px; color:var(--text); line-height:1.5; }
+.install-warn {
+  margin-top:1.4rem; max-width:760px;
+  padding:.9rem 1.1rem;
+  background:var(--yellow-soft); border:1px solid rgba(234,179,8,0.2);
+  border-radius:var(--radius-sm); font-size:13px; color:#FCD34D; line-height:1.7;
+}
+.install-warn code {
+  background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:4px;
+  font-family:var(--mono); font-size:11px;
+}
 
-/* FOOTER */
-footer { border-top:1px solid var(--border); padding:3rem 0; text-align:center; background:var(--base); }
-footer p { font-size:12px; color:var(--dim); }
-footer a { color:var(--muted); text-decoration:none; }
-footer a:hover { color:var(--text); }
-.footer-badges { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:1rem; }
-.footer-badge { font-family:var(--mono); font-size:10px; padding:3px 10px; border:1px solid var(--border); border-radius:100px; color:var(--dim); }
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+footer { border-top:1px solid var(--border); padding:4rem 0 2rem; background:var(--bg); }
+.footer-top { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:2.5rem; padding-bottom:3rem; }
+.footer-brand { display:flex; align-items:center; gap:10px; margin-bottom:1rem; }
+.footer-brand svg { width:24px; height:24px; }
+.footer-brand-name { font-weight:700; font-size:16px; color:var(--text); }
+.footer-tagline { font-size:14px; color:var(--dim); line-height:1.7; max-width:30ch; }
+.footer-col h4 { font-size:12px; font-weight:600; color:var(--text); letter-spacing:.04em; text-transform:uppercase; margin-bottom:1rem; }
+.footer-col a { display:block; font-size:14px; color:var(--dim); text-decoration:none; transition:color .12s; padding:3px 0; }
+.footer-col a:hover { color:var(--text); }
+.footer-bottom { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding-top:1.8rem; border-top:1px solid var(--border); }
+.footer-bottom p { font-size:13px; color:var(--dim); }
+.footer-bottom .footer-links { display:flex; gap:20px; }
+.footer-bottom .footer-links a { font-size:13px; color:var(--dim); text-decoration:none; transition:color .12s; }
+.footer-bottom .footer-links a:hover { color:var(--text); }
 
 /* ═══════════════════════════════════════════════════════════
    DOCS
    ═══════════════════════════════════════════════════════════ */
-.docs-shell { display:grid; grid-template-columns:250px 1fr; min-height:100vh; padding-top:60px; }
+.docs-shell { display:grid; grid-template-columns:250px 1fr; min-height:100vh; padding-top:64px; }
 .docs-sidebar {
-  position:sticky; top:60px; align-self:start;
-  height:calc(100vh - 60px); overflow-y:auto;
-  padding:1.6rem 0 2.5rem;
+  position:sticky; top:64px; align-self:start;
+  height:calc(100vh - 64px); overflow-y:auto;
+  padding:1.5rem 0 2.5rem;
   border-right:1px solid var(--border);
-  background:rgba(12,12,18,0.7);
+  background:rgba(17,17,19,0.7);
   backdrop-filter:blur(10px);
 }
 .docs-sidebar::-webkit-scrollbar { width:3px; }
-.docs-nav-section { margin-bottom:1.6rem; }
+.docs-nav-section { margin-bottom:1.5rem; }
 .docs-nav-label {
-  font-size:9.5px; font-weight:600; letter-spacing:0.12em;
+  font-size:9.5px; font-weight:600; letter-spacing:.12em;
   text-transform:uppercase; color:var(--dim); padding:0 1.4rem;
   margin-bottom:6px; display:block;
 }
@@ -418,15 +529,15 @@ footer a:hover { color:var(--text); }
   border-left:2px solid transparent; transition:color .1s, background .1s;
 }
 .docs-nav-link:hover { color:var(--text); background:rgba(255,255,255,0.03); }
-.docs-nav-link.active { color:var(--violet-bright); border-left-color:var(--violet); background:var(--violet-dim); }
-.docs-main { min-width:0; padding:2.8rem clamp(1.4rem, 4vw, 3.5rem) 5rem; max-width:860px; }
+.docs-nav-link.active { color:var(--accent-text); border-left-color:var(--accent); background:var(--accent-soft); }
+.docs-main { min-width:0; padding:2.8rem clamp(1.4rem,4vw,3.5rem) 5rem; max-width:860px; }
 .doc-page { display:none; }
 .doc-page.visible { display:block; animation:fadeIn .18s ease-out; }
 @keyframes fadeIn { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
 
-.doc-page h2 { font-family:var(--display); font-size:1.9rem; font-weight:700; letter-spacing:-0.03em; margin-bottom:.5rem; color:var(--text); }
+.doc-page h2 { font-size:1.9rem; font-weight:700; letter-spacing:-0.025em; margin-bottom:.5rem; color:var(--text); }
 .doc-page .doc-lead { font-size:1rem; color:var(--muted); margin-bottom:2.2rem; padding-bottom:2rem; border-bottom:1px solid var(--border); line-height:1.75; }
-.doc-page h3 { font-family:var(--display); font-size:1.05rem; font-weight:600; color:var(--text); margin:2.8rem 0 .6rem; }
+.doc-page h3 { font-size:1.05rem; font-weight:600; color:var(--text); margin:2.8rem 0 .6rem; }
 .doc-page h4 { font-size:13px; font-weight:600; color:var(--text); margin:1.6rem 0 .4rem; }
 .doc-page p { font-size:14px; color:var(--muted); margin-bottom:1rem; line-height:1.8; }
 .doc-page ul, .doc-page ol { padding-left:1.3rem; margin-bottom:1rem; }
@@ -435,32 +546,27 @@ footer a:hover { color:var(--text); }
 .doc-page li strong, .doc-page p strong { color:var(--text); font-weight:500; }
 .doc-page code {
   font-family:var(--mono); font-size:12px;
-  background:var(--raised); padding:2px 6px; border-radius:4px;
-  color:#C4B5FD;
+  background:var(--surface-3); padding:2px 6px; border-radius:4px;
+  color:var(--accent-text);
 }
 .code-block {
-  background:var(--base); border:1px solid var(--border-med);
+  background:var(--surface); border:1px solid var(--border-2);
   border-radius:var(--radius-sm); padding:1.1rem 1.3rem;
   font-family:var(--mono); font-size:12.5px; line-height:1.85;
   margin:1rem 0 1.5rem; overflow-x:auto; color:var(--text);
+  white-space:pre;
 }
 .code-block .c-comment { color:var(--dim); }
-.code-block .c-key { color:#C4B5FD; }
+.code-block .c-key { color:var(--accent-text); }
 .code-block .c-str { color:#86EFAC; }
-.code-block .c-var { color:var(--amber); }
+.code-block .c-var { color:var(--yellow); }
 .code-block .c-tbl { color:var(--sky); }
 .callout { border-radius:var(--radius-sm); padding:1rem 1.2rem; margin:1.5rem 0; font-size:13px; line-height:1.7; }
 .callout-info { background:rgba(96,165,250,0.07); border:1px solid rgba(96,165,250,0.2); color:#93C5FD; }
-.callout-warn { background:rgba(245,166,35,0.07); border:1px solid rgba(245,166,35,0.22); color:#FCD34D; }
-.callout-tip  { background:var(--violet-dim); border:1px solid var(--violet-border); color:#C4B5FD; }
-.callout-danger{ background:rgba(240,82,82,0.07); border:1px solid rgba(240,82,82,0.22); color:#FCA5A5; }
+.callout-warn { background:var(--yellow-soft); border:1px solid rgba(234,179,8,0.22); color:#FCD34D; }
+.callout-tip  { background:var(--accent-soft); border:1px solid rgba(139,92,246,0.25); color:var(--accent-text); }
+.callout-danger{ background:var(--red-soft); border:1px solid rgba(239,68,68,0.22); color:#FCA5A5; }
 .callout strong { color:inherit; font-weight:600; }
-.pill { display:inline-block; padding:2px 9px; border-radius:100px; font-family:var(--mono); font-size:11px; font-weight:500; }
-.pill-green { background:rgba(43,217,165,0.1); color:var(--teal); }
-.pill-amber { background:rgba(245,166,35,0.1); color:var(--amber); }
-.pill-red   { background:rgba(240,82,82,0.1);  color:var(--red); }
-.pill-violet{ background:var(--violet-dim);    color:#C4B5FD; }
-.pill-sky    { background:rgba(96,165,250,0.12); color:var(--sky); }
 .data-table { width:100%; border-collapse:collapse; font-size:13px; margin:1rem 0 1.5rem; }
 .data-table th, .data-table td { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
 .data-table th { color:var(--dim); font-weight:500; font-size:11px; letter-spacing:.04em; text-transform:uppercase; }
@@ -472,19 +578,52 @@ footer a:hover { color:var(--text); }
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .how-grid, .features-2col, .manifest-grid { grid-template-columns:1fr; }
+  .how-grid, .features-grid, .manifest-grid { grid-template-columns:1fr; }
+  .code-panel, .manifest-side { height:auto; }
+  .manifest-side { overflow-y:visible; }
+  .code-body { max-height:420px; }
+  .stat-grid { grid-template-columns:1fr 1fr; }
+  .footer-top { grid-template-columns:1fr 1fr; }
+  .feature-card:nth-last-child(-n+2) { border-bottom:1px solid var(--border); }
+  .feature-card:last-child { border-bottom:none; }
+  .stat-cell { border-right:none; padding-left:0; border-bottom:1px solid var(--border); padding-bottom:1.5rem; }
+  .stat-cell:nth-child(odd) { border-right:1px solid var(--border); padding-right:2rem; }
+  .stat-cell:nth-last-child(-n+2) { border-bottom:none; }
   .docs-shell { grid-template-columns:1fr; }
   .docs-sidebar { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); }
   .docs-nav-section { margin-bottom:.5rem; }
-  .docs-nav-section:first-child { display:block; }
   .docs-nav-link { padding:6px 1.4rem; }
   .install-facts { grid-template-columns:1fr 1fr; }
+  .compare-verdict { grid-template-columns:1fr; }
 }
 @media (max-width: 720px) {
   .nav-links { display:none; }
-  .hero-h1 { font-size:2.2rem; }
-  .stat-row { grid-template-columns:1fr; }
+  .stat-grid { grid-template-columns:1fr; }
   .install-facts { grid-template-columns:1fr; }
+  .hero { padding-top:7rem; }
+  .float-cta { bottom:.9rem; width:calc(100% - 2rem); }
+  .float-cta-inner { width:100%; justify-content:space-between; }
+  .float-cta-text { display:none; }
+
+  /* Comparison table → stacked rows on mobile */
+  .compare-wrap { overflow:visible; background:transparent; border:1px solid var(--border); border-radius:var(--radius); }
+  .compare-table, .compare-table tbody, .compare-table tr, .compare-table td { display:block; width:100%; }
+  .compare-table { background:transparent; }
+  .compare-table thead { display:none; }
+  .compare-table tr { padding:12px 14px; border-bottom:1px solid var(--border); background:var(--surface); }
+  .compare-table tr:last-child { border-bottom:none; }
+  .compare-table td { padding:5px 0; border:none; }
+  .compare-table td:first-child { font-size:13.5px; margin-bottom:4px; color:var(--text); }
+  .compare-table td:nth-child(2)::before { content:"RailDock"; }
+  .compare-table td:nth-child(3)::before { content:"Coolify"; }
+  .compare-table td:nth-child(4)::before { content:"Dokploy"; }
+  .compare-table td:nth-child(5)::before { content:"Railway"; }
+  .compare-table td:nth-child(6)::before { content:"Dokku"; }
+  .compare-table td:not(:first-child)::before {
+    display:inline-block; min-width:92px;
+    font-family:var(--mono); font-size:10px; color:var(--dim);
+    text-transform:uppercase; letter-spacing:.04em;
+  }
 }
 </style>
 </head>
@@ -495,18 +634,37 @@ footer a:hover { color:var(--text); }
      ═══════════════════════════════════════════════════════════ -->
 <nav class="nav">
   <a class="nav-logo" href="#" onclick="showLanding()">
-    <div class="nav-logo-icon">rd</div>
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="RailDock">
+      <defs>
+        <linearGradient id="nav-logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#A78BFA"/>
+          <stop offset="1" stopColor="#7C3AED"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="28" width="32" height="3" rx="1.5" fill="url(#nav-logo-grad)" opacity="0.45"/>
+      <rect x="4" y="22" width="32" height="3" rx="1.5" fill="url(#nav-logo-grad)" opacity="0.7"/>
+      <circle cx="10" cy="32.5" r="2.5" fill="url(#nav-logo-grad)"/>
+      <circle cx="30" cy="32.5" r="2.5" fill="url(#nav-logo-grad)"/>
+      <rect x="6" y="8" width="28" height="16" rx="3" fill="url(#nav-logo-grad)" opacity="0.12"/>
+      <rect x="6" y="8" width="28" height="16" rx="3" stroke="url(#nav-logo-grad)" strokeWidth="2"/>
+      <line x1="14" y1="8" x2="14" y2="24" stroke="url(#nav-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+      <line x1="20" y1="8" x2="20" y2="24" stroke="url(#nav-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+      <line x1="26" y1="8" x2="26" y2="24" stroke="url(#nav-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+    </svg>
     <span class="nav-logo-name">RailDock</span>
   </a>
   <div class="nav-links">
-    <button class="nav-link" onclick="showLanding()">Overview</button>
+    <button class="nav-link" onclick="showLanding()">Product</button>
+    <button class="nav-link" onclick="showLanding();setTimeout(()=>document.getElementById('manifest').scrollIntoView({behavior:'smooth'}),50)">Manifest</button>
+    <button class="nav-link" onclick="showLanding();setTimeout(()=>document.getElementById('templates').scrollIntoView({behavior:'smooth'}),50)">Templates</button>
+    <button class="nav-link" onclick="showLanding();setTimeout(()=>document.getElementById('compare').scrollIntoView({behavior:'smooth'}),50)">Compare</button>
     <button class="nav-link" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50)">Install</button>
     <button class="nav-link" onclick="showDocs('overview')">Docs</button>
     <a class="nav-link" href="https://github.com/mona-chen/raildock" target="_blank">GitHub</a>
   </div>
   <div class="nav-actions">
     <button class="btn-ghost" onclick="showDocs('overview')">Documentation</button>
-    <button class="btn-primary" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50)">Get started →</button>
+    <button class="btn btn-primary" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50)">Get started</button>
   </div>
 </nav>
 
@@ -518,33 +676,29 @@ footer a:hover { color:var(--text); }
 <!-- HERO -->
 <section class="hero">
   <div class="hero-grid-bg"></div>
-  <div class="hero-orb hero-orb-1"></div>
-  <div class="hero-orb hero-orb-2"></div>
   <div class="container">
     <div class="hero-eyebrow">
-      <div class="hero-eyebrow-dot">⚡</div>
-      Self-hosted · open source · MIT
+      <span class="hero-eyebrow-ico">⚡</span>
+      Self-hosted PaaS · MIT · Open source
     </div>
-    <h1 class="hero-h1">Deploy anything to<br>your own server,<br><span class="grad-text">your own PaaS.</span></h1>
-    <p class="hero-sub">
-      RailDock is a self-hosted PaaS you run on your own hardware. Deploy and manage apps, databases, teams, and backups from a web UI — with a visual project canvas, real-time logs, interactive terminal, 307 one-click app stacks, and a declarative TOML manifest system.
-    </p>
+    <h1 class="hero-h1">Your server, turned into a deployment platform.</h1>
+    <p class="hero-sub">Turn any Linux server into a private PaaS for apps, databases, and backups.</p>
     <div class="hero-ctas">
-      <button class="btn-primary-lg" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Install in one command
+      <button class="btn btn-primary btn-lg btn-hero-primary" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install on your server
       </button>
-      <button class="btn-outline-lg" onclick="showDocs('overview')">Read the docs</button>
+      <button class="btn btn-secondary btn-lg" onclick="showDocs('overview')">Read the docs</button>
     </div>
-    <p class="hero-note">curl install · Docker + runtime installed automatically · dashboard on :8888</p>
+    <p class="hero-hint">curl install · Docker + deployment runtime installed automatically · dashboard on :8888</p>
 
-    <!-- THE SIGNATURE ELEMENT: live deploy strip -->
+    <!-- The deploy pipeline — the product's real signature view -->
     <div class="deploy-strip">
       <div class="deploy-strip-bar">
         <span class="strip-dot strip-dot-r"></span>
         <span class="strip-dot strip-dot-y"></span>
         <span class="strip-dot strip-dot-g"></span>
-        <span class="strip-title">myproject / api — <b>deploying</b></span>
+        <span class="strip-title">myproject / api — <b id="deploy-status">deploying</b></span>
       </div>
       <div class="deploy-strip-body">
         <div class="deploy-commit">
@@ -552,94 +706,147 @@ footer a:hover { color:var(--text); }
           <div class="deploy-commit-msg">feat: add async job queue with retry logic</div>
           <div class="deploy-commit-time">just now · webhook</div>
         </div>
-        <div class="deploy-steps">
-          <div class="deploy-step step-done">
-            <span class="step-icon step-done">✓</span>
-            <span class="step-label">Created app &amp; configured project network</span>
-            <span class="step-time">0.3s</span>
+        <div class="deploy-steps" id="deploy-steps">
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
+            <span class="step-label">Created app & configured project network</span>
+            <span class="step-time">—</span>
           </div>
-          <div class="deploy-step step-done">
-            <span class="step-icon step-done">✓</span>
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
             <span class="step-label">Synced 14 environment variables</span>
-            <span class="step-time">0.6s</span>
+            <span class="step-time">—</span>
           </div>
-          <div class="deploy-step step-done">
-            <span class="step-icon step-done">✓</span>
-            <span class="step-label">Mounted storage, configured domains &amp; proxy</span>
-            <span class="step-time">0.9s</span>
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
+            <span class="step-label">Mounted storage, configured domains & proxy</span>
+            <span class="step-time">—</span>
           </div>
-          <div class="deploy-step step-done">
-            <span class="step-icon step-done">✓</span>
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
             <span class="step-label">Pulled source from origin/main · built image (nixpacks)</span>
-            <span class="step-time">18.2s</span>
+            <span class="step-time">—</span>
           </div>
-          <div class="deploy-step step-building">
-            <span class="step-icon">↻</span>
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
             <span class="step-label">Detecting port · wiring network aliases · scaling web=2</span>
             <span class="step-time">—</span>
           </div>
-          <div class="deploy-step step-pending">
-            <span class="step-icon" style="color:var(--dim)">○</span>
+          <div class="deploy-step" data-state="pending">
+            <span class="step-icon">○</span>
             <span class="step-label">Sync linked credentials · broadcast success</span>
             <span class="step-time">—</span>
           </div>
         </div>
         <div class="deploy-progress">
           <div class="progress-live"></div>
-          <div class="progress-bar-wrap"><div class="progress-bar-fill"></div></div>
-          <div class="progress-label">building · step 5 of 7</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+          <div class="progress-label" id="progress-label">queued</div>
         </div>
+        <div class="deploy-log" id="deploy-log"></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
-<section class="section section-alt">
+<!-- STACK STRIP -->
+<section class="section" style="padding:0 0 4.5rem">
   <div class="container">
-    <div class="eyebrow">How it works</div>
-    <h2 class="section-h2">Four concepts. Everything else follows.</h2>
-    <p class="section-sub">RailDock organizes your infrastructure into a hierarchy that maps to how you actually think about deployments.</p>
-    <div class="how-grid">
-      <div class="how-cell" data-n="01">
-        <div class="how-icon" style="background:var(--violet-dim)">🖥</div>
-        <div class="how-title">Servers</div>
-        <div class="how-desc">Add any Linux server by SSH key and hostname. RailDock validates the connection, detects the runtime version and active proxy type, and stores your SSH key encrypted at rest (AES-256-GCM). The install script auto-wires your local server so you can deploy in under five minutes — and can provision brand-new remote hosts end-to-end.</div>
+    <div class="stack-strip">
+      <div class="stack-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+        <strong>7 builders</strong> — nixpacks · dockerfile · railpack
       </div>
-      <div class="how-cell" data-n="02">
-        <div class="how-icon" style="background:rgba(43,217,165,0.1)">📁</div>
-        <div class="how-title">Projects</div>
-        <div class="how-desc">A project is a logical grouping of services that belong together — typically one application plus its databases and workers. Every project gets a private Docker bridge network (named <code>rd-{slug}-{id}</code>) so services can reach each other by internal hostname without going through the public internet.</div>
+      <div class="stack-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        <strong>5 databases</strong> — postgres · mysql · redis
       </div>
-      <div class="how-cell" data-n="03">
-        <div class="how-icon" style="background:rgba(245,166,35,0.1)">⬡</div>
-        <div class="how-title">Services</div>
-        <div class="how-desc">A service is anything you deploy: a web app, a background worker, a Postgres database, Redis, MySQL, MongoDB, or any Docker image. Apps can be built from a git repository (Nixpacks, Dockerfile, Railpack, Herokuish, Cloud Native Buildpacks, or Lambda) or deployed directly from a Docker image tag.</div>
+      <div class="stack-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22v-5"/><path d="M9 8h6"/><path d="M10 8V5h4v3"/><path d="M18.4 11.2A8 8 0 0012 8.5a8 8 0 00-6.4 2.7"/><rect x="4" y="12" width="16" height="10" rx="2"/></svg>
+        <strong>1 command</strong> — install the whole platform
       </div>
-      <div class="how-cell" data-n="04">
-        <div class="how-icon" style="background:rgba(96,165,250,0.1)">🔗</div>
-        <div class="how-title">Links</div>
-        <div class="how-desc">Linking an app to a database wires them together on the project network and injects the connection string (like <code>DATABASE_URL</code>) into the app's environment automatically. RailDock reads the injected connection details back and mirrors them into the service record so you can see them in the UI — no manual configuration.</div>
+      <div class="stack-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="12" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        <strong>1 image</strong> — runs nginx · puma · solid queue
       </div>
     </div>
   </div>
 </section>
 
-<!-- STAT ROW -->
+<!-- STATS -->
+<section class="section section-alt" style="padding:4rem 0">
+  <div class="container">
+    <div class="stat-grid">
+      <div class="stat-cell">
+        <div class="stat-num"><span>307</span></div>
+        <div class="stat-label">One-click app templates</div>
+        <div class="stat-desc">multi-service stacks, deployed in dependency order</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num"><span>17</span></div>
+        <div class="stat-label">Phases per deploy</div>
+        <div class="stat-desc">waiting for databases, wiring networks, syncing secrets</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num"><span>3</span></div>
+        <div class="stat-label">Change severities</div>
+        <div class="stat-desc">reload, restart, or redeploy — classified per manifest field</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num"><span>6</span></div>
+        <div class="stat-label">Apply phases</div>
+        <div class="stat-desc">create, reload, restart, redeploy, links, destroy</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MENTAL MODEL -->
 <section class="section">
   <div class="container">
-    <div class="stat-row">
-      <div class="stat-cell">
-        <div class="stat-num"><em>307</em></div>
-        <div class="stat-desc">One-click app templates — from n8n and Nextcloud to Ollama and Chatwoot</div>
+    <div class="eyebrow">Mental model</div>
+    <h2 class="section-h2">Four concepts. That's the whole platform.</h2>
+    <p class="section-sub">RailDock maps directly onto the objects you already think about when you run software. Everything else is consequence.</p>
+    <div class="how-grid">
+      <div class="how-cell">
+        <div class="how-top">
+          <div class="how-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 19l4-4m0 4l9-9m0 0h-4m4 0v4"/></svg>
+          </div>
+          <span class="how-num">01</span>
+        </div>
+        <div class="how-title">Servers</div>
+        <div class="how-desc">Add any Linux server by SSH key and hostname. RailDock validates the connection, detects the runtime version and proxy type, and stores your SSH key encrypted at rest (AES-256-GCM). Local machine wired automatically at install; remote hosts provisioned end-to-end from the UI.</div>
       </div>
-      <div class="stat-cell">
-        <div class="stat-num"><em>16+</em></div>
-        <div class="stat-desc">Phases in a deploy pipeline — waiting for databases, wiring networks, syncing secrets</div>
+      <div class="how-cell">
+        <div class="how-top">
+          <div class="how-ico how-ico-t">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+          </div>
+          <span class="how-num">02</span>
+        </div>
+        <div class="how-title">Projects</div>
+        <div class="how-desc">A project is a logical grouping — typically one app plus its databases and workers. Every project gets a private Docker bridge network (named <code>rd-{slug}-{id}</code>) so services reach each other by internal hostname, never through the public internet.</div>
       </div>
-      <div class="stat-cell">
-        <div class="stat-num"><em>3</em></div>
-        <div class="stat-desc">Manifest change severities — reload, restart, or full redeploy, classified per field</div>
+      <div class="how-cell">
+        <div class="how-top">
+          <div class="how-ico how-ico-y">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          </div>
+          <span class="how-num">03</span>
+        </div>
+        <div class="how-title">Services</div>
+        <div class="how-desc">A service is anything you deploy: a web app, a worker, Postgres, Redis, MySQL, MongoDB, or any Docker image. Apps build from a git repo with Nixpacks, Dockerfile, Railpack, Herokuish, or buildpacks — or deploy directly from an image tag.</div>
+      </div>
+      <div class="how-cell">
+        <div class="how-top">
+          <div class="how-ico how-ico-s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <span class="how-num">04</span>
+        </div>
+        <div class="how-title">Links</div>
+        <div class="how-desc">Linking an app to a database wires them on the project network and injects the connection string (like <code>DATABASE_URL</code>) into the app's environment automatically. No copy-pasting credentials between tabs.</div>
       </div>
     </div>
   </div>
@@ -649,88 +856,128 @@ footer a:hover { color:var(--text); }
 <section class="section section-alt">
   <div class="container">
     <div class="eyebrow">Capabilities</div>
-    <h2 class="section-h2">Built for what running software actually requires</h2>
-    <p class="section-sub">Not a feature checklist. These are the things RailDock does that save you from writing shell scripts at 2am.</p>
-    <div class="features-2col">
-      <div class="feature-item">
-        <div class="feature-label">Real-time log streaming</div>
-        <div class="feature-body">Logs stream over an ActionCable WebSocket using a dedicated SSH connection. The frontend strips ANSI codes, detects log levels (fatal/error/warn/info/debug/trace) from message content, and pretty-prints JSON payloads. For databases, the correct runtime log command is used automatically.</div>
-        <span class="feature-tag tag-t">streaming over SSH</span>
+    <h2 class="section-h2">Everything running software actually requires</h2>
+    <p class="section-sub">Not a feature checklist — the things RailDock does so you stop writing shell scripts at 2am.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h4m10 0h4M12 3v4m0 10v4"/><path d="M5.6 5.6l2.8 2.8m7.2 7.2l2.8 2.8m0-12.8l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Deploy from Git or Docker</div>
+          <div class="feature-body">Connect GitHub, GitLab, Bitbucket, or Gitea, pick a builder, and push — or deploy any Docker image directly. Every deploy runs through a deterministic multi-phase pipeline that wires networks, env vars, storage, domains, and scaling in order.</div>
+          <div class="feature-tags">
+            <span class="tag tag-v">Nixpacks</span>
+            <span class="tag tag-v">Dockerfile</span>
+            <span class="tag tag-v">Railpack</span>
+            <span class="tag tag-v">buildpacks</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Interactive terminal</div>
-        <div class="feature-body">A full PTY session into any running container via xterm.js. Forwards keystrokes and resize events directly to the SSH channel. Supports shell selection (sh, bash, zsh, ash) and is restricted to project owners and org admins — not all users.</div>
-        <span class="feature-tag tag-v">PTY over WebSocket</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Declarative manifests</div>
+          <div class="feature-body">Write your entire project as <code>raildock.toml</code> — services, env vars, storage, scaling, links. RailDock diffs it against live state and classifies every change as <code>reload</code>, <code>restart</code>, or <code>redeploy</code>, then applies only the deltas.</div>
+          <div class="feature-tags">
+            <span class="tag tag-g">diff preview</span>
+            <span class="tag tag-g">severity tiers</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Secret injection with stable IDs</div>
-        <div class="feature-body">Use <code>${{ secret() }}</code> in your manifest or template. RailDock generates a random value on first deploy and keeps it stable on subsequent deploys — you never see the raw value, but the service always gets the same one.</div>
-        <span class="feature-tag tag-v">deterministic secrets</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="14" r="2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M8 10v5m8-5v5M12 16v1M7 17h4M13 17h4" stroke-width="1.5"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Visual project canvas</div>
+          <div class="feature-body">Services appear as draggable cards on an infinite pan/zoom canvas with real connection lines between linked resources. Click any card to open the full panel — deploy, logs, terminal, variables, domains, storage, backups, data.</div>
+          <div class="feature-tags">
+            <span class="tag tag-v">positions persist</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Linked service credential propagation</div>
-        <div class="feature-body">After a Docker-image service starts, RailDock inspects the running container to discover generated passwords. Apps that reference those passwords via <code>${{ linked.service.VAR }}</code> have their env vars updated and their containers restarted automatically.</div>
-        <span class="feature-tag tag-t">container-inspect sync</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 9 11 13 15 20 6"/><polyline points="15 6 20 6 20 11"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Real-time logs & terminal</div>
+          <div class="feature-body">Logs stream over a WebSocket through a dedicated SSH connection — ANSI-stripped, level-detected, JSON pretty-printed. The built-in terminal opens a full PTY into any running container, with shell selection and fullscreen mode.</div>
+          <div class="feature-tags">
+            <span class="tag tag-v">PTY over WebSocket</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Webhook-triggered deploys</div>
-        <div class="feature-body">Every service gets a unique token-authenticated webhook URL. Push a payload from GitHub or GitLab and RailDock validates the HMAC signature (X-Hub-Signature-256 for GitHub, X-Gitlab-Token for GitLab), finds matching services with auto-deploy enabled, and queues a deploy idempotently.</div>
-        <span class="feature-tag tag-v">HMAC-verified</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Databases, links & secrets</div>
+          <div class="feature-body">Provision Postgres, MySQL, MariaDB, Redis, or MongoDB in one click. Linking injects <code>DATABASE_URL</code> automatically. Secrets use <code>${{ secret() }}</code> — generated once, stable across deploys, never shown in the UI. Generated passwords are discovered and propagated to linked apps.</div>
+          <div class="feature-tags">
+            <span class="tag tag-g">deterministic secrets</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Canvas project view</div>
-        <div class="feature-body">Services appear as draggable cards on an infinite pan/zoom canvas. Connection lines show which apps are linked to which databases. Card positions persist to the database. Click a card to open the full service panel with all tabs: deploy, logs, terminal, variables, domains, storage, database, data, metrics, backups.</div>
-        <span class="feature-tag tag-t">persistent positions</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Backups worth trusting</div>
+          <div class="feature-body">Scheduled backups run every minute via Solid Queue, with retention enforced. Ship to S3 or Cloudflare R2 encrypted with AES-256-GCM. PostgreSQL PITR streams WAL continuously. Weekly recovery drills restore into disposable resources — and always clean up.</div>
+          <div class="feature-tags">
+            <span class="tag tag-g">AES-256-GCM</span>
+            <span class="tag tag-g">PITR</span>
+            <span class="tag tag-g">verified restores</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Topology-aware template deploys</div>
-        <div class="feature-body">When deploying a multi-service template (e.g. Chatwoot with Sidekiq, Postgres, and Redis), RailDock runs a topological sort on the <code>depends_on</code> graph and deploys services in dependency order, cancelling dependents if an upstream deploy fails.</div>
-        <span class="feature-tag tag-v">DAG-ordered deploys</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Domains & SSL, automatic</div>
+          <div class="feature-body">Set a base domain on your server and every new service gets a subdomain automatically. Magic DNS (sslip.io, nip.io, traefik.me) embeds your public IP so no DNS config is needed. Custom domains with one-click Let's Encrypt.</div>
+          <div class="feature-tags">
+            <span class="tag tag-y">magic DNS support</span>
+          </div>
+        </div>
       </div>
-      <div class="feature-item">
-        <div class="feature-label">Automatic domains &amp; SSL</div>
-        <div class="feature-body">Configure a base domain on your server (e.g. <code>apps.example.com</code>) and every new service gets a subdomain automatically. Magic DNS services (sslip.io, nip.io, traefik.me) embed the server's public IP in the hostname so no DNS config is needed. Custom domains with Let's Encrypt one-click enabled.</div>
-        <span class="feature-tag tag-t">magic DNS support</span>
-      </div>
-      <div class="feature-item">
-        <div class="feature-label">Automatic scheduled backups</div>
-        <div class="feature-body">Create daily, weekly, or monthly backup schedules per database or storage volume. A background worker runs them automatically every minute, enforces retention, and marks backups complete only after their artifact is persisted and SHA-256 verified.</div>
-        <span class="feature-tag tag-t">run every minute</span>
-      </div>
-      <div class="feature-item">
-        <div class="feature-label">Off-site encrypted destinations</div>
-        <div class="feature-body">Ship backups to S3-compatible or Cloudflare R2 buckets. Artifacts are encrypted with AES-256-GCM before multipart upload using a per-destination recovery key that is shown exactly once. PostgreSQL PITR streams WAL every minute.</div>
-        <span class="feature-tag tag-s">AES-256-GCM</span>
-      </div>
-      <div class="feature-item">
-        <div class="feature-label">Read-only data browser</div>
-        <div class="feature-body">Browse tables and rows straight from the UI for Postgres, MySQL, and MariaDB services. SQL is generated and validated server-side — you never write raw queries — and credential drift is detected with a clear "out of sync" banner.</div>
-        <span class="feature-tag tag-s">tables &amp; rows</span>
-      </div>
-      <div class="feature-item">
-        <div class="feature-label">Recovery drills &amp; PITR</div>
-        <div class="feature-body">Every Sunday, RailDock restores the latest database and volume backups into isolated, disposable resources and verifies their checksums — then always cleans up. PostgreSQL point-in-time recovery keeps daily base backups plus continuous WAL archives.</div>
-        <span class="feature-tag tag-s">verified restores</span>
+      <div class="feature-card">
+        <div class="feature-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+          <div class="feature-title">Webhook-triggered deploys</div>
+          <div class="feature-body">Every service gets a unique token webhook. GitHub and GitLab payloads are verified with HMAC signatures, matched against auto-deploy services, and queued idempotently — re-delivered webhooks never double-deploy.</div>
+          <div class="feature-tags">
+            <span class="tag tag-y">HMAC-verified</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- MANIFEST -->
-<section class="section">
+<section class="section" id="manifest">
   <div class="container">
     <div class="eyebrow">Manifest system</div>
     <h2 class="section-h2">Declare your stack. Preview the diff. Apply by severity.</h2>
-    <p class="section-sub">Write a TOML file that describes your entire project — services, env vars, storage, scaling, proxy config. RailDock diffs it against the live server state and tells you what will happen before anything changes.</p>
+    <p class="section-sub">A TOML file describes your entire project. RailDock diffs it against live server state and tells you exactly what will happen before anything changes.</p>
     <div class="manifest-grid">
       <div class="code-panel">
-        <div class="code-panel-bar">
-          <div class="code-panel-dots">
-            <span class="strip-dot strip-dot-r"></span>
-            <span class="strip-dot strip-dot-y"></span>
-            <span class="strip-dot strip-dot-g"></span>
-          </div>
-          <span class="code-panel-name">raildock.toml</span>
+        <div class="code-bar">
+          <span class="strip-dot strip-dot-r"></span>
+          <span class="strip-dot strip-dot-y"></span>
+          <span class="strip-dot strip-dot-g"></span>
+          <span class="code-name">raildock.toml</span>
         </div>
         <div class="code-body">
 <span class="c-dim"># raildock.toml</span>
@@ -749,11 +996,6 @@ footer a:hover { color:var(--text); }
   SECRET_KEY_BASE = <span class="c-var">"$&#123;&#123; secret() &#125;&#125;"</span>
   DATABASE_URL    = <span class="c-var">"$&#123;&#123; linked.db.DATABASE_URL &#125;&#125;"</span>
 
-  [services.<span class="c-tbl">checks</span>]
-  enabled = <span class="c-str">true</span>
-  wait    = <span class="c-num">5</span>
-  timeout = <span class="c-num">30</span>
-
 [[<span class="c-tbl">services</span>]]
 <span class="c-key">name</span>    = <span class="c-str">"db"</span>
 <span class="c-key">subtype</span> = <span class="c-str">"postgres"</span>
@@ -765,10 +1007,10 @@ footer a:hover { color:var(--text); }
 <span class="c-key">to</span>   = <span class="c-str">"db"</span>
         </div>
       </div>
-      <div>
+      <div class="manifest-side">
         <div class="diff-panel" style="margin-bottom:1rem">
           <div class="diff-header">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Preview · 3 changes detected
           </div>
           <div class="diff-body">
@@ -795,19 +1037,135 @@ footer a:hover { color:var(--text); }
           <div class="mini-card-note">Env var updates and scaling are hot-applied first. The build is triggered once for the timeout change.</div>
         </div>
         <div class="violet-note">
-          Changes classified by field: <strong style="color:var(--text)">env, domains, storage, proxy, traefik_labels</strong> are reload-only · <strong style="color:var(--text)">scaling, cron, checks, resources</strong> require restart · <strong style="color:var(--text)">builder, docker_image, branch, start_command</strong> require full redeploy
+          Changes classified by field: <strong style="color:var(--text)">env, domains, storage, proxy</strong> are reload-only · <strong style="color:var(--text)">scaling, checks, resources</strong> require restart · <strong style="color:var(--text)">builder, docker_image, branch, start_command</strong> require full redeploy
         </div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- COMPARISON -->
+<section class="section section-alt" id="compare">
+  <div class="container">
+    <div class="eyebrow">Compare</div>
+    <h2 class="section-h2">Where RailDock fits</h2>
+    <p class="section-sub">The honest version. RailDock sits in a specific gap: a proven deployment runtime's reliability, Kubernetes-style reconciliation, and Railway-caliber UX — on a server you own.</p>
+    <p class="compare-intro">From raw VPS <span>→</span> production platform.</p>
+    <div class="compare-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>RailDock</th>
+            <th>Coolify</th>
+            <th>Dokploy</th>
+            <th>Railway</th>
+            <th>Dokku</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hosting</td>
+            <td class="yes">Your server</td>
+            <td class="yes">Your server</td>
+            <td class="yes">Your server</td>
+            <td class="no">Managed</td>
+            <td class="yes">Your server</td>
+          </tr>
+          <tr>
+            <td>Deploy model</td>
+            <td>Declarative + imperative</td>
+            <td>Imperative UI</td>
+            <td>Imperative UI</td>
+            <td>Imperative UI</td>
+            <td>CLI only</td>
+          </tr>
+          <tr>
+            <td>Manifest reconciliation</td>
+            <td class="yes">Full diff/apply (3 tiers)</td>
+            <td>Limited</td>
+            <td>Limited</td>
+            <td class="no">No</td>
+            <td class="no">app.json only</td>
+          </tr>
+          <tr>
+            <td>Dependency-aware deploys</td>
+            <td class="yes">Topological sort + fail cascade</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td>Manual</td>
+          </tr>
+          <tr>
+            <td>Cross-service secrets</td>
+            <td class="yes">${{ linked.* }} auto-resolve</td>
+            <td>Manual</td>
+            <td>Manual</td>
+            <td class="no">No</td>
+            <td>Manual</td>
+          </tr>
+          <tr>
+            <td>Per-project network isolation</td>
+            <td class="yes">DNS aliases, auto-inject</td>
+            <td>Docker networks</td>
+            <td>Docker networks</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+          </tr>
+          <tr>
+            <td>External reverse proxy</td>
+            <td class="yes">Auto Traefik labels</td>
+            <td>Manual</td>
+            <td>Manual</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+          </tr>
+          <tr>
+            <td>Automated server provisioning</td>
+            <td class="yes">Bootstrap script</td>
+            <td>Partial</td>
+            <td>Partial</td>
+            <td>N/A</td>
+            <td class="no">No</td>
+          </tr>
+          <tr>
+            <td>Teams, roles, deploy keys</td>
+            <td class="yes">Yes</td>
+            <td>Partial</td>
+            <td>Partial</td>
+            <td class="yes">Yes</td>
+            <td class="no">No</td>
+          </tr>
+          <tr>
+            <td>Web UI + API</td>
+            <td class="yes">Yes</td>
+            <td class="yes">Yes</td>
+            <td class="yes">Yes</td>
+            <td class="yes">Yes</td>
+            <td class="no">No</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="compare-verdict">
+      <div class="verdict-card">
+        <h4>Use RailDock if…</h4>
+        <p>You want a self-hosted PaaS with declarative infrastructure-as-code on your own VPS — without the complexity of Kubernetes. You want to define your stack in a manifest, change env vars without redeploying, and have the system resolve database URLs and cross-service credentials automatically.</p>
+      </div>
+      <div class="verdict-card">
+        <h4>Maybe not if…</h4>
+        <p>You need one project spanning multiple servers today, you want fully managed hosting, or you prefer click-to-deploy over a reconciliation model. Coolify is the mature all-in-one alternative; Railway if you don't mind managed hosting.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- TEMPLATES -->
-<section class="section section-alt">
+<section class="section section-tint" id="templates">
   <div class="container">
     <div class="eyebrow">App templates</div>
     <h2 class="section-h2">307 stacks, deployed in one click</h2>
-    <p class="section-sub">Every template is a real TOML file. Selecting one creates all services, generates secrets, mounts storage, wires service links, and queues deployments in dependency order — before you can reload the page.</p>
+    <p class="section-sub">Every template is a real TOML file. Selecting one creates all services, generates secrets, mounts storage, wires links, and queues deployments in dependency order.</p>
     <div class="templates-row">
       <span class="template-chip highlight">n8n</span>
       <span class="template-chip highlight">Chatwoot</span>
@@ -840,16 +1198,16 @@ footer a:hover { color:var(--text); }
       <span class="template-chip">Dokuwiki</span>
       <span class="template-chip">+ 278 more</span>
     </div>
-    <p style="font-size:12px;color:var(--dim);font-family:var(--mono)">Templates can also be loaded from a remote git repo by setting RAILDOCK_TEMPLATES_REPO — build your own private library.</p>
+    <p class="templates-note">Templates can also be loaded from a remote git repo by setting RAILDOCK_TEMPLATES_REPO — build your own private library.</p>
   </div>
 </section>
 
 <!-- INSTALL -->
-<section class="section" id="install">
+<section class="section section-alt" id="install">
   <div class="container">
     <div class="eyebrow">Installation</div>
     <h2 class="section-h2">One command. Your server is now a PaaS.</h2>
-    <p class="section-sub">The installer checks your environment, installs Docker and the deployment runtime if missing, generates SSH keys, pulls the image, starts the stack, and auto-connects your local server. You get a working dashboard in under five minutes.</p>
+    <p class="section-sub">The installer checks your environment, installs Docker and the deployment runtime if missing, generates SSH keys, pulls the image, starts the stack, and auto-connects your local server. A working dashboard in under five minutes.</p>
 
     <div class="install-block">
       <div class="install-bar">
@@ -887,21 +1245,66 @@ footer a:hover { color:var(--text); }
       </div>
     </div>
 
-    <div style="margin-top:1.5rem;max-width:760px;padding:0.95rem 1.2rem;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.22);border-radius:var(--radius-sm);font-size:13px;color:#FCD34D;line-height:1.7">
-      After install, back up <code style="background:rgba(255,255,255,0.08);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:11px">.env</code> and <code style="background:rgba(255,255,255,0.08);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:11px">backend/config/master.key</code>. Losing them loses all encrypted credentials — they cannot be recovered.
+    <div class="install-warn">
+      After install, back up <code>.env</code> and <code>backend/config/master.key</code>. Losing them loses all encrypted credentials — they cannot be recovered.
     </div>
   </div>
 </section>
 
+<!-- FOOTER -->
 <footer>
   <div class="container">
-    <div class="footer-badges">
-      <span class="footer-badge">Self-hosted PaaS</span>
-      <span class="footer-badge">Rails 8</span>
-      <span class="footer-badge">React 19</span>
-      <span class="footer-badge">MIT License</span>
+    <div class="footer-top">
+      <div>
+        <div class="footer-brand">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="RailDock">
+            <defs>
+              <linearGradient id="footer-logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#A78BFA"/>
+                <stop offset="1" stopColor="#7C3AED"/>
+              </linearGradient>
+            </defs>
+            <rect x="4" y="28" width="32" height="3" rx="1.5" fill="url(#footer-logo-grad)" opacity="0.45"/>
+            <rect x="4" y="22" width="32" height="3" rx="1.5" fill="url(#footer-logo-grad)" opacity="0.7"/>
+            <circle cx="10" cy="32.5" r="2.5" fill="url(#footer-logo-grad)"/>
+            <circle cx="30" cy="32.5" r="2.5" fill="url(#footer-logo-grad)"/>
+            <rect x="6" y="8" width="28" height="16" rx="3" fill="url(#footer-logo-grad)" opacity="0.12"/>
+            <rect x="6" y="8" width="28" height="16" rx="3" stroke="url(#footer-logo-grad)" strokeWidth="2"/>
+            <line x1="14" y1="8" x2="14" y2="24" stroke="url(#footer-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+            <line x1="20" y1="8" x2="20" y2="24" stroke="url(#footer-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+            <line x1="26" y1="8" x2="26" y2="24" stroke="url(#footer-logo-grad)" strokeWidth="1.5" opacity="0.5"/>
+          </svg>
+          <span class="footer-brand-name">RailDock</span>
+        </div>
+        <p class="footer-tagline">Infrastructure, without the infrastructure team. Deploy and manage apps, databases, and backups on servers you own.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#" onclick="showLanding();return false">Overview</a>
+        <a href="#" onclick="showLanding();setTimeout(()=>document.getElementById('manifest').scrollIntoView({behavior:'smooth'}),50);return false">Manifest</a>
+        <a href="#" onclick="showLanding();setTimeout(()=>document.getElementById('templates').scrollIntoView({behavior:'smooth'}),50);return false">Templates</a>
+        <a href="#" onclick="showLanding();setTimeout(()=>document.getElementById('compare').scrollIntoView({behavior:'smooth'}),50);return false">Compare</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#" onclick="showDocs('overview');return false">Documentation</a>
+        <a href="#" onclick="showDocs('architecture');return false">Architecture</a>
+        <a href="https://github.com/mona-chen/raildock" target="_blank">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Get started</h4>
+        <a href="#" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50);return false">Install</a>
+        <a href="https://github.com/mona-chen/raildock/blob/main/LICENSE" target="_blank">License</a>
+      </div>
     </div>
-    <p>MIT License · <a href="https://github.com/mona-chen/raildock" target="_blank">github.com/mona-chen/raildock</a> · Built with Rails 8 &amp; React 19</p>
+    <div class="footer-bottom">
+      <p>© 2026 RailDock · MIT License · Built with Rails 8 & React 19</p>
+      <div class="footer-links">
+        <a href="#" onclick="showDocs('overview');return false">Docs</a>
+        <a href="https://github.com/mona-chen/raildock" target="_blank">GitHub</a>
+        <a href="#" onclick="showLanding();setTimeout(()=>document.getElementById('install').scrollIntoView({behavior:'smooth'}),50);return false">Install</a>
+      </div>
+    </div>
   </div>
 </footer>
 </div><!-- /landing -->
@@ -920,11 +1323,11 @@ footer a:hover { color:var(--text); }
       <button class="docs-nav-link active" onclick="showDoc('overview')">What is RailDock?</button>
       <button class="docs-nav-link" onclick="showDoc('install')">Installation</button>
       <button class="docs-nav-link" onclick="showDoc('architecture')">Architecture</button>
-      <button class="docs-nav-link" onclick="showDoc('servers')">Servers &amp; provisioning</button>
+      <button class="docs-nav-link" onclick="showDoc('servers')">Servers & provisioning</button>
     </div>
     <div class="docs-nav-section">
       <span class="docs-nav-label">Core concepts</span>
-      <button class="docs-nav-link" onclick="showDoc('projects')">Projects &amp; networks</button>
+      <button class="docs-nav-link" onclick="showDoc('projects')">Projects & networks</button>
       <button class="docs-nav-link" onclick="showDoc('services')">Services</button>
       <button class="docs-nav-link" onclick="showDoc('canvas')">The canvas</button>
       <button class="docs-nav-link" onclick="showDoc('links')">Service linking</button>
@@ -935,27 +1338,27 @@ footer a:hover { color:var(--text); }
       <button class="docs-nav-link" onclick="showDoc('builders')">Builders</button>
       <button class="docs-nav-link" onclick="showDoc('webhooks')">Webhook triggers</button>
       <button class="docs-nav-link" onclick="showDoc('rollback')">Rollback</button>
-      <button class="docs-nav-link" onclick="showDoc('git-sources')">Git sources &amp; GitHub App</button>
+      <button class="docs-nav-link" onclick="showDoc('git-sources')">Git sources & GitHub App</button>
     </div>
     <div class="docs-nav-section">
       <span class="docs-nav-label">Manifests</span>
       <button class="docs-nav-link" onclick="showDoc('manifest-intro')">Introduction</button>
       <button class="docs-nav-link" onclick="showDoc('manifest-schema')">Schema reference</button>
       <button class="docs-nav-link" onclick="showDoc('manifest-vars')">Template variables</button>
-      <button class="docs-nav-link" onclick="showDoc('manifest-reconciler')">Reconciler &amp; diff</button>
+      <button class="docs-nav-link" onclick="showDoc('manifest-reconciler')">Reconciler & diff</button>
     </div>
     <div class="docs-nav-section">
       <span class="docs-nav-label">Services in depth</span>
-      <button class="docs-nav-link" onclick="showDoc('logs')">Logs &amp; terminal</button>
+      <button class="docs-nav-link" onclick="showDoc('logs')">Logs & terminal</button>
       <button class="docs-nav-link" onclick="showDoc('databases')">Databases</button>
       <button class="docs-nav-link" onclick="showDoc('data-browser')">Data browser</button>
-      <button class="docs-nav-link" onclick="showDoc('domains')">Domains &amp; SSL</button>
+      <button class="docs-nav-link" onclick="showDoc('domains')">Domains & SSL</button>
       <button class="docs-nav-link" onclick="showDoc('storage')">Storage mounts</button>
       <button class="docs-nav-link" onclick="showDoc('settings-panel')">Service settings</button>
     </div>
     <div class="docs-nav-section">
-      <span class="docs-nav-label">Backups &amp; recovery</span>
-      <button class="docs-nav-link" onclick="showDoc('backups')">Backups &amp; schedules</button>
+      <span class="docs-nav-label">Backups & recovery</span>
+      <button class="docs-nav-link" onclick="showDoc('backups')">Backups & schedules</button>
       <button class="docs-nav-link" onclick="showDoc('destinations')">Backup destinations</button>
       <button class="docs-nav-link" onclick="showDoc('pitr')">PostgreSQL PITR</button>
       <button class="docs-nav-link" onclick="showDoc('drills')">Recovery drills</button>
@@ -963,8 +1366,8 @@ footer a:hover { color:var(--text); }
     <div class="docs-nav-section">
       <span class="docs-nav-label">Platform</span>
       <button class="docs-nav-link" onclick="showDoc('templates')">App templates</button>
-      <button class="docs-nav-link" onclick="showDoc('plugins')">Plugins &amp; integrations</button>
-      <button class="docs-nav-link" onclick="showDoc('orgs')">Organizations &amp; RBAC</button>
+      <button class="docs-nav-link" onclick="showDoc('plugins')">Plugins & integrations</button>
+      <button class="docs-nav-link" onclick="showDoc('orgs')">Organizations & RBAC</button>
       <button class="docs-nav-link" onclick="showDoc('platform-settings')">Platform settings</button>
       <button class="docs-nav-link" onclick="showDoc('updates')">Updates</button>
       <button class="docs-nav-link" onclick="showDoc('security')">Security</button>
@@ -1007,7 +1410,7 @@ footer a:hover { color:var(--text); }
         <li><strong>Domains, SSL, and auto-provisioned subdomains</strong></li>
         <li><strong>Organizations and RBAC</strong> — teams, deploy keys, GitHub App integration per org</li>
         <li><strong>Database ops</strong> — provision, link, backup, restore, read-only data browser for Postgres, MySQL, MariaDB, Redis</li>
-        <li><strong>Backups &amp; recovery</strong> — automatic scheduled backups, PITR for Postgres, volume snapshots, encrypted S3/R2 destinations, weekly recovery drills</li>
+        <li><strong>Backups & recovery</strong> — automatic scheduled backups, PITR for Postgres, volume snapshots, encrypted S3/R2 destinations, weekly recovery drills</li>
         <li><strong>Server provisioning</strong> — bootstrap script for new remote hosts, or fully automated provisioning</li>
         <li><strong>External reverse proxy mode</strong> — for servers with an existing Traefik instance</li>
         <li><strong>Operations</strong> — real metrics with 30-day history, malware scanning, SSL status checks, in-app updates</li>
@@ -1082,7 +1485,7 @@ RAILDOCK_VERSION=latest ./install.sh</div>
         After every install or upgrade, back up <code>.env</code> and <code>backend/config/master.key</code>. These are the encryption keys for all SSH keys and Git tokens stored by RailDock. They cannot be recovered if lost.
       </div>
 
-      <h3>Team invitations &amp; SMTP</h3>
+      <h3>Team invitations & SMTP</h3>
       <p>Team invitations require outgoing SMTP. Set <code>SMTP_ADDRESS</code>, <code>SMTP_PORT</code>, <code>SMTP_USERNAME</code>, <code>SMTP_PASSWORD</code>, and <code>MAIL_FROM</code> in <code>.env</code>, or configure SMTP in Settings after install. Until SMTP is configured, invitations are still created but the UI warns that the invite link must be shared manually.</p>
 
       <h3>Uninstall</h3>
@@ -1159,7 +1562,7 @@ Running app containers + datastore plugin instances</div>
 
     <!-- ── SERVERS ── -->
     <div class="doc-page" id="doc-servers">
-      <h2>Servers &amp; provisioning</h2>
+      <h2>Servers & provisioning</h2>
       <p class="doc-lead">A server is a host that RailDock manages over SSH. You register servers by providing a hostname and SSH private key. RailDock validates the connection, detects versions, and stores the key encrypted with Lockbox.</p>
 
       <h3>Auto-configured local server</h3>
@@ -1195,7 +1598,7 @@ Running app containers + datastore plugin instances</div>
       </ul>
       <p>When you validate a server connection, RailDock detects the active proxy type (traefik, nginx, caddy, haproxy, openresty). This is stored as the server's default proxy and inherited by new services.</p>
 
-      <h3>Base domains &amp; auto-domains</h3>
+      <h3>Base domains & auto-domains</h3>
       <p>If you set a base domain on a server (e.g. <code>apps.example.com</code>), RailDock auto-provisions a subdomain for every new service (e.g. <code>myproject-api.apps.example.com</code>). Magic DNS services are detected by name — sslip.io, nip.io, and traefik.me embed the server's public IP in the hostname so no DNS configuration is needed.</p>
 
       <h3>Importing running Docker containers</h3>
@@ -1204,7 +1607,7 @@ Running app containers + datastore plugin instances</div>
 
     <!-- ── PROJECTS ── -->
     <div class="doc-page" id="doc-projects">
-      <h2>Projects &amp; networks</h2>
+      <h2>Projects & networks</h2>
       <p class="doc-lead">A project groups related services — typically one application with its databases, caches, and workers. Every project lives on one server and gets its own isolated Docker network.</p>
 
       <h3>Project network</h3>
@@ -1299,7 +1702,7 @@ Running app containers + datastore plugin instances</div>
         </tbody>
       </table>
 
-      <h3>Toolbar &amp; filters</h3>
+      <h3>Toolbar & filters</h3>
       <p>The top toolbar shows the project name, environment, a realtime sync dot, and an Actions dropdown (Deploy All Apps, Restart All, Cancel All Deployments, Stop All). A floating filter bar lets you search services and filter by type (Apps / Databases / Caches / Services).</p>
 
       <h3>Connection lines</h3>
@@ -1348,7 +1751,7 @@ Running app containers + datastore plugin instances</div>
           <tr><td>cancelled</td><td>A dependency deployment failed (sequence job cancelled this one)</td></tr>
         </tbody>
       </table>
-      <p>Stale deployments (pending &gt; 30 min, building/deploying &gt; 2 hours) are automatically failed by the reconciler job.</p>
+      <p>Stale deployments (pending > 30 min, building/deploying > 2 hours) are automatically failed by the reconciler job.</p>
     </div>
 
     <!-- ── BUILDERS ── -->
@@ -1407,7 +1810,7 @@ Running app containers + datastore plugin instances</div>
 
     <!-- ── GIT SOURCES & GITHUB APP ── -->
     <div class="doc-page" id="doc-git-sources">
-      <h2>Git sources &amp; GitHub App</h2>
+      <h2>Git sources & GitHub App</h2>
       <p class="doc-lead">Git sources connect RailDock to your code hosting accounts so you can browse repos, branches, and directories when configuring or deploying services.</p>
 
       <h3>Token-based sources</h3>
@@ -1594,7 +1997,7 @@ web = { memory = <span class="c-str">"256m"</span> }</div>
 
     <!-- ── RECONCILER ── -->
     <div class="doc-page" id="doc-manifest-reconciler">
-      <h2>Reconciler &amp; diff</h2>
+      <h2>Reconciler & diff</h2>
       <p class="doc-lead">The manifest reconciler diffs your declared desired state against the current live state of the project and classifies every change by its required action.</p>
 
       <h3>Diff process</h3>
@@ -1639,7 +2042,7 @@ web = { memory = <span class="c-str">"256m"</span> }</div>
 
     <!-- ── LOGS & TERMINAL ── -->
     <div class="doc-page" id="doc-logs">
-      <h2>Logs &amp; terminal</h2>
+      <h2>Logs & terminal</h2>
       <p class="doc-lead">Logs stream in real time over a WebSocket. The interactive terminal gives you a full PTY session into any running container.</p>
 
       <h3>Log streaming</h3>
@@ -1717,13 +2120,13 @@ web = { memory = <span class="c-str">"256m"</span> }</div>
       <p>The "Database" tab in the service panel calls the plugin's info command to show the connection DSN, status, version, and other metadata, plus a generated quick-connect CLI command per subtype (<code>psql</code>, <code>redis-cli</code>, <code>mysql</code>, <code>mongosh</code>).</p>
 
       <h3>Backup and restore</h3>
-      <p>Manual backup calls the plugin's export command and records the result in the service's backup history. Restore uploads data and calls the plugin's import command. Scheduled backups run automatically — see the <a href="#" onclick="showDoc('backups');return false" style="color:var(--violet-bright)">Backups &amp; schedules</a> page.</p>
+      <p>Manual backup calls the plugin's export command and records the result in the service's backup history. Restore uploads data and calls the plugin's import command. Scheduled backups run automatically — see the <a href="#" onclick="showDoc('backups');return false" style="color:var(--accent-text)">Backups & schedules</a> page.</p>
 
       <h3>Password discovery</h3>
       <p>For Docker-image databases (services deployed from a Docker image rather than a datastore plugin), RailDock inspects the running container after each deploy to discover generated passwords. It scans the container's environment for known password variable names and stores them in the service record. This allows linked apps to reference these passwords via <code>${{ linked.service.VAR }}</code>.</p>
 
       <h3>Data browser</h3>
-      <p>Postgres, MySQL, and MariaDB services expose a read-only data browser in the UI — see the <a href="#" onclick="showDoc('data-browser');return false" style="color:var(--violet-bright)">Data browser</a> page.</p>
+      <p>Postgres, MySQL, and MariaDB services expose a read-only data browser in the UI — see the <a href="#" onclick="showDoc('data-browser');return false" style="color:var(--accent-text)">Data browser</a> page.</p>
     </div>
 
     <!-- ── DATA BROWSER ── -->
@@ -1751,7 +2154,7 @@ web = { memory = <span class="c-str">"256m"</span> }</div>
 
     <!-- ── DOMAINS ── -->
     <div class="doc-page" id="doc-domains">
-      <h2>Domains &amp; SSL</h2>
+      <h2>Domains & SSL</h2>
       <p class="doc-lead">Add custom domains from the service panel, enable Let's Encrypt with one click, or let RailDock provision a temporary public URL automatically.</p>
 
       <h3>Custom domains</h3>
@@ -1802,7 +2205,7 @@ container = <span class="c-str">"/app/config"</span></div>
       <p>Click "browse" on any mount to open a read-only file browser: navigate directories, see file sizes, and jump back up. Backed by the storage browse endpoint.</p>
 
       <h3>Snapshots</h3>
-      <p>Click "snapshot" on any mount to take an encrypted volume snapshot (optionally shipping it to a backup destination). Snapshots can be downloaded, restored (destructively, with confirmation), or deleted — see <a href="#" onclick="showDoc('backups');return false" style="color:var(--violet-bright)">Backups &amp; schedules</a>.</p>
+      <p>Click "snapshot" on any mount to take an encrypted volume snapshot (optionally shipping it to a backup destination). Snapshots can be downloaded, restored (destructively, with confirmation), or deleted — see <a href="#" onclick="showDoc('backups');return false" style="color:var(--accent-text)">Backups & schedules</a>.</p>
     </div>
 
     <!-- ── SERVICE SETTINGS ── -->
@@ -1848,7 +2251,7 @@ container = <span class="c-str">"/app/config"</span></div>
 
     <!-- ── BACKUPS ── -->
     <div class="doc-page" id="doc-backups">
-      <h2>Backups &amp; schedules</h2>
+      <h2>Backups & schedules</h2>
       <p class="doc-lead">Database backups and volume snapshots run automatically, persist locally, and can be mirrored to encrypted off-site destinations. Nothing is marked complete until its artifact is persisted and SHA-256 verified.</p>
 
       <h3>Backup kinds</h3>
@@ -1896,14 +2299,14 @@ container = <span class="c-str">"/app/config"</span></div>
       <h3>Creating a destination</h3>
       <p>In Settings → Backup Destinations, add a destination with name, provider, region, endpoint, bucket, path prefix, access key, and secret. Saving verifies the connection with a put/head/delete health probe.</p>
 
-      <h3>Encryption &amp; the recovery key</h3>
+      <h3>Encryption & the recovery key</h3>
       <p>Every destination gets a random 64-hex-character recovery key, generated for you. Artifacts are encrypted with <strong>AES-256-GCM</strong> (1 MB streaming chunks, a 12-byte IV, and a 16-byte auth tag) before multipart upload, using the format <code>RAILDOCK-BACKUP-V1</code>. The recovery key is shown exactly once at creation — <strong>save it off-host</strong>. You cannot restore from that destination without it.</p>
 
       <div class="callout callout-danger">
         Save the one-time recovery key outside of RailDock. If you lose it, backups in that destination are permanently unrecoverable.
       </div>
 
-      <h3>Verification &amp; maintenance</h3>
+      <h3>Verification & maintenance</h3>
       <p>Destinations show a verified/failed/pending status and can be re-verified at any time. Deleting a destination removes future uploads but does not delete objects already stored in the bucket.</p>
     </div>
 
@@ -2006,7 +2409,7 @@ container = <span class="c-str">"/app/config"</span></div>
 
     <!-- ── PLUGINS ── -->
     <div class="doc-page" id="doc-plugins">
-      <h2>Plugins &amp; integrations</h2>
+      <h2>Plugins & integrations</h2>
       <p class="doc-lead">The plugin registry describes every service subtype and builder RailDock knows about, and lets admins extend it by installing external plugin manifests.</p>
 
       <h3>What's in the registry</h3>
@@ -2024,7 +2427,7 @@ container = <span class="c-str">"/app/config"</span></div>
 
     <!-- ── ORGS ── -->
     <div class="doc-page" id="doc-orgs">
-      <h2>Organizations &amp; RBAC</h2>
+      <h2>Organizations & RBAC</h2>
       <p class="doc-lead">Organizations let multiple users collaborate on projects. Access is controlled by membership roles at the organization level.</p>
 
       <h3>Roles</h3>
@@ -2053,16 +2456,16 @@ container = <span class="c-str">"/app/config"</span></div>
       <p class="doc-lead">The Settings page is where admins manage integrations, git sources, organizations, members, backup destinations, deploy keys, email, and updates.</p>
 
       <h3>Integrations</h3>
-      <p>The plugin manager: install external plugins from manifests, configure plugins with schema-driven forms, and enable/disable them. See <a href="#" onclick="showDoc('plugins');return false" style="color:var(--violet-bright)">Plugins &amp; integrations</a>.</p>
+      <p>The plugin manager: install external plugins from manifests, configure plugins with schema-driven forms, and enable/disable them. See <a href="#" onclick="showDoc('plugins');return false" style="color:var(--accent-text)">Plugins & integrations</a>.</p>
 
       <h3>Git sources</h3>
-      <p>Connect GitHub/GitLab/Bitbucket/Gitea via personal access token, or set up the GitHub App (including a one-click manifest flow that creates the app with correct permissions). See <a href="#" onclick="showDoc('git-sources');return false" style="color:var(--violet-bright)">Git sources &amp; GitHub App</a>.</p>
+      <p>Connect GitHub/GitLab/Bitbucket/Gitea via personal access token, or set up the GitHub App (including a one-click manifest flow that creates the app with correct permissions). See <a href="#" onclick="showDoc('git-sources');return false" style="color:var(--accent-text)">Git sources & GitHub App</a>.</p>
 
-      <h3>Organizations &amp; members</h3>
-      <p>Create and switch organizations, delete organizations, invite members by email, manage roles, and revoke pending invitations. See <a href="#" onclick="showDoc('orgs');return false" style="color:var(--violet-bright)">Organizations &amp; RBAC</a>.</p>
+      <h3>Organizations & members</h3>
+      <p>Create and switch organizations, delete organizations, invite members by email, manage roles, and revoke pending invitations. See <a href="#" onclick="showDoc('orgs');return false" style="color:var(--accent-text)">Organizations & RBAC</a>.</p>
 
       <h3>Backup destinations</h3>
-      <p>Create and verify S3/R2 destinations, reveal the one-time recovery key at creation, and delete destinations. See <a href="#" onclick="showDoc('destinations');return false" style="color:var(--violet-bright)">Backup destinations</a>.</p>
+      <p>Create and verify S3/R2 destinations, reveal the one-time recovery key at creation, and delete destinations. See <a href="#" onclick="showDoc('destinations');return false" style="color:var(--accent-text)">Backup destinations</a>.</p>
 
       <h3>Deploy keys</h3>
       <p>Generate per-organization Ed25519 keypairs for authenticating with private git repositories.</p>
@@ -2071,7 +2474,7 @@ container = <span class="c-str">"/app/config"</span></div>
       <p>Configure SMTP for team invitations: enable, address, port, username, password, domain, auth mechanism (plain / login / cram_md5), and sender address — plus a "Send Test" button that emails you a real message. SMTP can alternatively be configured entirely via environment variables.</p>
 
       <h3>Updates</h3>
-      <p>See <a href="#" onclick="showDoc('updates');return false" style="color:var(--violet-bright)">Updates</a>.</p>
+      <p>See <a href="#" onclick="showDoc('updates');return false" style="color:var(--accent-text)">Updates</a>.</p>
     </div>
 
     <!-- ── UPDATES ── -->
@@ -2182,7 +2585,6 @@ cd backend && bundle exec rspec</div>
         <li><strong>Volume snapshots restore destructively</strong> — Restoring a volume snapshot overwrites the current volume contents. Confirmation is required but the original state is not preserved.</li>
         <li><strong>Scheduled jobs run in production only</strong> — Backup schedules, PITR, drills, malware scans, and metrics sampling are wired via <code>recurring.yml</code> under the <code>production</code> environment, so they don't run in local dev/test.</li>
         <li><strong>Container-level port mapping in external proxy mode</strong> — When using an external Traefik, the engine's built-in proxy and port mappings are disabled. Traffic must flow through the external proxy; services cannot be reached on their host ports directly.</li>
-        <li><strong>Landing page and pricing page are unreachable in the app</strong> — <code>HomePage.tsx</code> and <code>PricingPage.tsx</code> exist in the codebase but are not in the React Router route tree. The app redirects directly to <code>/dashboard</code>.</li>
       </ul>
     </div>
 
@@ -2215,6 +2617,131 @@ function showDoc(id) {
     }
   });
 }
+
+(function () {
+  // ── Animated deploy simulation in the hero terminal ──
+  const stepsWrap = document.getElementById('deploy-steps');
+  const fill = document.getElementById('progress-fill');
+  const label = document.getElementById('progress-label');
+  const logEl = document.getElementById('deploy-log');
+  const statusEl = document.getElementById('deploy-status');
+  if (!stepsWrap || !fill || !label) return;
+
+  const steps = Array.from(stepsWrap.querySelectorAll('.deploy-step'));
+  const times = ['0.3s', '0.6s', '0.9s', '18.2s', '1.4s', '0.8s'];
+  const logLines = [
+    '===> Cloning source from origin/main',
+    '       > nixpacks detected: nodejs@20',
+    '       > Installing dependencies…',
+    '===> Building image (nixpacks)',
+    '       > Compressing layers · pushing to registry',
+    '===> Releasing app…',
+    '       > web: up (scaled to 2)',
+    '       > worker: up (scaled to 1)',
+    '===> Wiring project network aliases',
+    '===> Injecting linked credentials',
+    '       > DATABASE_URL → linked.db',
+    '===> Deploy succeeded ✓',
+    'App live at app.example.com',
+  ];
+  let logPos = 0;
+  let timer = null;
+
+  function setStep(i, state) {
+    const el = steps[i];
+    const icon = el.querySelector('.step-icon');
+    const tm = el.querySelector('.step-time');
+    el.className = 'deploy-step';
+    if (state === 'done') {
+      el.classList.add('step-done');
+      icon.textContent = '✓';
+      icon.classList.add('step-icon-ok');
+      tm.textContent = times[i];
+    } else if (state === 'building') {
+      el.classList.add('step-building');
+      icon.textContent = '↻';
+      icon.classList.remove('step-icon-ok');
+      tm.textContent = '—';
+    } else {
+      el.classList.add('step-pending');
+      icon.textContent = '○';
+      icon.classList.remove('step-icon-ok');
+      tm.textContent = '—';
+    }
+  }
+
+  function pushLog(count) {
+    while (count-- > 0 && logPos < logLines.length) {
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.textContent = logLines[logPos++];
+      logEl.appendChild(div);
+    }
+    while (logEl.children.length > 8) logEl.removeChild(logEl.firstChild);
+  }
+
+  function reset() {
+    logEl.innerHTML = '';
+    logPos = 0;
+    steps.forEach((_, i) => setStep(i, 'pending'));
+    fill.style.width = '0%';
+    label.textContent = 'queued';
+    if (statusEl) statusEl.textContent = 'deploying';
+  }
+
+  function run() {
+    reset();
+    let i = 0;
+    function tick() {
+      if (i > 0) setStep(i - 1, 'done');
+      if (i < steps.length) {
+        setStep(i, 'building');
+        fill.style.width = Math.round((i / steps.length) * 100) + '%';
+        label.textContent = 'building · step ' + (i + 1) + ' of ' + steps.length;
+        pushLog(2);
+        const pause = i === 3 ? 1500 : 700;
+        timer = setTimeout(function () { i++; tick(); }, pause);
+      } else {
+        steps.forEach((_, j) => setStep(j, 'done'));
+        fill.style.width = '100%';
+        label.textContent = 'live · succeeded';
+        if (statusEl) statusEl.textContent = 'live';
+        pushLog(logLines.length);
+        timer = setTimeout(run, 3600);
+      }
+    }
+    tick();
+  }
+
+  run();
+
+  // ── Scroll progress bar ──
+  const progress = document.createElement('div');
+  progress.className = 'scroll-progress';
+  document.body.appendChild(progress);
+
+  // ── Floating install CTA after the hero ──
+  const floatCta = document.createElement('div');
+  floatCta.className = 'float-cta';
+  floatCta.innerHTML =
+    '<div class="float-cta-inner">' +
+      '<span class="float-cta-text">One command to your own PaaS</span>' +
+      '<button class="btn btn-primary float-cta-btn">Install</button>' +
+    '</div>';
+  document.body.appendChild(floatCta);
+  floatCta.querySelector('button').addEventListener('click', function () {
+    const target = document.getElementById('install');
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  const hero = document.querySelector('.hero');
+  window.addEventListener('scroll', function () {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    progress.style.width = (height > 0 ? (scrollTop / height) * 100 : 0) + '%';
+    if (hero) floatCta.classList.toggle('show', hero.getBoundingClientRect().bottom < 0);
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
