@@ -131,12 +131,28 @@ class ManifestParser
   def parse_raw(raw_content, format)
     case format
     when :app_json, :raildock_json, :railway_json
-      JSON.parse(raw_content)
+      JSON.parse(strip_json_comments(raw_content))
     when :raildock_toml, :railway_toml
       TomlRB.parse(raw_content)
     else
       raise ParseError, "Unable to detect manifest format. Use app.json, raildock.toml, raildock.json, railway.toml, or railway.json"
     end
+  end
+
+  # JSON does not support comments natively, but manifests are hand-edited
+  # config files where comments are expected. Strip // and # comments before
+  # parsing so users can annotate their raildock.json files freely.
+  def strip_json_comments(raw_content)
+    raw_content.lines.map { |line|
+      stripped = line.strip
+      # Remove full-line comments
+      if stripped.start_with?("//") || stripped.start_with?("#")
+        ""
+      else
+        # Remove inline comments: // ... or # ... (but not inside strings)
+        line.gsub(%r{(?<!["\w])//.*$}, "").gsub(/(?<!["\w])#.*$/, "")
+      end
+    }.join
   end
 
   # ── JSON Auto-Repair ────────────────────────────────────────
@@ -150,8 +166,6 @@ class ManifestParser
 
     # Pass 1: fix unquoted or malformed keys — "key: "value"" → "key": "value"
     lines.each_with_index do |line, idx|
-      # Match patterns like: "framework: "rails"" or "name: "foo""
-      # i.e. a quote followed by word chars, then colon, space, quote — missing closing quote before colon
       if line.match?(/"(\w+):\s*"/)
         repaired_line = line.gsub(/"(\w+):\s*"/, '"\1": "')
         if repaired_line != line
@@ -168,14 +182,6 @@ class ManifestParser
         repairs << { line: idx + 1, before: line.strip, after: cleaned.strip, rule: "trailing comma" } if repairs.none? { |r| r[:line] == idx + 1 }
         lines[idx] = cleaned
       end
-    end
-
-    # Pass 3: strip // and # comments (JSON doesn't support them)
-    lines.each_with_index do |line, idx|
-      stripped = line.strip
-      next unless stripped.start_with?("//") || (stripped.start_with?("#") && !stripped.start_with?("#/"))
-      repairs << { line: idx + 1, before: stripped, after: "(removed)", rule: "comment in JSON" }
-      lines[idx] = ""
     end
 
     return nil if repairs.empty?
