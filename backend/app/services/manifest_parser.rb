@@ -140,18 +140,14 @@ class ManifestParser
   end
 
   # JSON does not support comments natively, but manifests are hand-edited
-  # config files where comments are expected. Strip // and # comments before
-  # parsing so users can annotate their raildock.json files freely.
+  # config files where comments are expected. Strip full-line comments
+  # (// or #) before parsing so users can annotate their raildock.json.
+  # Only removes lines that are entirely comments — never touches inline
+  # # or // inside string values.
   def strip_json_comments(raw_content)
-    raw_content.lines.map { |line|
+    raw_content.lines.reject { |line|
       stripped = line.strip
-      # Remove full-line comments
-      if stripped.start_with?("//") || stripped.start_with?("#")
-        ""
-      else
-        # Remove inline comments: // ... or # ... (but not inside strings)
-        line.gsub(%r{(?<!["\w])//.*$}, "").gsub(/(?<!["\w])#.*$/, "")
-      end
+      stripped.start_with?("//") || stripped.start_with?("#")
     }.join
   end
 
