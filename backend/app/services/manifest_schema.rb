@@ -231,6 +231,17 @@ class ManifestSchema
       errors << "#{prefix}: 'cron' must be an array"
     end
 
+    if svc["checks"].is_a?(Hash)
+      if svc["checks"]["path"] && !svc["checks"]["path"].is_a?(String)
+        errors << "#{prefix}.checks.path: must be a string"
+      end
+      if svc["checks"]["wait"] && !svc["checks"]["wait"].is_a?(Integer)
+        errors << "#{prefix}.checks.wait: must be an integer"
+      end
+    elsif svc["checks"] && !svc["checks"].is_a?(Hash)
+      errors << "#{prefix}: 'checks' must be an object"
+    end
+
     errors
   end
 
