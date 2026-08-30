@@ -19,12 +19,13 @@ RSpec.describe "Repository imports", type: :request do
       commit_sha: "a" * 40,
       services: [
         {
-          "name" => "web", "category" => "app", "subtype" => "rails", "builder" => "dockerfile",
+          "name" => "web", "category" => "app", "subtype" => "web", "builder" => "dockerfile",
           "source" => { "type" => "git", "repo" => "https://github.com/acme/storefront.git", "branch" => "main" },
           "env" => {}, "domains" => [], "storage" => [], "proxy" => { "enabled" => true }, "checks" => {}
         }
       ],
-      links: [], warnings: [], conflicts: [], evidence: []
+      links: [], warnings: [], conflicts: [], evidence: [],
+      original_format: "raildock.json", original_content: nil
     )
   end
 

@@ -31,14 +31,20 @@ module Api
       validation = ManifestSchema.validate(parsed)
       return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity unless validation.success?
 
-      ManifestParser.parse(canonical, filename: "raildock.json")
+      # Preserve original format and content when available
+      original_format = payload["format"] || "raildock.json"
+      original_content = payload["original_content"]
+      manifest_content = original_content || canonical
+      manifest_format = original_format == "raildock.toml" ? "raildock.toml" : "raildock.json"
+
+      ManifestParser.parse(manifest_content, filename: manifest_format)
       @project.update!(
-        manifest_content: canonical,
-        manifest_format: "raildock.json",
+        manifest_content: manifest_content,
+        manifest_format: manifest_format,
         manifest_last_synced_at: Time.current,
         manifest_drift_detected: false
       )
-      job = ManifestApplyJob.perform_later(@project.id, canonical)
+      job = ManifestApplyJob.perform_later(@project.id, manifest_content)
 
       render json: {
         status: "queued",
@@ -83,7 +89,9 @@ module Api
           repository: result.repository,
           branch: result.branch,
           commit_sha: result.commit_sha,
-          canonical_manifest: result.canonical_manifest
+          canonical_manifest: result.canonical_manifest,
+          format: result.original_format,
+          original_content: result.original_content
         }
       end
 

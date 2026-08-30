@@ -5,7 +5,7 @@ class RepositoryDiscovery
   CONVENTIONAL_NAMES = %w[Dockerfile Procfile package.json Gemfile].freeze
   MAX_DISCOVERY_FILES = 50
 
-  Result = Data.define(:repository, :branch, :commit_sha, :services, :links, :warnings, :conflicts, :evidence) do
+  Result = Data.define(:repository, :branch, :commit_sha, :services, :links, :warnings, :conflicts, :evidence, :original_format, :original_content) do
     def canonical_manifest
       JSON.pretty_generate({ name: repository.split("/").last, services: services, links: links })
     end
@@ -21,7 +21,7 @@ class RepositoryDiscovery
         conflicts: conflicts,
         evidence: evidence,
         canonical_manifest: canonical_manifest,
-        format: "raildock.json"
+        format: original_format || "raildock.json"
       }
     end
   end
@@ -44,10 +44,10 @@ class RepositoryDiscovery
     native = paths.select { |path| %w[raildock.toml raildock.json].include?(File.basename(path)) }
     candidates = native.any? ? authoritative_native(native) : foreign_candidates(paths)
 
-    services, links, warnings, evidence = compose_candidates(candidates, commit_sha)
+    services, links, warnings, evidence, original_format, original_content = compose_candidates(candidates, commit_sha)
     warnings.concat(superseded_manifest_warnings(native, paths))
     if services.empty?
-      services, conventional_evidence = conventional_services(paths, commit_sha)
+      services, conventional_evidence, original_format, original_content = conventional_services(paths, commit_sha)
       evidence.concat(conventional_evidence)
     end
 
@@ -61,7 +61,9 @@ class RepositoryDiscovery
       links: links,
       warnings: warnings,
       conflicts: [],
-      evidence: evidence
+      evidence: evidence,
+      original_format: original_format,
+      original_content: original_content
     )
   end
 
@@ -115,9 +117,14 @@ class RepositoryDiscovery
       links = []
       warnings = []
       evidence = []
+      original_format = nil
+      original_content = nil
 
       candidates.each do |path|
-        parsed = ManifestParser.parse(file_content(path, commit_sha), filename: File.basename(path))
+        raw = file_content(path, commit_sha)
+        parsed = ManifestParser.parse(raw, filename: File.basename(path))
+        original_format ||= parsed.format_detected
+        original_content ||= raw
         root = File.dirname(path) == "." ? nil : File.dirname(path)
         names = {}
 
@@ -141,7 +148,7 @@ class RepositoryDiscovery
         evidence << evidence_for(path, parsed.format_detected, parsed.services)
       end
 
-      [ services, links, warnings, evidence ]
+      [ services, links, warnings, evidence, original_format, original_content ]
     end
 
     def conventional_services(paths, commit_sha)
@@ -178,7 +185,7 @@ class RepositoryDiscovery
           confidence: dockerfile ? "high" : "medium"
         }
       end
-      [ services, evidence ]
+      [ services, evidence, nil, nil ]
     end
 
     def file_content(path, commit_sha)
