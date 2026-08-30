@@ -274,7 +274,7 @@ class ManifestReconciler
 
   def diff_service(name, desired_svc, actual_svc)
     fields = %i[
-      category subtype builder git_repo branch docker_image version
+      category subtype builder framework git_repo branch docker_image version
       root_directory start_command exposed port maintenance_mode
       restart_policy restart_max_retries auto_deploy env domains
       storage proxy scaling limits reservations checks cron
@@ -427,6 +427,7 @@ class ManifestReconciler
         subtype: svc[:subtype],
         status: initial_status,
         builder: svc[:builder],
+        framework: svc[:framework],
         git_repo: svc[:source]&.dig(:repo),
         branch: svc[:source]&.dig(:branch),
         docker_image: svc[:docker_image],
@@ -908,6 +909,7 @@ class ManifestReconciler
   def update_service_from_change(service, change)
     case change.field
     when :builder then service.update!(builder: change.new_value)
+    when :framework then service.update!(framework: change.new_value)
     when :docker_image then service.update!(docker_image: change.new_value)
     when :git_repo then service.update!(git_repo: change.new_value)
     when :branch then service.update!(branch: change.new_value)

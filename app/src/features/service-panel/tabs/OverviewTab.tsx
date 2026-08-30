@@ -31,7 +31,7 @@ export default function OverviewTab({
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515' }}
             >
-              <ServiceIcon subtype={svc.subtype} dockerImage={svc.dockerImage} size={20} />
+              <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={20} />
             </div>
             <div>
               <div className="text-[14px] font-medium text-white/80">{svc.name}</div>

@@ -67,7 +67,7 @@ RSpec.describe "Api::ManifestsController", type: :request do
           [[services]]
           name = "api"
           category = "app"
-          subtype = "node"
+          subtype = "web"
         TOML
 
         patch "/api/projects/#{project.id}/manifest",

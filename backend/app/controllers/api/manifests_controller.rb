@@ -91,6 +91,12 @@ module Api
         return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
       end
 
+      parsed = JSON.parse(content) rescue TomlRB.parse(content)
+      validation = ManifestSchema.validate(parsed)
+      unless validation.success?
+        return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity
+      end
+
       # Queue background job
       job = ManifestApplyJob.perform_later(@project.id, content)
 

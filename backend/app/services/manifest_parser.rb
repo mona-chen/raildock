@@ -467,6 +467,7 @@ class ManifestParser
       category: category,
       subtype: (svc_hash["subtype"] || svc_hash[:subtype] || "web").to_s,
       builder: svc_hash["builder"] || svc_hash[:builder],
+      framework: svc_hash["framework"] || svc_hash[:framework],
       dockerfile_path: svc_hash["dockerfile_path"] || svc_hash[:dockerfile_path] || svc_hash["dockerfilePath"] || svc_hash[:dockerfilePath],
       source: source,
       env: env,

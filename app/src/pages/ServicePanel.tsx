@@ -121,7 +121,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     ? ['overview', ...(svc.dataView ? ['data'] : []), 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
-  const color = getServiceColor(svc.subtype, svc.dockerImage)
+  const color = getServiceColor(svc.subtype, svc.framework, svc.dockerImage)
 
   return (
     <div
@@ -145,7 +145,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}15` }}
           >
-            <ServiceIcon subtype={svc.subtype} dockerImage={svc.dockerImage} size={17} />
+            <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={17} />
           </div>
           <div>
             <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
