@@ -507,7 +507,11 @@ class ManifestReconciler
     st = PluginRegistry.find_subtype(svc[:subtype])
     return { success: false, error: "Unknown database subtype: #{svc[:subtype]}" } unless st&.has_capability?(:create)
 
-    engine.datastore_create(OpenStruct.new(subtype: svc[:subtype], dokku_app_name: app_name))
+    result = engine.datastore_create(OpenStruct.new(subtype: svc[:subtype], dokku_app_name: app_name))
+    return result if result[:success]
+    return { success: true, app_name: app_name, adopted: true } if already_exists_error?(result)
+
+    result
   end
 
   def create_app_service(engine, svc, app_name)
@@ -516,12 +520,21 @@ class ManifestReconciler
     end
 
     app_result = engine.app_create(app_name)
-    return app_result unless app_result[:success]
+    unless app_result[:success]
+      return { success: true, app_name: app_name, adopted: true } if already_exists_error?(app_result)
+
+      return app_result
+    end
 
     proxy_type = svc.dig(:proxy, :type) || "traefik"
     engine.proxy_set(app_name, proxy_type)
 
     { success: true, app_name: app_name }
+  end
+
+  def already_exists_error?(result)
+    msg = (result[:output] || result[:error] || "").to_s.downcase
+    msg.include?("already taken") || msg.include?("already exists")
   end
 
   def apply_destroy_service(engine, change)
