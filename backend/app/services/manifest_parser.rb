@@ -62,7 +62,8 @@ class ManifestParser
     # ${{ shared.VAR }} → runtime resolved
     result = resolve_shared_vars(result, project) if result.include?("[SHARED:") || result.match?(/\$\{\{\s*shared\./)
 
-    # ${{ linked.SERVICE.VAR }} → runtime resolved
+    # ${{ linked.SERVICE.VAR }} → runtime resolved (with DSN fallback for datastore plugins)
+    @current_project = project
     result = resolve_linked_vars(result, linked_services) if result.include?("[LINKED:") || result.match?(/\$\{\{\s*linked\./)
 
     # ${{ env.VAR }} → this service's own value stored in RailDock
@@ -964,11 +965,17 @@ end
       env_vars = linked_svc.environment_variables
       env_vars = env_vars.to_a if env_vars.is_a?(ActiveRecord::Associations::CollectionProxy)
       ev = env_vars.find { |e| e.key == var_name }
-      unless ev
-        Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
-        next "[LINKED:#{svc_name}:#{var_name}]"
+      if ev
+        ev.value
+      else
+        dsn = fetch_linked_datastore_dsn(linked_svc, var_name)
+        if dsn
+          dsn
+        else
+          Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
+          "[LINKED:#{svc_name}:#{var_name}]"
+        end
       end
-      ev.value
     end
     # Handle raw ${{ linked.svc.VAR }} syntax
     result.gsub!(/\$\{\{\s*linked\.([A-Za-z][A-Za-z0-9_-]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/) do
@@ -982,12 +989,37 @@ end
       env_vars = linked_svc.environment_variables
       env_vars = env_vars.to_a if env_vars.is_a?(ActiveRecord::Associations::CollectionProxy)
       ev = env_vars.find { |e| e.key == var_name }
-      unless ev
-        Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
-        next "[LINKED:#{svc_name}:#{var_name}]"
+      if ev
+        ev.value
+      else
+        dsn = fetch_linked_datastore_dsn(linked_svc, var_name)
+        if dsn
+          dsn
+        else
+          Rails.logger.warn "Variable '#{var_name}' not found on linked service '#{svc_name}'"
+          "[LINKED:#{svc_name}:#{var_name}]"
+        end
       end
-      ev.value
     end
     result
+  end
+
+  def fetch_linked_datastore_dsn(linked_svc, var_name)
+    return nil unless linked_svc.respond_to?(:subtype)
+    st = PluginRegistry.find_subtype(linked_svc.subtype)
+    return nil unless st
+    url_var = st.url_var
+    return nil unless url_var && var_name.to_s.upcase == url_var.upcase
+    server = linked_svc.respond_to?(:project) ? linked_svc.project&.server : nil
+    server ||= @current_project&.server
+    return nil unless server&.ssh_key.present?
+
+    engine = DokkuEngine.new(server)
+    info = engine.datastore_info(linked_svc)
+    return info[:dsn] if info[:success] && info[:dsn].present?
+    info[:url] if info[:success] && info[:url].present?
+  rescue => e
+    Rails.logger.warn "Failed to fetch DSN for #{linked_svc.name}: #{e.message}"
+    nil
   end
 end

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Keyboard, AlertTriangle } from 'lucide-react'
+import { Keyboard, AlertTriangle, X } from 'lucide-react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '@/lib/api'
 import {
@@ -103,6 +103,12 @@ export default function ProjectCanvas() {
   const [isPanning, setIsPanning] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [warningsDismissedAt, setWarningsDismissedAt] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10) } catch { return 0 }
+  })
+  useEffect(() => {
+    try { setWarningsDismissedAt(parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10)) } catch {}
+  }, [projectId])
 
   const dragRef = useRef({
     sx: 0, sy: 0,
@@ -469,19 +475,41 @@ export default function ProjectCanvas() {
           >
             <CanvasGrid zoom={zoom} pan={pan} />
 
-            {/* Error sticky note — shows when recent activity has warnings */}
+            {/* Error sticky note — dismissible, auto-clears after successful deploy */}
             {(() => {
               const recentWarnings = (activity as any[]).filter(
                 (e) => e.action === 'warning' && Date.now() - new Date(e.timestamp).getTime() < 3600000
               )
-              if (recentWarnings.length === 0) return null
+              const visibleWarnings = recentWarnings.filter(
+                (e) => new Date(e.timestamp).getTime() > warningsDismissedAt
+              )
+              if (visibleWarnings.length === 0) return null
+              const latestWarningAt = Math.max(...visibleWarnings.map((e) => new Date(e.timestamp).getTime()))
+              const latestSuccessAt = Math.max(
+                0,
+                ...(activity as any[])
+                  .filter((e) => e.action === 'deployed' || e.action === 'rebuilt')
+                  .map((e) => new Date(e.timestamp).getTime())
+              )
+              if (latestSuccessAt > latestWarningAt) return null
               return (
-                <div
-                  className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium cursor-pointer hover:bg-amber-500/15 transition-colors pointer-events-auto"
-                  onClick={() => navTo('activity')}
-                >
-                  <AlertTriangle size={12} />
-                  {recentWarnings.length} issue{recentWarnings.length > 1 ? 's' : ''} — check Activity tab
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium pointer-events-auto">
+                  <button className="flex items-center gap-2 hover:text-amber-300" onClick={() => navTo('activity')}>
+                    <AlertTriangle size={12} />
+                    {visibleWarnings.length} issue{visibleWarnings.length > 1 ? 's' : ''} — check Activity tab
+                  </button>
+                  <button
+                    aria-label="Dismiss"
+                    className="ml-1 p-1 rounded hover:bg-amber-500/20 text-amber-400/70 hover:text-amber-300"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const now = Date.now()
+                      try { localStorage.setItem(`raildock:canvas-warnings-dismissed:${projectId}`, String(now)) } catch {}
+                      setWarningsDismissedAt(now)
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               )
             })()}

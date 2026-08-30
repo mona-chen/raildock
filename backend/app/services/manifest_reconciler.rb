@@ -435,7 +435,7 @@ class ManifestReconciler
         root_directory: svc[:root_directory],
         start_command: svc[:start_command],
         exposed: svc[:exposed],
-        port: svc[:port],
+        port: svc[:port].to_s.present? ? svc[:port].to_i : nil,
         maintenance_mode: svc[:maintenance] || false,
         restart_policy: svc[:restart_policy],
         restart_max_retries: svc[:restart_max_retries],
@@ -458,14 +458,15 @@ class ManifestReconciler
       # Configure Dokku healthchecks from manifest
       configure_dokku_checks(engine, service, svc) if svc[:checks].present?
 
-      # Create domains
+      # Create domains (merge: keep existing UI/custom hostnames, cast ports to integers)
       (svc[:domains] || []).each do |hostname|
+        next if service.domains.exists?(hostname: hostname)
         magic_domain = Domain::MAGIC_DOMAINS.any? { |domain| hostname.end_with?(".#{domain}") }
         use_ssl = !magic_domain
         service.domains.create!(
           hostname: hostname,
           port: use_ssl ? 443 : 80,
-          target_port: svc[:port].presence || 80,
+          target_port: svc[:port].to_i.positive? ? svc[:port].to_i : 80,
           ssl: use_ssl,
           letsencrypt: use_ssl,
           ssl_status: use_ssl ? "pending" : "none"
@@ -815,18 +816,28 @@ class ManifestReconciler
   end
 
   def apply_domains_change(engine, service, change)
-    desired = change.new_value || []
-    actual = change.old_value || []
+    desired = Array(change.new_value).map(&:to_s)
+    # Merge: add manifest domains without deleting UI/custom domains that were added via the Domains tab.
+    # The Domains tab shows the union; badge indicates from manifest vs custom.
+    desired_port = @desired.find_service(service.name)&.dig(:port)
+    desired_port = desired_port.to_i.positive? ? desired_port.to_i : 80
 
-    (desired - actual).each do |hostname|
+    desired.each do |hostname|
+      next if service.domains.exists?(hostname: hostname)
       engine.domain_add(service.dokku_app_name, hostname)
-      service.domains.find_or_initialize_by(hostname: hostname).save!
+      magic_domain = Domain::MAGIC_DOMAINS.any? { |domain| hostname.end_with?(".#{domain}") }
+      use_ssl = !magic_domain
+      service.domains.find_or_create_by!(hostname: hostname) do |d|
+        d.port = use_ssl ? 443 : 80
+        d.target_port = desired_port
+        d.ssl = use_ssl
+        d.letsencrypt = use_ssl
+        d.ssl_status = use_ssl ? "pending" : "none"
+      end
     end
 
-    (actual - desired).each do |hostname|
-      engine.run("domains:remove #{engine.escape(service.dokku_app_name)} #{engine.escape(hostname)}")
-      service.domains.find_by(hostname: hostname)&.destroy!
-    end
+    # Do not remove extra hostnames (UI-added custom domains) — they are kept.
+    # If a manifest domain was renamed, user removes it explicitly via the Domains tab.
 
     { success: true }
   end
@@ -967,7 +978,7 @@ class ManifestReconciler
     when :root_directory then service.update!(root_directory: change.new_value)
     when :start_command then service.update!(start_command: change.new_value)
     when :exposed then service.update!(exposed: change.new_value)
-    when :port then service.update!(port: change.new_value)
+    when :port then service.update!(port: change.new_value.to_s.present? ? change.new_value.to_i : nil)
     when :version then service.update!(version: change.new_value)
     when :subtype then service.update!(subtype: change.new_value)
     when :category then service.update!(service_type: change.new_value)
