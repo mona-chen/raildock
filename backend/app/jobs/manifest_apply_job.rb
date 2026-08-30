@@ -22,7 +22,8 @@ class ManifestApplyJob < ApplicationJob
 
     desired = ManifestParser.parse(content, filename: format)
 
-    parsed = JSON.parse(content) rescue (TomlRB.parse(content) rescue nil)
+    schema_content = desired.repaired_content || content
+    parsed = JSON.parse(schema_content) rescue (TomlRB.parse(schema_content) rescue nil)
     if parsed
       validation = ManifestSchema.validate(parsed)
       unless validation.success?

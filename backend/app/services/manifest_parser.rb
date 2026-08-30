@@ -20,14 +20,15 @@ class ManifestParser
 
   # Result object holding the normalized desired state
   class ManifestDesiredState
-    attr_reader :services, :links, :format_detected, :warnings, :raw
+    attr_reader :services, :links, :format_detected, :warnings, :raw, :repaired_content
 
-    def initialize(services: [], links: [], format_detected: nil, warnings: [], raw: nil)
+    def initialize(services: [], links: [], format_detected: nil, warnings: [], raw: nil, repaired_content: nil)
       @services = services
       @links = links
       @format_detected = format_detected
       @warnings = warnings
       @raw = raw
+      @repaired_content = repaired_content
     end
 
     def service_names
@@ -78,13 +79,24 @@ class ManifestParser
 
   def parse(raw_content, filename: nil)
     @secret_cache = {}
+    @parse_warnings = []
     format = detect_format(raw_content, filename)
     hash = parse_raw(raw_content, format)
     normalize(hash, format, raw_content)
   rescue TomlRB::ParseError => e
     raise ParseError, "Invalid TOML: #{e.message}"
   rescue JSON::ParserError => e
-    raise ParseError, "Invalid JSON: #{e.message}"
+    repaired = attempt_json_repair(raw_content)
+    if repaired
+      @parse_warnings << "Auto-repaired JSON syntax: #{e.message.sub('JSON Parse Error: ', '')}"
+      hash = JSON.parse(repaired)
+      result = normalize(hash, format, repaired)
+      result.warnings.unshift(*@parse_warnings) if result.respond_to?(:warnings)
+      result.instance_variable_set(:@repaired_content, repaired) if result.respond_to?(:repaired_content)
+      result
+    else
+      raise ParseError, "Invalid JSON: #{e.message}"
+    end
   end
 
   private
@@ -125,6 +137,62 @@ class ManifestParser
     else
       raise ParseError, "Unable to detect manifest format. Use app.json, raildock.toml, raildock.json, railway.toml, or railway.json"
     end
+  end
+
+  # ── JSON Auto-Repair ────────────────────────────────────────
+
+  # Attempts to fix common JSON syntax errors. Returns repaired string
+  # or nil if unrepairable. Each repair is logged with a line number
+  # so the user knows exactly what changed and where.
+  def attempt_json_repair(raw_content)
+    lines = raw_content.lines
+    repairs = []
+
+    # Pass 1: fix unquoted or malformed keys — "key: "value"" → "key": "value"
+    lines.each_with_index do |line, idx|
+      # Match patterns like: "framework: "rails"" or "name: "foo""
+      # i.e. a quote followed by word chars, then colon, space, quote — missing closing quote before colon
+      if line.match?(/"(\w+):\s*"/)
+        repaired_line = line.gsub(/"(\w+):\s*"/, '"\1": "')
+        if repaired_line != line
+          repairs << { line: idx + 1, before: line.strip, after: repaired_line.strip, rule: "missing closing quote on key" }
+          lines[idx] = repaired_line
+        end
+      end
+    end
+
+    # Pass 2: remove trailing commas before } or ]
+    lines.each_with_index do |line, idx|
+      cleaned = line.sub(/,(\s*[}\]])/, '\1')
+      if cleaned != line
+        repairs << { line: idx + 1, before: line.strip, after: cleaned.strip, rule: "trailing comma" } if repairs.none? { |r| r[:line] == idx + 1 }
+        lines[idx] = cleaned
+      end
+    end
+
+    # Pass 3: strip // and # comments (JSON doesn't support them)
+    lines.each_with_index do |line, idx|
+      stripped = line.strip
+      next unless stripped.start_with?("//") || (stripped.start_with?("#") && !stripped.start_with?("#/"))
+      repairs << { line: idx + 1, before: stripped, after: "(removed)", rule: "comment in JSON" }
+      lines[idx] = ""
+    end
+
+    return nil if repairs.empty?
+
+    repaired_content = lines.join
+
+    # Validate the repair actually worked
+    JSON.parse(repaired_content)
+
+    # Build detailed repair report for warnings
+    repairs.each do |r|
+      @parse_warnings << "Line #{r[:line]}: #{r[:rule]} — fixed: #{r[:before]}"
+    end
+
+    repaired_content
+  rescue JSON::ParserError
+    nil
   end
 
   # ── Normalization ───────────────────────────────────────────

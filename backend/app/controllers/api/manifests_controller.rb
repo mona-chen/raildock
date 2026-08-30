@@ -29,7 +29,9 @@ module Api
         return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
       end
 
-      parsed = JSON.parse(content) rescue TomlRB.parse(content)
+      # Validate — use repaired content if parser fixed syntax issues
+      schema_content = desired.repaired_content || content
+      parsed = JSON.parse(schema_content) rescue TomlRB.parse(schema_content)
       validation = ManifestSchema.validate(parsed)
       unless validation.success?
         return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity
@@ -91,7 +93,9 @@ module Api
         return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
       end
 
-      parsed = JSON.parse(content) rescue TomlRB.parse(content)
+      # Validate — use repaired content if parser fixed syntax issues
+      schema_content = desired.repaired_content || content
+      parsed = JSON.parse(schema_content) rescue TomlRB.parse(schema_content)
       validation = ManifestSchema.validate(parsed)
       unless validation.success?
         return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity
