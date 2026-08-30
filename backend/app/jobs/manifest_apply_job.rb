@@ -8,13 +8,35 @@ class ManifestApplyJob < ApplicationJob
 
   def perform(project_id, content = nil)
     project = Project.find_by(id: project_id)
-    return unless project
+    unless project
+      Rails.logger.warn "ManifestApplyJob: project #{project_id} not found"
+      return
+    end
 
     content ||= project.manifest_content
     format = project.manifest_format || "raildock.toml"
-    return unless content.present?
+    unless content.present?
+      broadcast(project_id, "failed", "No manifest content to apply")
+      return
+    end
 
     desired = ManifestParser.parse(content, filename: format)
+
+    parsed = JSON.parse(content) rescue (TomlRB.parse(content) rescue nil)
+    if parsed
+      validation = ManifestSchema.validate(parsed)
+      unless validation.success?
+        broadcast(project_id, "failed", "Manifest validation failed", details: validation.errors)
+        ActivityEvent.create!(
+          project: project,
+          service_name: "-",
+          action: :warning,
+          message: "Manifest validation failed: #{validation.errors.join('; ')}"
+        )
+        return
+      end
+    end
+
     reconciler = ManifestReconciler.new(project, desired)
     reconciler.diff
 
@@ -42,10 +64,23 @@ class ManifestApplyJob < ApplicationJob
       broadcast(project_id, "completed", "All manifest changes applied successfully")
     else
       failed = result[:results]&.select { |r| !r[:success] } || []
+      error_details = failed.map { |f| f[:error] }.compact.join("; ")
+      ActivityEvent.create!(
+        project: project,
+        service_name: "-",
+        action: :warning,
+        message: "Manifest apply failed: #{error_details}"
+      )
       broadcast(project_id, "failed", "Some changes failed", details: failed.map { |f| f[:error] })
     end
   rescue => e
     Rails.logger.error "ManifestApplyJob failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+    ActivityEvent.create!(
+      project: project,
+      service_name: "-",
+      action: :warning,
+      message: "Manifest apply error: #{e.message}"
+    ) if project
     broadcast(project_id, "failed", e.message)
   end
 

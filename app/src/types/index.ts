@@ -40,6 +40,7 @@ export interface Service {
   status: 'running' | 'stopped' | 'deploying' | 'error' | 'building'
   // For apps
   builder?: 'herokuish' | 'pack' | 'dockerfile' | 'nixpacks' | 'railpack' | 'lambda' | 'null'
+  framework?: string
   processTypes?: ProcessType[]
   gitRepo?: string
   dockerImage?: string

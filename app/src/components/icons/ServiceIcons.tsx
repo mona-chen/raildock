@@ -304,6 +304,7 @@ export function detectSubtypeFromDockerImage(image: string | null | undefined): 
 
 interface ServiceIconProps {
   subtype: string
+  framework?: string | null
   dockerImage?: string | null
   size?: number
   className?: string
@@ -312,7 +313,12 @@ interface ServiceIconProps {
 
 const GENERIC_SUBTYPES = new Set(['docker', 'app', 'service', 'web', 'worker', 'container', 'image'])
 
-function resolveSubtype(subtype: string, dockerImage?: string | null): string {
+function resolveSubtype(subtype: string, framework?: string | null, dockerImage?: string | null): string {
+  // Framework takes priority — it's the most specific identity
+  if (framework) {
+    const fwKey = framework.toLowerCase()
+    if (SIMPLE_ICON_MAP[fwKey] || LUCIDE_ICON_MAP[fwKey]) return fwKey
+  }
   const key = subtype.toLowerCase()
   // If subtype is generic AND we have a docker image, try to detect the actual service
   if (GENERIC_SUBTYPES.has(key) && dockerImage) {
@@ -322,8 +328,8 @@ function resolveSubtype(subtype: string, dockerImage?: string | null): string {
   return key
 }
 
-export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', fallback = Box }: ServiceIconProps) {
-  const key = resolveSubtype(subtype, dockerImage)
+export function ServiceIcon({ subtype, framework, dockerImage, size = 18, className = '', fallback = Box }: ServiceIconProps) {
+  const key = resolveSubtype(subtype, framework, dockerImage)
   const SimpleIcon = SIMPLE_ICON_MAP[key]
 
   if (SimpleIcon) {
@@ -336,12 +342,12 @@ export function ServiceIcon({ subtype, dockerImage, size = 18, className = '', f
   return <LucideIcon size={size} style={{ color }} className={className} />
 }
 
-export function getServiceColor(subtype: string, dockerImage?: string | null): string {
-  const key = resolveSubtype(subtype, dockerImage)
+export function getServiceColor(subtype: string, framework?: string | null, dockerImage?: string | null): string {
+  const key = resolveSubtype(subtype, framework, dockerImage)
   return SERVICE_COLORS[key] || '#A0A0B0'
 }
 
-export function getServiceIconComponent(subtype: string, dockerImage?: string | null): React.ElementType {
-  const key = resolveSubtype(subtype, dockerImage)
+export function getServiceIconComponent(subtype: string, framework?: string | null, dockerImage?: string | null): React.ElementType {
+  const key = resolveSubtype(subtype, framework, dockerImage)
   return SIMPLE_ICON_MAP[key] || LUCIDE_ICON_MAP[key] || Box
 }

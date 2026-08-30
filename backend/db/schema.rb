@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_082609) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -475,6 +475,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_000002) do
     t.string "docker_image"
     t.string "dokku_app_name"
     t.boolean "exposed"
+    t.string "framework"
     t.string "git_repo"
     t.string "internal_hostname"
     t.string "last_deployed"

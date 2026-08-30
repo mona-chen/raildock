@@ -6,7 +6,7 @@ RSpec.describe ManifestSchema do
       let(:hash) do
         {
           "services" => [
-            { "name" => "web", "category" => "app", "subtype" => "rails" }
+            { "name" => "web", "category" => "app", "subtype" => "web" }
           ]
         }
       end
@@ -30,7 +30,7 @@ RSpec.describe ManifestSchema do
       let(:hash) do
         {
           "services" => [
-            { "name" => "web", "category" => "invalid", "subtype" => "rails" }
+            { "name" => "web", "category" => "invalid", "subtype" => "web" }
           ]
         }
       end
@@ -39,6 +39,37 @@ RSpec.describe ManifestSchema do
         result = described_class.validate(hash)
         expect(result.success?).to be false
         expect(result.errors).to include(a_string_matching(/category/))
+      end
+    end
+
+    context 'invalid subtype' do
+      let(:hash) do
+        {
+          "services" => [
+            { "name" => "myapp", "category" => "app", "subtype" => "rails" }
+          ]
+        }
+      end
+
+      it 'returns subtype error' do
+        result = described_class.validate(hash)
+        expect(result.success?).to be false
+        expect(result.errors).to include(a_string_matching(/subtype.*rails.*not registered/))
+      end
+    end
+
+    context 'valid database subtype' do
+      let(:hash) do
+        {
+          "services" => [
+            { "name" => "db", "category" => "database", "subtype" => "postgres" }
+          ]
+        }
+      end
+
+      it 'returns success' do
+        result = described_class.validate(hash)
+        expect(result.success?).to be true
       end
     end
 

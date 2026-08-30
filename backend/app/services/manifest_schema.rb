@@ -20,6 +20,17 @@ class ManifestSchema
   PROXY_TYPES = %w[traefik caddy nginx].freeze
   BUILDERS = %w[herokuish pack dockerfile nixpacks railpack lambda null].freeze
 
+  # Fetch registered subtypes from the database so validation stays in sync
+  # with the plugin registry. Falls back to the hard-coded list if the table
+  # is missing (e.g. during initial bootstrapping).
+  def self.registered_subtypes
+    @registered_subtypes ||= begin
+      ServiceSubtype.pluck(:subtype).to_set
+    rescue ActiveRecord::StatementInvalid
+      Set.new(%w[web worker docker postgres mysql mariadb mongo redis rabbitmq minio elasticsearch meilisearch typesense])
+    end
+  end
+
   def self.validate(hash)
     new.validate(hash)
   end
@@ -154,8 +165,16 @@ class ManifestSchema
       errors << "#{prefix}: 'category' must be one of: #{SERVICE_TYPES.join(', ')}"
     end
 
+    if svc["subtype"] && !self.class.registered_subtypes.include?(svc["subtype"].to_s)
+      errors << "#{prefix}: 'subtype' '#{svc['subtype']}' is not registered. Valid subtypes: #{self.class.registered_subtypes.sort.join(', ')}"
+    end
+
     if svc["builder"] && !BUILDERS.include?(svc["builder"].to_s)
       errors << "#{prefix}: 'builder' must be one of: #{BUILDERS.join(', ')}"
+    end
+
+    if svc["framework"] && !svc["framework"].is_a?(String)
+      errors << "#{prefix}: 'framework' must be a string"
     end
 
     if svc["proxy"].is_a?(Hash)
