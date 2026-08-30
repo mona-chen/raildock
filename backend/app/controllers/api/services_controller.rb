@@ -993,6 +993,5 @@ module Api
       params.require(:backup_schedule).permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, destination_ids: [])
             .tap { |p| p[:metadata] = { "destination_ids" => Array(p.delete(:destination_ids)).compact_blank } }
     end
-
   end
 end
