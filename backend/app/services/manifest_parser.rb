@@ -668,8 +668,8 @@ class ManifestParser
   end
 
   def normalize_checks(checks)
-    defaults = { enabled: true, mode: "enabled", wait: 5, timeout: 30, attempts: 5, wait_to_retire: 60, skip: [], path: "/_up" }
-    return defaults unless checks.is_a?(Hash)
+    # No auto-inject — if manifest has no [services.checks], healthchecks stay disabled.
+    return { enabled: false, mode: "disabled", wait: 5, timeout: 30, attempts: 5, wait_to_retire: 60, skip: [], path: "/_up" } unless checks.is_a?(Hash)
     {
       enabled: checks["enabled"] != false && checks[:enabled] != false,
       mode: (checks["mode"] || checks[:mode] || "enabled").to_s,
