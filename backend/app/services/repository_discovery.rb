@@ -135,9 +135,12 @@ class RepositoryDiscovery
           names[original_name] = normalized[:name]
           normalized[:root_directory] ||= root
           normalized[:source_revision] = commit_sha
-          normalized[:source] = (normalized[:source] || {}).merge(
-            type: "git", repo: "https://github.com/#{@repository}.git", branch: @branch
-          )
+          # Only apps need a git source — databases are created via Dokku plugins
+          unless %w[database cache queue search].include?(normalized[:category])
+            normalized[:source] = (normalized[:source] || {}).merge(
+              type: "git", repo: "https://github.com/#{@repository}.git", branch: @branch
+            )
+          end
           services << normalized.deep_stringify_keys
         end
 

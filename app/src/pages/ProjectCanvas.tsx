@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Keyboard } from 'lucide-react'
+import { Keyboard, AlertTriangle } from 'lucide-react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { api } from '@/lib/api'
 import {
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useServices, useLinkService, useUnlinkService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
+import { useActivity } from '@/hooks/useActivity'
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import { toast } from 'sonner'
 import type { Service } from '@/types'
@@ -75,6 +76,7 @@ export default function ProjectCanvas() {
   const projectRealtime = useProjectRealtime(projectId || '')
   const { data: services = [], isLoading } = useServices(projectId || '')
   const { data: project } = useProject(projectId || '')
+  const { data: activity = [] } = useActivity(projectId || '')
 
   const zoom = useCanvasStore((s) => s.zoom)
   const pan = useCanvasStore((s) => s.pan)
@@ -466,6 +468,23 @@ export default function ProjectCanvas() {
             data-cv="1"
           >
             <CanvasGrid zoom={zoom} pan={pan} />
+
+            {/* Error sticky note — shows when recent activity has warnings */}
+            {(() => {
+              const recentWarnings = (activity as any[]).filter(
+                (e) => e.action === 'warning' && Date.now() - new Date(e.timestamp).getTime() < 3600000
+              )
+              if (recentWarnings.length === 0) return null
+              return (
+                <div
+                  className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium cursor-pointer hover:bg-amber-500/15 transition-colors pointer-events-auto"
+                  onClick={() => navTo('activity')}
+                >
+                  <AlertTriangle size={12} />
+                  {recentWarnings.length} issue{recentWarnings.length > 1 ? 's' : ''} — check Activity tab
+                </div>
+              )
+            })()}
 
             <div
               className="absolute inset-0 pointer-events-none"

@@ -128,7 +128,7 @@ RSpec.describe "Api::ServersController", type: :request do
         engine = instance_double(DokkuEngine)
         allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
         allow(engine).to receive(:validate_connection).and_return(
-          { success: true, dokku_version: "0.35.0", docker_version: "26.0.0", os: "Ubuntu", uptime: "10d" }
+          { success: true, dokku_version: "0.35.0", docker_version: "26.0.0", os: nil, uptime: "10d" }
         )
         allow(engine).to receive(:run).with("proxy:report --global --proxy-global-type").and_return(
           { success: true, output: "nginx" }

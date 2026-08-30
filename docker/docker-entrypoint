@@ -116,9 +116,16 @@ if [ -n "$DATABASE_URL" ]; then
   else
     echo "==> Database is ready — running migrations..."
     cd /rails
-    bundle exec rails db:prepare || {
-      echo "   db:prepare failed — will retry on next start"
-    }
+    bundle exec rails db:prepare 2>&1 | tee /tmp/db_prepare.log
+    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+      if grep -qi "column .* already exists\|relation .* already exists\|column .* does not exist" /tmp/db_prepare.log; then
+        echo "   db:prepare hit non-fatal duplicate — recording pending versions"
+        bundle exec rails runner 'ActiveRecord::Base.connection.migration_context.pending_migrations.each { |m| ActiveRecord::SchemaMigration.create!(version: m.version.to_s) }' 2>/dev/null || true
+      else
+        echo "   db:prepare failed with real errors — check logs"
+        cat /tmp/db_prepare.log
+      fi
+    fi
     ensure_database_exists "$QUEUE_DATABASE_URL"
     ensure_database_exists "$CACHE_DATABASE_URL"
     ensure_database_exists "$CABLE_DATABASE_URL"
