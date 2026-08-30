@@ -452,6 +452,12 @@ class ManifestReconciler
         service.environment_variables.create!(key: key, value: value)
       end
 
+      # Auto-inject Solid* DATABASE_URLs for Rails apps linked to postgres
+      ensure_solid_database_urls(service, svc) if svc[:category] == "app"
+
+      # Configure Dokku healthchecks from manifest
+      configure_dokku_checks(engine, service, svc) if svc[:checks].present?
+
       # Create domains
       (svc[:domains] || []).each do |hostname|
         magic_domain = Domain::MAGIC_DOMAINS.any? { |domain| hostname.end_with?(".#{domain}") }
@@ -681,6 +687,38 @@ class ManifestReconciler
     return unless service.project&.server&.ssh_key.present?
 
     StorageMountEnvSync.new(service, engine).sync!
+  end
+
+  def ensure_solid_database_urls(service, svc)
+    # Only for apps that link to a postgres service and already have DATABASE_URL
+    has_database_url = svc[:env]&.key?("DATABASE_URL") || svc[:env]&.key?(:DATABASE_URL)
+    return unless has_database_url
+    return unless @desired.links.any? { |l| l[:from] == svc[:name] && @desired.services.any? { |s| s[:name] == l[:to] && s[:subtype] == "postgres" } }
+
+    database_url = service.environment_variables.find_by(key: "DATABASE_URL")&.value
+    return unless database_url
+
+    %w[CACHE_DATABASE_URL QUEUE_DATABASE_URL CABLE_DATABASE_URL].each do |key|
+      next if service.environment_variables.exists?(key: key)
+      next if svc[:env]&.key?(key) || svc[:env]&.key?(key.to_sym)
+
+      service.environment_variables.create!(key: key, value: database_url)
+    end
+  end
+
+  def configure_dokku_checks(engine, service, svc)
+    checks = svc[:checks] || {}
+    return unless checks[:enabled] != false
+
+    app_name = service.dokku_app_name
+    engine.checks_set(app_name, "wait", checks[:wait] || 5)
+    engine.checks_set(app_name, "timeout", checks[:timeout] || 30)
+    engine.checks_set(app_name, "attempts", checks[:attempts] || 5)
+    engine.checks_set(app_name, "wait-to-retire", checks[:wait_to_retire] || 60)
+    if checks[:skip].present?
+      engine.checks_skip(app_name, *Array(checks[:skip]))
+    end
+    engine.checks_enable(app_name)
   end
 
   def wait_for_container(app_name, host_engine, timeout: 60)

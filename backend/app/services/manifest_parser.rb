@@ -667,7 +667,7 @@ class ManifestParser
   end
 
   def normalize_checks(checks)
-    defaults = { enabled: true, mode: "enabled", wait: 5, timeout: 30, attempts: 5, wait_to_retire: 60, skip: [] }
+    defaults = { enabled: true, mode: "enabled", wait: 5, timeout: 30, attempts: 5, wait_to_retire: 60, skip: [], path: "/_up" }
     return defaults unless checks.is_a?(Hash)
     {
       enabled: checks["enabled"] != false && checks[:enabled] != false,
@@ -676,7 +676,8 @@ class ManifestParser
       timeout: (checks["timeout"] || checks[:timeout] || 30).to_i,
       attempts: (checks["attempts"] || checks[:attempts] || 5).to_i,
       wait_to_retire: (checks["wait_to_retire"] || checks[:wait_to_retire] || 60).to_i,
-      skip: Array(checks["skip"] || checks[:skip] || [])
+      skip: Array(checks["skip"] || checks[:skip] || []),
+      path: (checks["path"] || checks[:path] || "/_up").to_s
     }
   end
 
