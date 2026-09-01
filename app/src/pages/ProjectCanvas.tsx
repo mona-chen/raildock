@@ -107,7 +107,7 @@ export default function ProjectCanvas() {
     try { return parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10) } catch { return 0 }
   })
   useEffect(() => {
-    try { setWarningsDismissedAt(parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10)) } catch {}
+    try { setWarningsDismissedAt(parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10)) } catch { /* ignore */ }
   }, [projectId])
 
   const dragRef = useRef({
@@ -504,7 +504,7 @@ export default function ProjectCanvas() {
                     onClick={(e) => {
                       e.stopPropagation()
                       const now = Date.now()
-                      try { localStorage.setItem(`raildock:canvas-warnings-dismissed:${projectId}`, String(now)) } catch {}
+                      try { localStorage.setItem(`raildock:canvas-warnings-dismissed:${projectId}`, String(now)) } catch { /* ignore */ }
                       setWarningsDismissedAt(now)
                     }}
                   >

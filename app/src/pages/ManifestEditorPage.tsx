@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   FileCode, Play, Eye, AlertTriangle, CheckCircle2,
@@ -50,6 +50,7 @@ export default function ManifestEditorPage() {
   const applyManifest = useManifestApply()
 
   const [content, setContent] = useState(DEFAULT_MANIFEST)
+  const hasEditedRef = useRef(false)
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'templates'>('editor')
   const [previewResult, setPreviewResult] = useState<{
     changes: ManifestChange[]
@@ -59,7 +60,7 @@ export default function ManifestEditorPage() {
   } | null>(null)
 
   useEffect(() => {
-    if (manifest?.content) {
+    if (manifest?.content && !hasEditedRef.current) {
       setContent(manifest.content)
     }
   }, [manifest])
@@ -90,6 +91,7 @@ export default function ManifestEditorPage() {
   }, [content])
 
   const handleReset = useCallback(() => {
+    hasEditedRef.current = false
     if (manifest?.content) {
       setContent(manifest.content)
     } else {
@@ -210,6 +212,7 @@ export default function ManifestEditorPage() {
               <ManifestCodeEditor
                 value={content}
                 onChange={(value) => {
+                  hasEditedRef.current = true
                   setContent(value)
                   setPreviewResult(null)
                 }}
