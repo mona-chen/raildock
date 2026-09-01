@@ -940,6 +940,7 @@ export const networksApi = {
     traefikContainers: string[]
     recommended: boolean
     selectable: boolean
+    connectable: boolean
   }[]> => {
     return fetchJson(`/api/servers/${serverId}/networks`)
   },
