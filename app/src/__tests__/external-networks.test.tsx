@@ -148,8 +148,8 @@ describe('External Networks in NetworkSettings', () => {
   it('displays connectable networks as checkboxes', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
-        { name: 'proxy_web', driver: 'overlay', containers: 1, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1', 'web.1', 'app.1'], connectable: true },
+        { name: 'proxy_web', driver: 'overlay', containers: ['proxy.1'], connectable: true },
       ],
     })
 
@@ -164,8 +164,8 @@ describe('External Networks in NetworkSettings', () => {
   it('excludes non-connectable networks', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
-        { name: 'host', driver: 'host', containers: 0, connectable: false },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
+        { name: 'host', driver: 'host', containers: [], connectable: false },
       ],
     })
 
@@ -179,7 +179,7 @@ describe('External Networks in NetworkSettings', () => {
   it('toggles a network on when checkbox is clicked', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
       ],
     })
 
@@ -200,7 +200,7 @@ describe('External Networks in NetworkSettings', () => {
   it('toggles a network off when checkbox is unchecked', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
       ],
     })
 
@@ -222,8 +222,8 @@ describe('External Networks in NetworkSettings', () => {
   it('shows selected networks as tagged pills', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
-        { name: 'proxy_web', driver: 'overlay', containers: 1, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
+        { name: 'proxy_web', driver: 'overlay', containers: ['proxy.1'], connectable: true },
       ],
     })
 
@@ -239,8 +239,8 @@ describe('External Networks in NetworkSettings', () => {
   it('removes a network via pill button', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
-        { name: 'proxy_web', driver: 'overlay', containers: 1, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
+        { name: 'proxy_web', driver: 'overlay', containers: ['proxy.1'], connectable: true },
       ],
     })
 
@@ -266,8 +266,8 @@ describe('External Networks in NetworkSettings', () => {
   it('adds multiple networks', () => {
     setupNetworks({
       networks: [
-        { name: 'matrix-postgres', driver: 'bridge', containers: 3, connectable: true },
-        { name: 'proxy_web', driver: 'overlay', containers: 1, connectable: true },
+        { name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'], connectable: true },
+        { name: 'proxy_web', driver: 'overlay', containers: ['proxy.1'], connectable: true },
       ],
     })
 

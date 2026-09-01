@@ -235,6 +235,7 @@ function mockService(overrides = {}) {
     restartMaxRetries: 10,
     locked: false,
     processTypes: [{ name: 'web', quantity: 1, running: 1, command: 'rails server' }],
+    externalNetworks: [],
     ...overrides,
   }
 }

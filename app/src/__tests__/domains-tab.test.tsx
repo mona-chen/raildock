@@ -81,6 +81,7 @@ function mockService(overrides = {}): Service {
     processTypes: [{ name: 'web', quantity: 1, running: 1, command: 'rails server' }],
     autoDeploy: false,
     maintenanceMode: false,
+    externalNetworks: [],
     ...overrides,
   } as Service
 }

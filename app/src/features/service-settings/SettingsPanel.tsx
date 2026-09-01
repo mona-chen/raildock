@@ -454,7 +454,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
   const { data: servers = [] } = useServers()
   const server = servers.find((s) => s.id === project?.serverId)
   const { data: networks = [] } = useNetworks(server?.id)
-  const connectableNetworks = networks.filter((n: { connectable?: boolean }) => n.connectable !== false)
+  const connectableNetworks = networks.filter((n) => n.connectable !== false)
 
   const toggleExternalNetwork = (networkName: string) => {
     const next = externalNetworks.includes(networkName)
@@ -581,7 +581,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
         </div>
         {connectableNetworks.length > 0 ? (
           <div className="space-y-1.5">
-            {connectableNetworks.map((net: { name: string; driver?: string; containers?: number }) => {
+            {connectableNetworks.map((net) => {
               const isChecked = externalNetworks.includes(net.name)
               return (
                 <label
@@ -597,7 +597,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] text-white/70 truncate">{net.name}</div>
                     <div className="text-[10px] text-white/30">
-                      {net.driver || 'bridge'}{net.containers != null ? ` · ${net.containers} container(s)` : ''}
+                      {net.driver}{net.containers?.length != null ? ` · ${net.containers.length} container(s)` : ''}
                     </div>
                   </div>
                 </label>

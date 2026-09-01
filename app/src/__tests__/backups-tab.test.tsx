@@ -59,6 +59,7 @@ function mockService(overrides = {}): Service {
     locked: false,
     autoDeploy: false,
     maintenanceMode: false,
+    externalNetworks: [],
     ...overrides,
   }
 }
