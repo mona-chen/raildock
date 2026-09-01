@@ -11,7 +11,7 @@ class Project < ApplicationRecord
   validates :environment, inclusion: { in: %w[production staging development] }
 
   before_validation :set_default_environment, on: :create
-  before_validation :set_default_server, on: :create
+  before_validation :set_default_server, on: %i[create update]
   after_create :set_network_name
 
   def set_network_name

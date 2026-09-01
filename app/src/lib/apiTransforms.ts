@@ -108,6 +108,12 @@ export function normalizeProject(data: unknown): Project {
   if (camel.id != null && typeof camel.id !== 'string') {
     camel.id = String(camel.id)
   }
+  if (camel.serverId != null && typeof camel.serverId !== 'string') {
+    camel.serverId = String(camel.serverId)
+  }
+  if (Array.isArray(camel.serviceIds)) {
+    camel.serviceIds = camel.serviceIds.map((id) => String(id))
+  }
   return camel as unknown as Project
 }
 
