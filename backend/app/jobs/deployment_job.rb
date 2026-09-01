@@ -194,7 +194,7 @@ class DeploymentJob < ApplicationJob
     return if abort_if_cancelled(deployment)
 
     # 9. Deploy (with real-time log streaming)
-    deployment.update!(status: :building)
+    deployment.update!(status: :building, started_at: Time.current)
     service.update!(status: :building)
     safely_broadcast_deployment(service, {
       deployment_id: deployment.id,
@@ -345,6 +345,13 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end
 
+    # Run the app's declared predeploy scripts (e.g. migrations) inside the
+    # freshly deployed container before the deploy is marked successful. Uses
+    # `dokku run` so Rails `db:migrate` runs against the new code + image and
+    # against the linked datastores. Both git and subdirectory deploy paths
+    # converge here.
+    predeploy_result = run_deploy_scripts(service, deployment, engine, "predeploy", deploy_output)
+    return if predeploy_result == :failed
     return if abort_if_cancelled(deployment)
 
     deployment.update!(status: :deploying)
@@ -414,6 +421,14 @@ class DeploymentJob < ApplicationJob
       Rails.logger.warn "Post-deploy hostname injection failed for #{service.dokku_app_name}"
     end
 
+    # 13.5. Connect to user-selected external networks (e.g. matrix-postgres).
+    #     These are also best-effort — the app is already running.
+    if service.external_networks.present?
+      unless network_manager.connect_to_external_networks(service)[:success]
+        Rails.logger.warn "Post-deploy external network connect failed for #{service.dokku_app_name}"
+      end
+    end
+
     # 14. For docker-image services, read container env vars and sync password-type
     #     vars to the Service record so linked services can reference them via
     #     ${{ linked.SERVICE.VAR }} at deploy time.
@@ -480,6 +495,46 @@ class DeploymentJob < ApplicationJob
 
     Rails.logger.info "Deployment #{deployment.id} cancelled, aborting"
     true
+  end
+
+  # Run a declared deploy script (predeploy/postdeploy) inside the app's
+  # container via `dokku run`. The command is evaluated in the deployed image
+  # so e.g. `bin/rails db:migrate` uses the new code and linked datastores.
+  # Returns :ok when nothing ran or it succeeded, :failed when it errored
+  # (the deployment has already been marked failed), or :cancelled.
+  def run_deploy_scripts(service, deployment, engine, phase, deploy_output)
+    command = service.config&.dig("scripts", phase)
+    return :ok if command.blank?
+
+    app_name = service.dokku_app_name
+    safely_broadcast_deployment(service, {
+      deployment_id: deployment.id,
+      status: :deploying,
+      message: "Running #{phase} script",
+      log_chunk: "-----> Running #{phase} script: #{command}\n",
+      started_at: deployment.started_at.iso8601
+    })
+
+    result = engine.run_streaming(
+      "run #{engine.escape(app_name)} #{engine.escape(command)}",
+      cancelled: -> { deployment.reload.cancelled? }
+    ) do |chunk|
+      redacted_chunk = deployment.append_log_chunk!(chunk)
+      deploy_output << redacted_chunk
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: :deploying,
+        log_chunk: redacted_chunk,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at.iso8601
+      })
+    end
+
+    return :cancelled if result[:cancelled]
+    return :ok if result[:success]
+
+    mark_failed(deployment, service, "#{phase} script failed", deploy_output)
+    :failed
   end
 
   # Wait for linked database containers to report running and for their network

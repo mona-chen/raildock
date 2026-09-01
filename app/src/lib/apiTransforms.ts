@@ -76,6 +76,7 @@ export function normalizeService(data: unknown): Service {
     backups: [],
     linkedServiceIds: [],
     processTypes: [],
+    externalNetworks: [],
     locked: false,
     autoDeploy: true,
     maintenanceMode: false,
@@ -98,6 +99,7 @@ export function normalizeService(data: unknown): Service {
   if (!Array.isArray(merged.resourceReservations)) merged.resourceReservations = []
   if (!Array.isArray(merged.processTypes)) merged.processTypes = []
   if (!Array.isArray(merged.dockerOptions)) merged.dockerOptions = []
+  if (!Array.isArray(merged.externalNetworks)) merged.externalNetworks = []
   return merged as unknown as Service
 }
 

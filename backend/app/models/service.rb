@@ -23,6 +23,7 @@ class Service < ApplicationRecord
   validates :name, presence: true
   validates :service_type, inclusion: { in: %w[app database cache queue search service] }
   validates :status, inclusion: { in: %w[running stopped deploying error building] }
+  validate :external_networks_must_be_strings
   validate :subtype_must_be_registered, on: :create
   validate :builder_must_be_registered, on: :create, if: -> { service_type_app? }
 
@@ -198,7 +199,8 @@ class Service < ApplicationRecord
       }
     )).merge(
       "config" => config || {},
-      "configOverrides" => config_overrides || {}
+      "configOverrides" => config_overrides || {},
+      "external_networks" => external_networks || []
     )
   end
 
@@ -217,6 +219,14 @@ class Service < ApplicationRecord
     base = ENV.fetch("RAILDOCK_API_URL", "")
     return nil if base.blank?
     "#{base.chomp("/")}/api/services/#{id}/webhooks/#{webhook_token}/deploy"
+  end
+
+  def external_networks_must_be_strings
+    return if external_networks.blank?
+
+    unless external_networks.is_a?(Array) && external_networks.all? { |n| n.is_a?(String) && n.present? }
+      errors.add(:external_networks, "must be an array of non-empty strings")
+    end
   end
 
   def subtype_must_be_registered

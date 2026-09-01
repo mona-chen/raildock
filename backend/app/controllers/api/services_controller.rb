@@ -99,10 +99,20 @@ module Api
         merge_config_overrides!
       end
 
+      networks_changed = service_params.key?(:external_networks) &&
+                         @service.external_networks != Array(service_params[:external_networks])
+
       @service.update!(service_params)
 
       with_dokku_engine(@service) do |engine|
         ServiceSettingsSync.new(@service, engine).sync_config_changes!
+
+        # Connect to external networks immediately if they changed and
+        # the container is already running.
+        if networks_changed && @service.running?
+          ProjectNetworkManager.new(@service.project, engine)
+            .connect_to_external_networks(@service)
+        end
       end
 
       render json: @service
@@ -967,6 +977,7 @@ module Api
         :docker_image, :auto_deploy, :root_directory,
         :start_command, :maintenance_mode,
         :canvas_x, :canvas_y,
+        external_networks: [],
         config: config_permitted_params,
         config_overrides: config_permitted_params
       ]

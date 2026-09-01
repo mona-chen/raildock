@@ -8,6 +8,9 @@ import { api } from '@/lib/api'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useGitSources, useGitSourceBranches, useGitSourceDirectories } from '@/hooks/useGitSources'
+import { useProject } from '@/hooks/useProjects'
+import { useServers } from '@/hooks/useServers'
+import { useNetworks } from '@/hooks/useModules'
 
 const tabs = [
   { key: 'general', label: 'General', icon: Server },
@@ -433,7 +436,7 @@ function DeploySettings({ svc }: { svc: Service }) {
 
 // ── Network Settings ───────────────────────────────────────
 function NetworkSettings({ svc }: { svc: Service }) {
-  const { setConfigPath } = useConfigUpdater(svc)
+  const { setConfigPath, setField } = useConfigUpdater(svc)
   const proxy = {
     enabled: svc.proxy?.enabled ?? true,
     proxyType: svc.proxy?.proxyType ?? 'traefik',
@@ -444,6 +447,20 @@ function NetworkSettings({ svc }: { svc: Service }) {
     email: svc.letsencrypt?.email ?? '',
     staging: svc.letsencrypt?.staging ?? false,
     autoRenew: svc.letsencrypt?.autoRenew ?? true,
+  }
+
+  const externalNetworks = svc.externalNetworks ?? []
+  const { data: project } = useProject(svc.projectId)
+  const { data: servers = [] } = useServers()
+  const server = servers.find((s) => s.id === project?.serverId)
+  const { data: networks = [] } = useNetworks(server?.id)
+  const connectableNetworks = networks.filter((n: { connectable?: boolean }) => n.connectable !== false)
+
+  const toggleExternalNetwork = (networkName: string) => {
+    const next = externalNetworks.includes(networkName)
+      ? externalNetworks.filter((n) => n !== networkName)
+      : [...externalNetworks, networkName]
+    setField('externalNetworks', next)
   }
 
   const addPort = () => {
@@ -554,6 +571,54 @@ function NetworkSettings({ svc }: { svc: Service }) {
               <div className="text-[12px] text-white/60">Auto-renew</div>
               <AccessibleToggle checked={letsencrypt.autoRenew} onChange={(v) => setConfigPath('letsencrypt.autoRenew', v)} label="Auto-renew" />
             </div>
+          </div>
+        )}
+      </SettingCard>
+
+      <SettingCard title="External Networks">
+        <div className="text-[12px] text-white/40 mb-3">
+          Connect this service to Docker networks from other projects or stacks. The service will be reachable by container name on these networks.
+        </div>
+        {connectableNetworks.length > 0 ? (
+          <div className="space-y-1.5">
+            {connectableNetworks.map((net: { name: string; driver?: string; containers?: number }) => {
+              const isChecked = externalNetworks.includes(net.name)
+              return (
+                <label
+                  key={net.name}
+                  className="flex items-center gap-2.5 p-2 rounded-lg bg-[#1a1a1e] border border-white/[0.06] cursor-pointer hover:border-white/[0.12] transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleExternalNetwork(net.name)}
+                    className="rounded border-white/20 bg-black/40 text-[#8b5cf6] focus:ring-[#8b5cf6]/40"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] text-white/70 truncate">{net.name}</div>
+                    <div className="text-[10px] text-white/30">
+                      {net.driver || 'bridge'}{net.containers != null ? ` · ${net.containers} container(s)` : ''}
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="text-[12px] text-white/30">
+            {server ? 'No connectable networks found on this server.' : 'No server assigned to this project.'}
+          </div>
+        )}
+        {externalNetworks.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {externalNetworks.map((name) => (
+              <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded text-[11px]">
+                {name}
+                <button onClick={() => toggleExternalNetwork(name)} className="hover:text-white/70">
+                  <Trash2 size={10} />
+                </button>
+              </span>
+            ))}
           </div>
         )}
       </SettingCard>

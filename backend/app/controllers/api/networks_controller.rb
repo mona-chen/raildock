@@ -71,7 +71,8 @@ module Api
           containers: connected_names,
           traefik_containers: traefik_names,
           recommended: traefik_names.any?,
-          selectable: !%w[bridge host none].include?(name)
+          selectable: !%w[bridge host none].include?(name),
+          connectable: !%w[bridge host none].include?(name)
         }
       end
 

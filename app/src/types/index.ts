@@ -83,6 +83,7 @@ export interface Service {
   config?: Record<string, any>
   canvas_x?: number | null
   canvas_y?: number | null
+  externalNetworks: string[]
 }
 
 export interface ProcessType {

@@ -93,7 +93,51 @@ class ProjectNetworkManager
       engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{project.server.external_proxy_network}")
     end
 
+    # User-selected external networks — attach-post-deploy so containers
+    # can reach external services (e.g. matrix-postgres, synapse-network).
+    Array(service.external_networks).each do |net_name|
+      next if net_name.blank?
+
+      # Verify the network exists on the host
+      check = host_engine.docker_network_inspect(net_name)
+      unless check[:success]
+        Rails.logger.warn "External network '#{net_name}' not found on server, skipping for #{service.dokku_app_name}"
+        next
+      end
+
+      engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{net_name}")
+    end
+
     { success: true }
+  end
+
+  # Connect a service's running container to its configured external networks.
+  # Called after deploy completes so the container is immediately reachable on
+  # those networks (not waiting for the next deploy's attach-post-deploy).
+  def connect_to_external_networks(service)
+    networks = Array(service.external_networks).reject(&:blank?)
+    return { success: true } if networks.empty?
+
+    container = wait_for_linked_container(service.dokku_app_name)
+    return { success: false, output: "Container #{service.dokku_app_name} not found" } if container.blank?
+
+    results = networks.map do |net_name|
+      check = host_engine.docker_network_inspect(net_name)
+      unless check[:success]
+        Rails.logger.warn "External network '#{net_name}' not found, skipping connect for #{service.dokku_app_name}"
+        next
+      end
+
+      # Disconnect first to avoid duplicate connections
+      host_engine.docker_network_disconnect(container, net_name)
+      result = host_engine.docker_network_connect(container, net_name)
+      unless result[:success]
+        Rails.logger.warn "Failed to connect #{service.dokku_app_name} to external network '#{net_name}': #{result[:output]}"
+      end
+      result
+    end
+
+    { success: true, connected: networks }
   end
 
   def disconnect_service(service)
