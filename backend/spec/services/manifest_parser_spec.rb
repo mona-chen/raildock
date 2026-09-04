@@ -575,6 +575,105 @@ RSpec.describe ManifestParser do
     end
   end
 
+  describe '.resolve_runtime datastore connection fields' do
+    def resolve_runtime(env_value, project: nil, service: nil, linked_services: [])
+      described_class.resolve_runtime(env_value, project, service, linked_services)
+    end
+
+    # Builds a linked "postgres" service double pointing at a fake datastore whose
+    # parsed info (as surfaced by DokkuEngine#datastore_info) holds a full DSN
+    # plus the individual connection fields.
+    def linked_postgres(info:)
+      server = double(:server, ssh_key: "ssh-rsa AAAB")
+      project = double(:project, server: server)
+      subtype = double(:postgres_plugin, url_var: "DATABASE_URL")
+      engine = double(:engine, datastore_info: { success: true }.merge(info))
+
+      allow(PluginRegistry).to receive(:find_subtype).with("postgres").and_return(subtype)
+      allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+
+      linked = double(
+        :linked_postgres,
+        name: "db",
+        subtype: "postgres",
+        environment_variables: [],
+        project: project
+      )
+      linked
+    end
+
+    let(:dsn) { "postgres://pguser:pgpass@dbhost:5433/pgdb" }
+
+    it 'resolves [LINKED:db:HOST] from the linked datastore DSN' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:HOST]", linked_services: [ linked ])
+      expect(result).to eq("dbhost")
+    end
+
+    it 'resolves [LINKED:db:PORT] from the linked datastore DSN' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:PORT]", linked_services: [ linked ])
+      expect(result).to eq("5433")
+    end
+
+    it 'resolves [LINKED:db:USER] from the linked datastore DSN' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:USER]", linked_services: [ linked ])
+      expect(result).to eq("pguser")
+    end
+
+    it 'resolves [LINKED:db:PASSWORD] from the linked datastore DSN' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:PASSWORD]", linked_services: [ linked ])
+      expect(result).to eq("pgpass")
+    end
+
+    it 'resolves [LINKED:db:DATABASE] from the linked datastore DSN' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:DATABASE]", linked_services: [ linked ])
+      expect(result).to eq("pgdb")
+    end
+
+    it 'resolves [LINKED:db:DATABASE_URL] (the DSN url var) from the datastore' do
+      linked = linked_postgres(
+        info: { dsn: dsn, host: "dbhost", port: "5433", username: "pguser",
+                password: "pgpass", database: "pgdb", url: dsn }
+      )
+      result = resolve_runtime("[LINKED:db:DATABASE_URL]", linked_services: [ linked ])
+      expect(result).to eq(dsn)
+    end
+
+    it 'leaves marker unchanged when datastore info is unavailable' do
+      server = double(:server, ssh_key: "ssh-rsa AAAB")
+      project = double(:project, server: server)
+      subtype = double(:postgres_plugin, url_var: "DATABASE_URL")
+      engine = double(:engine, datastore_info: { success: false, error: "down" })
+
+      allow(PluginRegistry).to receive(:find_subtype).with("postgres").and_return(subtype)
+      allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
+
+      linked = double(:linked_postgres, name: "db", subtype: "postgres",
+                       environment_variables: [], project: project)
+      result = resolve_runtime("[LINKED:db:PORT]", linked_services: [ linked ])
+      expect(result).to eq("[LINKED:db:PORT]")
+    end
+  end
+
   describe 'raw secret warnings' do
     def parse_env_warnings(env_lines)
       toml = <<~TOML

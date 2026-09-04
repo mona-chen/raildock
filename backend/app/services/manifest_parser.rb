@@ -18,6 +18,18 @@ class ManifestParser
   # reference, not a raw secret.
   ENV_VALUE_REFERENCE_PATTERN = /\[SHARED:|\[LINKED:|\[ENV:|\[RAILDOCK_|\$\{\{/
 
+  # Maps a requested linked-datastore variable name to the field extracted
+  # from the parsed datastore info (see DokkuEngine#parse_datastore_info).
+  LINKED_DATASTORE_FIELD_MAP = {
+    "HOST" => :host,
+    "PORT" => :port,
+    "USER" => :username,
+    "USERNAME" => :username,
+    "PASSWORD" => :password,
+    "DB" => :database,
+    "DATABASE" => :database,
+  }.freeze
+
   # Result object holding the normalized desired state
   class ManifestDesiredState
     attr_reader :services, :links, :format_detected, :warnings, :raw, :repaired_content
@@ -1008,18 +1020,38 @@ end
     return nil unless linked_svc.respond_to?(:subtype)
     st = PluginRegistry.find_subtype(linked_svc.subtype)
     return nil unless st
-    url_var = st.url_var
-    return nil unless url_var && var_name.to_s.upcase == url_var.upcase
+
+    var = var_name.to_s.upcase
+
+    # The standard datastore URL/DSN var (e.g. DATABASE_URL, REDIS_URL) resolves
+    # to the full connection DSN.
+    if st.url_var && var == st.url_var.upcase
+      return datastore_connection_info(linked_svc, :url)
+    end
+
+    # Resolve individual datastore connection fields (HOST/PORT/USER/PASSWORD/
+    # DATABASE) from the parsed DSN so apps can consume discrete fields.
+    field = self.class::LINKED_DATASTORE_FIELD_MAP[var]
+    return nil unless field
+
+    value = datastore_connection_info(linked_svc, field)
+    value.nil? ? nil : value.to_s
+  rescue => e
+    Rails.logger.warn "Failed to fetch datastore info for #{linked_svc.name}.#{var_name}: #{e.message}"
+    nil
+  end
+
+  # Fetches a single field of the linked service's parsed datastore info.
+  # Returns the raw field value (dsn/url/host/port/username/password/database).
+  def datastore_connection_info(linked_svc, field)
     server = linked_svc.respond_to?(:project) ? linked_svc.project&.server : nil
     server ||= @current_project&.server
     return nil unless server&.ssh_key.present?
 
     engine = DokkuEngine.new(server)
     info = engine.datastore_info(linked_svc)
-    return info[:dsn] if info[:success] && info[:dsn].present?
-    info[:url] if info[:success] && info[:url].present?
-  rescue => e
-    Rails.logger.warn "Failed to fetch DSN for #{linked_svc.name}: #{e.message}"
-    nil
+    return nil unless info[:success]
+
+    info[field]
   end
 end
