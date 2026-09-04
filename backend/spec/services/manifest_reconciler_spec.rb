@@ -467,4 +467,45 @@ RSpec.describe ManifestReconciler do
       expect(DeploymentSequenceJob).to have_received(:perform_later).once
     end
   end
+
+  describe "#resolve_runtime_values" do
+    let(:desired) { desired_state(services: []) }
+
+    it "does not write an unresolved reference marker to Dokku" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest
+      )
+      service.environment_variables.create!(key: "DB_PORT", value: "[LINKED:postgres:PORT]")
+      engine = instance_double(DokkuEngine)
+      reconciler = described_class.new(project, desired)
+
+      allow(engine).to receive(:config_set)
+
+      reconciler.send(:resolve_runtime_values, engine, service)
+
+      expect(engine).not_to have_received(:config_set)
+    end
+
+    it "writes resolved values to Dokku" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest
+      )
+      service.environment_variables.create!(key: "DB_PORT", value: "[LINKED:postgres:PORT]")
+      engine = instance_double(DokkuEngine)
+      linked = create(:service, :database, project: project, name: "postgres", managed_by: :manifest)
+      linked.environment_variables.create!(key: "PORT", value: "5432")
+      ServiceLink.create!(from_service: service, to_service: linked)
+      reconciler = described_class.new(project, desired)
+
+      expect(engine).to receive(:config_set).with(service.dokku_app_name, "DB_PORT", "5432").and_return(success: true, output: "")
+
+      reconciler.send(:resolve_runtime_values, engine, service)
+    end
+  end
 end

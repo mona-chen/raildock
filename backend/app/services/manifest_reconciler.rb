@@ -1058,9 +1058,15 @@ class ManifestReconciler
         linked_services
       )
       next if resolved == environment_variable.value
+      # If the value still contains an unresolved marker, skip writing it so
+      # we never persist a literal "[LINKED:/[SHARED:/[ENV:..." to Dokku.
+      next if resolved.match?(ManifestParser::ENV_VALUE_REFERENCE_PATTERN)
 
       result = engine.config_set(service.dokku_app_name, environment_variable.key, resolved)
-      raise "Failed to resolve #{environment_variable.key}: #{result[:output]}" unless result[:success]
+      unless result[:success]
+        Rails.logger.error "Failed to set #{environment_variable.key}=#{resolved} on #{service.dokku_app_name}: #{result[:output]}"
+        next
+      end
     end
   end
 

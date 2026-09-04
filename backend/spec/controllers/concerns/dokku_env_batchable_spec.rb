@@ -103,11 +103,25 @@ RSpec.describe DokkuEnvBatchable do
         expect(hash["RAILS_DATABASE_PASSWORD"]).to eq("from-linked-db")
       end
 
-      it "leaves unresolvable placeholders intact" do
+      it "excludes unresolvable placeholders from the hash to avoid writing markers to Dokku" do
         service.environment_variables.create!(key: "API_KEY", value: "${{ shared.NONEXISTENT }}")
 
         hash = helper.build_full_env_hash(service, engine)
-        expect(hash["API_KEY"]).to match(/\$\{\{|^\[SHARED:/)
+        expect(hash).not_to have_key("API_KEY")
+      end
+
+      it "excludes unresolved LINKED markers from the hash" do
+        service.environment_variables.create!(key: "DB_PORT", value: "[LINKED:my-postgres:PORT]")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash).not_to have_key("DB_PORT")
+      end
+
+      it "excludes unresolved SHARED markers from the hash" do
+        service.environment_variables.create!(key: "SECRET", value: "[SHARED:MISSING_KEY]")
+
+        hash = helper.build_full_env_hash(service, engine)
+        expect(hash).not_to have_key("SECRET")
       end
 
       it "does not touch plain values without placeholders" do

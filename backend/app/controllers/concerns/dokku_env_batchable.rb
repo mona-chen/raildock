@@ -45,8 +45,10 @@ module DokkuEnvBatchable
   # batched config:set call never writes a literal placeholder.
   #
   # If a marker can't be resolved (shared var missing, linked service
-  # unreachable), the placeholder is left intact. Dokku treats it as an
-  # opaque string and the user can fix the underlying project state.
+  # unreachable), the key is REMOVED from env_hash so config_replace_all
+  # never writes a literal "[SHARED:/[LINKED:..." marker to Dokku —
+  # writing one would silently overwrite the correctly-resolved value
+  # that resolve_runtime_values already set during manifest apply.
   #
   # The source expression remains in the database. Resolution is a deploy-time
   # concern so changes to shared or linked values propagate on the next sync.
@@ -58,10 +60,21 @@ module DokkuEnvBatchable
 
     service.environment_variables.each do |ev|
       original = ev.value.to_s
-      resolved = ManifestParser.resolve_runtime(original, project, service, linked_services)
-      next if resolved == original
 
-      env_hash[ev.key] = resolved
+      # Only attempt resolution if the value contains a marker or reference
+      next unless original.match?(ManifestParser::ENV_VALUE_REFERENCE_PATTERN)
+
+      resolved = ManifestParser.resolve_runtime(original, project, service, linked_services)
+
+      if resolved.match?(ManifestParser::ENV_VALUE_REFERENCE_PATTERN)
+        # Resolution failed — the value still contains a marker.
+        # Remove it from env_hash so config_replace_all doesn't write
+        # literal marker strings to Dokku.
+        Rails.logger.warn "Unresolved marker in #{service.dokku_app_name}##{ev.key}: #{original} → #{resolved} — excluded from deploy"
+        env_hash.delete(ev.key)
+      else
+        env_hash[ev.key] = resolved
+      end
     end
   end
 
