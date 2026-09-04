@@ -74,22 +74,6 @@ RSpec.describe DokkuEnvBatchable do
       expect(hash).not_to have_key("DATABASE_URL")
     end
 
-    describe "start_command handling" do
-      it "forwards start_command as DOKKU_DOCKERFILE_CMD" do
-        service.update!(start_command: "yarn start", docker_image: "bitcart/bitcart-admin:stable")
-
-        hash = helper.build_full_env_hash(service, engine)
-        expect(hash["DOKKU_DOCKERFILE_CMD"]).to eq("yarn start")
-      end
-
-      it "does not set DOKKU_DOCKERFILE_CMD without a start_command" do
-        service.update!(docker_image: "bitcart/bitcart-admin:stable")
-
-        hash = helper.build_full_env_hash(service, engine)
-        expect(hash).not_to have_key("DOKKU_DOCKERFILE_CMD")
-      end
-    end
-
     describe "manifest placeholder resolution" do
       it "resolves ${{ shared.X }} against project.shared_vars" do
         project.update!(shared_vars: [ { "key" => "GLOBAL_API_KEY", "value" => "secret-123" } ])

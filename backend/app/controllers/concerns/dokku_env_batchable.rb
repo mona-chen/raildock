@@ -32,24 +32,10 @@ module DokkuEnvBatchable
 
   private
 
-  # When a service declares a start_command in its manifest, forward it to
-  # Dokku via DOKKU_DOCKERFILE_CMD so the container runs it instead of the
-  # image's default CMD. Many docker images (e.g. bitcart-admin ending in
-  # CMD ["sh"]) exit immediately when started non-interactively, which makes
-  # Dokku report "Container state: exited" on every deploy.
   def build_full_env_hash(service, engine)
     env_hash = service.environment_variables.pluck(:key, :value).to_h
     resolve_manifest_placeholders(service, env_hash)
     preserve_host_only_keys(service, engine, env_hash)
-    apply_start_command(service, env_hash)
-    env_hash
-  end
-
-  def apply_start_command(service, env_hash)
-    start_command = service.start_command
-    return env_hash if start_command.blank?
-
-    env_hash["DOKKU_DOCKERFILE_CMD"] = start_command
     env_hash
   end
 
