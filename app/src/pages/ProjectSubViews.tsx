@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ExternalLink, FolderGit2, KeyRound, Server, Settings, Trash2 } from 'lucide-react'
+import { ExternalLink, FolderGit2, KeyRound, Server, Settings, Trash2, Eye, EyeOff } from 'lucide-react'
 import { useProject, useUpdateProjectSharedVars } from '@/hooks/useProjects'
 import { useServers } from '@/hooks/useServers'
 import type { Server as ServerRecord } from '@/types'
@@ -42,7 +42,17 @@ function SharedVarsSection() {
   const updateVars = useUpdateProjectSharedVars()
   const [newKey, setNewKey] = useState('')
   const [newValue, setNewValue] = useState('')
+  const [revealed, setRevealed] = useState<Set<string>>(new Set())
   const vars = project?.sharedVars || []
+
+  const toggleReveal = (key: string) => {
+    setRevealed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const handleAdd = () => {
     const key = newKey.trim()
@@ -77,21 +87,35 @@ function SharedVarsSection() {
 
       {vars.length > 0 && (
         <div className="divide-y divide-white/[0.05]">
-          {vars.map((variable) => (
-            <div key={variable.key} className="px-4 py-3 flex items-center gap-3 group">
-              <code className="text-[12px] text-white/70 flex-1">{variable.key}</code>
-              <span className="text-[11px] tracking-[0.18em] text-white/25">••••••••••••</span>
-              <button
-                type="button"
-                onClick={() => handleRemove(variable.key)}
-                disabled={updateVars.isPending}
-                className="p-1.5 rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                aria-label={`Remove ${variable.key}`}
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
+          {vars.map((variable) => {
+              const isRevealed = revealed.has(variable.key)
+              return (
+                <div key={variable.key} className="px-4 py-3 flex items-center gap-3 group">
+                  <code className="text-[12px] text-white/70 flex-1">{variable.key}</code>
+                  <span className="text-[11px] font-mono text-white/40 break-all">
+                    {isRevealed ? variable.value : '••••••••••••'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleReveal(variable.key)}
+                    className="p-1.5 rounded text-white/25 hover:text-white/60 hover:bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-all"
+                    aria-label={isRevealed ? `Hide ${variable.key}` : `Reveal ${variable.key}`}
+                    title={isRevealed ? 'Hide value' : 'Show value'}
+                  >
+                    {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(variable.key)}
+                    disabled={updateVars.isPending}
+                    className="p-1.5 rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                    aria-label={`Remove ${variable.key}`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              )
+            })}
         </div>
       )}
 
