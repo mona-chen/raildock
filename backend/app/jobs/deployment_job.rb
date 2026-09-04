@@ -193,6 +193,15 @@ class DeploymentJob < ApplicationJob
     # Check if cancelled before starting the build
     return if abort_if_cancelled(deployment)
 
+    # 8.8 Forward the start_command to Dokku's dockerfile-start-cmd property.
+    #      A manifest start_command overrides the image's Dockerfile CMD, which
+    #      for images ending in CMD ["sh"] would otherwise exit immediately when
+    #      started non-interactively (breaking every deploy's healthcheck).
+    if service.start_command.present?
+      ps_cmd_result = engine.ps_set(service.dokku_app_name, "dockerfile-start-cmd", service.start_command)
+      return mark_failed(deployment, service, "Process command sync failed", ps_cmd_result[:output] || ps_cmd_result[:error]) unless ps_cmd_result[:success]
+    end
+
     # 9. Deploy (with real-time log streaming)
     deployment.update!(status: :building, started_at: Time.current)
     service.update!(status: :building)

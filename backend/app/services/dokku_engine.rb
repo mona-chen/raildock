@@ -285,6 +285,14 @@ class DokkuEngine
     run("ps:scale #{escape(app_name)} #{escape(process_type)}=#{quantity.to_i}")
   end
 
+  # Override the Dockerfile CMD for dockerfile/docker-image apps. Image CMDs
+  # like ["sh"] exit immediately when started non-interactively, so a service
+  # with an explicit start_command must set dockerfile-start-cmd for the
+  # container to stay up. Applies at next ps:rebuild / deploy.
+  def ps_set(app_name, property, value)
+    run("ps:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
+  end
+
   def ps_restart(app_name)
     run("ps:restart #{escape(app_name)}")
   end

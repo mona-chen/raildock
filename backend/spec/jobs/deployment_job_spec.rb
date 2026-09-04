@@ -89,6 +89,7 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
     allow(engine).to receive(:ps_restart).and_return({ success: true, output: "" })
     allow(engine).to receive(:ps_scale).and_return({ success: true, output: "" })
+    allow(engine).to receive(:ps_set).and_return({ success: true, output: "" })
   end
 
   describe "#perform" do
@@ -449,6 +450,28 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:run).with("ps:rebuild #{service.dokku_app_name}")
         expect(engine).to have_received(:run).with("network:rebuild #{service.dokku_app_name}")
         expect(engine).to have_received(:run).with("proxy:build-config #{service.dokku_app_name}")
+        expect(deployment.reload.status).to eq("succeeded")
+      end
+    end
+
+    context "when the service declares a start_command" do
+      let(:service) do
+        create(
+          :service,
+          project: project,
+          branch: "main",
+          config: config,
+          status: :stopped,
+          start_command: "yarn start",
+          docker_image: "bitcart/bitcart-admin:stable",
+          git_repo: nil
+        )
+      end
+
+      it "sets the Dokku dockerfile-start-cmd property before deploying" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:ps_set).with(service.dokku_app_name, "dockerfile-start-cmd", "yarn start")
         expect(deployment.reload.status).to eq("succeeded")
       end
     end
