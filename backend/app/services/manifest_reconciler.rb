@@ -978,10 +978,28 @@ class ManifestReconciler
     when :root_directory then service.update!(root_directory: change.new_value)
     when :start_command then service.update!(start_command: change.new_value)
     when :exposed then service.update!(exposed: change.new_value)
-    when :port then service.update!(port: change.new_value.to_s.present? ? change.new_value.to_i : nil)
+    when :port
+      service.update!(port: change.new_value.to_s.present? ? change.new_value.to_i : nil)
+      sync_manifest_domain_target_ports!(service)
     when :version then service.update!(version: change.new_value)
     when :subtype then service.update!(subtype: change.new_value)
     when :category then service.update!(service_type: change.new_value)
+    end
+  end
+
+  # A manifest `port` change must also move the target_port of manifest-declared
+  # domains, or existing domains keep their stale target_port (which wins over
+  # the service port in effective_target_port). Custom (UI-added) domains and
+  # auto-managed temporary domains stay untouched.
+  def sync_manifest_domain_target_ports!(service)
+    desired = @desired.find_service(service.name)
+    desired_port = desired&.dig(:port).to_i
+    manifest_domains = Array(desired&.dig(:domains)).map(&:to_s).reject(&:blank?)
+    return if desired_port <= 0 || manifest_domains.empty?
+
+    service.domains.where(hostname: manifest_domains, temporary: false).each do |domain|
+      next if domain.target_port == desired_port
+      domain.update!(target_port: desired_port)
     end
   end
 

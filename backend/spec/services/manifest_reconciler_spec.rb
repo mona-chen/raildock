@@ -351,6 +351,39 @@ RSpec.describe ManifestReconciler do
       expect(domain).to have_attributes(port: 443, target_port: 3000, ssl: true, letsencrypt: true)
     end
 
+    it "re-syncs target_port on manifest domains when the manifest port changes" do
+      service = create(
+        :service,
+        project: project,
+        name: "web",
+        managed_by: :manifest,
+        git_repo: "https://github.com/acme/app.git",
+        branch: "main",
+        builder: "nixpacks",
+        port: 5000
+      )
+      manifest_domain = create(:domain, service: service, hostname: "app.example.com", target_port: 5000, temporary: false)
+      create(:domain, service: service, hostname: "custom.example.com", target_port: 5000, temporary: false)
+      create(:domain, service: service, hostname: "web.5f238c93.sslip.io", target_port: 5000, temporary: true)
+
+      definition = app_definition(name: "web", repo: "https://github.com/acme/app.git")
+      definition[:port] = 3000
+      definition[:domains] = [ "app.example.com" ]
+      reconciler = described_class.new(project, desired_state(services: [ definition ]))
+      reconciler.diff
+      engine = instance_double(DokkuEngine)
+      host_engine = instance_double(HostEngine)
+
+      allow(DeploymentSequenceJob).to receive(:perform_later)
+
+      result = reconciler.apply!(engine, host_engine: host_engine)
+
+      expect(result[:success]).to be(true)
+      expect(service.reload.domains.find_by!(hostname: "app.example.com").target_port).to eq(3000)
+      expect(service.domains.find_by!(hostname: "custom.example.com").target_port).to eq(5000)
+      expect(service.domains.find_by!(hostname: "web.5f238c93.sslip.io").target_port).to eq(5000)
+    end
+
     it "sanitizes underscores from the generated Dokku app name" do
       project.update!(name: "ruut_helpcenter")
       definition = app_definition(name: "web_app", repo: "https://github.com/acme/app.git")
