@@ -27,7 +27,7 @@ class ManifestParser
     "USERNAME" => :username,
     "PASSWORD" => :password,
     "DB" => :database,
-    "DATABASE" => :database,
+    "DATABASE" => :database
   }.freeze
 
   # Result object holding the normalized desired state
