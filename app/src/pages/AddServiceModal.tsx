@@ -105,6 +105,8 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
   const [isApplying, setIsApplying] = useState(false)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [builderOverrides, setBuilderOverrides] = useState<Record<string, string>>({})
+  const [removeExisting, setRemoveExisting] = useState(false)
+  const [destroyWithoutSnapshot, setDestroyWithoutSnapshot] = useState(false)
   const queryClient = useQueryClient()
 
   const suggestedName = useMemo(() => {
@@ -189,10 +191,23 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
     if (!discovery) return
     setIsApplying(true)
     try {
-      const result = await api.repositoryImports.apply(projectId, discovery.snapshotToken, builderOverrides)
+      const result = await api.repositoryImports.apply(projectId, discovery.snapshotToken, builderOverrides, {
+        confirmRemovals: removeExisting,
+        removalConfirmationToken: removeExisting ? discovery.removalToken : undefined,
+        forceDestroyData: removeExisting && destroyWithoutSnapshot,
+      })
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest'] })
       toast.success(`Deploying ${result.serviceCount} ${result.serviceCount === 1 ? 'service' : 'services'}`)
+      if (result.removals?.length && !result.removalsConfirmed) {
+        toast.warning(
+          `Kept ${result.removals.length} existing service${result.removals.length === 1 ? '' : 's'} that this repository does not declare: ${result.removals
+            .map((removal) => removal.serviceName)
+            .join(', ')}. This project's manifest was left unchanged — the manifest editor reports drift.`,
+        )
+      } else if (result.manifestAdopted === false) {
+        toast.warning('This project\'s manifest was left unchanged — the manifest editor reports drift.')
+      }
       onClose()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not deploy this repository')
@@ -365,6 +380,42 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
                         </SelectContent>
                       </Select></label>)}</div>
             </div>}
+            {discovery.removals && discovery.removals.length > 0 && (
+              <div className="rounded-lg border border-red-400/20 bg-red-400/[0.04] p-3 text-[11px] text-red-200/70">
+                <div className="flex gap-2">
+                  <AlertTriangle size={14} className="shrink-0 text-red-300" />
+                  <div>
+                    <div className="font-medium text-red-200/80">
+                      {discovery.removals.length} existing service{discovery.removals.length === 1 ? '' : 's'} are not part of this repository
+                    </div>
+                    <div className="mt-1 text-white/40">
+                      {discovery.removals.map((removal) => removal.serviceName).join(', ')} — these stay untouched unless you
+                      explicitly opt in below.
+                    </div>
+                    <label className="mt-2 flex items-start gap-2 text-white/50">
+                      <input
+                        type="checkbox"
+                        checked={removeExisting}
+                        onChange={(event) => setRemoveExisting(event.target.checked)}
+                        className="mt-0.5"
+                      />
+                      Also destroy them when deploying (deletes databases and volumes)
+                    </label>
+                    {removeExisting && discovery.removals.some((removal) => removal.dataBearing) && (
+                      <label className="mt-2 flex items-start gap-2 text-white/50">
+                        <input
+                          type="checkbox"
+                          checked={destroyWithoutSnapshot}
+                          onChange={(event) => setDestroyWithoutSnapshot(event.target.checked)}
+                          className="mt-0.5"
+                        />
+                        Destroy without a verified snapshot (unrecoverable)
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : `Deploy ${discovery.services.length === 1 ? discovery.services[0].name : 'all services'}`}</button>
           </div>
         </ModalShell>

@@ -34,6 +34,10 @@ production:
     class: CheckAppUpdateJob
     schedule: every 6 hours
 
+  verify_backup_destinations:
+    class: VerifyBackupDestinationsJob
+    schedule: every 6 hours
+
   malware_scan:
     class: MalwareScanJob
     schedule: every hour at minute 5

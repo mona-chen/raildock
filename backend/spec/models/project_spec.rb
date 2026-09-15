@@ -87,12 +87,66 @@ RSpec.describe Project, type: :model do
     end
   end
 
+  describe "#manifest_synced?" do
+    def synced_project(**attrs)
+      create(:project, manifest_last_synced_at: 1.hour.ago, manifest_last_applied_at: Time.current, **attrs)
+    end
+
+    it "is true when the last apply came after the last sync" do
+      expect(synced_project.manifest_synced?).to be(true)
+    end
+
+    it "is false when the manifest has not been applied" do
+      expect(create(:project).manifest_synced?).to be(false)
+    end
+
+    it "is false when drift was detected, even if an apply came after the sync" do
+      expect(synced_project(manifest_drift_detected: true).manifest_synced?).to be(false)
+    end
+  end
+
   describe "dependent destroy" do
-    it "destroys associated services on destroy" do
+    it "refuses to destroy a project that still owns services unless explicitly allowed" do
+      project = create(:project)
+      create(:service, project: project)
+
+      # #destroy swallows the callback's RecordNotDestroyed (Rails semantics);
+      # #destroy! surfaces it. Either way, nothing is removed.
+      expect(project.destroy).to be(false)
+      expect(Project.exists?(project.id)).to be(true)
+
+      expect { project.destroy! }.to raise_error(ActiveRecord::RecordNotDestroyed)
+      expect(Project.exists?(project.id)).to be(true)
+      expect(project.services.count).to eq(1)
+    end
+
+    it "destroys associated services on destroy once resources are allowed" do
       project = create(:project)
       service = create(:service, project: project)
+      project.allow_resource_destruction = true
+      allow_any_instance_of(DokkuEngine).to receive(:app_destroy).and_return({ success: true })
+
       expect { project.destroy }.to change { Service.count }.by(-1)
       expect(Service.exists?(service.id)).to be false
+    end
+
+    it "keeps the project when Dokku could not remove its resources" do
+      project = create(:project)
+      create(:service, project: project)
+      allow_any_instance_of(DokkuEngine).to receive(:app_destroy).and_return({ success: false, output: "SSH error" })
+
+      expect { project.destroy_with_resources!(confirmed: true) }.to raise_error(ActiveRecord::RecordNotDestroyed, /Nothing was deleted/)
+
+      expect(Project.exists?(project.id)).to be true
+      expect(project.services.count).to eq(1)
+    end
+
+    it "reports what a project destruction would take with it" do
+      project = create(:project)
+      create(:service, :database, project: project)
+      create(:service, project: project)
+
+      expect(project.dokku_resource_summary).to include(services: 2, databases: 1)
     end
 
     it "destroys associated activity_events on destroy" do

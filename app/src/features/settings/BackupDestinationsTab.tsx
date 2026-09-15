@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCopy } from '@/hooks/useCopy'
+import { useDataSafety } from '@/hooks/useDataSafety'
 import type { BackupDestination } from '@/types'
 
 const EMPTY_FORM = {
@@ -45,7 +46,11 @@ export default function BackupDestinationsTab() {
   const create = useCreateBackupDestination()
   const remove = useDeleteBackupDestination()
   const verify = useVerifyBackupDestination()
+  const { data: safety } = useDataSafety(currentOrganizationId || undefined)
   const { copiedKey, copy } = useCopy(2000)
+
+  const criticalFindings = safety?.findings.filter((finding) => finding.severity === 'critical') ?? []
+  const warningFindings = safety?.findings.filter((finding) => finding.severity === 'warning') ?? []
   const [dialogOpen, setDialogOpen] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -225,6 +230,42 @@ export default function BackupDestinationsTab() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {(criticalFindings.length > 0 || warningFindings.length > 0) && (
+        <div
+          className={`rounded-xl border p-3 ${
+            criticalFindings.length > 0
+              ? 'border-red-500/20 bg-red-500/[0.04]'
+              : 'border-amber-400/15 bg-amber-400/[0.035]'
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            <AlertCircle
+              size={14}
+              className={`mt-0.5 shrink-0 ${criticalFindings.length > 0 ? 'text-red-400' : 'text-amber-300'}`}
+            />
+            <div className="min-w-0">
+              <div className="text-[12px] text-white/70">
+                {criticalFindings.length > 0
+                  ? `${criticalFindings.length} service${criticalFindings.length === 1 ? '' : 's'} cannot be restored today`
+                  : `${warningFindings.length} data protection warning${warningFindings.length === 1 ? '' : 's'}`}
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {[...criticalFindings, ...warningFindings].slice(0, 4).map((finding) => (
+                  <li key={`${finding.code}-${finding.message}`} className="text-[11px] text-white/40">
+                    {finding.message}
+                  </li>
+                ))}
+              </ul>
+              {[...criticalFindings, ...warningFindings].length > 4 && (
+                <div className="mt-1 text-[10px] text-white/30">
+                  +{[...criticalFindings, ...warningFindings].length - 4} more
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-[11px] text-[#4A4A55]">Loading destinations…</div>

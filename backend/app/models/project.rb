@@ -5,7 +5,11 @@ class Project < ApplicationRecord
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
 
-  before_destroy :destroy_services_dokku
+  # `prepend: true` matters: the dependent-association callbacks declared above
+  # delete the service rows first, which would leave this guard looking at an
+  # already-empty collection (and the Dokku resources orphaned/reachable only
+  # through this hook).
+  before_destroy :destroy_services_dokku, prepend: true
 
   validates :name, presence: true
   validates :environment, inclusion: { in: %w[production staging development] }
@@ -14,26 +18,87 @@ class Project < ApplicationRecord
   before_validation :set_default_server, on: %i[create update]
   after_create :set_network_name
 
+  # Opt-in flag for the before_destroy hook below. Deliberately not persisted.
+  attr_accessor :allow_resource_destruction
+
   def set_network_name
     return if network_name.present?
     slug = name.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/^-|-$/, "").presence || "project"
     update_column(:network_name, "rd-#{slug}-#{id}")
   end
 
+  # Destroying a Project row also destroys every Dokku app, datastore, and
+  # volume it owns. That must never happen as a side effect of a bare
+  # `project.destroy!`: callers have to opt in explicitly, after confirming the
+  # intent and snapshotting any data. See Project#destroy_with_resources!.
   def destroy_services_dokku
+    return if services.empty?
     return unless server&.ssh_key.present?
+
+    unless allow_resource_destruction
+      refuse_destruction!(
+        "Refusing to destroy the Dokku resources of #{name.inspect} (services: #{services.pluck(:name).join(', ')}). " \
+        "Set #allow_resource_destruction or use #destroy_with_resources! after confirming."
+      )
+    end
+
     engine = DokkuEngine.new(server)
+    failures = []
 
     services.each do |service|
-      if service.subtype_record&.has_capability?(:destroy)
+      result = if service.subtype_record&.has_capability?(:destroy)
         engine.datastore_destroy(service)
       else
         engine.app_destroy(service.dokku_app_name)
       end
-    rescue StandardError
-      # Log but don't block the destroy — DB record must be removed
-      Rails.logger.error "Failed to destroy Dokku resource for service #{service.id}: #{$!.message}"
+
+      next if result.nil? || result[:success]
+
+      failures << "#{service.name}: #{(result[:output] || result[:error]).to_s.strip}"
     end
+
+    if failures.any?
+      refuse_destruction!(
+        "Dokku could not remove every resource for #{name.inspect}: #{failures.join('; ')}. " \
+        "Nothing was deleted from RailDock so the failure can be retried safely."
+      )
+    end
+  end
+
+  # Records why the destroy was refused and aborts the callback chain.
+  # `throw :abort` (not `raise`) keeps `destroy` returning false instead of
+  # exploding out of callers such as Organization#destroy, while `destroy!`
+  # still raises ActiveRecord::RecordNotDestroyed with these messages attached.
+  def refuse_destruction!(message)
+    errors.add(:base, message)
+    throw :abort
+  end
+
+  # What destroying this project would take with it.
+  def dokku_resource_summary
+    {
+      name: name,
+      services: services.count,
+      databases: services.where(service_type: "database").count,
+      caches: services.where(service_type: "cache").count,
+      storage_mounts: StorageMount.where(service_id: services.select(:id)).count,
+      backups: Backup.where(service_id: services.select(:id)).count
+    }
+  end
+
+  # Explicit destructive API used by the controller after the user typed the
+  # project name to confirm.
+  def destroy_with_resources!(confirmed: false)
+    raise ArgumentError, "Project destruction must be confirmed" unless confirmed
+
+    self.allow_resource_destruction = true
+    destroy!
+  rescue ActiveRecord::RecordNotDestroyed => e
+    # `throw :abort` makes Rails raise a generic message; re-raise with the
+    # reason the guard recorded so the API can explain what was kept and why.
+    raise e if errors.empty?
+
+    raise ActiveRecord::RecordNotDestroyed, errors.full_messages.join("; ")
   end
 
   # For backward compat + new org scoping
@@ -102,7 +167,11 @@ class Project < ApplicationRecord
   end
 
   def manifest_synced?
+    # Drift means the stored manifest no longer describes what was applied, so
+    # the project must not also be reported as "in sync".
+    return false if manifest_drift_detected
     return false if manifest_last_applied_at.nil?
+
     manifest_last_synced_at.present? && manifest_last_applied_at >= manifest_last_synced_at
   end
 

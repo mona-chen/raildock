@@ -213,6 +213,130 @@ RSpec.describe ManifestReconciler do
     end
   end
 
+  describe "#removal_plan" do
+    it "describes exactly what a destructive apply would remove" do
+      create(:service, :database, project: project, name: "old-db", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+
+      plan = reconciler.removal_plan
+
+      expect(reconciler).to be_destructive
+      expect(plan.length).to eq(1)
+      expect(plan.first).to include(
+        service_name: "old-db",
+        service_type: "database",
+        datastore: true,
+        data_bearing: true,
+        managed_by: "manifest",
+        completed_backups: 0
+      )
+    end
+
+    it "is empty when nothing would be removed" do
+      reconciler = described_class.new(project, desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ]))
+      reconciler.diff
+
+      expect(reconciler.removal_plan).to be_empty
+      expect(reconciler).not_to be_destructive
+    end
+  end
+
+  describe "#apply! removals" do
+    let(:engine) { instance_double(DokkuEngine) }
+    let(:host_engine) { instance_double(HostEngine) }
+
+    it "keeps omitted services when the apply did not confirm removals" do
+      service = create(:service, project: project, name: "old-worker", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+
+      result = reconciler.apply!(engine, host_engine: host_engine)
+
+      expect(result[:success]).to be(true)
+      expect(result[:skipped_removals]).to eq([ "old-worker" ])
+      expect(Service.exists?(service.id)).to be(true)
+      expect(ActivityEvent.where(project: project, action: :warning).last.message).to match(/Confirm the removal/)
+    end
+
+    it "never destroys anything when an earlier phase failed" do
+      service = create(:service, project: project, name: "old-worker", managed_by: :manifest)
+      reconciler = described_class.new(
+        project,
+        desired_state(services: [ app_definition(name: "web", repo: "https://github.com/acme/app.git") ])
+      )
+      reconciler.diff
+      allow(engine).to receive(:app_create).and_return({ success: false, output: "build failed" })
+      expect(engine).not_to receive(:app_destroy)
+
+      result = reconciler.apply!(engine, host_engine: host_engine, allow_removals: true)
+
+      expect(result[:success]).to be(false)
+      expect(result[:blocked_removals]).to eq([ "old-worker" ])
+      expect(result[:skipped_removals]).to be_empty
+      expect(Service.exists?(service.id)).to be(true)
+    end
+
+    it "destroys confirmed removals in the final phase" do
+      service = create(:service, project: project, name: "old-worker", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+      allow(engine).to receive(:app_destroy).and_return({ success: true })
+
+      result = reconciler.apply!(engine, host_engine: host_engine, allow_removals: true)
+
+      expect(result[:success]).to be(true)
+      expect(result[:skipped_removals]).to be_empty
+      expect(Service.exists?(service.id)).to be(false)
+      expect(ActivityEvent.where(service_name: "old-worker", action: :destroyed)).to exist
+    end
+
+    it "refuses to destroy a database when no snapshot could be taken" do
+      database = create(:service, :database, project: project, name: "old-db", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+      expect(engine).not_to receive(:datastore_destroy)
+
+      result = reconciler.apply!(engine, host_engine: host_engine, allow_removals: true)
+
+      expect(result[:success]).to be(false)
+      expect(result[:skipped_removals]).to eq([ "old-db" ])
+      expect(result[:results].last[:error]).to match(/no verified backup destination/)
+      expect(Service.exists?(database.id)).to be(true)
+    end
+
+    it "destroys a database without a snapshot only when data loss is acknowledged" do
+      database = create(:service, :database, project: project, name: "old-db", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+      allow(engine).to receive(:datastore_destroy).and_return({ success: true })
+
+      result = reconciler.apply!(
+        engine,
+        host_engine: host_engine,
+        allow_removals: true,
+        force_destroy_data: true
+      )
+
+      expect(result[:success]).to be(true)
+      expect(Service.exists?(database.id)).to be(false)
+      expect(ActivityEvent.where(service_name: "old-db", action: :warning).last.message).to match(/acknowledged/)
+    end
+
+    it "reports a destruction that Dokku refused" do
+      service = create(:service, project: project, name: "old-worker", managed_by: :manifest)
+      reconciler = described_class.new(project, desired_state(services: []))
+      reconciler.diff
+      allow(engine).to receive(:app_destroy).and_return({ success: false, output: "repository is locked" })
+
+      result = reconciler.apply!(engine, host_engine: host_engine, allow_removals: true)
+
+      expect(result[:success]).to be(false)
+      expect(result[:results].last[:error]).to match(/repository is locked/)
+      expect(Service.exists?(service.id)).to be(true)
+    end
+  end
+
   describe "#apply!" do
     it "adopts explicitly listed UI-managed services into manifest management" do
       service = create(

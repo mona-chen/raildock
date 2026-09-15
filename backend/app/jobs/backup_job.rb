@@ -28,10 +28,10 @@ class BackupJob < ApplicationJob
       File.join(root, backup.service_id.to_s, "#{backup.id}-#{Time.current.utc.strftime('%Y%m%d%H%M%S')}.dump")
     end
 
-    def enforce_retention(service, schedule)
+    def enforce_retention(_service, schedule)
       return unless schedule
 
-      service.backups.completed.order(created_at: :desc).offset(schedule.retention_count).find_each(&:remove_file!)
+      schedule.enforce_retention!
       schedule.update!(last_run_at: Time.current, next_run_at: schedule.calculate_next_run)
     end
 

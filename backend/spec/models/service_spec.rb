@@ -259,5 +259,19 @@ RSpec.describe Service, type: :model do
       create(:service_link, from_service: other, to_service: service)
       expect { service.destroy }.to change { ServiceLink.count }.by(-1)
     end
+
+    it "keeps backup artifacts when the service is destroyed" do
+      backup = service.backups.create!(
+        status: "completed",
+        backup_kind: "database",
+        metadata: { "service_name" => service.name, "project_name" => service.project.name, "remote_verified" => true }
+      )
+
+      expect { service.destroy }.not_to change { Backup.count }
+
+      expect(backup.reload).to have_attributes(service_id: nil, status: "completed")
+      expect(backup.source_name).to eq(service.name)
+      expect(Backup.detached).to include(backup)
+    end
   end
 end

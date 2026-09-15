@@ -574,6 +574,25 @@ RSpec.describe DeploymentJob, type: :job do
         expect(service.reload.environment_variables.find_by(key: "NEW_FROM_MANIFEST")).to be_nil
         expect(project.reload.manifest_content).to be_nil
       end
+
+      it "flags drift when the repo manifest omits a service the project still owns" do
+        create(:service, project: project, name: "legacy-worker", managed_by: :manifest)
+        deployment.update!(triggered_by: "webhook")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(project.reload.manifest_drift_detected).to be(true)
+        expect(project.manifest_synced?).to be(false)
+      end
+
+      it "does not flag drift when the manifest describes every service" do
+        deployment.update!(triggered_by: "webhook")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(project.reload.manifest_drift_detected).to be(false)
+      end
     end
   end
 end

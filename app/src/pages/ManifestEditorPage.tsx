@@ -18,6 +18,7 @@ import TemplateGallery from '@/components/manifest/TemplateGallery'
 import ChangeBadge from '@/components/manifest/ChangeBadge'
 import ManifestCodeEditor from '@/components/manifest/ManifestCodeEditor'
 import type { ManifestChange } from '@/lib/api'
+import type { ManifestRemoval } from '@/types'
 
 const DEFAULT_MANIFEST = `# RailDock Manifest
 # Docs: https://raildock.dev/docs/manifest
@@ -57,7 +58,12 @@ export default function ManifestEditorPage() {
     severity: 'reload' | 'restart' | 'redeploy'
     bySeverity: Record<string, number>
     warnings: string[]
+    removals?: ManifestRemoval[]
+    removalToken?: string
   } | null>(null)
+  const [showRemovalConfirm, setShowRemovalConfirm] = useState(false)
+  const [removalAcknowledged, setRemovalAcknowledged] = useState(false)
+  const [destroyWithoutSnapshot, setDestroyWithoutSnapshot] = useState(false)
 
   useEffect(() => {
     if (manifest?.content && !hasEditedRef.current) {
@@ -75,15 +81,39 @@ export default function ManifestEditorPage() {
     setActiveTab('preview')
   }, [projectId, content, updateManifest, previewManifest])
 
+  const removals = previewResult?.removals ?? []
+
+  const performApply = useCallback(
+    async (confirmRemovals: boolean) => {
+      if (!projectId || !previewResult) return
+      await applyManifest.mutateAsync({
+        projectId,
+        confirmRemovals,
+        removalConfirmationToken: confirmRemovals ? previewResult.removalToken : undefined,
+        forceDestroyData: confirmRemovals && destroyWithoutSnapshot,
+      })
+      setPreviewResult(null)
+      setShowRemovalConfirm(false)
+      setRemovalAcknowledged(false)
+      setDestroyWithoutSnapshot(false)
+    },
+    [projectId, previewResult, applyManifest, destroyWithoutSnapshot],
+  )
+
   const handleApply = useCallback(async () => {
     if (!projectId) return
     if (!previewResult || previewResult.changes.length === 0) {
       toast.error('No changes to apply')
       return
     }
-    await applyManifest.mutateAsync({ projectId })
-    setPreviewResult(null)
-  }, [projectId, previewResult, applyManifest])
+    // Services the manifest no longer declares are never removed silently: the
+    // backend keeps them unless we confirm this exact list.
+    if (removals.length > 0) {
+      setShowRemovalConfirm(true)
+      return
+    }
+    await performApply(false)
+  }, [projectId, previewResult, removals.length, performApply])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(content)
@@ -312,6 +342,25 @@ export default function ManifestEditorPage() {
                     {previewResult.severity === 'redeploy' && 'Full rebuilds are required. Services will be unavailable during deploy.'}
                   </div>
                 </div>
+                {removals.length > 0 && (
+                  <div className="mt-3 bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-1.5 text-[11px] text-red-400 font-medium mb-1.5">
+                      <AlertTriangle size={12} />
+                      {removals.length} service{removals.length === 1 ? '' : 's'} not in this manifest
+                    </div>
+                    <div className="text-[11px] text-white/40 mb-2">
+                      They will be kept unless you confirm their removal.
+                    </div>
+                    <ul className="space-y-1">
+                      {removals.map((removal) => (
+                        <li key={removal.serviceName} className="text-[11px] font-mono text-white/60">
+                          {removal.serviceName}
+                          {removal.datastore && <span className="ml-1 text-red-400/70">(database)</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <button
                   onClick={handleApply}
                   disabled={isApplying}
@@ -331,6 +380,98 @@ export default function ManifestEditorPage() {
           </div>
         )}
       </div>
+
+      {showRemovalConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={() => setShowRemovalConfirm(false)}
+        >
+          <div
+            className="bg-[#18181B] border border-red-500/20 rounded-2xl p-6 w-full max-w-[460px] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Confirm service removals</h3>
+                <p className="text-xs text-[#6B6B7B]">This deletes data and cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-[#A0A0B0] mb-3">
+              This manifest does not declare the following services. Applying it will destroy them:
+            </p>
+
+            <ul className="space-y-2 mb-4 max-h-[220px] overflow-y-auto">
+              {removals.map((removal) => (
+                <li key={removal.serviceName} className="bg-black/30 border border-white/[0.06] rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-mono text-white">{removal.serviceName}</span>
+                    <span className="text-[11px] text-white/40">{removal.serviceType}/{removal.subtype}</span>
+                  </div>
+                  <div className="text-[11px] text-white/40 mt-1">
+                    {removal.datastore ? 'Database — data will be destroyed. ' : ''}
+                    {removal.storageMounts.length > 0
+                      ? `${removal.storageMounts.length} volume(s) attached. `
+                      : ''}
+                    {removal.completedBackups > 0
+                      ? `${removal.completedBackups} existing backup(s) preserved.`
+                      : 'No existing backup recorded.'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <label className="flex items-start gap-2 mb-3 text-[11px] text-[#A0A0B0]">
+              <input
+                type="checkbox"
+                checked={removalAcknowledged}
+                onChange={(event) => setRemovalAcknowledged(event.target.checked)}
+                className="mt-0.5"
+              />
+              I understand these services and their data will be permanently destroyed.
+            </label>
+
+            {removals.some((removal) => removal.dataBearing) && (
+              <label className="flex items-start gap-2 mb-3 text-[11px] text-[#A0A0B0]">
+                <input
+                  type="checkbox"
+                  checked={destroyWithoutSnapshot}
+                  onChange={(event) => setDestroyWithoutSnapshot(event.target.checked)}
+                  className="mt-0.5"
+                />
+                Destroy even if no verified snapshot can be taken (unrecoverable).
+              </label>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRemovalConfirm(false)}
+                className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-all"
+              >
+                Keep services
+              </button>
+              <button
+                onClick={() => performApply(true)}
+                disabled={!removalAcknowledged || isApplying}
+                className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {isApplying ? 'Destroying...' : 'Destroy and apply'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => performApply(false)}
+              disabled={isApplying}
+              className="w-full mt-2 py-2 text-[11px] text-white/40 hover:text-white/60 transition-all disabled:opacity-50"
+            >
+              Apply everything else and keep these services
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

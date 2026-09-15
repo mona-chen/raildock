@@ -31,6 +31,9 @@ import type {
   RestoreDrill,
   Backup,
   RepositoryImportPreview,
+  ManifestRemoval,
+  ManifestRemovalPreview,
+  DataSafetyReport,
   DockerContainer,
   StorageMountKind,
   StorageMountEntry,
@@ -143,8 +146,12 @@ export const projectsApi = {
     return normalizeProject(res)
   },
 
-  destroy: async (id: string): Promise<void> => {
-    await fetchJson(`/api/projects/${id}`, { method: 'DELETE' })
+  // Deleting a project destroys every app, database, and volume it owns.
+  // The backend requires the project name and a verified pre-delete snapshot.
+  destroy: async (id: string, confirmation: string, options: { forceDestroyData?: boolean } = {}): Promise<void> => {
+    const params = new URLSearchParams({ confirmation })
+    if (options.forceDestroyData) params.set('force_destroy_data', 'true')
+    await fetchJson(`/api/projects/${id}?${params.toString()}`, { method: 'DELETE' })
   },
 
   updateSharedVars: async (id: string, vars: { key: string; value: string }[]): Promise<void> => {
@@ -187,8 +194,12 @@ export const servicesApi = {
     return normalizeService(res)
   },
 
-  destroy: async (id: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}`, { method: 'DELETE' })
+  // The backend requires a typed service name and a verified snapshot before a
+  // datastore (or anything with mounted volumes) can be destroyed.
+  destroy: async (id: string, confirm: string, options: { forceDestroyData?: boolean } = {}): Promise<void> => {
+    const params = new URLSearchParams({ confirm })
+    if (options.forceDestroyData) params.set('force_destroy_data', 'true')
+    await fetchJson(`/api/services/${id}?${params.toString()}`, { method: 'DELETE' })
   },
 
   update: async (id: string, data: Partial<Service>): Promise<Service> => {
@@ -394,15 +405,33 @@ export const servicesApi = {
     return res.blob()
   },
 
-  restoreBackup: async (id: string, backupId: string): Promise<{ success: boolean }> => {
-    return fetchJson(`/api/services/${id}/backups/${backupId}/restore`, { method: 'POST' })
+  // Restoring overwrites live data, so the backend requires the service name to
+  // be typed back and takes a safety snapshot of the current state first.
+  restoreBackup: async (
+    id: string,
+    backupId: string,
+    options: { confirm: string; forceDestroyData?: boolean },
+  ): Promise<{ success: boolean }> => {
+    return fetchJson(`/api/services/${id}/backups/${backupId}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ confirm: options.confirm, force_destroy_data: options.forceDestroyData ?? false }),
+    })
   },
 
-  deleteBackup: async (id: string, backupId: string): Promise<void> => {
-    await fetchJson(`/api/services/${id}/backups/${backupId}`, { method: 'DELETE' })
+  // Deleting the only backup of a service is refused unless force is set.
+  deleteBackup: async (id: string, backupId: string, options: { force?: boolean } = {}): Promise<void> => {
+    const query = options.force ? '?force=true' : ''
+    await fetchJson(`/api/services/${id}/backups/${backupId}${query}`, { method: 'DELETE' })
   },
 
-  restore: async (id: string, file?: File): Promise<{ success: boolean }> => {
+  // An uploaded dump replaces the live database, so the backend requires the
+  // service name to be typed back (as a query parameter — the body is the dump)
+  // and takes a safety snapshot of the current state first.
+  restore: async (
+    id: string,
+    options: { confirm: string; forceDestroyData?: boolean },
+    file?: File,
+  ): Promise<{ success: boolean }> => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
@@ -412,7 +441,10 @@ export const servicesApi = {
       // the PGDMP bytes as JSON or x-www-form-urlencoded.
       authHeaders['Content-Type'] = 'application/octet-stream'
 
-      const res = await fetch(`${API_BASE}/api/services/${id}/restore`, {
+      const query = new URLSearchParams({ confirm: options.confirm })
+      if (options.forceDestroyData) query.set('force_destroy_data', 'true')
+
+      const res = await fetch(`${API_BASE}/api/services/${id}/restore?${query.toString()}`, {
         method: 'POST',
         headers: authHeaders,
         body: file || undefined,
@@ -422,7 +454,9 @@ export const servicesApi = {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `HTTP ${res.status}`)
+        const error = new Error(err.error || `HTTP ${res.status}`) as Error & { code?: string }
+        if (err.code) error.code = err.code
+        throw error
       }
       return res.json()
     } catch (error) {
@@ -763,6 +797,10 @@ export const organizationsApi = {
       return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}/verify`, { method: 'POST' })
     },
   },
+
+  dataSafety: async (organizationId: string): Promise<DataSafetyReport> => {
+    return fetchJson<DataSafetyReport>(`/api/organizations/${organizationId}/data_safety`)
+  },
 }
 
 // ── Invitations (token-based, no JWT) ──────────────
@@ -835,7 +873,11 @@ export interface ManifestPreview {
   totalChanges: number
   bySeverity: Record<string, number>
   warnings: string[]
+  removals?: ManifestRemoval[]
+  removalToken?: string
+  requiresRemovalConfirmation?: boolean
 }
+
 
 export const manifestApi = {
   get: async (projectId: string): Promise<{
@@ -867,8 +909,24 @@ export const manifestApi = {
     return fetchJson(`/api/projects/${projectId}/manifest/preview`, { method: 'POST' })
   },
 
-  apply: async (projectId: string): Promise<{ jobId: string; status: string; message: string }> => {
-    return fetchJson(`/api/projects/${projectId}/manifest/apply`, { method: 'POST' })
+  // Destructive preview: exactly which services this manifest would destroy,
+  // plus the token the apply call must echo back to authorise it.
+  removalPreview: async (projectId: string): Promise<ManifestRemovalPreview> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/preview`, { method: 'POST' })
+  },
+
+  apply: async (
+    projectId: string,
+    options: { confirmRemovals?: boolean; removalConfirmationToken?: string; forceDestroyData?: boolean } = {},
+  ): Promise<{ jobId: string; status: string; message: string; removals?: ManifestRemoval[] }> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/apply`, {
+      method: 'POST',
+      body: JSON.stringify({
+        confirm_removals: options.confirmRemovals ?? false,
+        removal_confirmation_token: options.removalConfirmationToken,
+        force_destroy_data: options.forceDestroyData ?? false,
+      }),
+    })
   },
 
   status: async (projectId: string): Promise<{
@@ -886,8 +944,34 @@ export const manifestApi = {
 export const repositoryImportsApi = {
   preview: async (projectId: string, data: { gitSourceId: string; repository: string; branch: string }): Promise<RepositoryImportPreview> =>
     fetchJson(`/api/projects/${projectId}/repository-import/preview`, { method: 'POST', body: JSON.stringify({ git_source_id: data.gitSourceId, repository: data.repository, branch: data.branch }) }),
-  apply: async (projectId: string, snapshotToken: string, builderOverrides: Record<string, string> = {}): Promise<{ status: string; serviceCount: number; commitSha: string }> =>
-    fetchJson(`/api/projects/${projectId}/repository-import/apply`, { method: 'POST', body: JSON.stringify({ snapshot_token: snapshotToken, builder_overrides: builderOverrides }) }),
+  apply: async (
+    projectId: string,
+    snapshotToken: string,
+    builderOverrides: Record<string, string> = {},
+    options: { confirmRemovals?: boolean; removalConfirmationToken?: string; forceDestroyData?: boolean } = {},
+  ): Promise<{
+    status: string
+    serviceCount: number
+    commitSha: string
+    removals: ManifestRemoval[]
+    removalsConfirmed: boolean
+    /**
+     * False when the project's stored manifest was left alone because adopting
+     * the imported one would have dropped services that were not confirmed for
+     * removal. The editor then reports drift.
+     */
+    manifestAdopted: boolean
+  }> =>
+    fetchJson(`/api/projects/${projectId}/repository-import/apply`, {
+      method: 'POST',
+      body: JSON.stringify({
+        snapshot_token: snapshotToken,
+        builder_overrides: builderOverrides,
+        confirm_removals: options.confirmRemovals ?? false,
+        removal_confirmation_token: options.removalConfirmationToken,
+        force_destroy_data: options.forceDestroyData ?? false,
+      }),
+    }),
 }
 
 // ── Modules API ──────────────────────────────

@@ -626,13 +626,25 @@ class DeploymentJob < ApplicationJob
 
     result = reconciler.apply!(engine, host_engine: host_engine, deploy_exclusions: [ service.id ])
 
+    # Syncing the repo's manifest must not claim the project is in sync when the
+    # manifest omits services that still exist. `diff(preserve_removed_services:
+    # true)` keeps them, but the stored manifest no longer describes them — which
+    # is exactly the situation that silently preceded an unintended teardown.
+    drift = undescribed_services?(project, desired)
+
     project.update!(
       manifest_content: content,
       manifest_format: desired.format_detected,
       manifest_last_synced_at: Time.current,
-      manifest_drift_detected: false
+      manifest_drift_detected: drift
     )
     project.update!(manifest_last_applied_at: Time.current) if result[:success]
+
+    if drift
+      deployment.append_log_chunk!(
+        "--- Manifest sync kept services this manifest does not declare; the project is now flagged as drifted ---\n"
+      )
+    end
 
     note = result[:success] ? "applied" : "partially applied"
     deployment.append_log_chunk!("--- Manifest sync from #{path}: #{changes.length} change(s) #{note} ---\n")
@@ -643,6 +655,14 @@ class DeploymentJob < ApplicationJob
     Rails.logger.warn "Repo manifest at #{path} failed to parse for #{service.dokku_app_name}: #{e.message} — deploying with stored state"
   rescue => e
     Rails.logger.warn "Repo manifest sync failed for #{service.dokku_app_name}: #{e.message} — deploying with stored state"
+  end
+
+  # True when the manifest would remove services that are not UI-managed, i.e.
+  # services the project owns but this manifest no longer describes.
+  def undescribed_services?(project, desired)
+    probe = ManifestReconciler.new(project, desired)
+    probe.diff
+    probe.destructive?
   end
 
   # Fetches [path, content] of the manifest file at the deployed commit/branch

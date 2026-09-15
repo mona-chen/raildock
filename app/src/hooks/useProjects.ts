@@ -32,7 +32,18 @@ export function useCreateProject() {
 export function useDestroyProject() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: api.projects.destroy,
+    // Deleting a project removes every app, database, and volume it owns: the
+    // backend requires the typed project name (and, when no verified snapshot
+    // could be taken, an explicit acknowledgement).
+    mutationFn: ({
+      id,
+      confirmation,
+      forceDestroyData,
+    }: {
+      id: string
+      confirmation: string
+      forceDestroyData?: boolean
+    }) => api.projects.destroy(id, confirmation, { forceDestroyData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast.success('Project deleted')

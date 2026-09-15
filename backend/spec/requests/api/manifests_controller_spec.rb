@@ -80,4 +80,72 @@ RSpec.describe "Api::ManifestsController", type: :request do
       end
     end
   end
+
+  describe "POST /api/projects/:project_id/manifest/apply" do
+    let(:manifest) do
+      <<~TOML
+        [[services]]
+        name = "web"
+        category = "app"
+        subtype = "web"
+      TOML
+    end
+
+    before do
+      project.update!(manifest_content: manifest, manifest_format: "raildock.toml")
+      create(:service, project: project, name: "old-worker", managed_by: :manifest)
+    end
+
+    it "refuses to destroy services until the removals are confirmed" do
+      expect {
+        post "/api/projects/#{project.id}/manifest/apply", headers: auth_headers(user)
+      }.not_to have_enqueued_job(ManifestApplyJob)
+
+      expect(response).to have_http_status(:precondition_required)
+      body = response.parsed_body
+      expect(body["code"]).to eq("removals_required")
+      expect(body["removals"].map { |removal| removal["service_name"] }).to eq([ "old-worker" ])
+      expect(body["removal_token"]).to be_present
+    end
+
+    it "applies the manifest once the exact removals are confirmed" do
+      post "/api/projects/#{project.id}/manifest/apply", headers: auth_headers(user)
+      token = response.parsed_body.fetch("removal_token")
+
+      expect {
+        post "/api/projects/#{project.id}/manifest/apply",
+          params: { confirm_removals: true, removal_confirmation_token: token },
+          headers: auth_headers(user), as: :json
+      }.to have_enqueued_job(ManifestApplyJob).with(project.id, manifest, hash_including(allow_removals: true))
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "rejects a confirmation issued for a different manifest revision" do
+      post "/api/projects/#{project.id}/manifest/apply", headers: auth_headers(user)
+      token = response.parsed_body.fetch("removal_token")
+
+      project.update!(manifest_content: "#{manifest}
+# edited after review
+")
+
+      expect {
+        post "/api/projects/#{project.id}/manifest/apply",
+          params: { confirm_removals: true, removal_confirmation_token: token },
+          headers: auth_headers(user), as: :json
+      }.not_to have_enqueued_job(ManifestApplyJob)
+
+      expect(response).to have_http_status(:precondition_required)
+      expect(response.parsed_body["error"]).to match(/manifest changed/)
+    end
+
+    it "reports the removals in the preview" do
+      post "/api/projects/#{project.id}/manifest/preview", headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body["requires_removal_confirmation"]).to be(true)
+      expect(body["removals"].map { |removal| removal["service_name"] }).to eq([ "old-worker" ])
+    end
+  end
 end

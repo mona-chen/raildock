@@ -313,6 +313,58 @@ print_summary() {
 }
 
 # ── Main ───────────────────────────────────────
+# Preserve RailDock's own state before anything is removed.
+#
+# The Postgres volume holds every project, server, and backup destination —
+# including the per-destination recovery keys that are the *only* way to decrypt
+# the artifacts already sitting in object storage. Without a dump, an uninstall
+# silently orphans every off-host backup, so take one first and refuse to delete
+# the volumes when it cannot be produced.
+preserve_state() {
+  if [ "$KEEP_DATA" = true ]; then
+    log_info "Keeping data volumes (--keep-data) — skipping the pre-uninstall dump"
+    return 0
+  fi
+
+  local dump_dir="$RAILDOCK_DIR/../raildock-uninstall-backup"
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local target="$dump_dir/raildock-db-$stamp.sql"
+
+  if ! is_stack_running; then
+    log_warn "RailDock is not running, so its database cannot be dumped."
+    log_warn "Backup destination recovery keys stored in it will be unrecoverable."
+    if ! confirm "Remove the database volume anyway?" "n"; then
+      log_info "Uninstall cancelled — nothing was removed"
+      exit 0
+    fi
+    return 0
+  fi
+
+  log_step "Preserving RailDock state before removal..."
+
+  if ! mkdir -p "$dump_dir"; then
+    log_warn "Could not create $dump_dir"
+    if ! confirm "Continue without dumping the database?" "n"; then
+      log_info "Uninstall cancelled — nothing was removed"
+      exit 0
+    fi
+    return 0
+  fi
+
+  if docker compose -f "$COMPOSE_FILE" exec -T db pg_dump -U raildock raildock_production > "$target" 2>/dev/null && [ -s "$target" ]; then
+    log_ok "RailDock database dumped to $target"
+    log_warn "Keep the recovery key of every backup destination: without it the artifacts in S3 cannot be decrypted."
+  else
+    rm -f "$target" 2>/dev/null || true
+    log_warn "Could not dump the RailDock database."
+    if ! confirm "Remove the database volume anyway (projects, servers, and destination keys will be lost)?" "n"; then
+      log_info "Uninstall cancelled — nothing was removed"
+      exit 0
+    fi
+  fi
+}
+
 main() {
   print_banner
   
@@ -332,6 +384,7 @@ main() {
     exit 0
   fi
   
+  preserve_state
   stop_services
   remove_containers
   remove_images

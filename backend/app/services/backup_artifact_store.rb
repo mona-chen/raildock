@@ -3,14 +3,21 @@ class BackupArtifactStore
     checksum = Digest::SHA256.file(source_path).hexdigest
     size = File.size(source_path)
 
-    destinations = backup.service.project.server.backup_destinations.where(id: destination_ids).to_a
-    destinations = [ backup.backup_destination ].compact if destinations.empty? && backup.backup_destination
+    destinations = resolve_destinations(backup, destination_ids)
 
     copies = []
     copies << create_local_copy!(backup, source_path, size, checksum) if keep_local_copy?(destinations, destination_ids)
 
     destinations.each do |destination|
       copies << upload_to_destination!(backup, source_path, destination, size, checksum, storage_name: storage_name)
+    end
+
+    # Refuse to mark a backup complete when nothing was actually written.
+    # (Previously a destination id that resolved to no destination, or a
+    # remote-only request whose upload silently failed, produced a "completed"
+    # backup with no artifact at all.)
+    if copies.empty?
+      raise "Backup produced no copies (local copy disabled and no destination resolved)"
     end
 
     backup.update!(
@@ -21,6 +28,7 @@ class BackupArtifactStore
     )
 
     # When the only copy is remote, remove the local temp file to save disk.
+    # Only safe because every remote copy above was verified after upload.
     File.delete(source_path) if copies.none?(&:local?) && File.exist?(source_path)
     backup
   end
@@ -106,12 +114,15 @@ class BackupArtifactStore
     end
 
     def upload_to_destination!(backup, source_path, destination, size, checksum, storage_name: nil)
-      key = destination.object_key(storage_name || "#{backup.service_id}/#{backup.backup_kind}/#{backup.id}.backup.enc")
+      key = destination.object_key(storage_name || default_storage_key(backup))
 
-      Tempfile.create([ "raildock-encrypted", ".backup" ], binmode: true) do |encrypted|
+      verification = Tempfile.create([ "raildock-encrypted", ".backup" ], binmode: true) do |encrypted|
         BackupArtifactCipher.new.encrypt(source_path, encrypted.path, destination.encryption_key)
+        # upload verifies the stored object size with head_object, so a partial
+        # or rejected upload raises instead of being recorded as a good copy.
         BackupDestinationClient.new(destination).upload(encrypted.path, key)
       end
+      remote_size = verification.is_a?(Hash) ? verification[:content_length] : nil
 
       backup.backup_copies.create!(
         backup_destination: destination,
@@ -119,8 +130,40 @@ class BackupArtifactStore
         status: :completed,
         storage_key: key,
         size: size,
-        metadata: { "checksum" => checksum, "encryption" => "AES-256-GCM" }
+        metadata: {
+          "checksum" => checksum,
+          "encryption" => "AES-256-GCM",
+          "verified_at" => Time.current.iso8601,
+          "remote_size" => remote_size
+        }.compact
       )
+    end
+
+    def default_storage_key(backup)
+      owner = backup.service_id || backup.id
+      "#{owner}/#{backup.backup_kind}/#{backup.id}.backup.enc"
+    end
+
+    # Destinations a backup may be written to: the server's own destinations plus
+    # its organization's. Explicit ids must resolve, otherwise a scheduled backup
+    # would quietly land nowhere.
+    def resolve_destinations(backup, destination_ids)
+      requested = Array(destination_ids).map { |id| id.to_s.strip }.reject { |id| id.blank? || id == "local" }
+      server = backup.service&.project&.server
+
+      destinations = if requested.any?
+        scope = BackupDestination.reachable_from(server)
+        found = scope.where(id: requested).to_a
+        missing = requested - found.map { |destination| destination.id.to_s }
+        raise "Unknown backup destination(s): #{missing.join(', ')}" if missing.any?
+
+        found
+      else
+        []
+      end
+
+      destinations = [ backup.backup_destination ] if destinations.empty? && backup.backup_destination
+      destinations
     end
 
     def verify!(backup, path)
@@ -133,12 +176,26 @@ class BackupArtifactStore
 
     def metadata(backup, checksum, copies)
       destinations = copies.reject(&:local?).map(&:destination_name).presence
-      (backup.metadata || {}).merge(
+      (backup.metadata || {}).merge(source_metadata(backup)).merge(
         "checksum" => checksum,
         "verified_at" => Time.current.iso8601,
         "destination" => destinations&.join(", ") || "local",
         "encryption" => destinations.present? ? "AES-256-GCM" : nil,
-        "copy_count" => copies.size
+        "copy_count" => copies.size,
+        "remote_verified" => copies.any? { |copy| copy.backup_destination.present? && copy.metadata["verified_at"].present? }
       ).compact
+    end
+
+    # Snapshot the source identity into the artifact metadata: backup rows
+    # outlive the services they came from, so the artifact has to carry the
+    # names needed to understand and restore it later.
+    def source_metadata(backup)
+      service = backup.service
+      {
+        "service_name" => service&.name,
+        "service_subtype" => service&.subtype,
+        "project_name" => service&.project&.name,
+        "server_name" => service&.project&.server&.name
+      }.compact
     end
 end

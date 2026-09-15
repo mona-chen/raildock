@@ -23,6 +23,10 @@ RSpec.describe "Service backups", type: :request do
     )
   end
 
+  def verified_snapshot
+    DestructionSnapshot::Result.new(success: true, backup: nil, destinations: [], error: nil)
+  end
+
   it "downloads an available verified artifact" do
     get "/api/services/#{service.id}/backups/#{backup.id}/download", headers: auth_headers(user)
 
@@ -32,17 +36,82 @@ RSpec.describe "Service backups", type: :request do
 
   it "restores an available artifact through the datastore adapter" do
     allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).with(service, @path).and_return(success: true, output: "")
+    allow_any_instance_of(DestructionSnapshot).to receive(:call).and_return(verified_snapshot)
 
     expect {
-      post "/api/services/#{service.id}/backups/#{backup.id}/restore", headers: auth_headers(user)
+      post "/api/services/#{service.id}/backups/#{backup.id}/restore", params: { confirm: service.name }, headers: auth_headers(user)
     }.to change(ActivityEvent, :count).by(1)
 
     expect(response).to have_http_status(:ok)
   end
 
-  it "deletes the database record and artifact together" do
+  it "requires typed confirmation before restoring over live data" do
+    expect_any_instance_of(DokkuEngine).not_to receive(:datastore_import_from)
+
+    post "/api/services/#{service.id}/backups/#{backup.id}/restore", headers: auth_headers(user)
+
+    expect(response).to have_http_status(:precondition_required)
+    expect(response.parsed_body["code"]).to eq("confirmation_required")
+    expect(response.parsed_body["restore"]["snapshots_since"]).to eq(0)
+  end
+
+  it "captures a pre-restore snapshot so the restore itself is reversible" do
+    allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).and_return(success: true, output: "")
+    allow(DestructionSnapshot).to receive(:new).and_call_original
+    expect(DestructionSnapshot).to receive(:new)
+      .with(service, trigger: "pre_restore")
+      .and_return(instance_double(DestructionSnapshot, call: verified_snapshot))
+
+    post "/api/services/#{service.id}/backups/#{backup.id}/restore",
+      params: { confirm: service.name }, headers: auth_headers(user)
+
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "refuses to overwrite live data when no pre-restore snapshot can be taken" do
+    failure = DestructionSnapshot::Result.new(
+      success: false, backup: nil, destinations: [], error: "no verified backup destination is configured"
+    )
+    allow(DestructionSnapshot).to receive(:new).and_return(instance_double(DestructionSnapshot, call: failure))
+    expect_any_instance_of(DokkuEngine).not_to receive(:datastore_import_from)
+
+    post "/api/services/#{service.id}/backups/#{backup.id}/restore",
+      params: { confirm: service.name }, headers: auth_headers(user)
+
+    expect(response).to have_http_status(:precondition_required)
+    expect(response.parsed_body["code"]).to eq("snapshot_required")
+  end
+
+  it "overwrites live data when the loss is explicitly acknowledged" do
+    failure = DestructionSnapshot::Result.new(
+      success: false, backup: nil, destinations: [], error: "no verified backup destination is configured"
+    )
+    allow(DestructionSnapshot).to receive(:new).and_return(instance_double(DestructionSnapshot, call: failure))
+    allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).and_return(success: true, output: "")
+
+    expect {
+      post "/api/services/#{service.id}/backups/#{backup.id}/restore",
+        params: { confirm: service.name, force_destroy_data: true }, headers: auth_headers(user)
+    }.to change(ActivityEvent, :count).by(2)
+
+    expect(response).to have_http_status(:ok)
+    warning = ActivityEvent.where(action: :warning).last
+    expect(warning.message).to include("without a pre-restore snapshot")
+  end
+
+  it "refuses to delete the last remaining backup without an explicit acknowledgement" do
     expect {
       delete "/api/services/#{service.id}/backups/#{backup.id}", headers: auth_headers(user)
+    }.not_to change(Backup, :count)
+
+    expect(response).to have_http_status(:precondition_required)
+    expect(response.parsed_body["code"]).to eq("last_backup")
+    expect(File).to exist(@path)
+  end
+
+  it "deletes the database record and artifact together once acknowledged" do
+    expect {
+      delete "/api/services/#{service.id}/backups/#{backup.id}", params: { force: true }, headers: auth_headers(user)
     }.to change(Backup, :count).by(-1)
 
     expect(response).to have_http_status(:no_content)
@@ -61,8 +130,10 @@ RSpec.describe "Service backups", type: :request do
     volume_backup = service.backups.create!(status: "completed", backup_kind: "volume", file_path: @path,
       size: File.size(@path), metadata: { "checksum" => Digest::SHA256.file(@path).hexdigest, "host_path" => "uploads-data" })
     allow_any_instance_of(HostEngine).to receive(:volume_import_from).with("uploads-data", @path).and_return(success: true, output: "")
+    allow_any_instance_of(DestructionSnapshot).to receive(:call).and_return(verified_snapshot)
 
-    post "/api/services/#{service.id}/backups/#{volume_backup.id}/restore", headers: auth_headers(user)
+    post "/api/services/#{service.id}/backups/#{volume_backup.id}/restore",
+      params: { confirm: service.name }, headers: auth_headers(user)
 
     expect(response).to have_http_status(:ok)
   end

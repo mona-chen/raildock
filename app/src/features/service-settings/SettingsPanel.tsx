@@ -811,21 +811,41 @@ function DangerZone({ svc }: { svc: Service }) {
   const destroyService = useDestroyService()
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmName, setConfirmName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [needsAcknowledgement, setNeedsAcknowledgement] = useState(false)
 
   const isConfirmValid = confirmName === svc.name
 
-  const handleDestroy = () => {
+  const handleDestroy = (forceDestroyData = false) => {
     if (!isConfirmValid) return
-    setShowConfirm(false)
-    setConfirmName('')
-    destroyService.mutate(svc.id, {
-      onSuccess: () => navigate(`/dashboard`), // go back to projects list after destroy
-    })
+    setError(null)
+    destroyService.mutate(
+      { id: svc.id, confirm: confirmName, forceDestroyData },
+      {
+        onSuccess: () => {
+          setShowConfirm(false)
+          setConfirmName('')
+          navigate(`/dashboard`) // go back to projects list after destroy
+        },
+        onError: (err: Error & { code?: string }) => {
+          // The backend refuses to delete data unless a verified snapshot
+          // exists — or the user explicitly accepts permanent loss.
+          if (err.code === 'snapshot_required') {
+            setNeedsAcknowledgement(true)
+            setError(err.message)
+          } else {
+            setError(err.message)
+          }
+        },
+      },
+    )
   }
 
   const handleClose = () => {
     setShowConfirm(false)
     setConfirmName('')
+    setError(null)
+    setNeedsAcknowledgement(false)
   }
 
   return (
@@ -877,6 +897,17 @@ function DangerZone({ svc }: { svc: Service }) {
               . This will remove the Dokku app and all data including databases, storage, and logs.
             </p>
 
+            <p className="text-[11px] text-[#6B6B7B] mb-4">
+              RailDock takes a verified snapshot on a configured backup destination before deleting data. If no
+              destination is verified, the deletion is refused until you acknowledge the loss.
+            </p>
+
+            {error && (
+              <div className="mb-4 text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                {error}
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
                 Type <span className="font-mono font-medium text-white">{svc.name}</span> to confirm
@@ -898,11 +929,11 @@ function DangerZone({ svc }: { svc: Service }) {
                 Cancel
               </button>
               <button
-                onClick={handleDestroy}
-                disabled={!isConfirmValid}
+                onClick={() => handleDestroy(needsAcknowledgement)}
+                disabled={!isConfirmValid || destroyService.isPending}
                 className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Destroy Service
+                {needsAcknowledgement ? 'Destroy Without Snapshot' : 'Destroy Service'}
               </button>
             </div>
           </div>

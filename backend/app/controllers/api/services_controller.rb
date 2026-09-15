@@ -121,21 +121,64 @@ module Api
     def destroy
       authorize_service!(@service, action: :delete)
 
+      # Typed confirmation: a single unauthenticated-ish DELETE must not be
+      # able to wipe a database and its volumes.
+      unless params[:confirm].to_s == @service.name
+        return render json: {
+          error: "Type the service name to confirm destruction",
+          code: "confirmation_required",
+          actionable: true,
+          service: destruction_summary(@service)
+        }, status: :precondition_required
+      end
+
+      # Take a restorable, off-host snapshot before anything irreversible.
+      snapshot = DestructionSnapshot.new(@service).call
+      unless snapshot.success?
+        unless force_destroy_data?
+          return render json: {
+            error: "Refusing to destroy #{@service.name}: #{snapshot.error}",
+            code: "snapshot_required",
+            actionable: true,
+            service: destruction_summary(@service)
+          }, status: :precondition_required
+        end
+
+        ActivityEvent.create!(
+          project: @service.project,
+          service_name: @service.name,
+          action: :warning,
+          message: "Destroying #{@service.name} without a verified snapshot: #{snapshot.error}"
+        )
+      end
+
       # Destroy Dokku resource if server connected
+      refusal = nil
       with_dokku_engine(@service) do |engine|
-        if @service.subtype_record&.has_capability?(:destroy)
+        result = if @service.subtype_record&.has_capability?(:destroy)
           engine.datastore_destroy(@service)
         else
           engine.app_destroy(@service.dokku_app_name)
         end
+
+        if result && !result[:success] && !dokku_resource_missing?(result)
+          refusal = (result[:output] || result[:error]).to_s.strip.presence || "Dokku refused to destroy the resource"
+        end
       end
 
+      if refusal
+        return render json: { error: "Could not destroy #{@service.name}: #{refusal}" }, status: :bad_gateway
+      end
+
+      name = @service.name
+      project = @service.project
       @service.destroy!
       ActivityEvent.create!(
-        project: @service.project,
-        service_name: @service.name,
+        project: project,
+        service_name: name,
         action: :destroyed,
-        message: "Destroyed #{@service.name}"
+        message: "Destroyed #{name}",
+        metadata: { snapshot_backup_id: snapshot&.backup&.id }.compact
       )
       head :no_content
     end
@@ -549,6 +592,38 @@ module Api
         return render json: { error: "Restore artifact exceeds the configured size limit" }, status: :content_too_large
       end
 
+      # A restore from an uploaded dump replaces the live database just like
+      # restoring a stored artifact does, so it needs the same two gates. The
+      # body is the dump itself, which is why the confirmation arrives as a
+      # query parameter.
+      unless params[:confirm].to_s == @service.name
+        return render json: {
+          error: "Type the service name to confirm restoring over the current data",
+          code: "confirmation_required",
+          actionable: true,
+          restore: restoration_summary(@service)
+        }, status: :precondition_required
+      end
+
+      safety = DestructionSnapshot.new(@service, trigger: "pre_restore").call
+      unless safety.success?
+        unless force_destroy_data?
+          return render json: {
+            error: "Refusing to restore #{@service.name}: #{safety.error}",
+            code: "snapshot_required",
+            actionable: true,
+            restore: restoration_summary(@service)
+          }, status: :precondition_required
+        end
+
+        ActivityEvent.create!(
+          project: @service.project,
+          service_name: @service.name,
+          action: :warning,
+          message: "Restoring #{@service.name} from an upload without a pre-restore snapshot: #{safety.error}"
+        )
+      end
+
       with_dokku_engine(@service) do |engine|
         result = Tempfile.create([ "raildock-restore", ".dump" ], binmode: true) do |file|
           IO.copy_stream(request.body, file, max_bytes + 1)
@@ -565,7 +640,8 @@ module Api
             project: @service.project,
             service_name: @service.name,
             action: :created,
-            message: "Restored #{@service.name} from backup"
+            message: "Restored #{@service.name} from backup",
+            metadata: { "pre_restore_backup_id" => safety.backup&.id }.compact
           )
           return render json: { success: true, message: "Restore completed" }
         else
@@ -606,6 +682,39 @@ module Api
       backup = @service.backups.find(params[:backup_id])
       return render json: { error: "Backup artifact is unavailable" }, status: :not_found unless backup.available?
 
+      # A restore is itself destructive: `postgres:import` replaces the live
+      # database and a volume restore empties the mount directory before
+      # extracting. Everything written since the snapshot would be gone, so the
+      # same two gates as a destroy apply — typed confirmation, then a verified
+      # safety snapshot of the *current* data so the restore is reversible.
+      unless params[:confirm].to_s == @service.name
+        return render json: {
+          error: "Type the service name to confirm restoring over the current data",
+          code: "confirmation_required",
+          actionable: true,
+          restore: restoration_summary(@service, backup)
+        }, status: :precondition_required
+      end
+
+      safety = DestructionSnapshot.new(@service, trigger: "pre_restore").call
+      unless safety.success?
+        unless force_destroy_data?
+          return render json: {
+            error: "Refusing to restore #{@service.name}: #{safety.error}",
+            code: "snapshot_required",
+            actionable: true,
+            restore: restoration_summary(@service, backup)
+          }, status: :precondition_required
+        end
+
+        ActivityEvent.create!(
+          project: @service.project,
+          service_name: @service.name,
+          action: :warning,
+          message: "Restoring #{@service.name} without a pre-restore snapshot: #{safety.error}"
+        )
+      end
+
       result = case backup.backup_kind
       when "database"
         outcome = nil
@@ -627,13 +736,33 @@ module Api
       end
       return render json: { error: result[:output] }, status: :unprocessable_entity unless result[:success]
 
-      ActivityEvent.create!(project: @service.project, service_name: @service.name, action: :created, message: "Restored #{@service.name} from verified backup", metadata: { backup_id: backup.id })
+      ActivityEvent.create!(
+        project: @service.project,
+        service_name: @service.name,
+        action: :created,
+        message: "Restored #{@service.name} from verified backup",
+        metadata: { backup_id: backup.id, pre_restore_backup_id: safety.backup&.id }.compact
+      )
       render json: { success: true }
     end
 
     def destroy_backup
       authorize_service!(@service, action: :delete)
-      @service.backups.find(params[:backup_id]).remove_file!
+      backup = @service.backups.find(params[:backup_id])
+
+      # Removing the only remaining artifact for a service would make the next
+      # failure unrecoverable; require an explicit acknowledgement.
+      last_backup = backup.last_copy_for_service?
+      acknowledged = ActiveModel::Type::Boolean.new.cast(params[:force])
+      if last_backup && !acknowledged
+        return render json: {
+          error: "This is the last backup of #{@service.name}. Deleting it leaves no restore point.",
+          code: "last_backup",
+          actionable: true
+        }, status: :precondition_required
+      end
+
+      backup.remove_file!(force: acknowledged)
       head :no_content
     end
 
@@ -825,6 +954,52 @@ module Api
       return unless service.project&.server&.ssh_key.present?
       engine = DokkuEngine.new(service.project.server)
       yield(engine)
+    end
+
+    def force_destroy_data?
+      ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false
+    end
+
+    def destruction_summary(service)
+      {
+        name: service.name,
+        service_type: service.service_type,
+        subtype: service.subtype,
+        data_bearing: DestructionSnapshot.data_bearing?(service),
+        storage_mounts: service.storage_mounts.map { |mount| mount.host_path },
+        completed_backups: service.backups.completed.count
+      }
+    end
+
+    # What restoring over `service` would replace, and how much data has
+    # accumulated since that recovery point (when there is one: an uploaded
+    # dump has no stored artifact behind it).
+    def restoration_summary(service, backup = nil)
+      summary = {
+        name: service.name,
+        service_type: service.service_type,
+        data_bearing: DestructionSnapshot.data_bearing?(service),
+        storage_mounts: service.storage_mounts.map(&:host_path)
+      }
+
+      return summary if backup.nil?
+
+      summary.merge(
+        backup_id: backup.id,
+        backup_kind: backup.backup_kind,
+        backup_created_at: backup.created_at.iso8601,
+        backup_size: backup.size,
+        snapshots_since: service.backups
+          .completed
+          .where(backup_kind: backup.backup_kind)
+          .where("created_at > ?", backup.created_at)
+          .count
+      )
+    end
+
+    def dokku_resource_missing?(result)
+      output = (result[:output] || result[:error]).to_s.downcase
+      output.include?("not found") || output.include?("does not exist") || output.include?("no such")
     end
 
     # After Dokku links a database, it injects env vars like DATABASE_URL.

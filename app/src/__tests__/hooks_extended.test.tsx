@@ -122,9 +122,9 @@ describe('useRestoreService', () => {
 
   it('calls api.services.restore and shows toast on success', async () => {
     const { result } = renderHook(() => useRestoreService(), { wrapper: createWrapper() })
-    result.current.mutate({ id: 'svc-1' })
+    result.current.mutate({ id: 'svc-1', confirm: 'svc-1' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(api.services.restore).toHaveBeenCalledWith('svc-1', undefined)
+    expect(api.services.restore).toHaveBeenCalledWith('svc-1', { confirm: 'svc-1', forceDestroyData: undefined }, undefined)
     expect(toast.success).toHaveBeenCalledWith('Restore initiated')
   })
 })

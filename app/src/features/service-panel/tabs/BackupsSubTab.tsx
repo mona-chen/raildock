@@ -65,6 +65,9 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const [retentionCount, setRetentionCount] = useState(7)
   const [scheduleDestinations, setScheduleDestinations] = useState<string[]>([])
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
+  const [restoreConfirmation, setRestoreConfirmation] = useState('')
+  const [pendingUpload, setPendingUpload] = useState<File | null>(null)
+  const [uploadConfirmation, setUploadConfirmation] = useState('')
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([])
 
   const { data: recovery } = useRecovery(serviceId)
@@ -76,6 +79,17 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
     [backups],
   )
   const restoreTarget = backups.find((backup) => backup.id === confirmRestore)
+  const restoreConfirmed = restoreConfirmation === svc.name
+
+  const closeRestore = () => {
+    setConfirmRestore(null)
+    setRestoreConfirmation('')
+  }
+
+  const closeUpload = () => {
+    setPendingUpload(null)
+    setUploadConfirmation('')
+  }
 
   const toggleDestination = (id: string, current: string[], setter: (ids: string[]) => void) => {
     if (current.includes(id)) {
@@ -143,7 +157,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             </button>
             <input ref={fileInputRef} type="file" accept=".sql,.dump,.gz" className="hidden" onChange={(event) => {
               const file = event.target.files?.[0]
-              if (file) restoreUpload.mutate({ id: serviceId, file })
+              if (file) { setUploadConfirmation(''); setPendingUpload(file) }
               event.target.value = ''
             }} />
 
@@ -342,7 +356,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
                     <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download backup" className="rounded p-1.5 text-white/30 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
-                    <button type="button" disabled={!ready} onClick={() => setConfirmRestore(backup.id)} aria-label="Restore backup" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore backup" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
                     <button type="button" disabled={!ready || backup.backupKind === 'volume' || backup.backupKind === 'wal'} onClick={() => runDrill.mutate({ id: serviceId, backupId: backup.id })} aria-label="Run isolated restore drill" className="rounded p-1.5 text-white/30 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-20"><FlaskConical size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete backup" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
@@ -352,6 +366,37 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           </div>
         )}
       </section>
+
+      {pendingUpload && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upload-restore-title">
+          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+            <div className="flex items-center gap-2 text-amber-300"><Upload size={16} /><h3 id="upload-restore-title" className="text-[14px] font-medium">Restore from an uploaded dump?</h3></div>
+            <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
+              <div className="flex justify-between"><span className="text-white/30">File</span><span className="max-w-[60%] truncate text-white/65">{pendingUpload.name}</span></div>
+              <div className="flex justify-between"><span className="text-white/30">Size</span><span className="text-white/65">{formatSize(pendingUpload.size)}</span></div>
+            </div>
+            <p className="mt-3 text-[12px] leading-5 text-white/40">
+              The current database contents will be replaced by this dump. A safety snapshot of the current state is
+              taken first when a verified destination is available, but anything written since this dump was created
+              cannot be recovered.
+            </p>
+            <label className="mt-3 block text-[11px] text-white/40">
+              Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
+              <input
+                value={uploadConfirmation}
+                onChange={(event) => setUploadConfirmation(event.target.value)}
+                autoComplete="off"
+                aria-label="Confirm service name"
+                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={closeUpload} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button disabled={uploadConfirmation !== svc.name} onClick={() => restoreUpload.mutate({ id: serviceId, file: pendingUpload, confirm: svc.name }, { onSuccess: () => closeUpload() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmRestore && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="restore-title">
@@ -367,11 +412,22 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             )}
             <p className="mt-3 text-[12px] leading-5 text-white/40">
               Current {restoreTarget?.backupKind === 'volume' ? 'volume files' : 'database contents'} will be replaced.
-              This operation cannot be undone. Create a fresh backup first if you may need to reverse it.
+              A safety snapshot of the current state is taken first when a verified destination is available, but
+              everything written since this recovery point is replaced.
             </p>
+            <label className="mt-3 block text-[11px] text-white/40">
+              Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
+              <input
+                value={restoreConfirmation}
+                onChange={(event) => setRestoreConfirmation(event.target.value)}
+                autoComplete="off"
+                aria-label="Confirm service name"
+                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+              />
+            </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setConfirmRestore(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
-              <button onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore }, { onSuccess: () => setConfirmRestore(null) })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25"><Check size={12} /> Restore</button>
+              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button disabled={!restoreConfirmed} onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore, confirm: svc.name }, { onSuccess: () => closeRestore() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
             </div>
           </div>
         </div>

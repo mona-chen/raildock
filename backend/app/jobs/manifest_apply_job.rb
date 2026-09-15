@@ -6,7 +6,15 @@
 class ManifestApplyJob < ApplicationJob
   queue_as :default
 
-  def perform(project_id, content = nil)
+  # options:
+  #   allow_removals:     opt-in to destroying services that the manifest omits.
+  #                       Only set after the user confirmed the exact list.
+  #   force_destroy_data: proceed without a verified pre-destroy snapshot.
+  def perform(project_id, content = nil, options = {})
+    options = (options || {}).symbolize_keys
+    allow_removals = ActiveModel::Type::Boolean.new.cast(options[:allow_removals]) || false
+    force_destroy_data = ActiveModel::Type::Boolean.new.cast(options[:force_destroy_data]) || false
+
     project = Project.find_by(id: project_id)
     unless project
       Rails.logger.warn "ManifestApplyJob: project #{project_id} not found"
@@ -53,14 +61,21 @@ class ManifestApplyJob < ApplicationJob
 
     result = engine.with_session do
       host_engine.with_session do
-        reconciler.apply!(engine, host_engine: host_engine)
+        reconciler.apply!(
+          engine,
+          host_engine: host_engine,
+          allow_removals: allow_removals,
+          force_destroy_data: force_destroy_data
+        )
       end
     end
+
+    report_withheld_removals(project, project_id, result)
 
     if result[:success]
       project.update!(
         manifest_last_applied_at: Time.current,
-        manifest_drift_detected: false
+        manifest_drift_detected: drift_after_apply?(project, content, result)
       )
       broadcast(project_id, "completed", "All manifest changes applied successfully")
     else
@@ -86,6 +101,41 @@ class ManifestApplyJob < ApplicationJob
   end
 
   private
+
+  # "No drift" means the stored manifest describes what was actually applied.
+  # Clearing the flag unconditionally would erase the warning raised when an
+  # apply deliberately kept services the manifest omits — leaving the project
+  # with a manifest that no longer matches it and no indication of that.
+  def drift_after_apply?(project, content, result)
+    withheld = Array(result[:skipped_removals]).any? || Array(result[:blocked_removals]).any?
+    withheld || project.manifest_content.to_s != content.to_s
+  end
+
+  # Removals that were intentionally not performed. Surfaced loudly so a
+  # manifest that drops a service is never mistaken for a completed clean-up.
+  def report_withheld_removals(project, project_id, result)
+    skipped = Array(result[:skipped_removals])
+    blocked = Array(result[:blocked_removals])
+    return if skipped.empty? && blocked.empty?
+
+    if skipped.any?
+      broadcast(
+        project_id,
+        "warning",
+        "#{skipped.length} service#{'s' if skipped.length != 1} kept: #{skipped.join(', ')}",
+        details: [ "Removals require explicit confirmation before RailDock deletes them." ]
+      )
+    end
+
+    if blocked.any?
+      broadcast(
+        project_id,
+        "warning",
+        "Removals skipped after failures: #{blocked.join(', ')}",
+        details: [ "Nothing was deleted because earlier manifest changes did not succeed." ]
+      )
+    end
+  end
 
   def broadcast(project_id, status, message, details: nil)
     payload = {

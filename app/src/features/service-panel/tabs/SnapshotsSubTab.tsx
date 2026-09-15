@@ -56,8 +56,15 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
   const [snapshotMountId, setSnapshotMountId] = useState('')
   const [scheduleDestinations, setScheduleDestinations] = useState<string[]>([])
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
+  const [restoreConfirmation, setRestoreConfirmation] = useState('')
 
   const restoreTarget = snapshots.find((backup) => backup.id === confirmRestore)
+  const restoreConfirmed = restoreConfirmation === svc.name
+
+  const closeRestore = () => {
+    setConfirmRestore(null)
+    setRestoreConfirmation('')
+  }
   const volumeSchedules = schedules.filter((s: BackupSchedule) => s.backupKind === 'volume')
 
   const toggleDestination = (id: string, current: string[], setter: (ids: string[]) => void) => {
@@ -222,7 +229,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
                     <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download snapshot" className="rounded p-1.5 text-white/30 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
-                    <button type="button" disabled={!ready} onClick={() => setConfirmRestore(backup.id)} aria-label="Restore snapshot" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore snapshot" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete snapshot" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
                 </article>
@@ -323,9 +330,19 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
             <p className="mt-3 text-[12px] leading-5 text-white/40">
               Current volume files will be replaced. This operation cannot be undone.
             </p>
+            <label className="mt-3 block text-[11px] text-white/40">
+              Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
+              <input
+                value={restoreConfirmation}
+                onChange={(event) => setRestoreConfirmation(event.target.value)}
+                autoComplete="off"
+                aria-label="Confirm service name"
+                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+              />
+            </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setConfirmRestore(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
-              <button onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore }, { onSuccess: () => setConfirmRestore(null) })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25"><Check size={12} /> Restore</button>
+              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button disabled={!restoreConfirmed} onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore, confirm: svc.name }, { onSuccess: () => closeRestore() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 module Api
   class OrganizationsController < BaseController
-    before_action :set_organization, only: [ :show, :update, :destroy, :server_bootstrap ]
+    before_action :set_organization, only: [ :show, :update, :destroy, :server_bootstrap, :data_safety ]
 
     def index
       organizations = current_user.organizations.includes(:owner, :memberships).order(:name)
@@ -11,6 +11,15 @@ module Api
       authorize_organization_access!(@organization)
       return if performed?
       render json: serialize(@organization)
+    end
+
+    # GET /api/organizations/:id/data-safety
+    # What in this organization could be lost, and what to do about it.
+    def data_safety
+      authorize_organization_access!(@organization)
+      return if performed?
+
+      render json: DataSafetyReport.new(organization: @organization).call
     end
 
     def create
@@ -50,8 +59,24 @@ module Api
         return render json: { error: "Only owners can delete organizations" }, status: :forbidden
       end
 
-      @organization.destroy
-      head :no_content
+      # Dependent projects refuse to disappear while they still own services
+      # whose Dokku resources have not been removed; surface that instead of
+      # replying 204 for a deletion that did not happen.
+      if @organization.destroy
+        head :no_content
+      else
+        render json: {
+          error: "Could not delete #{@organization.name}: #{@organization.errors.full_messages.presence&.join('; ') || 'it still has dependent records'}. Delete its projects and backup destinations first — each project removes its own apps, databases, and volumes.",
+          code: "dependent_records_present",
+          actionable: true
+        }, status: :unprocessable_entity
+      end
+    rescue ActiveRecord::RecordNotDestroyed => e
+      render json: {
+        error: @organization.errors.full_messages.presence&.join("; ") || e.message,
+        code: "dependent_records_present",
+        actionable: true
+      }, status: :unprocessable_entity
     end
 
     def server_bootstrap

@@ -95,6 +95,11 @@ RSpec.describe "Api::ProjectsController", type: :request do
   end
 
   describe "DELETE /api/projects/:id" do
+    before do
+      allow_any_instance_of(DokkuEngine).to receive(:app_destroy).and_return({ success: true })
+      allow_any_instance_of(DokkuEngine).to receive(:datastore_destroy).and_return({ success: true })
+    end
+
     context "when unauthenticated" do
       it "returns 401" do
         delete "/api/projects/#{project.id}"
@@ -103,9 +108,42 @@ RSpec.describe "Api::ProjectsController", type: :request do
     end
 
     context "when authenticated" do
-      it "destroys the project" do
+      it "requires the project name before destroying anything" do
         expect {
           delete "/api/projects/#{project.id}", headers: auth_headers(user)
+        }.not_to change(Project, :count)
+
+        expect(response).to have_http_status(:precondition_required)
+        expect(response.parsed_body["code"]).to eq("confirmation_required")
+        expect(response.parsed_body.dig("project", "services")).to eq(1)
+      end
+
+      it "destroys the project when the name is confirmed" do
+        expect {
+          delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
+        }.to change(Project, :count).by(-1)
+
+        expect(response).to have_http_status(:no_content)
+      end
+
+      it "refuses to delete a project whose databases cannot be snapshotted" do
+        create(:service, :database, project: project)
+
+        expect {
+          delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
+        }.not_to change(Project, :count)
+
+        expect(response).to have_http_status(:precondition_required)
+        expect(response.parsed_body["code"]).to eq("snapshot_required")
+      end
+
+      it "deletes the project when data loss is explicitly acknowledged" do
+        create(:service, :database, project: project)
+
+        expect {
+          delete "/api/projects/#{project.id}",
+            params: { confirmation: project.name, force_destroy_data: true },
+            headers: auth_headers(user)
         }.to change(Project, :count).by(-1)
 
         expect(response).to have_http_status(:no_content)

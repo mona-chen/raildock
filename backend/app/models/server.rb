@@ -1,6 +1,11 @@
 class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
-  has_many :backup_destinations, dependent: :destroy
+  # `restrict_with_error`, not `destroy`: a destination owns off-host artifacts
+  # that outlive both the server and RailDock itself. Destroying it as a side
+  # effect of deleting a server would delete rows that reference those objects,
+  # and `dependent: :destroy` silently ignores a refused child destroy (the FK
+  # then blows up mid-transaction).
+  has_many :backup_destinations, dependent: :restrict_with_error
   belongs_to :user, optional: true
   belongs_to :organization, optional: true
 

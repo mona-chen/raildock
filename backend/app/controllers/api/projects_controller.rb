@@ -35,11 +35,52 @@ module Api
       render json: project.as_json(methods: [ :service_ids, :service_counts ])
     end
 
+    # Destroys a project *and* every Dokku app, datastore, and volume it owns.
+    # Requires the caller to type the project name, and refuses to continue
+    # unless every data-bearing service could be snapshotted first.
     def destroy
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :delete)
-      project.destroy!
+
+      unless params[:confirmation].to_s == project.name
+        return render json: {
+          error: "Type the project name to confirm deletion of #{project.name} and everything it owns",
+          code: "confirmation_required",
+          actionable: true,
+          project: project.dokku_resource_summary
+        }, status: :precondition_required
+      end
+
+      snapshot = DestructionSnapshot.capture_all(project.services.to_a)
+      if snapshot[:errors].any? && !force_destroy_data?
+        return render json: {
+          error: "Refusing to delete #{project.name}: #{snapshot[:errors].join('; ')}. Configure a verified backup destination, or explicitly acknowledge permanent data loss.",
+          code: "snapshot_required",
+          actionable: true,
+          project: project.dokku_resource_summary
+        }, status: :precondition_required
+      end
+
+      if snapshot[:errors].any?
+        ActivityEvent.create!(
+          project: project,
+          service_name: "-",
+          action: :warning,
+          message: "Deleting #{project.name} without complete snapshots: #{snapshot[:errors].join('; ')}"
+        )
+      end
+
+      project.destroy_with_resources!(confirmed: true)
       head :no_content
+    rescue ActiveRecord::RecordNotDestroyed => e
+      # Dokku refused to remove a resource, or the guard tripped. Nothing was
+      # deleted from RailDock, so this is safe to retry.
+      render json: {
+        error: project.errors.full_messages.presence&.join("; ") || e.message,
+        code: "resources_not_removed",
+        actionable: true,
+        project: project.dokku_resource_summary
+      }, status: :unprocessable_entity
     end
 
     def shared_vars
@@ -196,6 +237,10 @@ module Api
       params.permit(:name, :description, :environment, :server_id).tap do |permitted|
         permitted.delete(:server_id) if permitted[:server_id].present? && !scoped_servers.exists?(id: permitted[:server_id])
       end
+    end
+
+    def force_destroy_data?
+      ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false
     end
 
     def with_dokku_engine(service)

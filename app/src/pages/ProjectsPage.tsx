@@ -79,7 +79,9 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((project) => (
-              <ProjectCard key={project.id} project={project} onOpen={handleOpenProject} onDelete={destroyProject.mutate} />
+              <ProjectCard key={project.id} project={project} onOpen={handleOpenProject} onDelete={(id, confirmation, options) =>
+                destroyProject.mutateAsync({ id, confirmation, forceDestroyData: options?.forceDestroyData })
+              } />
             ))}
           </div>
         )}
@@ -166,11 +168,13 @@ function ProjectCard({
 }: {
   project: { id: string; name: string; description: string; environment: string; serviceCounts: { total: number; app: number; database: number; cache: number } }
   onOpen: (id: string) => void
-  onDelete: (id: string) => void
+  onDelete: (id: string, confirmation: string, options?: { forceDestroyData?: boolean }) => Promise<unknown>
 }) {
   const { total, app: appCount, database: dbCount, cache: cacheCount } = project.serviceCounts
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmName, setConfirmName] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [needsAcknowledgement, setNeedsAcknowledgement] = useState(false)
 
   const isConfirmValid = confirmName === project.name
 
@@ -183,18 +187,31 @@ function ProjectCard({
   const handleDeleteClick = () => {
     setShowConfirm(true)
     setConfirmName('')
+    setDeleteError(null)
+    setNeedsAcknowledgement(false)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async (forceDestroyData = false) => {
     if (!isConfirmValid) return
-    setShowConfirm(false)
-    setConfirmName('')
-    onDelete(project.id)
+    setDeleteError(null)
+    try {
+      // The backend takes a verified snapshot of every database/volume first and
+      // refuses the delete when that is impossible.
+      await onDelete(project.id, confirmName, { forceDestroyData })
+      setShowConfirm(false)
+      setConfirmName('')
+    } catch (err) {
+      const error = err as Error & { code?: string }
+      setDeleteError(error.message)
+      if (error.code === 'snapshot_required') setNeedsAcknowledgement(true)
+    }
   }
 
   const handleClose = () => {
     setShowConfirm(false)
     setConfirmName('')
+    setDeleteError(null)
+    setNeedsAcknowledgement(false)
   }
 
   return (
@@ -292,6 +309,17 @@ function ProjectCard({
               . All associated Dokku resources (apps, databases) will be destroyed.
             </p>
 
+            <p className="text-[11px] text-[#6B6B7B] mb-4">
+              Databases and volumes are snapshotted to a verified backup destination first. If none is configured the
+              deletion is refused until you acknowledge the loss.
+            </p>
+
+            {deleteError && (
+              <div className="mb-4 text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                {deleteError}
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
                 Type <span className="font-mono font-medium text-white">{project.name}</span> to confirm
@@ -313,11 +341,11 @@ function ProjectCard({
                 Cancel
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => handleDelete(needsAcknowledgement)}
                 disabled={!isConfirmValid}
                 className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Delete Project
+                {needsAcknowledgement ? 'Delete Without Snapshot' : 'Delete Project'}
               </button>
             </div>
           </div>

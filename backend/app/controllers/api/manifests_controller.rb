@@ -56,7 +56,7 @@ module Api
         severity: ChangeClassifier.aggregate(changes),
         warnings: desired.warnings,
         synced: @project.manifest_synced?
-      }
+      }.merge(removals_payload(reconciler, content))
     end
 
     # POST /api/projects/:project_id/manifest/preview
@@ -79,7 +79,7 @@ module Api
         total_changes: changes.length,
         by_severity: ChangeClassifier.group_by_severity(changes).transform_values(&:count),
         warnings: desired.warnings
-      }
+      }.merge(removals_payload(reconciler, content))
     end
 
     # POST /api/projects/:project_id/manifest/apply
@@ -101,13 +101,36 @@ module Api
         return render json: { error: "Validation failed", details: validation.errors }, status: :unprocessable_entity
       end
 
+      reconciler = ManifestReconciler.new(@project, desired)
+      reconciler.diff
+
+      # Destroying services requires an explicit, reviewable confirmation.
+      # Everything else applies normally.
+      decision = removal_decision(reconciler, content)
+      unless decision[:allowed]
+        return render json: {
+          error: decision[:error],
+          code: "removals_required",
+          actionable: true,
+          removals: decision[:removals],
+          removal_token: RemovalConfirmation.issue(
+            project: @project,
+            digest: RemovalConfirmation.digest_for(content),
+            removals: decision[:removals].map { |removal| removal[:service_name] }
+          )
+        }, status: :precondition_required
+      end
+
       # Queue background job
-      job = ManifestApplyJob.perform_later(@project.id, content)
+      job = ManifestApplyJob.perform_later(@project.id, content, decision[:options])
 
       render json: {
         job_id: job.job_id,
         status: "queued",
-        message: "Manifest changes are being applied"
+        message: decision[:options][:allow_removals] ?
+          "Manifest changes are being applied, including #{decision[:removals].length} confirmed removal(s)" :
+          "Manifest changes are being applied",
+        removals: decision[:removals]
       }
     end
 
@@ -124,6 +147,59 @@ module Api
     end
 
     private
+
+    # What this manifest would destroy, plus the token the client must echo
+    # back to authorise it. Empty for non-destructive changes.
+    def removals_payload(reconciler, content)
+      removals = reconciler.removal_plan
+      return { removals: [], requires_removal_confirmation: false } if removals.empty?
+
+      {
+        removals: removals,
+        requires_removal_confirmation: true,
+        removal_token: RemovalConfirmation.issue(
+          project: @project,
+          digest: RemovalConfirmation.digest_for(content),
+          removals: removals.map { |removal| removal[:service_name] }
+        ),
+        removal_digest: RemovalConfirmation.digest_for(content)
+      }
+    end
+
+    def removal_decision(reconciler, content)
+      removals = reconciler.removal_plan
+      return { allowed: true, removals: [], options: {} } if removals.empty?
+
+      names = removals.map { |removal| removal[:service_name] }
+      confirmed = ActiveModel::Type::Boolean.new.cast(params[:confirm_removals])
+      unless confirmed
+        return {
+          allowed: false,
+          removals: removals,
+          error: "This manifest removes #{names.length} service(s): #{names.join(', ')}. Confirm the removal before RailDock deletes them."
+        }
+      end
+
+      begin
+        RemovalConfirmation.verify!(
+          token: params[:removal_confirmation_token],
+          project: @project,
+          digest: RemovalConfirmation.digest_for(content),
+          removals: names
+        )
+      rescue RemovalConfirmation::InvalidConfirmation => error
+        return { allowed: false, removals: removals, error: error.message }
+      end
+
+      {
+        allowed: true,
+        removals: removals,
+        options: {
+          allow_removals: true,
+          force_destroy_data: ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false
+        }
+      }
+    end
 
     def set_and_authorize_project!
       @project = scoped_projects.find_by(id: params[:project_id])

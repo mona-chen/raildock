@@ -249,6 +249,33 @@ RSpec.describe "Api::ServersController", type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+
+      it "refuses to delete a server that still holds backup destinations" do
+        server.backup_destinations.create!(
+          name: "Off-host S3", provider: "s3", region: "us-east-1", bucket: "tween-backups"
+        )
+
+        expect {
+          delete "/api/servers/#{server.id}", headers: org_headers
+        }.not_to change(Server, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body["code"]).to eq("dependent_records_present")
+        expect(response.parsed_body["error"]).to include("backup destination")
+      end
+
+      it "deletes the server once its backup destinations are removed" do
+        destination = server.backup_destinations.create!(
+          name: "Off-host S3", provider: "s3", region: "us-east-1", bucket: "tween-backups"
+        )
+        destination.destroy!
+
+        expect {
+          delete "/api/servers/#{server.id}", headers: org_headers
+        }.to change(Server, :count).by(-1)
+
+        expect(response).to have_http_status(:no_content)
+      end
     end
   end
 end

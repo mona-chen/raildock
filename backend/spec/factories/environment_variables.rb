@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :environment_variable do
-    key { Faker::Internet.domain_word.upcase }
+    sequence(:key) { |n| "VAR_#{n}_#{SecureRandom.hex(3).upcase}" }
     value { Faker::Lorem.word }
     source { nil }
     is_dokku_internal { false }

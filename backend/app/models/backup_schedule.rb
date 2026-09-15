@@ -22,6 +22,19 @@ class BackupSchedule < ApplicationRecord
     update!(next_run_at: calculate_next_run)
   end
 
+  # Expires artifacts belonging to *this* schedule, and only artifacts of its
+  # own kind. Retention used to run against every completed backup of the
+  # service, so a short volume-retention window could delete the only database
+  # backup — and a service with no artifact left is unrecoverable.
+  def enforce_retention!
+    scope = service.backups
+      .completed
+      .where(backup_kind: backup_kind)
+      .where("metadata->>'schedule_id' = ?", id.to_s)
+
+    BackupRetention.prune(scope, keep: retention_count)
+  end
+
   def destination_ids
     metadata&.fetch("destination_ids", []) || []
   end

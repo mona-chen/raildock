@@ -143,6 +143,7 @@ Rails.application.routes.draw do
       end
       member do
         get :server_bootstrap
+        get :data_safety
       end
     end
 
@@ -178,6 +179,8 @@ Rails.application.routes.draw do
       get "github-app-manifest/callback", to: "github_app_manifests#callback"
       get "github-app-manifest/setup", to: "github_app_manifests#setup"
       delete "github-app", to: "github_app_manifests#destroy_app"
+
+      get "data-safety", to: "data_safety#index"
 
       get "update", to: "updates#index"
       post "update/check", to: "updates#check"

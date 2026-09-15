@@ -69,4 +69,57 @@ RSpec.describe BackupSchedule, type: :model do
       expect(schedule.destination_ids).to eq([])
     end
   end
+
+  describe "#enforce_retention!" do
+    def scheduled_backup(schedule, kind:, age_minutes:)
+      backup = service.backups.create!(
+        status: "completed",
+        backup_kind: kind,
+        metadata: { "schedule_id" => schedule.id }
+      )
+      backup.update_column(:created_at, age_minutes.minutes.ago)
+      backup
+    end
+
+    it "expires artifacts beyond this schedule's retention count" do
+      schedule = service.backup_schedules.create!(frequency: "daily", retention_count: 2, backup_kind: "database")
+      newest = scheduled_backup(schedule, kind: "database", age_minutes: 1)
+      middle = scheduled_backup(schedule, kind: "database", age_minutes: 2)
+      oldest = scheduled_backup(schedule, kind: "database", age_minutes: 3)
+
+      schedule.enforce_retention!
+
+      expect(Backup.exists?(newest.id)).to be(true)
+      expect(Backup.exists?(middle.id)).to be(true)
+      expect(Backup.exists?(oldest.id)).to be(false)
+    end
+
+    it "never expires a manual or database backup when the schedule snapshots volumes" do
+      mount = service.storage_mounts.create!(host_path: "app-data", container_path: "/data", kind: "volume")
+      schedule = service.backup_schedules.create!(
+        frequency: "daily", retention_count: 1, backup_kind: "volume", storage_mount: mount
+      )
+      database_backup = scheduled_backup(schedule, kind: "database", age_minutes: 500)
+      manual_volume = service.backups.create!(status: "completed", backup_kind: "volume")
+      manual_volume.update_column(:created_at, 400.minutes.ago)
+      newest_volume = scheduled_backup(schedule, kind: "volume", age_minutes: 1)
+
+      schedule.enforce_retention!
+
+      expect(Backup.exists?(database_backup.id)).to be(true)
+      expect(Backup.exists?(manual_volume.id)).to be(true)
+      expect(Backup.exists?(newest_volume.id)).to be(true)
+    end
+
+    it "leaves artifacts belonging to another schedule alone" do
+      schedule = service.backup_schedules.create!(frequency: "daily", retention_count: 1, backup_kind: "database")
+      other = service.backup_schedules.create!(frequency: "daily", retention_count: 1, backup_kind: "database")
+      other_backup = scheduled_backup(other, kind: "database", age_minutes: 300)
+      scheduled_backup(schedule, kind: "database", age_minutes: 1)
+
+      schedule.enforce_retention!
+
+      expect(Backup.exists?(other_backup.id)).to be(true)
+    end
+  end
 end

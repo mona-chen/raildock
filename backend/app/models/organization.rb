@@ -6,7 +6,9 @@ class Organization < ApplicationRecord
   has_many :projects, dependent: :destroy
   has_many :git_sources, dependent: :destroy
   has_many :deploy_keys, dependent: :destroy
-  has_many :backup_destinations, dependent: :destroy
+  # See Server: backup destinations hold off-host artifacts and must be removed
+  # deliberately, never as a cascade side effect.
+  has_many :backup_destinations, dependent: :restrict_with_error
   has_one :ssh_key, class_name: "OrganizationSshKey", dependent: :destroy
 
   validates :name, presence: true

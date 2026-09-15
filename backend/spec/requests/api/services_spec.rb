@@ -150,13 +150,49 @@ RSpec.describe "Api::ServicesController", type: :request do
 
     context "when authenticated" do
       context "with server ssh_key present" do
-        it "destroys the service and calls DokkuEngine" do
+        it "requires typed confirmation and destroys nothing without it" do
+          expect {
+            delete "/api/services/#{service.id}", headers: auth_headers(user)
+          }.not_to change(Service, :count)
+
+          expect(response).to have_http_status(:precondition_required)
+          expect(response.parsed_body["code"]).to eq("confirmation_required")
+        end
+
+        it "destroys the service and calls DokkuEngine when the name is confirmed" do
           allow_any_instance_of(DokkuEngine).to receive(:app_destroy).and_return({ success: true })
 
           expect {
-            delete "/api/services/#{service.id}", headers: auth_headers(user)
+            delete "/api/services/#{service.id}", params: { confirm: service.name }, headers: auth_headers(user)
           }.to change(Service, :count).by(-1)
             .and change(ActivityEvent, :count).by(1)
+
+          expect(response).to have_http_status(:no_content)
+        end
+
+        it "refuses to destroy a datastore when no snapshot can be taken" do
+          database = create(:service, :database, project: project)
+          allow_any_instance_of(DokkuEngine).to receive(:datastore_destroy).and_return({ success: true })
+
+          expect {
+            delete "/api/services/#{database.id}", params: { confirm: database.name }, headers: auth_headers(user)
+          }.not_to change(Service, :count)
+
+          expect(response).to have_http_status(:precondition_required)
+          expect(response.parsed_body["code"]).to eq("snapshot_required")
+          expect(Service.exists?(database.id)).to be true
+        end
+
+        it "destroys a datastore after snapshots land on a verified destination" do
+          database = create(:service, :database, project: project)
+          backup = instance_double(Backup, id: 1)
+          snapshot = DestructionSnapshot::Result.new(success: true, backup: backup, destinations: [])
+          allow(DestructionSnapshot).to receive(:new).with(database).and_return(instance_double(DestructionSnapshot, call: snapshot))
+          allow_any_instance_of(DokkuEngine).to receive(:datastore_destroy).and_return({ success: true })
+
+          expect {
+            delete "/api/services/#{database.id}", params: { confirm: database.name }, headers: auth_headers(user)
+          }.to change(Service, :count).by(-1)
 
           expect(response).to have_http_status(:no_content)
         end
@@ -167,11 +203,23 @@ RSpec.describe "Api::ServicesController", type: :request do
         let(:project_no_key) { create(:project, server: server_without_key) }
         let!(:service_no_key) { create(:service, :database, project: project_no_key) }
 
-        it "destroys the service without calling DokkuEngine" do
+        it "still refuses to destroy an unsnapshotted datastore" do
           expect_any_instance_of(DokkuEngine).not_to receive(:app_destroy)
 
           expect {
-            delete "/api/services/#{service_no_key.id}", headers: auth_headers(user)
+            delete "/api/services/#{service_no_key.id}", params: { confirm: service_no_key.name }, headers: auth_headers(user)
+          }.not_to change(Service, :count)
+
+          expect(response).to have_http_status(:precondition_required)
+        end
+
+        it "destroys the service without calling DokkuEngine when data loss is acknowledged" do
+          expect_any_instance_of(DokkuEngine).not_to receive(:app_destroy)
+
+          expect {
+            delete "/api/services/#{service_no_key.id}",
+              params: { confirm: service_no_key.name, force_destroy_data: true },
+              headers: auth_headers(user)
           }.to change(Service, :count).by(-1)
 
           expect(response).to have_http_status(:no_content)
@@ -684,15 +732,55 @@ RSpec.describe "Api::ServicesController", type: :request do
       context "with server ssh_key present" do
         it "returns success and creates an activity event" do
           allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).and_return({ success: true, output: "ok" })
+          allow_any_instance_of(DestructionSnapshot).to receive(:call).and_return(
+            DestructionSnapshot::Result.new(success: true, backup: nil, destinations: [], error: nil)
+          )
 
           expect {
-            post "/api/services/#{database_service.id}/restore", headers: auth_headers(user)
+            post "/api/services/#{database_service.id}/restore?confirm=#{database_service.name}", headers: auth_headers(user)
           }.to change(ActivityEvent, :count).by(1)
 
           expect(response).to have_http_status(:ok)
           json = JSON.parse(response.body)
           expect(json["success"]).to be true
           expect(json["message"]).to eq("Restore completed")
+        end
+
+        it "requires the service name before overwriting live data" do
+          expect_any_instance_of(DokkuEngine).not_to receive(:datastore_import_from)
+
+          post "/api/services/#{database_service.id}/restore", headers: auth_headers(user)
+
+          expect(response).to have_http_status(:precondition_required)
+          expect(response.parsed_body["code"]).to eq("confirmation_required")
+        end
+
+        it "refuses to overwrite live data when no safety snapshot can be taken" do
+          failure = DestructionSnapshot::Result.new(
+            success: false, backup: nil, destinations: [], error: "no verified backup destination is configured"
+          )
+          allow(DestructionSnapshot).to receive(:new).and_return(instance_double(DestructionSnapshot, call: failure))
+          expect_any_instance_of(DokkuEngine).not_to receive(:datastore_import_from)
+
+          post "/api/services/#{database_service.id}/restore?confirm=#{database_service.name}", headers: auth_headers(user)
+
+          expect(response).to have_http_status(:precondition_required)
+          expect(response.parsed_body["code"]).to eq("snapshot_required")
+          expect(response.parsed_body["restore"]["data_bearing"]).to be(true)
+        end
+
+        it "restores when the unrecoverable overwrite is explicitly acknowledged" do
+          failure = DestructionSnapshot::Result.new(
+            success: false, backup: nil, destinations: [], error: "no verified backup destination is configured"
+          )
+          allow(DestructionSnapshot).to receive(:new).and_return(instance_double(DestructionSnapshot, call: failure))
+          allow_any_instance_of(DokkuEngine).to receive(:datastore_import_from).and_return({ success: true, output: "ok" })
+
+          post "/api/services/#{database_service.id}/restore?confirm=#{database_service.name}&force_destroy_data=true",
+            headers: auth_headers(user)
+
+          expect(response).to have_http_status(:ok)
+          expect(ActivityEvent.where(action: :warning).last.message).to include("without a pre-restore snapshot")
         end
       end
 
@@ -704,7 +792,10 @@ RSpec.describe "Api::ServicesController", type: :request do
         it "returns 422 without calling DokkuEngine" do
           expect_any_instance_of(DokkuEngine).not_to receive(:run)
 
-          post "/api/services/#{service_no_key.id}/restore", headers: auth_headers(user)
+          # Acknowledge the unrecoverable overwrite so the request reaches the
+          # "no server configured" branch this example is about.
+          post "/api/services/#{service_no_key.id}/restore?confirm=#{service_no_key.name}&force_destroy_data=true",
+            headers: auth_headers(user)
 
           expect(response).to have_http_status(:unprocessable_entity)
           json = JSON.parse(response.body)

@@ -36,8 +36,13 @@ module Api
     end
 
     def destroy
-      @destination.destroy!
-      head :no_content
+      # Backups and PITR configs point at this destination; deleting it silently
+      # would orphan every artifact stored there.
+      if @destination.destroy
+        head :no_content
+      else
+        render json: { error: @destination.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
     end
 
     def verify

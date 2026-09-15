@@ -11,6 +11,19 @@ class BackupDestination < ApplicationRecord
 
   enum :status, { pending: "pending", verified: "verified", failed: "failed" }
 
+  # Destinations usable for a given server: the server's own, plus any owned by
+  # its organization. Mirrors what the recovery UI offers, so a destination that
+  # is selectable in the UI is also writable by scheduled/automatic backups.
+  scope :reachable_from, ->(server) {
+    next none if server.blank?
+
+    if server.organization_id.present?
+      where(server_id: server.id).or(where(organization_id: server.organization_id))
+    else
+      where(server_id: server.id)
+    end
+  }
+
   validates :name, :bucket, :region, presence: true
   validates :provider, inclusion: { in: %w[s3 r2] }
   validates :name, uniqueness: { scope: :server_id }, if: -> { server_id.present? }
@@ -19,6 +32,16 @@ class BackupDestination < ApplicationRecord
   validate :belongs_to_a_scope
 
   before_validation :ensure_encryption_key, on: :create
+
+  # A destination only protects data once it has been proven to accept and
+  # serve objects back.
+  def usable?
+    verified? && last_verified_at.present?
+  end
+
+  def stale_verification?(after: 30.days)
+    last_verified_at.blank? || last_verified_at < after.ago
+  end
 
   def object_key(*parts)
     ([ path_prefix.presence, *parts ].compact.join("/")).gsub(%r{/+}, "/").delete_prefix("/")

@@ -30,6 +30,59 @@ RSpec.describe BackupArtifactStore do
     end
   end
 
+  it "writes to an organization destination instead of leaving a local-only copy" do
+    organization = server.organization
+    organization_destination = organization.backup_destinations.create!(
+      name: "org-r2", provider: "r2", endpoint: "https://example.r2.cloudflarestorage.com",
+      region: "auto", bucket: "org-backups", access_key_id: "key", secret_access_key: "secret",
+      status: "verified", last_verified_at: Time.current
+    )
+    allow(BackupDestinationClient).to receive(:new).with(organization_destination).and_return(client)
+    allow(client).to receive(:upload) { |path, _key| { content_length: File.size(path) } }
+
+    backup = service.backups.create!(status: "running", metadata: { "destination_ids" => [ organization_destination.id.to_s ] })
+
+    Dir.mktmpdir do |dir|
+      source = File.join(dir, "database.dump")
+      File.binwrite(source, "organization dump")
+      described_class.new.persist!(backup, source, destination_ids: [ organization_destination.id.to_s ])
+
+      expect(backup.reload.backup_copies.sole.backup_destination).to eq(organization_destination)
+      expect(backup.metadata["remote_verified"]).to be(true)
+      expect(backup.metadata["service_name"]).to eq(service.name)
+      expect(File).not_to exist(source)
+    end
+  end
+
+  it "raises when a requested destination does not exist instead of writing nothing" do
+    backup = service.backups.create!(status: "running", metadata: { "destination_ids" => [ "999999" ] })
+
+    Dir.mktmpdir do |dir|
+      source = File.join(dir, "database.dump")
+      File.binwrite(source, "organization dump")
+
+      expect {
+        described_class.new.persist!(backup, source, destination_ids: [ "999999" ])
+      }.to raise_error(/Unknown backup destination/)
+    end
+  end
+
+  it "never reports a completed backup that has no copy at all" do
+    backup = service.backups.create!(status: "running")
+    store = described_class.new
+    allow(store).to receive(:resolve_destinations).and_return([])
+
+    Dir.mktmpdir do |dir|
+      source = File.join(dir, "database.dump")
+      File.binwrite(source, "dump")
+
+      expect {
+        store.persist!(backup, source, destination_ids: [ "5" ])
+      }.to raise_error(/no copies/)
+      expect(backup.reload.status).not_to eq("completed")
+    end
+  end
+
   it "refuses a downloaded artifact that does not match its checksum" do
     backup = service.backups.create!(status: "completed", backup_destination: destination, storage_key: "backup.enc", encrypted: true,
       metadata: { "checksum" => Digest::SHA256.hexdigest("expected") })

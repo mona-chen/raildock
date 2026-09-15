@@ -5,6 +5,9 @@ require "ostruct"
 # Compares a manifest's desired state against the actual state of a project's services,
 # producing a list of classified changes ready for application.
 class ManifestReconciler
+  # A destructive change was blocked because its pre-destroy snapshot failed.
+  class RemovalRefused < StandardError; end
+
   attr_reader :project, :desired, :actual, :changes
 
   # Represents a single change between desired and actual state
@@ -95,7 +98,12 @@ class ManifestReconciler
   # Apply all computed changes via DokkuEngine.
   # deploy_exclusions: service ids that must not get a new deployment prepared
   # (e.g. the service a push-triggered DeploymentJob is already deploying).
-  def apply!(engine = nil, host_engine: nil, deploy_exclusions: [])
+  # allow_removals:       explicit opt-in required before any service is
+  #                       destroyed. A manifest that simply omits a service
+  #                       must never delete it by accident.
+  # force_destroy_data:   proceed even when no verified snapshot could be
+  #                       taken. Only for deliberate, acknowledged data loss.
+  def apply!(engine = nil, host_engine: nil, deploy_exclusions: [], allow_removals: false, force_destroy_data: false)
     raise "No changes computed. Call diff first." unless @diff_computed
 
     engine ||= build_engine
@@ -167,13 +175,53 @@ class ManifestReconciler
       @project.services.where(id: deploy_service_ids.to_a).update_all(status: "error", updated_at: Time.current)
     end
 
-    # Phase 6: Destroy services
-    destroy_services = @changes.select { |c| c.change_type == :removed && c.field == :service }
-    destroy_services.each do |change|
-      results << apply_destroy_service(engine, change)
-    end
+    # Phase 6: Destroy services.
+    #
+    # This is deliberately last and doubly gated:
+    #   1. the caller must explicitly opt in to removals, and
+    #   2. every earlier phase must have succeeded.
+    #
+    # A failed create/link/deploy must never cascade into deleting anything, and
+    # a manifest that merely omits a service must never be enough to remove it.
+    removals = apply_removals(
+      engine,
+      prior_results: results,
+      allow_removals: allow_removals,
+      force_destroy_data: force_destroy_data
+    )
+    results.concat(removals[:results])
 
-    { success: results.all? { |r| r[:success] }, results: results }
+    {
+      success: results.all? { |r| r[:success] },
+      results: results,
+      skipped_removals: removals[:skipped],
+      blocked_removals: removals[:blocked]
+    }
+  end
+
+  # The exact list of services a manifest apply would destroy, with enough
+  # detail for the UI to show a meaningful confirmation.
+  def removal_plan
+    @changes.select { |c| c.change_type == :removed && c.field == :service }.map do |change|
+      svc = change.old_value
+      service = @project.services.find_by(name: svc[:name])
+
+      {
+        service_name: svc[:name],
+        service_type: svc[:category],
+        subtype: svc[:subtype],
+        managed_by: svc[:managed_by],
+        datastore: DestructionSnapshot.datastore?(service) || svc[:category] == "database",
+        data_bearing: DestructionSnapshot.data_bearing?(service),
+        storage_mounts: Array(svc[:storage]).map { |mount| mount[:host] },
+        domains: Array(svc[:domains]),
+        completed_backups: service ? service.backups.completed.count : 0
+      }
+    end
+  end
+
+  def destructive?
+    removal_plan.any?
   end
 
   # Topologically sort services by depends_on. Services with no dependencies
@@ -544,25 +592,113 @@ class ManifestReconciler
     msg.include?("already taken") || msg.include?("already exists")
   end
 
-  def apply_destroy_service(engine, change)
+  def apply_removals(engine, prior_results:, allow_removals:, force_destroy_data:)
+    removals = @changes.select { |c| c.change_type == :removed && c.field == :service }
+    return { results: [], skipped: [], blocked: [] } if removals.empty?
+
+    names = removals.map(&:service_name)
+
+    unless allow_removals
+      warn_removals_kept(names, "this apply did not confirm removals")
+      return { results: [], skipped: names, blocked: [] }
+    end
+
+    unless prior_results.all? { |result| result[:success] }
+      warn_removals_kept(names, "earlier manifest changes failed")
+      return { results: [], skipped: [], blocked: names }
+    end
+
+    results = []
+    skipped = []
+    removals.each do |change|
+      result = apply_destroy_service(engine, change, force_destroy_data: force_destroy_data)
+      results << result
+      skipped << change.service_name unless result[:success]
+    end
+
+    { results: results, skipped: skipped, blocked: [] }
+  end
+
+  def warn_removals_kept(names, reason)
+    message = "Kept #{names.join(', ')} — #{reason}. Confirm the removal to destroy them."
+    Rails.logger.warn "ManifestReconciler: #{message}"
+    ActivityEvent.create!(
+      project: @project,
+      service_name: names.first,
+      action: :warning,
+      message: message
+    )
+  rescue => e
+    Rails.logger.error "ManifestReconciler: could not record removal notice: #{e.message}"
+  end
+
+  def apply_destroy_service(engine, change, force_destroy_data: false)
     svc = change.old_value
     app_name = Service.dokku_app_name_for(@project.name, svc[:name])
+    db_svc = @project.services.find_by(name: svc[:name])
+
+    snapshot = capture_pre_destroy_snapshot(db_svc, svc, force_destroy_data: force_destroy_data)
 
     st = PluginRegistry.find_subtype(svc[:subtype])
-    if st&.has_capability?(:destroy)
+    destroy_result = if st&.has_capability?(:destroy)
       engine.datastore_destroy(OpenStruct.new(subtype: svc[:subtype], dokku_app_name: app_name))
     else
       engine.app_destroy(app_name)
     end
 
-    # Destroy DB record
-    db_svc = @project.services.find_by(name: svc[:name])
+    unless destroy_result.nil? || destroy_result[:success] || already_gone_error?(destroy_result)
+      message = "Dokku refused to destroy #{svc[:name]}: #{(destroy_result[:output] || destroy_result[:error]).to_s.strip}"
+      Rails.logger.error "ManifestReconciler: #{message}"
+      ActivityEvent.create!(project: @project, service_name: svc[:name], action: :warning, message: message)
+      return { success: false, error: message, service: svc[:name] }
+    end
+
     db_svc&.destroy!
 
-    { success: true, service: svc[:name] }
+    ActivityEvent.create!(
+      project: @project,
+      service_name: svc[:name],
+      action: :destroyed,
+      message: "Removed #{svc[:name]} via manifest apply",
+      metadata: { snapshot_backup_id: snapshot&.backup&.id, forced: force_destroy_data }.compact
+    )
+
+    { success: true, service: svc[:name], backup_id: snapshot&.backup&.id }
   rescue => e
     Rails.logger.error "Failed to destroy service #{svc[:name]}: #{e.message}"
     { success: false, error: e.message, service: svc[:name] }
+  end
+
+  # Take a restorable, off-host snapshot before anything irreversible happens.
+  # Returns nil for stateless services; refuses the destroy when the snapshot
+  # could not be produced and data loss has not been explicitly acknowledged.
+  def capture_pre_destroy_snapshot(db_svc, svc, force_destroy_data:)
+    return nil unless db_svc && DestructionSnapshot.data_bearing?(db_svc)
+
+    snapshot = DestructionSnapshot.new(db_svc).call
+    return snapshot if snapshot.success?
+
+    message = "Refused to destroy #{svc[:name]} without a snapshot: #{snapshot.error}."
+    unless force_destroy_data
+      message += " Configure a verified backup destination, or explicitly acknowledge permanent data loss."
+      Rails.logger.warn "ManifestReconciler: #{message}"
+      ActivityEvent.create!(project: @project, service_name: svc[:name], action: :warning, message: message)
+      raise RemovalRefused, message
+    end
+
+    Rails.logger.warn "ManifestReconciler: #{message} Proceeding because data loss was explicitly acknowledged."
+    ActivityEvent.create!(
+      project: @project,
+      service_name: svc[:name],
+      action: :warning,
+      message: "#{message} Proceeded without a snapshot (acknowledged)."
+    )
+    nil
+  end
+
+  def already_gone_error?(result)
+    output = (result[:output] || result[:error]).to_s.downcase
+    output.include?("not found") || output.include?("does not exist") || output.include?("no such")
   end
 
   def apply_reload_change(engine, change)

@@ -423,6 +423,41 @@ export interface GitRepo {
   serviceName?: string  // which service this deploys to
 }
 
+export interface ManifestRemoval {
+  serviceName: string
+  serviceType: string
+  subtype: string
+  managedBy?: string
+  /** True when the service is a datastore (postgres, redis, ...). */
+  datastore: boolean
+  /** True when destroying it destroys data (datastore or mounted volumes). */
+  dataBearing: boolean
+  storageMounts: string[]
+  domains: string[]
+  completedBackups: number
+}
+
+export interface ManifestRemovalPreview {
+  removals: ManifestRemoval[]
+  removalToken?: string
+  requiresRemovalConfirmation: boolean
+}
+
+export interface DataSafetyFinding {
+  severity: 'critical' | 'warning' | 'info'
+  code: string
+  message: string
+  subject: Record<string, unknown>
+  remediation: string
+}
+
+export interface DataSafetyReport {
+  generatedAt: string
+  scope: string
+  summary: { critical: number; warning: number; info: number }
+  findings: DataSafetyFinding[]
+}
+
 export interface RepositoryImportService {
   name: string
   category: string
@@ -443,6 +478,10 @@ export interface RepositoryImportPreview {
   conflicts: string[]
   evidence: { path: string; format: string; decision: string; confidence: string }[]
   snapshotToken: string
+  /** Existing services this repository's manifest does not declare. */
+  removals?: ManifestRemoval[]
+  removalsRequireConfirmation?: boolean
+  removalToken?: string
 }
 
 export interface GitHubAppConfig {

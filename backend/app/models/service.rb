@@ -5,7 +5,9 @@ class Service < ApplicationRecord
   has_many :storage_mounts, dependent: :destroy
   has_many :deployments, dependent: :destroy
   has_many :process_types, dependent: :destroy
-  has_many :backups, dependent: :destroy
+  # Nullify (not destroy): backup artifacts must outlive the service so a
+  # destroyed database can still be restored from its last snapshot.
+  has_many :backups, dependent: :nullify
   has_many :backup_schedules, dependent: :destroy
   has_many :service_metrics, dependent: :destroy
   has_one :postgres_pitr_config, dependent: :destroy

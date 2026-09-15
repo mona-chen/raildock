@@ -179,9 +179,27 @@ module Api
       authorize_server_record!(@server, action: :delete)
       return if performed?
 
+      # A server can hold backup destinations whose artifacts are the only
+      # remaining copy of a datastore. Refuse to cascade-delete them and say so
+      # instead of replying 204 for work that did not happen.
+      destinations = @server.backup_destinations.count
+      if destinations.positive?
+        return render json: {
+          error: "Refusing to delete #{@server.name}: it still holds #{destinations} backup destination(s) whose artifacts are the only copy of your data. Move or delete them first.",
+          code: "dependent_records_present",
+          actionable: true
+        }, status: :unprocessable_entity
+      end
+
       audit_log(action: "server.destroy", server: @server, metadata: { host: @server.host })
       @server.destroy!
       head :no_content
+    rescue ActiveRecord::RecordNotDestroyed => e
+      render json: {
+        error: @server.errors.full_messages.presence&.join("; ") || e.message,
+        code: "dependent_records_present",
+        actionable: true
+      }, status: :unprocessable_entity
     end
 
     private

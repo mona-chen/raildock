@@ -44,8 +44,20 @@ export function useManifestPreview() {
 export function useManifestApply() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ projectId }: { projectId: string }) =>
-      api.manifest.apply(projectId),
+    // Destructive changes (services missing from the manifest) only happen when
+    // the caller passes the confirmation token it received from the preview.
+    mutationFn: ({
+      projectId,
+      confirmRemovals,
+      removalConfirmationToken,
+      forceDestroyData,
+    }: {
+      projectId: string
+      confirmRemovals?: boolean
+      removalConfirmationToken?: string
+      forceDestroyData?: boolean
+    }) =>
+      api.manifest.apply(projectId, { confirmRemovals, removalConfirmationToken, forceDestroyData }),
     onSuccess: (_, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest'] })
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest', 'status'] })

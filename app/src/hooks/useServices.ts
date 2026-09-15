@@ -38,7 +38,11 @@ export function useCreateService() {
 export function useDestroyService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: api.services.destroy,
+    // The typed service name is required by the backend, and datastores are
+    // only destroyed once a verified snapshot exists (or data loss is
+    // explicitly acknowledged).
+    mutationFn: ({ id, confirm, forceDestroyData }: { id: string; confirm: string; forceDestroyData?: boolean }) =>
+      api.services.destroy(id, confirm, { forceDestroyData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       queryClient.invalidateQueries({ queryKey: ['services'] })
@@ -466,31 +470,83 @@ export function useBackupService() {
 }
 
 export function useRestoreBackup() {
-  return useMutation({
-    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.restoreBackup(id, backupId),
-    onSuccess: () => toast.success('Restore completed'),
-    onError: (err) => toast.error(`Restore failed: ${err.message}`),
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: ({ id, backupId, confirm, forceDestroyData }: {
+      id: string
+      backupId: string
+      confirm: string
+      forceDestroyData?: boolean
+    }) => api.services.restoreBackup(id, backupId, { confirm, forceDestroyData }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'snapshots'] })
+      toast.success('Restore completed')
+    },
+    onError: (err: Error & { code?: string }, variables) => {
+      // The backend refuses to overwrite live data when it could not capture a
+      // safety snapshot of the current state first — that restore would be
+      // unrecoverable, so make the loss explicit.
+      if (err.code === 'snapshot_required' && !variables.forceDestroyData) {
+        if (confirm(`${err.message}\n\nRestore anyway? Everything written since this recovery point will be gone for good.`)) {
+          mutation.mutate({ ...variables, forceDestroyData: true })
+        }
+        return
+      }
+      toast.error(`Restore failed: ${err.message}`)
+    },
   })
+
+  return mutation
 }
 
 export function useDeleteBackup() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.deleteBackup(id, backupId),
+  const mutation = useMutation({
+    mutationFn: ({ id, backupId, force }: { id: string; backupId: string; force?: boolean }) =>
+      api.services.deleteBackup(id, backupId, { force }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
       toast.success('Backup deleted')
     },
-    onError: (err) => toast.error(`Delete failed: ${err.message}`),
+    onError: (err: Error & { code?: string }, variables) => {
+      // The backend refuses to remove the last restore point without an
+      // explicit acknowledgement.
+      if (err.code === 'last_backup' && !variables.force) {
+        if (confirm(`${err.message}\n\nDelete it anyway?`)) {
+          mutation.mutate({ ...variables, force: true })
+        }
+        return
+      }
+      toast.error(`Delete failed: ${err.message}`)
+    },
   })
+  return mutation
 }
 
 export function useRestoreService() {
-  return useMutation({
-    mutationFn: ({ id, file }: { id: string; file?: File }) => api.services.restore(id, file),
+  const mutation = useMutation({
+    mutationFn: ({ id, file, confirm, forceDestroyData }: {
+      id: string
+      file?: File
+      confirm: string
+      forceDestroyData?: boolean
+    }) => api.services.restore(id, { confirm, forceDestroyData }, file),
     onSuccess: () => toast.success('Restore initiated'),
-    onError: (err) => toast.error(`Restore failed: ${err.message}`),
+    onError: (err: Error & { code?: string }, variables) => {
+      // Same gate as restoring a stored artifact: no safety snapshot of the
+      // current data means the overwrite is unrecoverable.
+      if (err.code === 'snapshot_required' && !variables.forceDestroyData) {
+        if (confirm(`${err.message}\n\nRestore anyway? Everything written since this dump was taken will be gone for good.`)) {
+          mutation.mutate({ ...variables, forceDestroyData: true })
+        }
+        return
+      }
+      toast.error(`Restore failed: ${err.message}`)
+    },
   })
+
+  return mutation
 }
 
 export function useStartService() {

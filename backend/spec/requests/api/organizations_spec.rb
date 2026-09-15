@@ -83,6 +83,19 @@ RSpec.describe "Api::OrganizationsController", type: :request do
       expect(Organization.exists?(org.id)).to be false
     end
 
+    it "refuses to delete an organization whose projects still own services" do
+      server = create(:server, organization: org)
+      project = create(:project, organization: org, server: server)
+      create(:service, project: project)
+
+      delete "/api/organizations/#{org.id}", headers: auth_headers(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("dependent_records_present")
+      expect(Organization.exists?(org.id)).to be true
+      expect(Service.count).to eq(1)
+    end
+
     it "returns 403 for non-owners" do
       create(:organization_membership, user: other_user, organization: org, role: :member)
       delete "/api/organizations/#{org.id}", headers: auth_headers(other_user)
