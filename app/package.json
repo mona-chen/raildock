@@ -78,7 +78,7 @@
     "tailwind-merge": "^3.4.0",
     "three": "^0.184.0",
     "vaul": "^1.1.2",
-    "vitest": "^4.1.5",
+    "vitest": "^4.1.11",
     "zod": "^4.3.5",
     "zustand": "^5.0.12"
   },
@@ -107,6 +107,11 @@
     "esbuild": "0.28.1",
     "@babel/core": "^7.29.7",
     "js-yaml": "^4.2.0",
-    "undici": "^7.28.0"
+    "undici": "^7.28.0",
+    "@humanfs/node": "^0.16.8",
+    "baseline-browser-mapping": "^2.11.23",
+    "browserslist": "^4.29.0",
+    "fflate": "^0.8.3",
+    "postcss-selector-parser": "^6.1.4"
   }
 }
