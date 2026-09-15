@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertCircle,
   Archive,
@@ -128,9 +129,9 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
       {svc.storageMounts.length === 0 && (
         <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2 text-[11px] text-amber-300">
           No storage mounts configured.
-          <a href={`/dashboard/projects/${svc.projectId}?service=${svc.id}&tab=storage`} className="ml-1 underline hover:text-amber-200">
+          <Link to={`/dashboard/projects/${svc.projectId}?service=${svc.id}&tab=storage`} className="ml-1 underline hover:text-amber-200">
             Add a volume mount
-          </a>
+          </Link>
           {' '}before scheduling snapshots.
         </div>
       )}
@@ -143,13 +144,13 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
             </h3>
             <p className="mt-1 text-[10px] text-white/20">Shared across this organization. AES-256-GCM before upload.</p>
           </div>
-          <a
-            href="/dashboard/settings?tab=backup-destinations"
+          <Link
+            to="/dashboard/settings?tab=backup-destinations"
             className="text-[11px] text-[#a78bfa] hover:text-[#c4b5fd] flex items-center gap-1"
           >
             <ExternalLink size={10} />
             Manage
-          </a>
+          </Link>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {destinations.length === 0 ? (

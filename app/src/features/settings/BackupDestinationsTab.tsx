@@ -100,19 +100,24 @@ export default function BackupDestinationsTab() {
 
             {recoveryKey ? (
               <div className="space-y-3 py-2">
-                <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/10">
-                  <div className="flex items-center gap-2 text-amber-400 text-[11px] font-medium mb-1">
+                <div className="p-3 rounded-lg border border-sky-500/20 bg-sky-500/10">
+                  <div className="flex items-center gap-2 text-sky-300 text-[11px] font-medium mb-1">
                     <KeyRound size={13} />
-                    Save this recovery key now
+                    Restores already work without this key
                   </div>
                   <p className="text-[10px] text-[#A0A0B0]">
-                    It is shown only once. You need it to restore backups from this destination.
+                    RailDock keeps this key encrypted with the rest of its configuration, so restoring a backup
+                    never asks you for it. Keep a copy only as a disaster-recovery escrow for the case where the
+                    RailDock database itself is lost.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1.5 truncate">
-                    {recoveryKey}
-                  </code>
+                  <input
+                    readOnly
+                    value={recoveryKey}
+                    onFocus={(event) => event.currentTarget.select()}
+                    className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1.5 truncate border border-[rgba(255,255,255,0.08)] focus:outline-none"
+                  />
                   <Button
                     variant="ghost"
                     size="sm"

@@ -58,8 +58,24 @@ describe('BackupDestinationsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /verify & save/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/save this recovery key now/i)).toBeInTheDocument()
-      expect(screen.getByText('abcd1234')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('abcd1234')).toBeInTheDocument()
     })
+  })
+
+  // Telling a user they need the key to restore is wrong — RailDock keeps it
+  // encrypted server-side and restores never prompt for it.
+  it('explains that restores do not require the recovery key', async () => {
+    renderWithClient(<BackupDestinationsTab />)
+    fireEvent.click(screen.getByRole('button', { name: /add destination/i }))
+    fireEvent.change(screen.getByPlaceholderText('Production S3'), { target: { value: 'New Destination' } })
+    fireEvent.change(screen.getByPlaceholderText('my-backups'), { target: { value: 'bucket' } })
+    fireEvent.change(screen.getByPlaceholderText('AKIA...'), { target: { value: 'key' } })
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: /verify & save/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/restores already work without this key/i)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/you need it to restore/i)).not.toBeInTheDocument()
   })
 })

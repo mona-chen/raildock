@@ -12,17 +12,35 @@ class BackupDestination < ApplicationRecord
   enum :status, { pending: "pending", verified: "verified", failed: "failed" }
 
   # Destinations usable for a given server: the server's own, plus any owned by
-  # its organization. Mirrors what the recovery UI offers, so a destination that
-  # is selectable in the UI is also writable by scheduled/automatic backups.
-  scope :reachable_from, ->(server) {
+  # the organization that owns the data being backed up. Mirrors what the
+  # recovery UI offers, so a destination that is selectable in the UI is also
+  # writable by scheduled/automatic backups.
+  #
+  # The organization is normally taken from the project, not the server: a
+  # server is shared infrastructure and is often not assigned to an
+  # organization at all, while every project is. Falling back to the server's
+  # own organization covers destinations scoped directly to a server.
+  scope :reachable_from, ->(server, organization: nil) {
     next none if server.blank?
 
-    if server.organization_id.present?
-      where(server_id: server.id).or(where(organization_id: server.organization_id))
+    organization_id = organization&.id || server.organization_id
+
+    if organization_id.present?
+      where(server_id: server.id).or(where(organization_id: organization_id))
     else
       where(server_id: server.id)
     end
   }
+
+  # Organization ids whose destinations protect data on this server: the
+  # server's own organization plus every organization that owns a project
+  # hosted on it. A server is shared, so its projects — not the server row —
+  # are what tie it to an organization.
+  def self.reachable_organization_ids(server)
+    return [] if server.blank?
+
+    ([ server.organization_id ] + server.projects.pluck(:organization_id)).compact.uniq
+  end
 
   validates :name, :bucket, :region, presence: true
   validates :provider, inclusion: { in: %w[s3 r2] }

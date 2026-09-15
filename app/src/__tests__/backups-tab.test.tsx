@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { HashRouter, MemoryRouter } from 'react-router-dom'
 import BackupsTab from '@/features/service-panel/tabs/BackupsTab'
 import type { Service } from '@/types'
 
@@ -29,7 +30,13 @@ function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+  // The sub-tabs link out to settings with react-router, so a router has to be
+  // present or rendering throws.
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>
+  )
 }
 
 function mockService(overrides = {}): Service {
@@ -94,5 +101,30 @@ describe('BackupsTab', () => {
 
     expect(screen.getByRole('tab', { name: /PITR/i })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('PostgreSQL point-in-time recovery')).toBeInTheDocument()
+  })
+
+  // The app is served from a HashRouter, so a plain `href="/dashboard/..."`
+  // performs a full page load, drops the hash, and the SPA falls through to the
+  // root route — landing the user on project home instead of Backup settings.
+  it('links to backup settings through the router', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    render(
+      <HashRouter>
+        <QueryClientProvider client={queryClient}>
+          <BackupsTab svc={mockService()} serviceId="svc-1" />
+        </QueryClientProvider>
+      </HashRouter>
+    )
+
+    const links = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.includes('backup-destinations'))
+
+    expect(links.length).toBeGreaterThan(0)
+    links.forEach((link) => {
+      expect(link.getAttribute('href')).toMatch(/^#\/dashboard\/settings\?tab=backup-destinations$/)
+    })
   })
 })

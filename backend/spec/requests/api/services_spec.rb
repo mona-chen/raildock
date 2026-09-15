@@ -365,6 +365,17 @@ RSpec.describe "Api::ServicesController", type: :request do
 
         expect(response).to have_http_status(:not_found)
       end
+
+      # Scaling a one-shot deploy task would run it in a restart loop.
+      it "refuses to scale a one-shot deploy task" do
+        create(:process_type, service: service, name: "release", quantity: 0)
+        expect_any_instance_of(DokkuEngine).not_to receive(:ps_scale)
+
+        post "/api/services/#{service.id}/scale", params: { process_name: "release", quantity: 1 }, headers: auth_headers(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(service.process_types.find_by(name: "release").quantity).to eq(0)
+      end
     end
   end
 

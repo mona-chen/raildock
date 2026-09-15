@@ -112,7 +112,10 @@ class DataSafetyReport
 
       servers.each do |server|
         destinations = server.backup_destinations.to_a
-        destinations += server.organization.backup_destinations.to_a if server.organization
+        organization_ids = BackupDestination.reachable_organization_ids(server)
+        if organization_ids.any?
+          destinations += BackupDestination.where(organization_id: organization_ids).to_a
+        end
 
         if destinations.empty?
           findings << Finding.new(

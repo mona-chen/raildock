@@ -152,7 +152,7 @@ class BackupArtifactStore
       server = backup.service&.project&.server
 
       destinations = if requested.any?
-        scope = BackupDestination.reachable_from(server)
+        scope = BackupDestination.reachable_from(server, organization: backup.service&.project&.organization)
         found = scope.where(id: requested).to_a
         missing = requested - found.map { |destination| destination.id.to_s }
         raise "Unknown backup destination(s): #{missing.join(', ')}" if missing.any?

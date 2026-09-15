@@ -414,6 +414,13 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "Scaling failed for #{pt.name}", result[:output]) unless result[:success]
     end
 
+    # 12.5. Record the Procfile's process types so workers (e.g. a Sidekiq
+    #      worker) become visible and scalable. Dokku starts only `web` on its
+    #      own, so a type missing from the DB can never be scaled up from the
+    #      UI — the app would look healthy while its background jobs never run.
+    #      Best-effort: the app is already deployed and serving traffic.
+    record_process_types(service, engine)
+
     # 13. Ensure service is connected to project's private network
     #    and re-add aliases for all linked services (Dokku doesn't persist aliases).
     #    These are best-effort — the app is already deployed and serving traffic.
@@ -603,6 +610,27 @@ class DeploymentJob < ApplicationJob
 
     ServiceLinkSetup.new(service.project, engine, host_engine: host_engine)
       .ensure_db_network_aliases(linked_dbs)
+  end
+
+  # Mirrors the app's declared process types into the DB after a deploy so the
+  # Scale UI can act on them (Dokku only auto-starts `web`). Never fatal: a
+  # failure here must not fail a deploy that already succeeded.
+  def record_process_types(service, engine)
+    result = ProcessTypeDiscovery.new(engine).sync(service)
+
+    if result[:success]
+      Rails.logger.info(
+        "Process types for #{service.dokku_app_name}: " +
+          result[:discovered].map { |pt| "#{pt[:name]}=#{pt[:quantity]}" }.join(", ")
+      )
+    else
+      Rails.logger.warn "Process type discovery failed for #{service.dokku_app_name}: #{result[:error]}"
+    end
+
+    result
+  rescue StandardError => e
+    Rails.logger.warn "Process type discovery raised for #{service.dokku_app_name}: #{e.message}"
+    { success: false, discovered: [], error: e.message }
   end
 
   # Re-read the repo's manifest on push-triggered deploys of manifest-managed

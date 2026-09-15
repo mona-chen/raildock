@@ -237,7 +237,9 @@ class DestructionSnapshot
     def verified_destinations
       return @destinations if @destinations
 
-      scope = BackupDestination.reachable_from(@service.project&.server)
+      scope = BackupDestination.reachable_from(
+        @service.project&.server, organization: @service.project&.organization
+      )
       scope.where(status: "verified").order(:name).to_a
     end
 end

@@ -285,6 +285,13 @@ class DokkuEngine
     run("ps:scale #{escape(app_name)} #{escape(process_type)}=#{quantity.to_i}")
   end
 
+  # Declared procfile process types and the quantity each is scaled to.
+  # Dokku prints a `name: qty` table (including types scaled to zero, which
+  # ps:report omits because they have no running container).
+  def ps_scale_report(app_name)
+    run("ps:scale #{escape(app_name)}")
+  end
+
   # Override the Dockerfile CMD for dockerfile/docker-image apps. Image CMDs
   # like ["sh"] exit immediately when started non-interactively, so a service
   # with an explicit start_command must set dockerfile-start-cmd for the

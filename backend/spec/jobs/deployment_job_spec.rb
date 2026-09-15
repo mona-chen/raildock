@@ -89,6 +89,10 @@ RSpec.describe DeploymentJob, type: :job do
     allow(engine).to receive(:run_streaming).and_yield("deployed").and_return({ success: true, output: "deployed" })
     allow(engine).to receive(:ps_restart).and_return({ success: true, output: "" })
     allow(engine).to receive(:ps_scale).and_return({ success: true, output: "" })
+    allow(engine).to receive(:ps_scale_report).and_return({
+      success: true,
+      output: "proctype: qty\n--------: ---\nrelease: 0\nweb:  1\nworker: 0\n"
+    })
     allow(engine).to receive(:ps_set).and_return({ success: true, output: "" })
   end
 

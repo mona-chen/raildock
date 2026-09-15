@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertCircle,
   Archive,
@@ -168,13 +169,13 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
               </button>
               <div className="absolute right-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-white/[0.08] bg-[#17171b] p-1 shadow-xl group-hover:block group-focus-within:block">
                 {destinationOptions}
-                <a
-                  href="/dashboard/settings?tab=backup-destinations"
+                <Link
+                  to="/dashboard/settings?tab=backup-destinations"
                   className="mt-1 flex items-center gap-1.5 border-t border-white/[0.06] px-2 py-1.5 text-[10px] text-[#a78bfa] hover:text-[#c4b5fd]"
                 >
                   <ExternalLink size={10} />
                   Manage destinations
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -189,9 +190,9 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
       {!hasDestinations && (
         <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2 text-[11px] text-amber-300">
           No shared backup destinations configured.
-          <a href="/dashboard/settings?tab=backup-destinations" className="ml-1 underline hover:text-amber-200">
+          <Link to="/dashboard/settings?tab=backup-destinations" className="ml-1 underline hover:text-amber-200">
             Add an S3 or R2 destination
-          </a>
+          </Link>
           {' '}so backups can survive disk failure.
         </div>
       )}
@@ -222,13 +223,13 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             </h3>
             <p className="mt-1 text-[10px] text-white/20">Shared across this organization. AES-256-GCM before upload.</p>
           </div>
-          <a
-            href="/dashboard/settings?tab=backup-destinations"
+          <Link
+            to="/dashboard/settings?tab=backup-destinations"
             className="text-[11px] text-[#a78bfa] hover:text-[#c4b5fd] flex items-center gap-1"
           >
             <ExternalLink size={10} />
             Manage
-          </a>
+          </Link>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {destinations.length === 0 ? (

@@ -5,12 +5,8 @@ module Api
     before_action :set_service
 
     def show
-      server = @service.project.server
-      destinations = server.backup_destinations.order(:name).to_a
-      destinations += server.organization.backup_destinations.order(:name).to_a if server.organization
-
       render json: {
-        destinations: destinations.uniq.sort_by(&:name),
+        destinations: reachable_destinations,
         pitr: @service.postgres_pitr_config,
         drills: RestoreDrill.joins(:backup).where(backups: { service_id: @service.id }).recent.limit(25)
       }
@@ -89,16 +85,25 @@ module Api
       end
 
       def destination_scope
-        @service.project.server.backup_destinations
+        BackupDestination.reachable_from(@service.project.server, organization: @service.project.organization)
       end
 
       def find_destination(id)
         return nil if id.blank?
 
-        server = @service.project.server
-        destination = server.backup_destinations.find_by(id: id)
-        destination ||= server.organization&.backup_destinations&.find_by(id: id)
-        destination
+        destination_scope.find_by(id: id)
+      end
+
+      # Destinations this service can back up to: the server's own, plus every
+      # destination owned by the organization that owns the project.
+      #
+      # The organization must come from the project. A server is shared
+      # infrastructure and is frequently not assigned to an organization at
+      # all, so reading `server.organization` here hid every
+      # organization-scoped destination — the service's Backup tab reported
+      # "no destinations configured" moments after one was created in Settings.
+      def reachable_destinations
+        destination_scope.order(:name).to_a
       end
 
       def destination_params

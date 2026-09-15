@@ -368,6 +368,16 @@ module Api
 
       process_name = params[:process_name] || params[:processName]
       quantity = params[:quantity]
+
+      # `release`/`postdeploy` are one-shot deploy commands, not long-running
+      # processes. Scaling one to a non-zero quantity would run it in a restart
+      # loop, so they are never recorded and never scalable.
+      if ProcessTypeDiscovery::NON_SCALABLE.include?(process_name.to_s.downcase)
+        return render json: {
+          error: "#{process_name} is a one-shot deploy task and cannot be scaled"
+        }, status: :unprocessable_entity
+      end
+
       process = @service.process_types.find_by!(name: process_name)
       process.update!(quantity: quantity)
 
@@ -571,8 +581,9 @@ module Api
 
       destination_ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
       if destination_ids.any?
-        server = @service.project.server
-        visible_ids = server.backup_destinations.ids + server.organization&.backup_destinations&.ids.to_a
+        visible_ids = BackupDestination.reachable_from(
+          @service.project.server, organization: @service.project.organization
+        ).ids
         invalid = destination_ids - visible_ids.map(&:to_s)
         return render json: { error: "Invalid backup destination(s): #{invalid.join(", ")}" }, status: :unprocessable_entity if invalid.any?
       end
