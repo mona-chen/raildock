@@ -396,6 +396,21 @@ export interface DockerContainer {
   subtype?: string
 }
 
+// A datastore that exists on a host but has no Service record in RailDock:
+// invisible to the dashboard, and therefore to scheduled backups.
+export interface UnmanagedDatastore {
+  name: string
+  subtype: string
+  serviceType: string
+  status: string
+  linkedApps: string[]
+}
+
+export interface UnmanagedDatastoreScan {
+  resources: UnmanagedDatastore[]
+  errors: string[]
+}
+
 // ───────────────────────────────────────────────
 // Git Sources
 // ───────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container } from 'lucide-react'
+import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container, Database } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
@@ -6,6 +6,7 @@ import { useServers, useDestroyServer, useValidateServer, useUpdateServer } from
 import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
 import ServerDockerImportModal from '@/features/servers/ServerDockerImportModal'
+import ServerUnmanagedDatastoresModal from '@/features/servers/ServerUnmanagedDatastoresModal'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
@@ -22,6 +23,7 @@ export default function ServerPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
   const [importServer, setImportServer] = useState<ServerRecord | null>(null)
+  const [adoptServer, setAdoptServer] = useState<ServerRecord | null>(null)
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [proxyNetwork, setProxyNetwork] = useState('')
   const [httpEntrypoint, setHttpEntrypoint] = useState('web')
@@ -152,6 +154,13 @@ export default function ServerPage() {
                         <Container size={14} />
                       </button>
                       <button
+                        onClick={() => setAdoptServer(srv)}
+                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        title="Adopt untracked datastores"
+                      >
+                        <Database size={14} />
+                      </button>
+                      <button
                         onClick={() => openSettings(srv)}
                         className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
                         title="Proxy settings"
@@ -240,6 +249,14 @@ export default function ServerPage() {
           serverId={importServer.id}
           serverName={importServer.name}
           onClose={() => setImportServer(null)}
+        />
+      )}
+
+      {adoptServer && (
+        <ServerUnmanagedDatastoresModal
+          serverId={adoptServer.id}
+          serverName={adoptServer.name}
+          onClose={() => setAdoptServer(null)}
         />
       )}
 

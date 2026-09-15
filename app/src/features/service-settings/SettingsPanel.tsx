@@ -11,6 +11,7 @@ import { useGitSources, useGitSourceBranches, useGitSourceDirectories } from '@/
 import { useProject } from '@/hooks/useProjects'
 import { useServers } from '@/hooks/useServers'
 import { useNetworks } from '@/hooks/useModules'
+import { cn, confirmationFieldTone } from '@/lib/utils'
 
 const tabs = [
   { key: 'general', label: 'General', icon: Server },
@@ -915,8 +916,14 @@ function DangerZone({ svc }: { svc: Service }) {
               <input
                 value={confirmName}
                 onChange={(e) => setConfirmName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-red-500/50 placeholder-[#4A4A55]"
-                placeholder={svc.name}
+                aria-label={`Type ${svc.name} to confirm`}
+                aria-invalid={confirmName.length > 0 && !isConfirmValid}
+                autoComplete="off"
+                spellCheck={false}
+                className={cn(
+                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-none transition-colors',
+                  confirmationFieldTone(confirmName, isConfirmValid)
+                )}
                 autoFocus
               />
             </div>

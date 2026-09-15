@@ -88,3 +88,27 @@ export function useImportDockerContainers(serverId: string | undefined) {
     onError: (err) => toast.error(`Import failed: ${err.message}`),
   })
 }
+
+export function useUnmanagedDatastores(serverId: string | undefined) {
+  return useQuery({
+    queryKey: ['servers', serverId, 'unmanaged-datastores'],
+    queryFn: () => api.servers.unmanagedDatastores.list(serverId!),
+    enabled: !!serverId,
+  })
+}
+
+export function useAdoptDatastore(serverId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ resourceName, projectId, name }: { resourceName: string; projectId: string; name?: string }) =>
+      api.servers.unmanagedDatastores.adopt(serverId!, { resourceName, projectId, name }),
+    onSuccess: (service) => {
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'unmanaged-datastores'] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      toast.success(
+        `Adopted ${service.name} — RailDock can now back it up. Nothing on the host was changed.`
+      )
+    },
+    onError: (err) => toast.error(`Adoption failed: ${err.message}`),
+  })
+}

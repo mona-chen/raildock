@@ -35,6 +35,7 @@ import type {
   ManifestRemovalPreview,
   DataSafetyReport,
   DockerContainer,
+  UnmanagedDatastoreScan,
   StorageMountKind,
   StorageMountEntry,
   DataTablesResponse,
@@ -600,6 +601,23 @@ export const serversApi = {
       return fetchJson(`/api/servers/${serverId}/docker_imports`, {
         method: 'POST',
         body: JSON.stringify({ containers: data.containers, project_id: data.projectId }),
+      })
+    },
+  },
+
+  unmanagedDatastores: {
+    list: async (serverId: string): Promise<UnmanagedDatastoreScan> => {
+      return fetchJson(`/api/servers/${serverId}/unmanaged_datastores`)
+    },
+    // Adoption records a datastore that already exists on the host. The server
+    // side re-reads the resource itself; only the name and target project travel.
+    adopt: async (
+      serverId: string,
+      data: { resourceName: string; projectId: string; name?: string }
+    ): Promise<Service> => {
+      return fetchJson(`/api/servers/${serverId}/unmanaged_datastores/adopt`, {
+        method: 'POST',
+        body: JSON.stringify({ resource_name: data.resourceName, project_id: data.projectId, name: data.name }),
       })
     },
   },

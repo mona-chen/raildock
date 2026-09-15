@@ -122,6 +122,11 @@ Rails.application.routes.draw do
         get :provision_status
       end
       resources :docker_imports, only: [ :index, :create ], controller: "server_docker_imports"
+      resources :unmanaged_datastores, only: [ :index ], controller: "server_unmanaged_datastores" do
+        collection do
+          post :adopt
+        end
+      end
     end
 
     resources :organizations do

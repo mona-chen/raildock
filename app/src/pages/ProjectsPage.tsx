@@ -7,6 +7,7 @@ import { useCanvasStore } from '@/stores/useCanvasStore'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SkeletonCard } from '@/components/ui/skeleton'
+import { cn, confirmationFieldTone } from '@/lib/utils'
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
@@ -327,8 +328,14 @@ function ProjectCard({
               <input
                 value={confirmName}
                 onChange={(e) => setConfirmName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-red-500/50 placeholder-[#4A4A55]"
-                placeholder={project.name}
+                aria-label={`Type ${project.name} to confirm`}
+                aria-invalid={confirmName.length > 0 && !isConfirmValid}
+                autoComplete="off"
+                spellCheck={false}
+                className={cn(
+                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-none transition-colors',
+                  confirmationFieldTone(confirmName, isConfirmValid)
+                )}
                 autoFocus
               />
             </div>
