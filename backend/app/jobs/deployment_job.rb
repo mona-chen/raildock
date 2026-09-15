@@ -437,12 +437,14 @@ class DeploymentJob < ApplicationJob
       Rails.logger.warn "Post-deploy hostname injection failed for #{service.dokku_app_name}"
     end
 
-    # 13.5. Connect to user-selected external networks (e.g. matrix-postgres).
-    #     These are also best-effort — the app is already running.
-    if service.external_networks.present?
-      unless network_manager.connect_to_external_networks(service)[:success]
-        Rails.logger.warn "Post-deploy external network connect failed for #{service.dokku_app_name}"
-      end
+    # 13.5. Connect the running container to every network it must be on: the
+    #     external proxy network that fronts its domains plus user-selected
+    #     external networks (e.g. matrix-postgres). Best-effort like the block
+    #     above, but a container missing from the proxy network answers 502 on
+    #     every domain, so that case is logged as an error.
+    post_deploy_networks = network_manager.connect_to_post_deploy_networks(service)
+    unless post_deploy_networks[:success]
+      Rails.logger.error "Post-deploy network attach failed for #{service.dokku_app_name}: #{post_deploy_networks[:output]}"
     end
 
     # 14. For docker-image services, read container env vars and sync password-type

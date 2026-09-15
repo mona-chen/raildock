@@ -41,6 +41,7 @@ RSpec.describe DeploymentJob, type: :job do
       ProjectNetworkManager,
       configure_attach_networks: { success: true, output: "" },
       connect_service: { success: true, output: "" },
+      connect_to_post_deploy_networks: { success: true, output: "", connected: [] },
       ensure_linked_aliases: { success: true, output: "" },
       inject_internal_hostnames: { success: true, output: "" }
     )

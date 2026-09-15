@@ -65,7 +65,7 @@ RSpec.describe ProjectNetworkManager do
       it "sets both attach-post-create and attach-post-deploy" do
         result = manager.configure_attach_networks(service)
 
-        expect(result).to eq({ success: true })
+        expect(result[:success]).to be(true)
         expect(engine).to have_received(:run)
           .with("network:set #{service.dokku_app_name} attach-post-create rd-test-1")
         expect(engine).to have_received(:run)
@@ -84,6 +84,72 @@ RSpec.describe ProjectNetworkManager do
         expect(engine).not_to have_received(:run)
           .with(/attach-post-deploy/)
       end
+
+      it "writes the proxy network and external networks in a single attach-post-deploy" do
+        allow(host_engine).to receive(:docker_network_inspect).with("matrix-postgres")
+          .and_return({ success: true, output: "[]" })
+        external = create(:service, project: project, name: "jean", service_type: "app",
+                                     external_networks: ["matrix-postgres"])
+
+        manager.configure_attach_networks(external)
+
+        expect(engine).to have_received(:run)
+          .with("network:set #{external.dokku_app_name} attach-post-deploy traefik-net,matrix-postgres")
+        expect(engine).not_to have_received(:run)
+          .with("network:set #{external.dokku_app_name} attach-post-deploy matrix-postgres")
+      end
+
+      it "skips external networks that do not exist on the host" do
+        allow(host_engine).to receive(:docker_network_inspect).with("missing-net")
+          .and_return({ success: false, output: "not found" })
+        external = create(:service, project: project, name: "ghost", service_type: "app",
+                                     external_networks: ["missing-net"])
+
+        manager.configure_attach_networks(external)
+
+        expect(engine).to have_received(:run)
+          .with("network:set #{external.dokku_app_name} attach-post-deploy traefik-net")
+      end
+    end
+  end
+
+  describe "#connect_to_post_deploy_networks" do
+    before do
+      allow(server).to receive(:external_proxy?).and_return(true)
+      allow(server).to receive(:external_proxy_network).and_return("traefik-net")
+      allow(host_engine).to receive(:docker_network_inspect).and_return({ success: true, output: "[]" })
+    end
+
+    it "attaches the running container to the proxy and external networks" do
+      external = create(:service, project: project, name: "jean", service_type: "app",
+                                  external_networks: ["matrix-postgres"])
+
+      result = manager.connect_to_post_deploy_networks(external)
+
+      expect(result[:success]).to be(true)
+      expect(result[:connected]).to contain_exactly("traefik-net", "matrix-postgres")
+      expect(host_engine).to have_received(:docker_network_connect).with("app-container", "traefik-net")
+      expect(host_engine).to have_received(:docker_network_connect).with("app-container", "matrix-postgres")
+    end
+
+    it "reports the networks it could not attach" do
+      allow(host_engine).to receive(:docker_network_connect).with("app-container", "traefik-net")
+        .and_return({ success: false, output: "boom" })
+
+      result = manager.connect_to_post_deploy_networks(service)
+
+      expect(result[:success]).to be(false)
+      expect(result[:output]).to include("traefik-net")
+    end
+
+    it "does nothing when the service must not be on any post-deploy network" do
+      allow(server).to receive(:external_proxy?).and_return(false)
+      allow(server).to receive(:external_proxy_network).and_return(nil)
+
+      result = manager.connect_to_post_deploy_networks(service)
+
+      expect(result).to eq({ success: true, connected: [] })
+      expect(host_engine).not_to have_received(:docker_network_connect)
     end
   end
 end

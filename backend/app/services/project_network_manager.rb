@@ -87,57 +87,57 @@ class ProjectNetworkManager
     result = engine.run("network:set #{service.dokku_app_name} attach-post-create #{network_name}")
     return result unless result[:success]
 
-    # External Traefik network — attach-post-deploy (after health checks).
-    # Not needed at boot, only for Traefik to discover the container.
+    # Every post-deploy network has to be written in ONE call. Dokku replaces
+    # the whole attach-post-deploy list on each `network:set`, so setting the
+    # proxy network and then an external network (e.g. matrix-postgres) drops
+    # whichever was set first. The container then deploys off the proxy
+    # network and every domain for the service answers 502.
+    networks = attach_post_deploy_networks(service)
+    return { success: true } if networks.empty?
+
+    engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{networks.join(',')}")
+  end
+
+  # Every network a container must join after (and at) deploy: the external
+  # proxy network that fronts the service's domains, plus any user-selected
+  # external networks (e.g. matrix-postgres, synapse-network). Order is stable
+  # and duplicates are dropped so repeated deploys stay idempotent.
+  def attach_post_deploy_networks(service)
+    networks = []
     if service.service_type_app? && project.server&.external_proxy?
-      engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{project.server.external_proxy_network}")
+      networks << project.server.external_proxy_network.to_s.strip
     end
 
-    # User-selected external networks — attach-post-deploy so containers
-    # can reach external services (e.g. matrix-postgres, synapse-network).
     Array(service.external_networks).each do |net_name|
-      next if net_name.blank?
+      name = net_name.to_s.strip
+      next if name.blank?
 
       # Verify the network exists on the host
-      check = host_engine.docker_network_inspect(net_name)
-      unless check[:success]
-        Rails.logger.warn "External network '#{net_name}' not found on server, skipping for #{service.dokku_app_name}"
+      unless host_engine.docker_network_inspect(name)[:success]
+        Rails.logger.warn "External network '#{name}' not found on server, skipping for #{service.dokku_app_name}"
         next
       end
 
-      engine.run("network:set #{service.dokku_app_name} attach-post-deploy #{net_name}")
+      networks << name
     end
 
-    { success: true }
+    networks.reject(&:blank?).uniq
+  end
+
+  # Connect a service's running container to every network it must be on.
+  # Dokku's attach-post-deploy hook normally does this, but a container that
+  # was created before the networks were configured — or a hook that failed —
+  # stays reachable only from the private network, and Traefik answers 502 for
+  # every domain until the next deploy. Verify instead of assuming.
+  def connect_to_post_deploy_networks(service)
+    connect_to_networks(service, attach_post_deploy_networks(service))
   end
 
   # Connect a service's running container to its configured external networks.
   # Called after deploy completes so the container is immediately reachable on
   # those networks (not waiting for the next deploy's attach-post-deploy).
   def connect_to_external_networks(service)
-    networks = Array(service.external_networks).reject(&:blank?)
-    return { success: true } if networks.empty?
-
-    container = wait_for_linked_container(service.dokku_app_name)
-    return { success: false, output: "Container #{service.dokku_app_name} not found" } if container.blank?
-
-    results = networks.map do |net_name|
-      check = host_engine.docker_network_inspect(net_name)
-      unless check[:success]
-        Rails.logger.warn "External network '#{net_name}' not found, skipping connect for #{service.dokku_app_name}"
-        next
-      end
-
-      # Disconnect first to avoid duplicate connections
-      host_engine.docker_network_disconnect(container, net_name)
-      result = host_engine.docker_network_connect(container, net_name)
-      unless result[:success]
-        Rails.logger.warn "Failed to connect #{service.dokku_app_name} to external network '#{net_name}': #{result[:output]}"
-      end
-      result
-    end
-
-    { success: true, connected: networks }
+    connect_to_networks(service, Array(service.external_networks).reject(&:blank?))
   end
 
   def disconnect_service(service)
@@ -208,6 +208,42 @@ class ProjectNetworkManager
   private
 
   attr_reader :project, :engine, :host_engine
+
+  # Attach a running container to each network and report the ones that did
+  # not make it, so a caller can surface a service that would otherwise only
+  # be reachable from the private network.
+  def connect_to_networks(service, networks)
+    networks = Array(networks).reject(&:blank?).uniq
+    return { success: true, connected: [] } if networks.empty?
+
+    container = wait_for_linked_container(service.dokku_app_name)
+    return { success: false, output: "Container #{service.dokku_app_name} not found" } if container.blank?
+
+    connected = []
+    missing = []
+
+    networks.each do |net_name|
+      unless host_engine.docker_network_inspect(net_name)[:success]
+        Rails.logger.warn "Network '#{net_name}' not found on server, skipping connect for #{service.dokku_app_name}"
+        missing << net_name
+        next
+      end
+
+      # Disconnect first to avoid duplicate connections and stale endpoints.
+      host_engine.docker_network_disconnect(container, net_name)
+      result = host_engine.docker_network_connect(container, net_name)
+      if result[:success]
+        connected << net_name
+      else
+        Rails.logger.warn "Failed to connect #{service.dokku_app_name} to network '#{net_name}': #{result[:output]}"
+        missing << net_name
+      end
+    end
+
+    return { success: true, connected: connected } if missing.empty?
+
+    { success: false, output: "Container #{container} is not attached to: #{missing.join(', ')}", connected: connected }
+  end
 
   def connect_container_with_aliases(container, aliases, wait: true)
     return { success: true } if aliases.empty?
