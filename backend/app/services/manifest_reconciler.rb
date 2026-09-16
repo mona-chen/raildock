@@ -302,6 +302,7 @@ class ManifestReconciler
         reservations: svc.config&.dig("resourceReservations") || {},
         checks: svc.config&.dig("checks") || {},
         cron: svc.config&.dig("cron") || [],
+        scripts: svc.config&.dig("scripts") || {},
         docker_options: svc.config&.dig("dockerOptions") || [],
         traefik_labels: svc.config&.dig("traefik") || {},
         letsencrypt: svc.config&.dig("letsencrypt") || {},
@@ -326,7 +327,7 @@ class ManifestReconciler
       root_directory start_command exposed port maintenance_mode
       restart_policy restart_max_retries auto_deploy env domains
       storage proxy scaling limits reservations checks cron
-      docker_options traefik_labels letsencrypt depends_on
+      scripts docker_options traefik_labels letsencrypt depends_on
     ]
     if desired_svc[:category] == "database"
       fields -= %i[domains proxy scaling checks cron traefik_labels letsencrypt]
@@ -428,9 +429,29 @@ class ManifestReconciler
       service[:maintenance]
     when :auto_deploy
       service.key?(:auto_deploy) && !service[:auto_deploy].nil? ? service[:auto_deploy] : true
+    when :scripts
+      desired_scripts(service)
     else
       service[field]
     end
+  end
+
+  # Scripts persisted for a service, tagged with their provenance so the deploy
+  # path can tell whether Dokku itself will run them (see run_deploy_scripts).
+  # Only phases with a command are stored.
+  def desired_scripts(service)
+    raw = service[:scripts]
+    return {} unless raw.is_a?(Hash)
+
+    phases = raw.each_with_object({}) do |(phase, command), result|
+      result[phase.to_s] = command if command.present?
+    end
+    return {} if phases.empty?
+
+    phases.merge(
+      "source" => @desired.source.to_s,
+      "format" => @desired.format_detected.to_s
+    )
   end
 
   def app_json_source_unspecified?(service, field)
@@ -1120,6 +1141,9 @@ class ManifestReconciler
     when :version then service.update!(version: change.new_value)
     when :subtype then service.update!(subtype: change.new_value)
     when :category then service.update!(service_type: change.new_value)
+    when :scripts
+      scripts = change.new_value.is_a?(Hash) ? change.new_value : {}
+      service.update!(config: (service.config || {}).merge("scripts" => scripts))
     end
   end
 
@@ -1235,7 +1259,8 @@ class ManifestReconciler
     config["traefik"] = svc[:traefik_labels] if svc[:traefik_labels]
     config["letsencrypt"] = svc[:letsencrypt] if svc[:letsencrypt]
     config["depends_on"] = svc[:depends_on] if svc[:depends_on].present?
-    config["scripts"] = svc[:scripts] if svc[:scripts]&.values&.any?(&:present?)
+    scripts = desired_scripts(svc)
+    config["scripts"] = scripts if scripts.any?
     config["dockerfilePath"] = svc[:dockerfile_path] if svc[:dockerfile_path].present?
     config
   end

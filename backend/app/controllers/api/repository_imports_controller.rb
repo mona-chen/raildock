@@ -45,7 +45,7 @@ module Api
         original_content: payload["original_content"]
       )
 
-      ManifestParser.parse(manifest_content, filename: manifest_format)
+      ManifestParser.parse(manifest_content, filename: manifest_format, source: :repository)
 
       # Importing a repository must never delete unrelated services. Services
       # that exist today but are missing from the imported manifest are kept
@@ -84,7 +84,7 @@ module Api
       # Services that exist today but are absent from the manifest an import
       # would apply.
       def removal_plan_for(content, format)
-        desired = ManifestParser.parse(content, filename: format)
+        desired = ManifestParser.parse(content, filename: format, source: :repository)
         reconciler = ManifestReconciler.new(@project, desired)
         reconciler.diff
         reconciler.removal_plan

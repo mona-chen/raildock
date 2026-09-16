@@ -122,7 +122,7 @@ class RepositoryDiscovery
 
       candidates.each do |path|
         raw = file_content(path, commit_sha)
-        parsed = ManifestParser.parse(raw, filename: File.basename(path))
+        parsed = ManifestParser.parse(raw, filename: File.basename(path), source: :repository)
         original_format ||= parsed.format_detected
         original_content ||= raw
         root = File.dirname(path) == "." ? nil : File.dirname(path)

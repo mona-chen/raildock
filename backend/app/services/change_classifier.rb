@@ -41,6 +41,7 @@ class ChangeClassifier
     exposed: :redeploy,
     port: :redeploy,
     docker_options: :redeploy,
+    scripts: :redeploy,
     version: :redeploy,
     subtype: :redeploy,
     category: :redeploy

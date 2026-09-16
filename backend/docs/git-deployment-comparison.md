@@ -69,7 +69,7 @@ The backend has `GithubSyncReposJob` and `GitSource#repos`, but the frontend doe
 | Feature | Railway | Dokploy | Heroku | Coolify | **RailDock (Current)** |
 |---------|---------|---------|--------|---------|------------------------|
 | **Release phase** | ❌ | ❌ | ✅ `release` process in Procfile | ❌ | ❌ |
-| **Pre-deploy hooks** | ❌ | ❌ | ❌ | ❌ | ❌ Dokku has predeploy/postdeploy via `app.json`; **not exposed** |
+| **Pre-deploy hooks** | ❌ | ❌ | ❌ | ❌ | ✅ In-repo `app.json` `scripts.dokku.predeploy` runs natively via Dokku's release phase; RailDock runs `predeploy`/`postdeploy` itself for manifests not in the deployed repo (UI/DB/template, `git:from-image`, subdirectory) |
 | **Zero-downtime deploy** | ✅ Rolling | ✅ Health-check based | ✅ Preboot | ✅ Health-check based | ⚠️ Dokku has zero-downtime; **health checks not configured by default** |
 | **Port detection** | ✅ Auto | ✅ Auto | ✅ `$PORT` env var | ✅ Manual / Auto | ✅ `PortDetector` inspects image; works well |
 | **Process types / scaling** | ✅ `railway.json` | ✅ Docker Compose | ✅ Procfile | ✅ Docker Compose | ✅ `ProcessType` model + `ps:scale` |
@@ -80,7 +80,7 @@ The backend has `GithubSyncReposJob` and `GitSource#repos`, but the frontend doe
 ### RailDock Gaps
 1. **No rollback**: The `Deployment` model stores logs but there's no way to roll back to a previous deployment. Dokku has `ps:rollback`.
 2. **No release phase**: Heroku's `release` Procfile step runs migrations before the new dynos start. RailDock has no equivalent.
-3. **No `app.json` support**: Dokku supports `app.json` for predeploy/postdeploy scripts, buildpack config, etc. RailDock doesn't parse or apply it.
+3. **`app.json` scripts**: RailDock parses `app.json`, `raildock.toml`, and `railway.toml` for `scripts.dokku.predeploy`/`postdeploy`. A repository-sourced `app.json` is executed by Dokku's own processor (RailDock skips its runner to avoid double execution); manifests that are not in the deployed repo are executed by RailDock's `dokku run` runner. `app.json` buildpack config beyond scripts is still not applied.
 4. **No preview deployments**: PR branches can't be auto-deployed to ephemeral URLs.
 
 ---

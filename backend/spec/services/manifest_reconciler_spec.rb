@@ -665,4 +665,52 @@ RSpec.describe ManifestReconciler do
       reconciler.send(:resolve_runtime_values, engine, service)
     end
   end
+
+  describe "script provenance" do
+    def desired_with_scripts(scripts, source:, format:)
+      svc = app_definition(name: "web", repo: "https://github.com/acme/app").merge(scripts: scripts)
+      state = ManifestParser::ManifestDesiredState.new(
+        services: [ svc ],
+        format_detected: format,
+        source: source
+      )
+      [ described_class.new(project, state), svc ]
+    end
+
+    it "tags repository-sourced app.json scripts so the deploy path can defer to Dokku" do
+      reconciler, svc = desired_with_scripts(
+        { predeploy: "bin/rails db:migrate", postdeploy: nil },
+        source: :repository,
+        format: "app.json"
+      )
+
+      expect(reconciler.send(:desired_scripts, svc)).to eq(
+        "predeploy" => "bin/rails db:migrate",
+        "source" => "repository",
+        "format" => "app.json"
+      )
+    end
+
+    it "tags UI manifests so RailDock remains responsible for running the script" do
+      reconciler, svc = desired_with_scripts(
+        { predeploy: "bin/rails db:migrate" },
+        source: :manifest,
+        format: "raildock.toml"
+      )
+
+      scripts = reconciler.send(:desired_scripts, svc)
+      expect(scripts["source"]).to eq("manifest")
+      expect(scripts["format"]).to eq("raildock.toml")
+    end
+
+    it "returns an empty hash when no phase has a command" do
+      reconciler, svc = desired_with_scripts(
+        { predeploy: nil, postdeploy: "" },
+        source: :repository,
+        format: "app.json"
+      )
+
+      expect(reconciler.send(:desired_scripts, svc)).to eq({})
+    end
+  end
 end

@@ -600,4 +600,24 @@ RSpec.describe DeploymentJob, type: :job do
       end
     end
   end
+
+  describe "#dokku_processes_deploy_script?" do
+    let(:job) { described_class.new }
+
+    it "defers to Dokku only for a repository-sourced app.json" do
+      expect(job.send(:dokku_processes_deploy_script?, { "source" => "repository", "format" => "app.json" })).to be(true)
+    end
+
+    it "keeps RailDock responsible for UI manifests" do
+      expect(job.send(:dokku_processes_deploy_script?, { "source" => "manifest", "format" => "app.json" })).to be(false)
+    end
+
+    it "keeps RailDock responsible for formats Dokku cannot read" do
+      expect(job.send(:dokku_processes_deploy_script?, { "source" => "repository", "format" => "raildock.toml" })).to be(false)
+    end
+
+    it "is false when no scripts are configured" do
+      expect(job.send(:dokku_processes_deploy_script?, {})).to be(false)
+    end
+  end
 end

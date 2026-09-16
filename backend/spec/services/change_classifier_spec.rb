@@ -15,7 +15,7 @@ RSpec.describe ChangeClassifier do
     end
 
     it 'classifies redeploy fields' do
-      %i[builder docker_image git_repo branch source root_directory start_command exposed port version subtype category].each do |field|
+      %i[builder docker_image git_repo branch source root_directory start_command exposed port version subtype category scripts docker_options].each do |field|
         expect(described_class.classify(field)).to eq(:redeploy)
       end
     end

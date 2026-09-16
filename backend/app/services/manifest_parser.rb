@@ -30,17 +30,30 @@ class ManifestParser
     "DATABASE" => :database
   }.freeze
 
-  # Result object holding the normalized desired state
+  # Result object holding the normalized desired state.
+  #
+  # `source` records where the manifest content came from: `:repository` when
+  # parsed from a file checked into the deployed repo, `:manifest` for content
+  # entered in the UI / stored in the DB / supplied by a template. Some deploy
+  # behavior differs by source — Dokku itself processes an in-repo `app.json`,
+  # so RailDock must not also run those scripts.
   class ManifestDesiredState
-    attr_reader :services, :links, :format_detected, :warnings, :raw, :repaired_content
+    attr_reader :services, :links, :format_detected, :warnings, :raw, :repaired_content, :source
 
-    def initialize(services: [], links: [], format_detected: nil, warnings: [], raw: nil, repaired_content: nil)
+    def initialize(services: [], links: [], format_detected: nil, warnings: [], raw: nil, repaired_content: nil, source: :manifest)
       @services = services
       @links = links
       @format_detected = format_detected
       @warnings = warnings
       @raw = raw
       @repaired_content = repaired_content
+      @source = source
+    end
+
+    # True when the manifest lives in the deployed repository, so Dokku's own
+    # app.json processor will run `scripts.dokku.*` during the deploy.
+    def dokku_processes_scripts?
+      source.to_s == "repository" && format_detected.to_s == "app.json"
     end
 
     def service_names
@@ -86,13 +99,14 @@ class ManifestParser
 
   # ── Public API ──────────────────────────────────────────────
 
-  def self.parse(raw_content, filename: nil)
-    new.parse(raw_content, filename: filename)
+  def self.parse(raw_content, filename: nil, source: :manifest)
+    new.parse(raw_content, filename: filename, source: source)
   end
 
-  def parse(raw_content, filename: nil)
+  def parse(raw_content, filename: nil, source: :manifest)
     @secret_cache = {}
     @parse_warnings = []
+    @source = source
     format = detect_format(raw_content, filename)
     hash = parse_raw(raw_content, format)
     normalize(hash, format, raw_content)
@@ -273,7 +287,8 @@ class ManifestParser
       links: links,
       format_detected: "app.json",
       warnings: warnings,
-      raw: raw
+      raw: raw,
+      source: @source
     )
   end
 
@@ -403,7 +418,8 @@ class ManifestParser
       links: links,
       format_detected: format.to_s.tr(":", ".").sub("railway_", "railway."),
       warnings: warnings,
-      raw: raw
+      raw: raw,
+      source: @source
     )
   end
 
@@ -517,7 +533,8 @@ class ManifestParser
       links: links,
       format_detected: hash.key?("services") && raw.strip.start_with?("{") ? "raildock.json" : "raildock.toml",
       warnings: warnings,
-      raw: raw
+      raw: raw,
+      source: @source
     )
   end
 

@@ -460,6 +460,12 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "Linked password propagation failed", linked_result[:output]) unless linked_result[:success]
     end
 
+    # 14.5. Run postdeploy scripts for manifests Dokku does not process itself
+    #       (see run_deploy_scripts). Runs once the app is live, which is the
+    #       correct point in the deploy for a postdeploy task.
+    postdeploy_result = run_deploy_scripts(service, deployment, engine, "postdeploy", deploy_output)
+    return if postdeploy_result == :failed
+
     # 15. Mark success
     deployment.update!(
       status: :succeeded,
@@ -518,11 +524,35 @@ class DeploymentJob < ApplicationJob
   # Run a declared deploy script (predeploy/postdeploy) inside the app's
   # container via `dokku run`. The command is evaluated in the deployed image
   # so e.g. `bin/rails db:migrate` uses the new code and linked datastores.
+  #
+  # Scripts that Dokku's own app.json processor already runs are skipped: a
+  # repository-sourced app.json makes Dokku execute `scripts.dokku.predeploy`
+  # during the release phase (before traffic) and `scripts.dokku.postdeploy`
+  # after deploy, so running them here too would execute them twice.
+  # RailDock only runs scripts for manifests that are not in the deployed repo
+  # (UI/DB/template manifests, `git:from-image` deploys, subdirectory deploys)
+  # or for formats Dokku does not understand (raildock.toml, railway.toml).
+  #
   # Returns :ok when nothing ran or it succeeded, :failed when it errored
   # (the deployment has already been marked failed), or :cancelled.
   def run_deploy_scripts(service, deployment, engine, phase, deploy_output)
-    command = service.config&.dig("scripts", phase)
+    scripts = service.config&.dig("scripts") || {}
+    command = scripts[phase]
     return :ok if command.blank?
+
+    if dokku_processes_deploy_script?(scripts)
+      note = "-----> #{phase} script is handled by Dokku's app.json processor, skipping RailDock runner\n"
+      deploy_output << note
+      deployment.append_log_chunk!(note)
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: :deploying,
+        log_chunk: note,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at.iso8601
+      })
+      return :ok
+    end
 
     app_name = service.dokku_app_name
     safely_broadcast_deployment(service, {
@@ -553,6 +583,13 @@ class DeploymentJob < ApplicationJob
 
     mark_failed(deployment, service, "#{phase} script failed", deploy_output)
     :failed
+  end
+
+  # True when Dokku's app.json processor will run the service's deploy scripts
+  # itself: the manifest is a repository-sourced app.json, which Dokku extracts
+  # from the deployed repo and executes during release/post-deploy.
+  def dokku_processes_deploy_script?(scripts)
+    scripts["source"].to_s == "repository" && scripts["format"].to_s == "app.json"
   end
 
   # Wait for linked database containers to report running and for their network
@@ -648,7 +685,7 @@ class DeploymentJob < ApplicationJob
     return unless fetched
     path, content = fetched
 
-    desired = ManifestParser.parse(content, filename: File.basename(path))
+    desired = ManifestParser.parse(content, filename: File.basename(path), source: :repository)
     reconciler = ManifestReconciler.new(project, desired)
     reconciler.diff(preserve_removed_services: true)
     changes = reconciler.changes

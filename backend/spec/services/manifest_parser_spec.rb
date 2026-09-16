@@ -130,6 +130,51 @@ RSpec.describe ManifestParser do
       end
     end
 
+    context 'manifest provenance' do
+      let(:app_json_with_scripts) do
+        {
+          name: "my-app",
+          scripts: {
+            dokku: {
+              predeploy: "bin/rails db:migrate",
+              postdeploy: "bin/rails db:seed"
+            }
+          }
+        }.to_json
+      end
+
+      it 'defaults to :manifest and does not hand scripts to Dokku' do
+        result = described_class.parse(app_json_with_scripts, filename: "app.json")
+
+        expect(result.source).to eq(:manifest)
+        expect(result.dokku_processes_scripts?).to be(false)
+      end
+
+      it 'marks a repository-sourced app.json as Dokku-processed' do
+        result = described_class.parse(app_json_with_scripts, filename: "app.json", source: :repository)
+
+        expect(result.source).to eq(:repository)
+        expect(result.dokku_processes_scripts?).to be(true)
+        expect(result.services.first.dig(:scripts, :predeploy)).to eq("bin/rails db:migrate")
+      end
+
+      it 'does not hand a repository raildock.toml to Dokku (Dokku cannot read it)' do
+        toml = <<~TOML
+          [[services]]
+          name = "web"
+          category = "app"
+
+            [services.scripts]
+            predeploy = "bin/rails db:migrate"
+        TOML
+
+        result = described_class.parse(toml, filename: "raildock.toml", source: :repository)
+
+        expect(result.source).to eq(:repository)
+        expect(result.dokku_processes_scripts?).to be(false)
+      end
+    end
+
     context 'with raildock.json' do
       let(:json) do
         <<~JSON
