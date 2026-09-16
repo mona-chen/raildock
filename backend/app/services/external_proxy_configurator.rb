@@ -23,6 +23,13 @@ class ExternalProxyConfigurator
     ports_result = engine.ports_clear(service.dokku_app_name)
     return ports_result unless ports_result[:success]
 
+    # A backend is reached by either a port label or a url label, never both.
+    # Earlier configurations may have left the other form behind (for example a
+    # port label applied before the container was running), and Traefik rejects
+    # a service that sets both, which silently drops every router for the app.
+    # Strip any existing backend label before applying the resolved one.
+    remove_stale_backend_labels
+
     new_labels = build_labels
     previous_labels = service.config&.fetch(MANAGED_LABELS_KEY, {}) || {}
 
@@ -130,6 +137,33 @@ class ExternalProxyConfigurator
       docker_label_option(key, value),
       process: "web"
     )
+  end
+
+  # Remove any previously applied loadbalancer backend label (port or url) for
+  # this service. Traefik rejects a service that defines both a port and a url,
+  # so the resolved label must never coexist with a stale one from an earlier
+  # configuration (for example a port label applied before the container ran).
+  def remove_stale_backend_labels
+    report = engine.docker_options_report(service.dokku_app_name, "deploy", process: "web")
+    return unless report[:success]
+
+    prefix = "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server."
+    docker_option_label_pairs(report[:output]).each do |key, value|
+      remove_label(key, value) if key.start_with?(prefix)
+    end
+  end
+
+  # `docker-options:report` prints one option per entry, space separated and
+  # quoting values that contain shell metacharacters. Extract the `--label`
+  # pairs without depending on the surrounding report formatting.
+  def docker_option_label_pairs(output)
+    output.to_s.scan(/--label\s+(?:'([^']*)'|"([^"]*)"|(\S+))/).filter_map do |single, double, bare|
+      label = single || double || bare
+      next if label.blank?
+
+      key, value = label.split("=", 2)
+      [ key, value ] if key.present? && value.present?
+    end
   end
 
   def docker_label_option(key, value)

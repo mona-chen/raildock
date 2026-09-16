@@ -68,6 +68,11 @@ entrypoint, certificate resolver, and redirect middleware names can be set via
 External mode stops Dokku's managed Traefik and sets the global proxy to
 `none` so it does not conflict with the external Traefik. RailDock applies
 process-scoped Docker labels directly through Dokku's `docker-options` plugin.
+A service is reached by either a `loadbalancer.server.port` or a
+`loadbalancer.server.url` label, never both — Traefik rejects a service that
+defines both and silently drops every router for the app. RailDock strips any
+stale backend label before applying the resolved one, so a port label written
+before the container was running cannot linger and shadow the url label.
 The external Traefik itself is never started, stopped, or reconfigured by RailDock.
 
 When piping the installer through `curl | bash`, either `export` the variables

@@ -34,6 +34,7 @@ RSpec.describe ExternalProxyConfigurator do
     allow(engine).to receive(:ports_clear).and_return(success: true, output: "")
     allow(engine).to receive(:docker_option_add).and_return(success: true, output: "")
     allow(engine).to receive(:docker_option_remove).and_return(success: true, output: "")
+    allow(engine).to receive(:docker_options_report).and_return(success: true, output: "")
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
   end
 
@@ -133,6 +134,30 @@ RSpec.describe ExternalProxyConfigurator do
       service.dokku_app_name,
       "deploy",
       a_string_including('loadbalancer.server.url=http://proj-web.web.1:3000'),
+      process: "web"
+    )
+  end
+
+  it "removes a stale backend port label before applying the resolved url label" do
+    allow(host_engine).to receive(:dokku_container_name).and_return("app.web.1")
+    backend_port = "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port=5000"
+    allow(engine).to receive(:docker_options_report).and_return(
+      success: true,
+      output: "--label traefik.enable=true --label '#{backend_port}'"
+    )
+
+    described_class.new(service, engine, host_engine).apply!
+
+    expect(engine).to have_received(:docker_option_remove).with(
+      service.dokku_app_name,
+      "deploy",
+      %(--label "#{backend_port}"),
+      process: "web"
+    )
+    expect(engine).not_to have_received(:docker_option_remove).with(
+      service.dokku_app_name,
+      "deploy",
+      '--label "traefik.enable=true"',
       process: "web"
     )
   end

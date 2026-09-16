@@ -632,6 +632,14 @@ class DokkuEngine
     run("docker-options:remove #{process_arg}#{escape(app_name)} #{escape(phase)} #{escape(option)}")
   end
 
+  # Raw docker-options for a single phase (and optional process). Used to
+  # reconcile options that were applied by an earlier configuration so stale
+  # entries cannot linger and conflict with the current ones.
+  def docker_options_report(app_name, phase, process: nil)
+    flag = process.present? ? "--docker-options-#{phase}.#{process}" : "--docker-options-#{phase}"
+    run("docker-options:report #{escape(app_name)} #{escape(flag)}")
+  end
+
   # ── Resource Limits ──────────────────────────
   # Dokku resource commands require --process-type flag before the process type value
   def resource_limit(app_name, process_type, memory: nil, cpu: nil, nvidia_gpu: nil)
