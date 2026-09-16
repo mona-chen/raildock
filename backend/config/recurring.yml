@@ -38,6 +38,10 @@ production:
     class: VerifyBackupDestinationsJob
     schedule: every 6 hours
 
+  proxy_drift_check:
+    class: ProxyDriftCheckJob
+    schedule: every 6 hours
+
   malware_scan:
     class: MalwareScanJob
     schedule: every hour at minute 5

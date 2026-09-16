@@ -257,6 +257,20 @@ class HostEngine
     run("docker inspect #{fmt}#{Shellwords.escape(container)}")
   end
 
+  # Labels on a running container, read through the Docker API template.
+  # Returns a Hash, or nil when the container is missing or unreadable.
+  def container_labels(container)
+    return nil if container.blank?
+
+    result = docker_inspect(container, format: "{{json .Config.Labels}}")
+    return nil unless result[:success]
+
+    parsed = JSON.parse(result[:output].to_s.strip)
+    parsed.is_a?(Hash) ? parsed : nil
+  rescue JSON::ParserError
+    nil
+  end
+
   # Live resource usage for a container via `docker stats --no-stream`.
   # Returns parsed cpu/mem numbers or nil when the container doesn't
   # exist / stats cannot be read. One SSH round-trip.

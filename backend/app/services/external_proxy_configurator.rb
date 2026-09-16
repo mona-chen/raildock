@@ -1,6 +1,10 @@
 class ExternalProxyConfigurator
   MANAGED_LABELS_KEY = "_externalProxyLabels"
 
+  # RailDock owns every Traefik label on an app in external mode; labels under
+  # any other prefix are left untouched.
+  MANAGED_LABEL_PREFIX = "traefik."
+
   def initialize(service, engine, host_engine)
     @service = service
     @server = service.project.server
@@ -23,36 +27,95 @@ class ExternalProxyConfigurator
     ports_result = engine.ports_clear(service.dokku_app_name)
     return ports_result unless ports_result[:success]
 
-    # A backend is reached by either a port label or a url label, never both.
-    # Earlier configurations may have left the other form behind (for example a
-    # port label applied before the container was running), and Traefik rejects
-    # a service that sets both, which silently drops every router for the app.
-    # Strip any existing backend label before applying the resolved one.
-    remove_stale_backend_labels
-
-    new_labels = build_labels
-    previous_labels = service.config&.fetch(MANAGED_LABELS_KEY, {}) || {}
+    desired = build_labels
+    reconcile_result = reconcile_labels(desired)
+    return reconcile_result unless reconcile_result[:success]
 
     # Remove the legacy labels file so upgrading installations cannot receive
     # a second copy if the Dokku proxy is later re-enabled manually.
     host_engine.run("truncate -s 0 #{labels_file} || true")
 
-    previous_labels.each do |key, value|
-      remove_label(key, value)
-    end
-
-    new_labels.each do |key, value|
-      return failure("add label #{key}") unless add_label(key, value)
-    end
-
-    service.config = (service.config || {}).merge(MANAGED_LABELS_KEY => new_labels)
+    service.config = (service.config || {}).merge(MANAGED_LABELS_KEY => desired)
     service.save!
     { success: true }
+  end
+
+  # Compare the labels RailDock intends with the labels actually present on a
+  # running container. Returns `{ missing:, stale: }`; both empty means the
+  # container is serving the intended routing. Used by ProxyDriftCheckJob to
+  # catch apps that are silently unreachable despite a successful deploy.
+  def drift(actual_labels)
+    desired = build_labels
+    actual = actual_labels.to_h.select { |key, _| managed_label_key?(key) }
+
+    {
+      missing: desired.reject { |key, value| labels_equal?(actual[key], value) },
+      stale: actual.reject { |key, value| labels_equal?(desired[key], value) }
+    }
   end
 
   private
 
   attr_reader :service, :server, :engine, :host_engine
+
+  # Reconcile the app's Traefik labels against the desired set by diffing what
+  # the host actually has configured (plus what we previously applied) rather
+  # than trusting our own bookkeeping. A backend is reached by either a
+  # `loadbalancer.server.port` or a `loadbalancer.server.url` label, never
+  # both — Traefik rejects a service that defines both and silently drops every
+  # router for the app — so stale and changed labels must be removed, not just
+  # overwritten.
+  def reconcile_labels(desired)
+    actual = current_managed_labels
+    previous = previous_managed_labels
+
+    (actual.keys | previous.keys).uniq.each do |key|
+      next unless managed_label_key?(key)
+      next if labels_equal?(actual[key], desired[key])
+
+      value = actual[key] || previous[key]
+      next if value.nil?
+
+      return failure("remove label #{key}") unless remove_label(key, value)
+    end
+
+    desired.each do |key, value|
+      next if labels_equal?(actual[key], value)
+
+      return failure("add label #{key}") unless add_label(key, value)
+    end
+
+    { success: true }
+  end
+
+  # Compare two label values ignoring the backtick escaping applied when the
+  # option is written (Dokku's option parser needs backticks escaped, so the
+  # value read back differs from the desired one even when they are the same
+  # label — without this, every apply would rewrite every Host() rule).
+  def labels_equal?(actual, desired)
+    return false if actual.nil? || desired.nil?
+
+    actual.to_s.gsub("\\`", "`") == desired.to_s.gsub("\\`", "`")
+  end
+
+  # Traefik labels currently configured for the app's web process. Read from
+  # Dokku's docker-options (the configuration that will be applied to the next
+  # container), not the running container, whose labels only reflect the last
+  # time it was created.
+  def current_managed_labels
+    report = engine.docker_options_report(service.dokku_app_name, "deploy", process: "web")
+    return {} unless report[:success]
+
+    docker_option_label_pairs(report[:output]).select { |key, _| managed_label_key?(key) }.to_h
+  end
+
+  def previous_managed_labels
+    service.config&.fetch(MANAGED_LABELS_KEY, {}) || {}
+  end
+
+  def managed_label_key?(key)
+    key.to_s.start_with?(MANAGED_LABEL_PREFIX)
+  end
 
   def build_labels
     generated = {
@@ -136,21 +199,7 @@ class ExternalProxyConfigurator
       "deploy",
       docker_label_option(key, value),
       process: "web"
-    )
-  end
-
-  # Remove any previously applied loadbalancer backend label (port or url) for
-  # this service. Traefik rejects a service that defines both a port and a url,
-  # so the resolved label must never coexist with a stale one from an earlier
-  # configuration (for example a port label applied before the container ran).
-  def remove_stale_backend_labels
-    report = engine.docker_options_report(service.dokku_app_name, "deploy", process: "web")
-    return unless report[:success]
-
-    prefix = "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server."
-    docker_option_label_pairs(report[:output]).each do |key, value|
-      remove_label(key, value) if key.start_with?(prefix)
-    end
+    )[:success]
   end
 
   # `docker-options:report` prints one option per entry, space separated and

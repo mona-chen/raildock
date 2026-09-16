@@ -8,7 +8,7 @@ This file contains conventions and operational details for agents working on Rai
 - `backend/` — Rails 8 API (Ruby 3.4+)
 - `docker/` — nginx, supervisor, and entrypoint for the single production image
 - `scripts/` — Operational helpers (`backup.sh`, `restore.sh`, `setup-dev.sh`, etc.)
-- `dokku/` — Dokku source as a submodule/reference (not actively modified)
+- `dokku/` — Dokku source as a gitignored reference checkout (not actively modified)
 
 ## Build & run
 
@@ -157,6 +157,47 @@ Anything that deletes production data has to be explicit and recoverable. Keep t
 - `.github/workflows/build.yml` — builds and pushes image on git tags.
 - `.github/workflows/release.yml` — creates GitHub release on git tags.
 - `.github/workflows/deploy.yml` — manual deploy to a server via SSH with rollback.
+
+## Working with Dokku
+
+Dokku is the deployment engine; RailDock is a multi-host control plane that
+drives it over SSH. **Prefer Dokku's own declarative mechanisms over
+reimplementing them in Rails.** The exceptions below are deliberate and were
+verified against Dokku v0.38.1 — `dokku/` is a gitignored reference checkout
+(`git clone https://github.com/dokku/dokku.git dokku`); read it and check the
+version the target servers run before assuming a behavior.
+
+- **Managed proxy mode: let Dokku own routing.** Use its native commands
+  (`proxy:set`, `ports:set`, `domains:add`, `traefik:labels:*`) instead of
+  writing labels by hand.
+- **External proxy mode: RailDock owns the routing labels.**
+  `ExternalProxyConfigurator` writes process-scoped `docker-options` labels
+  because Dokku's `traefik-vhosts` plugin only ever runs *its own* Traefik
+  container (`network_mode: bridge`, hardcoded `80:80`/`443:443`) and has no
+  supported way to front an external Traefik. Its label hook also fails closed:
+  disabling the per-app proxy means the custom labels file is never read, while
+  enabling it injects Dokku's own routers (with a `leresolver` that does not
+  exist on the external proxy). Do not try to reconfigure the plugin to reach
+  someone else's Traefik.
+- **Deploy scripts live in Dokku's `app.json` for git deploys.** Dokku runs
+  `scripts.dokku.predeploy` during the release phase (before traffic) and
+  `scripts.dokku.postdeploy` after deploy; both fire under `git:sync` +
+  `ps:rebuild`, which is the path RailDock uses. Persisted scripts therefore
+  carry their provenance (`source` = `repository`/`manifest`, plus `format`),
+  and `DeploymentJob#run_deploy_scripts` skips any phase Dokku will run itself
+  so a repository `app.json` is never executed twice. RailDock runs a script
+  itself only for manifests that are not in the deployed repo: UI/DB/template
+  manifests, `git:from-image` deploys, and subdirectory deploys. Keep it that
+  way.
+- **Reconcile, do not track.** Apply the desired state and diff it against what
+  is actually on the host (`docker-options:report`, `ports:report`), removing
+  anything stale. Never rely only on the labels RailDock *thinks* it wrote —
+  `_externalProxyLabels` missed a stale `loadbalancer.server.port` and left
+  Traefik rejecting every router for the app. Check `docker_option_add`/`remove`
+  results instead of ignoring them. A Traefik service takes a
+  `loadbalancer.server.port` or a `loadbalancer.server.url`, never both.
+  `ProxyDriftCheckJob` re-checks running containers against the desired labels
+  every 6 hours and raises a warning `ActivityEvent` when they diverge.
 
 ## Making changes
 

@@ -162,6 +162,90 @@ RSpec.describe ExternalProxyConfigurator do
     )
   end
 
+  it "does not re-apply labels that already match the desired state" do
+    allow(host_engine).to receive(:dokku_container_name).and_return("app.web.1")
+
+    # First apply captures exactly what RailDock writes.
+    written = []
+    allow(engine).to receive(:docker_option_add) do |_app, _phase, option, process:|
+      written << option
+      { success: true, output: "" }
+    end
+
+    described_class.new(service, engine, host_engine).apply!
+    expect(written).not_to be_empty
+
+    # Second apply with the host already reporting those labels changes nothing.
+    allow(engine).to receive(:docker_options_report).and_return(
+      success: true,
+      output: written.join(" ")
+    )
+    written.clear
+
+    result = described_class.new(service.reload, engine, host_engine).apply!
+
+    expect(result[:success]).to be(true)
+    expect(written).to be_empty
+    expect(engine).not_to have_received(:docker_option_remove)
+  end
+
+  it "fails loudly when a stale label cannot be removed" do
+    stale_url = "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.url=http://stale.web.1:9999"
+    allow(engine).to receive(:docker_options_report).and_return(
+      success: true,
+      output: "--label '#{stale_url}'"
+    )
+    allow(engine).to receive(:docker_option_remove).and_return(success: false, output: "boom")
+
+    result = described_class.new(service, engine, host_engine).apply!
+
+    expect(result[:success]).to be(false)
+    expect(result[:output]).to include("remove label")
+  end
+
+  it "fails loudly when a desired label cannot be added" do
+    allow(engine).to receive(:docker_option_add).and_return(success: false, output: "boom")
+
+    result = described_class.new(service, engine, host_engine).apply!
+
+    expect(result[:success]).to be(false)
+    expect(result[:output]).to include("add label")
+  end
+
+  describe "#drift" do
+    let(:configurator) { described_class.new(service, engine, host_engine) }
+    let(:desired) do
+      allow(host_engine).to receive(:dokku_container_name).and_return("app.web.1")
+      configurator.apply!
+      service.reload.config.fetch(ExternalProxyConfigurator::MANAGED_LABELS_KEY)
+    end
+
+    it "reports no drift when the container matches the desired labels" do
+      drift = configurator.drift(desired)
+
+      expect(drift[:missing]).to be_empty
+      expect(drift[:stale]).to be_empty
+    end
+
+    it "reports a stale label that is no longer desired" do
+      actual = desired.merge("traefik.http.routers.legacy.rule" => "Host(`legacy.example.com`)")
+
+      drift = configurator.drift(actual)
+
+      expect(drift[:stale]).to have_key("traefik.http.routers.legacy.rule")
+      expect(drift[:missing]).to be_empty
+    end
+
+    it "reports a desired label missing from the container" do
+      actual = desired.except("traefik.enable")
+
+      drift = configurator.drift(actual)
+
+      expect(drift[:missing]).to have_key("traefik.enable")
+      expect(drift[:stale]).to be_empty
+    end
+  end
+
   it "falls back to a port label when the container is not yet running" do
     allow(host_engine).to receive(:dokku_container_name).and_return(nil)
 
