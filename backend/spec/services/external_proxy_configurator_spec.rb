@@ -212,37 +212,43 @@ RSpec.describe ExternalProxyConfigurator do
     expect(result[:output]).to include("add label")
   end
 
-  describe "#drift" do
+  describe "#routing_problems" do
     let(:configurator) { described_class.new(service, engine, host_engine) }
+    let(:backend) { "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server." }
     let(:desired) do
       allow(host_engine).to receive(:dokku_container_name).and_return("app.web.1")
       configurator.apply!
       service.reload.config.fetch(ExternalProxyConfigurator::MANAGED_LABELS_KEY)
     end
 
-    it "reports no drift when the container matches the desired labels" do
-      drift = configurator.drift(desired)
-
-      expect(drift[:missing]).to be_empty
-      expect(drift[:stale]).to be_empty
+    it "reports nothing when the container serves the desired labels" do
+      expect(configurator.routing_problems(desired)).to eq({})
     end
 
-    it "reports a stale label that is no longer desired" do
-      actual = desired.merge("traefik.http.routers.legacy.rule" => "Host(`legacy.example.com`)")
+    it "ignores a container still on the port label instead of the url label" do
+      actual = desired.except("#{backend}url").merge("#{backend}port" => "5000")
 
-      drift = configurator.drift(actual)
-
-      expect(drift[:stale]).to have_key("traefik.http.routers.legacy.rule")
-      expect(drift[:missing]).to be_empty
+      expect(configurator.routing_problems(actual)).to eq({})
     end
 
-    it "reports a desired label missing from the container" do
-      actual = desired.except("traefik.enable")
+    it "flags a service that defines both the port and url backend" do
+      actual = desired.merge("#{backend}port" => "5000")
 
-      drift = configurator.drift(actual)
+      expect(configurator.routing_problems(actual)[:conflicting_backend]).to eq(
+        [ "#{backend}port", "#{backend}url" ]
+      )
+    end
 
-      expect(drift[:missing]).to have_key("traefik.enable")
-      expect(drift[:stale]).to be_empty
+    it "flags a service whose routers have no backend" do
+      actual = desired.except("#{backend}url")
+
+      expect(configurator.routing_problems(actual)[:missing_backend]).to eq([ backend ])
+    end
+
+    it "flags a desired host rule the container is not routing" do
+      actual = desired.reject { |key, _| key.end_with?(".rule") }
+
+      expect(configurator.routing_problems(actual)[:missing_routers]).not_to be_empty
     end
   end
 

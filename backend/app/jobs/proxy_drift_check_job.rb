@@ -48,17 +48,17 @@ class ProxyDriftCheckJob < ApplicationJob
     actual = host_engine.container_labels(container)
     return nil if actual.nil?
 
-    drift = ExternalProxyConfigurator.new(service, engine, host_engine).drift(actual)
-    return :ok if drift[:missing].empty? && drift[:stale].empty?
+    problems = ExternalProxyConfigurator.new(service, engine, host_engine).routing_problems(actual)
+    return :ok if problems.empty?
 
-    report_drift(project, service, drift)
+    report_problems(project, service, problems)
     :drifted
   end
 
-  def report_drift(project, service, drift)
+  def report_problems(project, service, problems)
+    detail = problems.map { |kind, keys| "#{kind}=#{keys.inspect}" }.join(" ")
     Rails.logger.warn(
-      "ProxyDriftCheckJob: #{service.dokku_app_name} routing labels are out of sync with the " \
-      "running container — missing=#{drift[:missing].keys.inspect} stale=#{drift[:stale].keys.inspect}"
+      "ProxyDriftCheckJob: #{service.dokku_app_name} routing is broken — #{detail}"
     )
 
     return if recently_reported?(project, service)
@@ -67,17 +67,16 @@ class ProxyDriftCheckJob < ApplicationJob
       project: project,
       service_name: service.name,
       action: :warning,
-      message: "Proxy configuration drift detected: routing labels on the running container for " \
-               "#{service.name} do not match the desired state " \
-               "(missing: #{drift[:missing].keys.size}, stale: #{drift[:stale].keys.size}). " \
-               "Redeploy the service to reconcile it."
+      message: "Proxy routing problem detected for #{service.name} " \
+               "(#{problems.keys.join(', ')}): the running container is not serving the " \
+               "intended Traefik routing. Redeploy the service to reconcile it."
     )
   end
 
   def recently_reported?(project, service)
     ActivityEvent
       .where(project: project, service_name: service.name, action: "warning")
-      .where("message LIKE ?", "Proxy configuration drift detected%")
+      .where("message LIKE ?", "Proxy routing problem detected%")
       .where("created_at > ?", REPORT_WINDOW.ago)
       .exists?
   end

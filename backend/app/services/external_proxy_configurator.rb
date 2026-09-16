@@ -40,18 +40,35 @@ class ExternalProxyConfigurator
     { success: true }
   end
 
-  # Compare the labels RailDock intends with the labels actually present on a
-  # running container. Returns `{ missing:, stale: }`; both empty means the
-  # container is serving the intended routing. Used by ProxyDriftCheckJob to
-  # catch apps that are silently unreachable despite a successful deploy.
-  def drift(actual_labels)
+  # Routing problems that actually make the app unreachable, as opposed to a
+  # benign pending change (a container still on a `loadbalancer.server.port`
+  # label that the next deploy turns into a `.url` label routes fine today).
+  # Returns an empty hash when routing is healthy. Used by ProxyDriftCheckJob.
+  def routing_problems(actual_labels)
     desired = build_labels
     actual = actual_labels.to_h.select { |key, _| managed_label_key?(key) }
+    backend = "traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server."
+    problems = {}
 
-    {
-      missing: desired.reject { |key, value| labels_equal?(actual[key], value) },
-      stale: actual.reject { |key, value| labels_equal?(desired[key], value) }
-    }
+    # Traefik rejects a service that defines both a port and a url and drops
+    # every router for it, so the app answers 404 while the deploy looks green.
+    if actual.key?("#{backend}port") && actual.key?("#{backend}url")
+      problems[:conflicting_backend] = [ "#{backend}port", "#{backend}url" ]
+    end
+
+    # Routers exist but no backend is reachable, so nothing can be routed.
+    if desired.keys.any? { |key| key.include?(".routers.") } &&
+       !actual.key?("#{backend}port") && !actual.key?("#{backend}url")
+      problems[:missing_backend] = [ backend ]
+    end
+
+    # A host rule the routing depends on is absent from the container, so that
+    # domain will not resolve.
+    missing_rules = desired.select { |key, _| key.end_with?(".rule") }
+                           .reject { |key, value| labels_equal?(actual[key], value) }
+    problems[:missing_routers] = missing_rules.keys if missing_rules.any?
+
+    problems
   end
 
   private

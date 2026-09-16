@@ -196,8 +196,11 @@ version the target servers run before assuming a behavior.
   Traefik rejecting every router for the app. Check `docker_option_add`/`remove`
   results instead of ignoring them. A Traefik service takes a
   `loadbalancer.server.port` or a `loadbalancer.server.url`, never both.
-  `ProxyDriftCheckJob` re-checks running containers against the desired labels
-  every 6 hours and raises a warning `ActivityEvent` when they diverge.
+  `ProxyDriftCheckJob` re-checks running containers every 6 hours and raises a
+  warning `ActivityEvent` when routing is actually broken (a service defining
+  both backend labels, routers with no backend, or a missing host rule) — not
+  for a benign pending change such as a container still on the `port` label
+  that the next deploy turns into `url`.
 
 ## Making changes
 

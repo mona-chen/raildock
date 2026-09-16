@@ -20,9 +20,8 @@ RSpec.describe ProxyDriftCheckJob, type: :job do
   end
 
   it "records a warning event when the container labels drift" do
-    allow(configurator).to receive(:drift).and_return(
-      missing: { "traefik.enable" => "true" },
-      stale: {}
+    allow(configurator).to receive(:routing_problems).and_return(
+      conflicting_backend: [ "traefik.http.services.app-web.loadbalancer.server.port" ]
     )
 
     result = described_class.perform_now
@@ -32,11 +31,11 @@ RSpec.describe ProxyDriftCheckJob, type: :job do
     event = ActivityEvent.where(action: "warning").last
     expect(event).to be_present
     expect(event.service_name).to eq(service.name)
-    expect(event.message).to include("Proxy configuration drift detected")
+    expect(event.message).to include("Proxy routing problem detected")
   end
 
   it "does nothing when the container matches the desired labels" do
-    allow(configurator).to receive(:drift).and_return(missing: {}, stale: {})
+    allow(configurator).to receive(:routing_problems).and_return({})
 
     result = described_class.perform_now
 
@@ -45,9 +44,8 @@ RSpec.describe ProxyDriftCheckJob, type: :job do
   end
 
   it "suppresses repeat warnings for the same service within the window" do
-    allow(configurator).to receive(:drift).and_return(
-      missing: { "traefik.enable" => "true" },
-      stale: {}
+    allow(configurator).to receive(:routing_problems).and_return(
+      conflicting_backend: [ "traefik.http.services.app-web.loadbalancer.server.port" ]
     )
 
     2.times { described_class.perform_now }
