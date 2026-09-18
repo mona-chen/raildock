@@ -19,6 +19,8 @@ make setup-dev   # First time: .env, local base image, dev image, credentials
 make start       # Dev stack with live reload (Vite on :5173, Rails on :3001)
 make test        # Frontend tests (in the frontend container)
 make test-backend  # Backend RSpec (in the backend container)
+make start-sim     # Dev stack + the Dokku simulator (macOS preview)
+make seed-demo     # Demo organization, projects, services and history
 ```
 
 Dev runs from `docker-compose.dev.yml` (standalone, not layered on
@@ -28,6 +30,22 @@ locally-built production image and mounts `./backend` at `/rails`; the
 `scripts/dev-entrypoint.sh` seeds the bundle volume, installs dev/test gems,
 runs `db:prepare`, then starts Puma with the Solid Queue supervisor in-process
 (`SOLID_QUEUE_IN_PUMA`).
+
+### Previewing without a Linux host
+
+Dokku is Linux-only, so a Mac cannot host a real one. `make start-sim` layers
+`docker-compose.dev.dokku.yml` on top of the dev stack and runs the in-repo
+simulator (`test/dokku-sim`) as an SSH-reachable server: the `dokku` shim answers
+app, datastore, config, domain, proxy, checks and `ps` commands, and raw `docker`
+commands are forwarded to the host daemon (the socket is mounted), so container
+inventory and host metrics see real containers. The simulator authorizes its key
+for both `dokku` and `root`, matching what `install.sh` does on a real host.
+`make seed-demo` then creates an admin (`admin@raildock.local` /
+`changeme123`), an organization, a server pointed at the simulator, two projects
+with apps, a database, a cache, domains, a volume, and deployment/activity/metric
+history. `git:sync` prints a build log but builds nothing, so a "deployed"
+service is state in the database rather than a running container — use a Linux
+host or VM when a real URL is needed.
 
 ### Production install
 

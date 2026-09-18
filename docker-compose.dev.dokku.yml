@@ -1,0 +1,37 @@
+# Fake Dokku for previewing RailDock on a machine that cannot run the real
+# thing (Dokku is Linux-only, so a Mac cannot host it).
+#
+# This override adds the in-repo simulator (test/dokku-sim) as an SSH-reachable
+# "server", so every RailDock surface has something to talk to:
+#
+#   - app, datastore, config, domain, proxy, checks and ps commands are answered
+#     by the shim in test/dokku-sim/dokku;
+#   - raw `docker ...` commands are forwarded to your host daemon (the socket is
+#     mounted), so container inventory and host metrics show real containers.
+#
+# What it is not: a real deploy. `git:sync` prints a build log but builds
+# nothing, so a "deployed" service is state in RailDock's database, not a
+# running container. Use a Linux host or VM when you need a real URL.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml -f docker-compose.dev.dokku.yml up -d
+#   make seed-demo
+services:
+  dokku-sim:
+    build:
+      context: ./test/dokku-sim
+    image: raildock/dokku-sim:dev
+    hostname: dokku-sim
+    volumes:
+      # The simulator authorizes this key for both `dokku` and `root`.
+      - ./test/dokku-sim/keys:/keys:ro
+      # Lets `docker ps` / `docker info` inside the simulator see your daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # The seeded "Local Dokku" server points at the simulator, so the backend has
+  # to wait for it before it can connect.
+  backend:
+    depends_on:
+      dokku-sim:
+        condition: service_started

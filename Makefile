@@ -11,7 +11,7 @@ N := \033[0m
 COMPOSE_DEV := docker compose -f docker-compose.dev.yml
 COMPOSE_PROD := docker compose -f docker-compose.yml
 
-.PHONY: help install uninstall start stop restart status logs logs-backend logs-frontend logs-db ps db console test test-backend seed setup-dev reset-db fix-hmr build build-prod push tag
+.PHONY: help install uninstall start stop restart status logs logs-backend logs-frontend logs-db ps db console test test-backend seed seed-demo start-sim setup-dev reset-db fix-hmr build build-prod push tag
 
 help:
 	@printf "\n$(B)RailDock Commands$(N)\n\n"
@@ -27,6 +27,8 @@ help:
 	@printf "  $(G)make test$(N)           Run frontend Vitest tests (in the frontend container)\n"
 	@printf "  $(G)make test-backend$(N)    Run backend RSpec tests (in the backend container)\n"
 	@printf "  $(G)make seed$(N)           Run Rails db:seed\n"
+	@printf "  $(G)make start-sim$(N)      Dev stack + Dokku simulator (macOS preview)\n"
+	@printf "  $(G)make seed-demo$(N)      Seed a demo project and history for the simulator\n"
 	@printf "  $(G)make setup-dev$(N)      One-click dev setup (env, keys, server, migrations)\n"
 	@printf "  $(G)make reset-db$(N)        Wipe and recreate dev database\n"
 	@printf "  $(G)make fix-hmr$(N)        Restart frontend (fixes stale Vite cache)\n"
@@ -103,6 +105,17 @@ test-backend:
 		(PGPASSWORD=$$PASS psql -h db -U raildock -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='raildock_test'\" | grep -q 1 || PGPASSWORD=$$PASS createdb -h db -U raildock raildock_test) && \
 		bin/rails db:test:prepare && \
 		bundle exec rspec"
+	@printf "$(G)[make]$(N) Done\n"
+
+start-sim:
+	@printf "$(B)[make]$(N) Starting dev stack + Dokku simulator...\n"
+	@$(COMPOSE_DEV) -f docker-compose.dev.dokku.yml up -d --build
+	@printf "$(G)[make]$(N) Frontend: http://localhost:5173\n"
+
+seed-demo:
+	@printf "$(B)[make]$(N) Seeding demo project, services and history...\n"
+	@docker exec -e DEMO_DOKKU_SSH_KEY="$$(cat test/dokku-sim/keys/id_ed25519)" \
+		raildock-backend-1 bin/rails runner db/seeds/demo.rb
 	@printf "$(G)[make]$(N) Done\n"
 
 seed:
