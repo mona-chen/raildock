@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUninstallPlugin, usePluginSettings, useUpdatePluginSettings } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
@@ -66,52 +66,84 @@ export default function SettingsPage() {
   const { data: modules = [], isLoading: modulesLoading } = useModules()
   const { user } = useAuthStore()
   const isAdmin = user?.admin === true
+  const [filter, setFilter] = useState('')
+
+  // Railway-style settings: one list of sections, filterable, one pane at a
+  // time. Eight tabs in a horizontal strip is unreadable once it scrolls.
+  const query = filter.trim().toLowerCase()
+  const groups = TAB_GROUPS
+    .map((group) => ({ ...group, tabs: group.tabs.filter((tab) => tab.label.toLowerCase().includes(query)) }))
+    .filter((group) => group.tabs.length > 0)
+  const activeGroup = TAB_GROUPS.find((group) => group.tabs.some((tab) => tab.key === activeTab))
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)]">
-        <div className="flex items-center gap-3">
-          <Settings size={18} className="text-rail-purple" />
+      <header className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] flex items-center gap-3">
+        <Settings size={18} className="text-rail-purple" />
+        <div>
           <h1 className="text-base font-semibold text-white">Settings</h1>
+          <p className="text-[11px] text-[#8a8a99] mt-0.5">
+            {activeGroup?.label === 'Instance' ? 'This RailDock instance' : 'Your organization workspace'}
+          </p>
         </div>
-        <div className="flex items-center gap-4 mt-3 overflow-x-auto">
-          {TAB_GROUPS.map((group, index) => (
-            <div key={group.label} className="flex items-center gap-4 flex-shrink-0">
-              {index > 0 && <div className="w-px h-4 bg-white/[0.08]" aria-hidden="true" />}
-              <span className="text-[10px] uppercase tracking-wider text-[#8a8a99]">{group.label}</span>
-              {group.tabs.map((tab) => (
-                <button
-                  type="button"
-                  key={tab.key}
-                  onClick={() => setSearchParams({ tab: tab.key })}
-                  aria-current={activeTab === tab.key ? 'page' : undefined}
-                  className={`inline-flex items-center gap-1.5 text-xs font-medium pb-1 border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? 'text-rail-purple border-rail-purple'
-                      : 'text-[#8a8a99] border-transparent hover:text-[#A0A0B0]'
-                  }`}
-                >
-                  <tab.icon size={13} />
-                  {tab.label}
-                </button>
-              ))}
+      </header>
+
+      <div className="flex-1 flex min-h-0">
+        <aside className="w-[224px] flex-shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
+          <div className="p-3">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b]" />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter settings…"
+                aria-label="Filter settings"
+                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-8 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#6b6b7b] focus:outline-none focus:border-rail-purple/40"
+              />
             </div>
-          ))}
+          </div>
+          <nav className="flex-1 overflow-y-auto px-2 pb-3">
+            {groups.map((group) => (
+              <div key={group.label} className="mb-1">
+                <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#6b6b7b]">{group.label}</div>
+                {group.tabs.map((tab) => {
+                  const isActive = activeTab === tab.key
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSearchParams({ tab: tab.key })}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] transition-colors ${
+                        isActive ? 'bg-white/[0.06] text-white/85' : 'text-[#8a8a99] hover:text-[#A0A0B0] hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <tab.icon size={14} className={isActive ? 'text-rail-purple' : ''} />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+            {groups.length === 0 && (
+              <p className="px-2 py-4 text-[11px] text-[#6b6b7b]">No settings match “{filter}”.</p>
+            )}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0 overflow-y-auto p-6">
+          {activeTab === 'integrations' && (
+            <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
+          )}
+
+          {activeTab === 'git-sources' && <GitSourcesTab />}
+          {activeTab === 'organizations' && <OrganizationsTab />}
+          {activeTab === 'members' && <MembersTab />}
+          {activeTab === 'backup-destinations' && <BackupDestinationsTab />}
+          {activeTab === 'deploy-keys' && <DeployKeysTab />}
+          {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}
+          {activeTab === 'updates' && <UpdatesTab />}
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'integrations' && (
-          <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
-        )}
-
-        {activeTab === 'git-sources' && <GitSourcesTab />}
-        {activeTab === 'organizations' && <OrganizationsTab />}
-        {activeTab === 'members' && <MembersTab />}
-        {activeTab === 'backup-destinations' && <BackupDestinationsTab />}
-        {activeTab === 'deploy-keys' && <DeployKeysTab />}
-        {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}
-        {activeTab === 'updates' && <UpdatesTab />}
       </div>
     </div>
   )

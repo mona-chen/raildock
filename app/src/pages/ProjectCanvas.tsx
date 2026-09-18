@@ -479,25 +479,17 @@ export default function ProjectCanvas() {
 
   return (
     <div className="h-full flex flex-col bg-[#0f0f13]">
-      <CanvasToolbar projectId={projectId || ''} projectName={project?.name || 'Project'} projectEnvironment={project?.environment || 'production'} connectionState={projectRealtime.connectionState} />
-
-      {/* Top tab bar for project views */}
-      <div className="h-9 border-b border-white/[0.06] flex items-center px-2 gap-1 flex-shrink-0 bg-[#0f0f13] overflow-x-auto">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => navTo(item.key)}
-            className={`px-3 py-1 rounded-md text-[12px] flex items-center gap-1.5 transition-all whitespace-nowrap ${
-              view === item.key
-                ? 'bg-white/[0.08] text-white/70'
-                : 'text-white/50 hover:text-white/50 hover:bg-white/[0.04]'
-            }`}
-          >
-            <item.icon size={13} />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {/* One bar for the whole project scope, like Railway: identity on the
+          left, view tabs and actions on the right. */}
+      <CanvasToolbar
+        projectId={projectId || ''}
+        projectName={project?.name || 'Project'}
+        projectEnvironment={project?.environment || 'production'}
+        connectionState={projectRealtime.connectionState}
+        views={sidebarItems}
+        activeView={view}
+        onSelectView={navTo}
+      />
 
       {/* Main content */}
       <div className="flex-1 relative overflow-hidden">

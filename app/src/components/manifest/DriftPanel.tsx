@@ -143,8 +143,8 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
                         <span className="text-sky-300">add to manifest</span>
                       ) : (
                         <>
-                          <span className="max-w-[160px] truncate text-white/40">{formatValue(change.manifestValue)}</span>
-                          <ArrowRight size={10} className="shrink-0 text-white/30" />
+                          <span className="max-w-[160px] truncate text-white/60">{formatValue(change.manifestValue)}</span>
+                          <ArrowRight size={10} className="shrink-0 text-white/40" />
                           <span className="max-w-[160px] truncate text-emerald-300">{formatValue(change.liveValue)}</span>
                         </>
                       )}

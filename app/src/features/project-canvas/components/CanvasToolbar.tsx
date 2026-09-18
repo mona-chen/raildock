@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Ban, Box, ChevronDown, Rocket, RotateCcw, Square, Loader2 } from 'lucide-react'
+import { Ban, Box, ChevronDown, Rocket, RotateCcw, Square, Loader2, type LucideIcon } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +21,20 @@ interface CanvasToolbarProps {
   projectName: string
   projectEnvironment: string
   connectionState: RealtimeState
+  views?: { key: string; label: string; icon: LucideIcon }[]
+  activeView?: string
+  onSelectView?: (key: string) => void
 }
 
-export default function CanvasToolbar({ projectId, projectName, projectEnvironment, connectionState }: CanvasToolbarProps) {
+export default function CanvasToolbar({
+  projectId,
+  projectName,
+  projectEnvironment,
+  connectionState,
+  views = [],
+  activeView,
+  onSelectView,
+}: CanvasToolbarProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -35,8 +46,8 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
   const isLoading = deployAll.isPending || cancelDeployments.isPending || restartAll.isPending || stopAll.isPending
 
   return (
-    <div className="h-11 border-b border-white/[0.06] flex items-center justify-between px-3 flex-shrink-0 z-40">
-      <div className="flex items-center gap-2">
+    <div className="h-11 border-b border-white/[0.06] flex items-center justify-between gap-3 px-3 flex-shrink-0 z-40 overflow-x-auto">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button
           type="button"
           onClick={() => navigate('/dashboard/projects')}
@@ -62,7 +73,30 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {views.length > 0 && (
+          <>
+            <nav className="flex items-center gap-0.5" aria-label="Project views">
+              {views.map((view) => (
+                <button
+                  key={view.key}
+                  type="button"
+                  onClick={() => onSelectView?.(view.key)}
+                  aria-current={activeView === view.key ? 'page' : undefined}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors ${
+                    activeView === view.key
+                      ? 'bg-white/[0.08] text-white/85'
+                      : 'text-white/50 hover:text-white/70 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <view.icon size={13} />
+                  {view.label}
+                </button>
+              ))}
+            </nav>
+            <div className="w-px h-4 bg-white/[0.08]" />
+          </>
+        )}
         {/* Project Actions Dropdown */}
         <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>

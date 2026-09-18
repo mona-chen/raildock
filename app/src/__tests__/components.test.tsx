@@ -14,8 +14,12 @@ vi.mock('@/hooks/useServices', () => ({
   useServiceDeployments: () => ({ data: [] }),
   useAddDomain: () => ({ mutate: vi.fn() }),
   useRemoveDomain: () => ({ mutate: vi.fn() }),
+  useGenerateDomain: () => ({ mutate: vi.fn(), isPending: false }),
   useAddStorageMount: () => ({ mutate: vi.fn() }),
   useRemoveStorageMount: () => ({ mutate: vi.fn() }),
+  useSnapshotVolume: () => ({ mutate: vi.fn(), isPending: false }),
+  useRecovery: () => ({ data: null }),
+  useDatabaseInfo: () => ({ data: null, isLoading: false }),
   useBackupService: () => ({ mutate: vi.fn(), isPending: false }),
   useRestoreService: () => ({ mutate: vi.fn(), isPending: false }),
   useBackups: () => ({ data: null, isLoading: false, isError: false, refetch: vi.fn() }),
@@ -192,6 +196,7 @@ import SettingsPage from '@/pages/SettingsPage'
 import AddServiceModal from '@/pages/AddServiceModal'
 import CanvasToolbar from '@/features/project-canvas/components/CanvasToolbar'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
+import IconRail from '@/components/layout/IconRail'
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -245,20 +250,24 @@ describe('ServicePanel', () => {
     vi.clearAllMocks()
   })
 
-  it('renders tabs and shows service name for app service', () => {
+  it('renders Railway-style tabs and shows service name for app service', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
 
     renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
     expect(screen.getAllByText('Test Service').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Overview')).toBeInTheDocument()
-    expect(screen.getAllByText('Deploy').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Logs')).toBeInTheDocument()
-    expect(screen.getByText('Variables')).toBeInTheDocument()
-    expect(screen.getByText('Domains')).toBeInTheDocument()
-    expect(screen.getByText('Storage')).toBeInTheDocument()
-    expect(screen.getByText('Metrics')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Deployments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Variables' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Networking' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Metrics' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument()
+    // Domains and volumes are grouped under Networking, not separate tabs.
+    expect(screen.queryByRole('tab', { name: 'Domains' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Storage' })).not.toBeInTheDocument()
+    // The shell is a header action, not a tab.
+    expect(screen.getByRole('button', { name: 'Shell' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('switches tabs when clicked', () => {
@@ -270,15 +279,37 @@ describe('ServicePanel', () => {
     expect(screen.getByText('Waiting for logs...')).toBeInTheDocument()
   })
 
-  it('shows database and backups tabs for database service', () => {
+  it('closes on Escape', () => {
+    const onClose = vi.fn()
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={onClose} />)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('groups domains and volumes under the Networking tab', () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+
+    expect(screen.queryByRole('tab', { name: 'Volumes' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Networking' }))
+    expect(screen.getByRole('tab', { name: 'Domains' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Volumes' })).toBeInTheDocument()
+  })
+
+  it('shows backups and no deploy tab for database service', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({
       data: mockService({ type: 'database', subtype: 'postgres' }),
     })
 
     renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
-    expect(screen.getByText('Database')).toBeInTheDocument()
-    expect(screen.getByText('Backups')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Backups' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Networking' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Deployments' })).not.toBeInTheDocument()
   })
 })
 
@@ -476,6 +507,41 @@ describe('SettingsPage integrations tab', () => {
     expect(screen.getByText('Redis')).toBeInTheDocument()
     expect(screen.getByText('postgres')).toBeInTheDocument()
     expect(screen.getByText('redis')).toBeInTheDocument()
+  })
+
+  it('filters the settings navigation', () => {
+    renderWithClient(
+      <MemoryRouter initialEntries={[{ pathname: '/dashboard/settings', search: '?tab=integrations' }]}>
+        <SettingsPage />
+      </MemoryRouter>
+    )
+
+    fireEvent.change(screen.getByLabelText('Filter settings'), { target: { value: 'deploy' } })
+
+    expect(screen.getByRole('button', { name: /Deploy Keys/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Members/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('IconRail', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('collapses and remembers the choice', () => {
+    renderWithClient(
+      <MemoryRouter>
+        <IconRail />
+      </MemoryRouter>
+    )
+
+    const collapse = screen.getByRole('button', { name: 'Collapse sidebar' })
+    expect(collapse).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(collapse)
+
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-pressed', 'true')
+    expect(localStorage.getItem('raildock:sidebar-collapsed')).toBe('1')
   })
 })
 

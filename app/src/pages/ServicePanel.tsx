@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Box, X, Play, Square, RotateCw, Rocket, Wrench } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Box, X, Play, Square, RotateCw, Rocket, Wrench, Terminal } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import {
   useService,
@@ -40,8 +40,27 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const restartService = useRestartService()
   const rebuildService = useRebuildService()
   const deploymentRealtime = useWebSocketDeployments(serviceId)
+  const [networkingView, setNetworkingView] = useState<'domains' | 'volumes'>('domains')
+  const [showConsole, setShowConsole] = useState(false)
+
+  // Escape closes the panel, like Railway's service view. While the shell is
+  // open the terminal owns Escape (it uses it to leave search/fullscreen), so
+  // we step aside and let its own handler run.
+  useEffect(() => {
+    if (showConsole) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      // An open dialog or popover (a confirm, a select) owns Escape first —
+      // otherwise dismissing it would also tear down the whole panel.
+      if (document.querySelector('[data-state="open"]')) return
+      onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showConsole, onClose])
 
   const handleDeploy = () => {
+    setShowConsole(false)
     setTab('deploy')
     deployService.mutate(serviceId)
   }
@@ -50,7 +69,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -84,7 +103,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -118,16 +137,40 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   }
 
   const db = svc.type === 'database'
+  // Railway's service view keeps a short tab row: Deployments, Variables,
+  // Metrics, Settings. Logs stays because it is the first thing an operator
+  // reaches for when a deploy misbehaves. Everything else that used to be its
+  // own tab now lives where Railway puts it — the shell is a header action,
+  // and domains/volumes are grouped under a single Networking tab.
   const tabs = db
-    ? ['overview', ...(svc.dataView ? ['data'] : []), 'database', 'logs', 'console', 'backups', 'variables', 'metrics', 'settings']
-    : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
+    ? [
+        { key: 'overview', label: 'Overview' },
+        ...(svc.dataView ? [{ key: 'data', label: 'Data' }] : []),
+        { key: 'logs', label: 'Logs' },
+        { key: 'variables', label: 'Variables' },
+        { key: 'networking', label: 'Networking' },
+        { key: 'backups', label: 'Backups' },
+        { key: 'metrics', label: 'Metrics' },
+        { key: 'settings', label: 'Settings' },
+      ]
+    : [
+        { key: 'overview', label: 'Overview' },
+        { key: 'deploy', label: 'Deployments' },
+        { key: 'logs', label: 'Logs' },
+        { key: 'variables', label: 'Variables' },
+        { key: 'networking', label: 'Networking' },
+        { key: 'metrics', label: 'Metrics' },
+        { key: 'settings', label: 'Settings' },
+      ]
 
   const color = getServiceColor(svc.subtype, svc.framework, svc.dockerImage)
 
   return (
     <div
       data-service-panel
-      className="absolute right-0 top-0 bottom-0 w-full max-w-[800px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+      role="dialog"
+      aria-label={`${svc.name} service`}
+      className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
       onWheel={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -211,6 +254,21 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
               {rebuildService.isPending ? '...' : 'Rebuild'}
             </button>
           </div>
+          {/* Shell, like Railway: a header action rather than a tab. */}
+          <button
+            type="button"
+            onClick={() => setShowConsole((open) => !open)}
+            aria-pressed={showConsole}
+            title={showConsole ? 'Close shell' : 'Open shell'}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all ${
+              showConsole
+                ? 'bg-[#8b5cf6]/20 text-[#8b5cf6]'
+                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
+            }`}
+          >
+            <Terminal size={12} />
+            Shell
+          </button>
           <StatusBadge status={svc.status} />
           <span className={`h-2 w-2 rounded-full ${deploymentRealtime.connectionState === 'live' ? 'bg-emerald-400' : deploymentRealtime.connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'}`} title={`${realtimeStateLabel(deploymentRealtime.connectionState)} updates`} />
         </div>
@@ -220,36 +278,78 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       <div className="flex border-b border-white/[0.06] overflow-x-auto flex-shrink-0" role="tablist" aria-label="Service sections">
         {tabs.map((t) => (
           <button
-            key={t}
+            key={t.key}
             type="button"
             role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            aria-selected={tab === t.key && !showConsole}
+            onClick={() => {
+              setShowConsole(false)
+              setTab(t.key)
+            }}
             className={`px-4 py-2.5 text-[13px] border-b-2 transition-all whitespace-nowrap ${
-              tab === t
+              tab === t.key && !showConsole
                 ? 'border-[#8b5cf6] text-[#8b5cf6]'
                 : 'border-transparent text-white/50 hover:text-white/60'
             }`}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t.label}
           </button>
         ))}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto" data-no-pan>
-        {tab === 'overview' && <OverviewTab svc={svc} serviceId={serviceId} lastUpdate={deploymentRealtime.lastUpdate} isConnected={deploymentRealtime.isConnected} />}
-        {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} realtime={deploymentRealtime} />}
-        {tab === 'logs' && <LogsTab serviceId={serviceId} />}
-        {tab === 'console' && <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />}
-        {tab === 'database' && db && <DatabaseTab svc={svc} serviceId={serviceId} />}
-        {tab === 'data' && svc.dataView && <DataTab serviceId={serviceId} />}
-        {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
-        {tab === 'variables' && <VariablesTab svc={svc} />}
-        {tab === 'domains' && <DomainsTab svc={svc} />}
-        {tab === 'storage' && <StorageTab svc={svc} />}
-        {tab === 'metrics' && <MetricsTab svc={svc} />}
-        {tab === 'settings' && <SettingsPanel svc={svc} />}
+        {showConsole ? (
+          <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />
+        ) : (
+          <>
+            {tab === 'overview' && (
+              <>
+                <OverviewTab svc={svc} serviceId={serviceId} lastUpdate={deploymentRealtime.lastUpdate} isConnected={deploymentRealtime.isConnected} />
+                {/* A database's home is its connection details, so they sit
+                    with the overview instead of in their own tab. */}
+                {db && (
+                  <div className="border-t border-white/[0.06]">
+                    <DatabaseTab svc={svc} serviceId={serviceId} />
+                  </div>
+                )}
+              </>
+            )}
+            {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} realtime={deploymentRealtime} />}
+            {tab === 'logs' && <LogsTab serviceId={serviceId} />}
+            {tab === 'data' && svc.dataView && <DataTab serviceId={serviceId} />}
+            {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
+            {tab === 'variables' && <VariablesTab svc={svc} />}
+            {tab === 'networking' && (
+              <div>
+                <div className="flex items-center gap-1 px-5 pt-3" role="tablist" aria-label="Networking sections">
+                  {([
+                    { key: 'domains', label: 'Domains' },
+                    { key: 'volumes', label: 'Volumes' },
+                  ] as const).map((section) => (
+                    <button
+                      key={section.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={networkingView === section.key}
+                      onClick={() => setNetworkingView(section.key)}
+                      className={`rounded-lg px-2.5 py-1.5 text-[12px] transition-colors ${
+                        networkingView === section.key
+                          ? 'bg-white/[0.08] text-white/85'
+                          : 'text-white/50 hover:text-white/70 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {section.label}
+                    </button>
+                  ))}
+                </div>
+                {networkingView === 'domains' ? <DomainsTab svc={svc} /> : <StorageTab svc={svc} />}
+              </div>
+            )}
+            {tab === 'metrics' && <MetricsTab svc={svc} />}
+            {tab === 'settings' && <SettingsPanel svc={svc} />}
+          </>
+        )}
       </div>
     </div>
   )

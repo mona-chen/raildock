@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback, useContext, createContext } from 'react'
-import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, Folder, ExternalLink } from 'lucide-react'
+import { Trash2, Loader2, Globe, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, Folder, ExternalLink, Search, SlidersHorizontal, Rocket } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GitSource, Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
@@ -14,8 +14,8 @@ import { useNetworks } from '@/hooks/useModules'
 import { cn, confirmationFieldTone } from '@/lib/utils'
 
 const tabs = [
-  { key: 'general', label: 'General', icon: Server },
-  { key: 'deploy', label: 'Deploy', icon: Server },
+  { key: 'general', label: 'General', icon: SlidersHorizontal },
+  { key: 'deploy', label: 'Deploy', icon: Rocket },
   { key: 'network', label: 'Networking', icon: Globe },
   { key: 'resources', label: 'Resources', icon: Cpu },
   { key: 'advanced', label: 'Advanced', icon: Wrench },
@@ -88,25 +88,47 @@ function SettingsSyncBar({ draft }: { draft: SettingsDraftState }) {
 
 export function SettingsPanel({ svc }: { svc: Service }) {
   const [tab, setTab] = useState<string>('general')
+  const [filter, setFilter] = useState('')
   const draft = useSettingsDraft(svc)
   const effectiveSvc = draft.svc
+
+  const query = filter.trim().toLowerCase()
+  const visibleTabs = tabs.filter((t) => t.label.toLowerCase().includes(query))
 
   return (
     <SettingsDraftContext.Provider value={draft}>
       <div className="flex h-full">
-        <div className="w-[180px] border-r border-white/[0.06] bg-[#0f0f13] p-3 space-y-0.5 flex-shrink-0 overflow-y-auto">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
-                tab === t.key ? 'bg-white/[0.06] text-white/70' : 'text-white/50 hover:text-white/60'
-              }`}
-            >
-              <t.icon size={13} />
-              {t.label}
-            </button>
-          ))}
+        <div className="w-[190px] border-r border-white/[0.06] bg-[#0f0f13] flex-shrink-0 flex flex-col">
+          <div className="p-3 pb-2">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b]" />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter settings…"
+                aria-label="Filter settings"
+                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-7 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#6b6b7b] focus:outline-none focus:border-rail-purple/40"
+              />
+            </div>
+          </div>
+          <nav className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+            {visibleTabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                aria-current={tab === t.key ? 'page' : undefined}
+                className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
+                  tab === t.key ? 'bg-white/[0.06] text-white/85' : 'text-white/55 hover:text-white/70 hover:bg-white/[0.03]'
+                }`}
+              >
+                <t.icon size={13} className={tab === t.key ? 'text-rail-purple' : ''} />
+                {t.label}
+              </button>
+            ))}
+            {visibleTabs.length === 0 && (
+              <p className="px-3 py-2 text-[11px] text-[#6b6b7b]">No settings match “{filter}”.</p>
+            )}
+          </nav>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <SettingsSyncBar draft={draft} />

@@ -181,3 +181,41 @@ during repository import (RailDock already scans the repo for other reasons).
 6. **Suggested variables from `.env*` during repository import.**
 7. **Environments** as a first-class project concept — largest effort, do last and only
    if the roadmap wants staging/PR environments.
+
+## Chrome pass: what the screenshots actually show (implemented)
+
+The docs establish Railway's *concepts*; the dashboard screenshots establish its
+*chrome*. Reading the product screenshots (dashboard, project canvas, service view,
+service settings, project settings, volumes, metrics) adds four facts the markdown
+alone does not state:
+
+- **There is no permanent global sidebar.** Global chrome is a **top bar**: project
+  dropdown and environment dropdown on the left (`Reverse Proxy ⌄` / `production ⌄`),
+  then the scope tabs `Architecture · Observability · Logs · Settings · Share` on the
+  right. Account and plan live in the dashboard header, not a rail.
+- **The service view is a narrow right-hand panel** with four tabs — `Deployments ·
+  Variables · Metrics · Settings` — headed by `+ <service> -` and a status line such as
+  "Sleeping since 10 hours ago". Deployment history is the panel's body.
+- **Service settings are a left nav with a `Filter Settings…` box** and one section at a
+  time: `Source / Networking / Build / Deploy / Config-as-code / Feature-flags /
+  Danger`. Networking and volumes are *sections*, not peer tabs.
+- **Project settings are their own surface** with `General / Usage / Environments /
+  Shared Variables / Webhooks / Members / Tokens / Integrations / Danger`.
+
+Applied to RailDock in this pass:
+
+| Surface | Before | After |
+| --- | --- | --- |
+| `IconRail` | Always `224px`, no way to hide it | Collapsible to a `64px` icon rail (`⌘B`/`Ctrl+B`, persisted in `localStorage`, `aria-pressed` + "Collapse/Expand sidebar"), icon-only below `md` |
+| `ProjectCanvas` | A toolbar row **plus** a second stacked tab bar | One `CanvasToolbar`: identity on the left, view tabs and project actions on the right |
+| `SettingsPage` | Eight tabs in a scrolling horizontal strip | Grouped (`Organization` / `Instance`) left nav with a `Filter settings…` box and one pane at a time |
+| `ServicePanel` | Nine flat tabs (`Overview, Deploy, Logs, Console, Variables, Domains, Storage, Metrics, Settings`) | Six: `Overview · Deployments · Logs · Variables · Networking · Metrics · Settings` |
+| `ServicePanel` shell | `console` tab | `Shell` header action, like Railway's shell |
+| `ServicePanel` domains/volumes | Two more tabs | Grouped under `Networking` (Domains / Volumes) |
+| Database connection info | Its own `Database` tab, duplicating the Overview's connection card | Folded into `Overview` |
+| `SettingsPanel` | No way to find a section | `Filter settings…` box, one section at a time |
+| Panel dismissal | Close button only | `Escape` also closes (unless a dialog or popover is open) |
+
+Still open from the earlier reviews (unchanged by this pass): the command palette, the
+settings changeset with diff + apply, deployment markers on metrics, danger zones
+replacing native `confirm()`, and environments as a first-class concept.
