@@ -8,6 +8,9 @@
 import type {
   Project,
   Environment,
+  EnvironmentDuplicateSummary,
+  EnvironmentSyncPlan,
+  EnvironmentSyncResult,
   Service,
   Server,
   GitSource,
@@ -54,6 +57,10 @@ import {
   normalizeActivityEvent,
   normalizeGitSource,
 } from './apiTransforms'
+import {
+  normalizeEnvironmentSyncPlan,
+  normalizeEnvironmentSyncResult,
+} from './environmentTransforms'
 
 // ── Config ───────────────────────────────────
 
@@ -210,6 +217,37 @@ export const environmentsApi = {
 
   destroy: async (projectId: string, id: string): Promise<void> => {
     await fetchJson(`/api/projects/${projectId}/environments/${id}`, { method: 'DELETE' })
+  },
+
+  // Copies every service and its configuration into a new environment. The
+  // copies are staged (stopped, not deployed) so a duplicate is always
+  // reviewable before it can reach anyone.
+  duplicate: async (
+    projectId: string,
+    id: string,
+    data: { name: string; description?: string },
+  ): Promise<{ environment: Environment; summary: EnvironmentDuplicateSummary }> => {
+    const res = (await fetchJson<unknown>(`/api/projects/${projectId}/environments/${id}/duplicate`, {
+      method: 'POST',
+      body: wrapBody('environment', data),
+    })) as { environment: unknown; summary: EnvironmentDuplicateSummary }
+    return { environment: normalizeEnvironment(res.environment), summary: res.summary }
+  },
+
+  // Read-only review of what syncing `sourceId` into `id` would change.
+  syncPlan: async (projectId: string, id: string, sourceId: string): Promise<EnvironmentSyncPlan> => {
+    const res = await fetchJson<unknown>(
+      `/api/projects/${projectId}/environments/${id}/sync_plan?source_environment_id=${encodeURIComponent(sourceId)}`,
+    )
+    return normalizeEnvironmentSyncPlan(res)
+  },
+
+  sync: async (projectId: string, id: string, sourceId: string): Promise<EnvironmentSyncResult> => {
+    const res = await fetchJson<unknown>(`/api/projects/${projectId}/environments/${id}/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ source_environment_id: sourceId }),
+    })
+    return normalizeEnvironmentSyncResult(res)
   },
 }
 

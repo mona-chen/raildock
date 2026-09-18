@@ -25,7 +25,16 @@ Rails.application.routes.draw do
     resources :projects do
       # Environments belong to a project and are switched from the project
       # navigator. The default (`production`) environment cannot be deleted.
-      resources :environments, only: [ :index, :create, :update, :destroy ]
+      resources :environments, only: [ :index, :create, :update, :destroy ] do
+        member do
+          # Copy every service into a new environment, and push this
+          # environment's configuration into another one. Sync reviews first
+          # (`sync_plan`) and never deletes (see EnvironmentSync).
+          post :duplicate
+          get :sync_plan
+          post :sync
+        end
+      end
       resource :repository_import, path: "repository-import", only: [] do
         post :preview, on: :collection
         post :apply, on: :collection

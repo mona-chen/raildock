@@ -54,17 +54,12 @@ module Api
       params.permit(:host_path, :container_path, :kind)
     end
 
+    # Shared with the environment duplicator, which must derive a *distinct*
+    # volume name per copied service — see `StorageMount.volume_name_for`.
     def auto_host_path(kind, container_path)
       return nil if kind == "bind" || container_path.blank?
 
-      suffix = container_path
-        .sub(/\A\//, "")
-        .gsub(/[^a-zA-Z0-9_.-]+/, "-")
-        .gsub(/\A-+|-+\z/, "")
-        .downcase
-      suffix = "data" if suffix.blank?
-
-      "#{@service.dokku_app_name}-#{suffix}"
+      StorageMount.volume_name_for(@service.dokku_app_name, container_path)
     end
 
     def sync_to_dokku(action, host_path, container_path)

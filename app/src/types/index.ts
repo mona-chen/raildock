@@ -36,6 +36,56 @@ export interface Environment {
   serviceIds?: string[]
 }
 
+// What a duplication actually staged. Counts rather than ids, because the UI
+// shows a summary ("5 services, 12 variables, 1 new volume") and the warnings
+// need to be readable on their own.
+export interface EnvironmentDuplicateSummary {
+  services: number
+  variables: number
+  volumes: number
+  bindMounts: number
+  schedules: number
+  links: number
+  processTypes: number
+  temporaryDomains: number
+  domainsSkipped: number
+  warnings: string[]
+}
+
+// One service in a sync review. `changes` holds human-readable field labels —
+// never values, because environment variable values are secrets.
+export interface EnvironmentSyncChange {
+  name: string
+  serviceId: string
+  changes: string[]
+}
+
+export interface EnvironmentSyncPlan {
+  sourceEnvironmentId: string
+  sourceEnvironmentName: string
+  targetEnvironmentId: string
+  targetEnvironmentName: string
+  added: EnvironmentSyncChange[]
+  edited: EnvironmentSyncChange[]
+  removed: EnvironmentSyncChange[]
+  summary: {
+    added: number
+    edited: number
+    removed: number
+    inSync: boolean
+  }
+}
+
+export interface EnvironmentSyncResult {
+  plan: EnvironmentSyncPlan
+  applied: {
+    added: { id: string; name: string }[]
+    updated: { id: string; name: string }[]
+    removed: { id: string; name: string }[]
+  }
+  message: string
+}
+
 export interface SharedVar {
   key: string
   value: string

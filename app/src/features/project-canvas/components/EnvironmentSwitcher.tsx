@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronDown, Plus, Settings2, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, Copy, Plus, Settings2, Sparkles } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCreateEnvironment } from '@/hooks/useEnvironments'
+import DuplicateEnvironmentDialog from '@/features/environments/DuplicateEnvironmentDialog'
 import type { Environment } from '@/types'
 
 interface EnvironmentSwitcherProps {
@@ -43,10 +44,14 @@ export default function EnvironmentSwitcher({
   const navigate = useNavigate()
   const createEnvironment = useCreateEnvironment()
   const [showCreate, setShowCreate] = useState(false)
+  const [showDuplicate, setShowDuplicate] = useState(false)
   const [name, setName] = useState('')
 
   const active = environments.find((environment) => environment.id === activeEnvironmentId)
   const label = active?.name || fallbackName || 'production'
+  // Duplicating works from whatever the canvas is showing; fall back to the
+  // default environment for a project whose switcher has not resolved yet.
+  const duplicateSource = active ?? environments.find((environment) => environment.isDefault) ?? null
 
   const handleCreate = () => {
     const trimmed = name.trim()
@@ -120,6 +125,14 @@ export default function EnvironmentSwitcher({
             New environment
           </DropdownMenuItem>
           <DropdownMenuItem
+            disabled={!duplicateSource}
+            onClick={() => setShowDuplicate(true)}
+            className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+          >
+            <Copy size={13} className="text-rail-purple" />
+            Duplicate {duplicateSource?.name ?? 'environment'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
             onClick={() => navigate(`/dashboard/project/${projectId}/settings`)}
             className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
           >
@@ -175,6 +188,15 @@ export default function EnvironmentSwitcher({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DuplicateEnvironmentDialog
+        projectId={projectId}
+        source={duplicateSource}
+        environments={environments}
+        open={showDuplicate}
+        onOpenChange={setShowDuplicate}
+        onDuplicated={(environment) => onSelect(environment.id)}
+      />
     </>
   )
 }

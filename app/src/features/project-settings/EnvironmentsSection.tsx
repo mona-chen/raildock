@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Check, Layers, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, Copy, Layers, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import {
   useCreateEnvironment,
   useDestroyEnvironment,
   useEnvironments,
   useUpdateEnvironment,
 } from '@/hooks/useEnvironments'
+import DuplicateEnvironmentDialog from '@/features/environments/DuplicateEnvironmentDialog'
+import SyncEnvironmentDialog from '@/features/environments/SyncEnvironmentDialog'
 import type { Environment } from '@/types'
 
 /**
@@ -26,6 +28,8 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [duplicateSource, setDuplicateSource] = useState<Environment | null>(null)
+  const [syncTarget, setSyncTarget] = useState<Environment | null>(null)
 
   const handleCreate = () => {
     const trimmed = newName.trim()
@@ -68,8 +72,10 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-medium text-white">Environments</h2>
           <p className="mt-1 text-[11px] text-white/35">
-            Isolated copies of this project&apos;s services and configuration. Every project starts
-            with a permanent <span className="text-white/55">production</span> environment.
+            Isolated copies of this project&apos;s services and configuration. Copy one with{' '}
+            <span className="text-white/55">duplicate</span>, or pull its services into another with{' '}
+            <span className="text-white/55">sync</span>. Every project starts with a permanent{' '}
+            <span className="text-white/55">production</span> environment.
           </p>
         </div>
         <button
@@ -181,6 +187,29 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                     </div>
                     <button
                       type="button"
+                      onClick={() => setDuplicateSource(environment)}
+                      title={`Copy every service in ${environment.name} into a new environment`}
+                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+                      aria-label={`Duplicate ${environment.name}`}
+                    >
+                      <Copy size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={environments.length < 2}
+                      onClick={() => setSyncTarget(environment)}
+                      title={
+                        environments.length < 2
+                          ? 'Create another environment before syncing'
+                          : `Pull another environment's services into ${environment.name}`
+                      }
+                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-white/30"
+                      aria-label={`Sync ${environment.name}`}
+                    >
+                      <RefreshCw size={12} />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => startEditing(environment)}
                       className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70"
                       aria-label={`Rename ${environment.name}`}
@@ -210,6 +239,21 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
           })}
         </ul>
       )}
+
+      <DuplicateEnvironmentDialog
+        projectId={projectId}
+        source={duplicateSource}
+        environments={environments}
+        open={duplicateSource !== null}
+        onOpenChange={(open) => { if (!open) setDuplicateSource(null) }}
+      />
+      <SyncEnvironmentDialog
+        projectId={projectId}
+        target={syncTarget}
+        environments={environments}
+        open={syncTarget !== null}
+        onOpenChange={(open) => { if (!open) setSyncTarget(null) }}
+      />
     </section>
   )
 }

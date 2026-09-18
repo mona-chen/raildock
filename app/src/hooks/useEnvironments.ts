@@ -67,3 +67,58 @@ export function useDestroyEnvironment() {
     onError: (err) => toast.error(err.message),
   })
 }
+
+/**
+ * Copies every service and its configuration into a new environment. The copies
+ * are staged (stopped, undeployed), so this resolves to a summary to review
+ * rather than to anything that is already live.
+ */
+export function useDuplicateEnvironment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      id,
+      data,
+    }: {
+      projectId: string
+      id: string
+      data: { name: string; description?: string }
+    }) => api.environments.duplicate(projectId, id, data),
+    onSuccess: (result, { projectId }) => {
+      invalidate(projectId, queryClient)
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      const { summary } = result
+      toast.success(
+        `Duplicated ${summary.services} service${summary.services === 1 ? '' : 's'} into ${result.environment.name} — staged, nothing deployed yet`,
+      )
+    },
+    onError: (err) => toast.error(`Failed to duplicate environment: ${err.message}`),
+  })
+}
+
+/**
+ * The staged-change review for a sync. Read-only, so it is a query: the dialog
+ * can be opened, closed and reopened without applying anything.
+ */
+export function useEnvironmentSyncPlan(projectId: string, targetId?: string, sourceId?: string) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'environments', targetId, 'sync_plan', sourceId],
+    queryFn: () => api.environments.syncPlan(projectId, targetId as string, sourceId as string),
+    enabled: !!projectId && !!targetId && !!sourceId && sourceId !== targetId,
+  })
+}
+
+export function useSyncEnvironment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ projectId, id, sourceId }: { projectId: string; id: string; sourceId: string }) =>
+      api.environments.sync(projectId, id, sourceId),
+    onSuccess: (result, { projectId }) => {
+      invalidate(projectId, queryClient)
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
+      toast.success(result.message)
+    },
+    onError: (err) => toast.error(`Failed to sync environment: ${err.message}`),
+  })
+}

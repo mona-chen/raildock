@@ -27,7 +27,7 @@ All three converge on the same shape, which is why RailDock now copies it:
 | --- | --- | --- | --- | --- | --- |
 | Hierarchy | Project → Environment → Service | Project → Environment → Resource | Project → Environment → Service | Project (services hang off the project) | Project → Environment → Service |
 | Default environment | every project starts with `production` | `Project::booted` creates `production` | `createProductionEnvironment` creates `production`, `isDefault: true` | `projects.environment` string column, one of `production/staging/development` | `environments` row created with the project, `is_default`, named after the create-dialog label |
-| Create | `+ New Environment` in the env dropdown, or Settings → Environments; **Duplicate** or **Empty** | CLI `project environments create --name` | `duplicateEnvironment` / create | not possible | environment dropdown + Settings → Environments (empty environment; duplication is a follow-up) |
+| Create | `+ New Environment` in the env dropdown, or Settings → Environments; **Duplicate** or **Empty** | CLI `project environments create --name` | `duplicateEnvironment` / create | not possible | environment dropdown + Settings → Environments, **Duplicate** or empty; push changes between environments with **Sync** |
 | Delete guard | default cannot be removed | deleting the project cascades environments | `deleteEnvironment` refuses the default and refuses any environment with services | n/a | refuses the default, refuses any environment with services |
 | Isolation | changes are scoped to one environment | per-environment resources | services reference `environmentId` | none | `services.environment_id`, canvas filtered to the active environment |
 | PR/preview environments | temporary, auto-created per PR, deleted on merge/close | preview deployments (per app) | preview deployments (per app) | none | out of scope (see follow-ups) |
@@ -118,11 +118,44 @@ the component as a single slim row: it collapses by itself once you have made pr
 occupies a card-sized block, reads `localStorage` during initialization (no first-paint flash),
 and disappears once every step is satisfied.
 
+## Follow-up pass: duplicating and syncing environments
+
+Railway offers two actions that make an environment more than an empty box: **Duplicate** (copy a
+project's services and configuration into a new environment) and **Sync** (push one environment's
+configuration into another). Both are now implemented, on these rules:
+
+- **Duplication is staged.** `EnvironmentDuplicator` copies every service — configuration,
+  variables, storage mounts, backup schedules, links, scaling rows and canvas layout — but each copy
+  starts `stopped`, has no deployment, and creates nothing on the Dokku host. The dialog ends on a
+  review ("5 services · 4 variables · 2 new volumes · 2 backup schedules · 2 links") plus the
+  warnings for what deliberately did not travel. This matches Railway, which stages a duplicate for
+  review before it can be deployed.
+- **Every copy gets its own identity.** `ServiceBlueprint` excludes `dokku_app_name`, `webhook_token`,
+  `status`, `last_deployed`, canvas coordinates, history and PITR; `ServiceCopier` derives a fresh
+  volume name per copy (`<app>-<container path>`). A `dup` would have carried the original app name,
+  which `Service#generate_dokku_app_name` never overwrites because it only fills a nil attribute.
+- **Domains are not copied.** Two Dokku apps cannot answer on one hostname, so a copy of a publicly
+  reachable service is given its own temporary domain (derived from its own app name) and skipped
+  custom domains are reported in `summary[:warnings]`.
+- **Sync only adds and updates.** `EnvironmentSync` applies `EnvironmentDiff`'s plan: services the
+  target is missing are copied, drifted ones are updated, and services that exist only in the target
+  are *reported*, never destroyed. A service can own a database, a volume and backup artifacts, and
+  the only sanctioned way to remove one is the guarded destroy endpoint that snapshots first and
+  demands the service name back — sync must not become a back door around that (see AGENTS.md,
+  "Destructive operations").
+- **The diff is directional.** `ServiceBlueprint#differences_from` reports what the target is missing
+  or contradicts, so a staging-only variable or an extra build setting is not "drift". `config`,
+  `config_overrides` and `external_networks` are merged rather than replaced. Labels name fields and
+  never values: environment variable values are secrets and the labels are rendered in the UI.
+- **Surface.** `POST /api/projects/:id/environments/:id/duplicate`,
+  `GET …/environments/:id/sync_plan?source_environment_id=` (read-only, so the dialog can be opened
+  and closed freely) and `POST …/environments/:id/sync`.
+
 ## Deliberately not done yet
 
-- **Duplicating an environment** (Railway's copy-services-and-variables flow) and **syncing**
-  services between environments. RailDock creates empty environments; moving a service between
-  environments has no UI yet.
+- **Moving a service between environments.** Duplication copies and sync adds/updates; there is
+  still no way to re-parent an existing service, which is what an environment's destroy guard
+  ("move the services before deleting it") currently asks the operator to do.
 - **PR/preview environments** — needs a GitHub webhook → environment lifecycle and a
   "which environment does this branch deploy to" rule.
 - **Environment-scoped variables.** Dokploy and Railway both scope variables to the environment;

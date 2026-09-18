@@ -178,8 +178,29 @@ and cannot be deleted. This mirrors Railway, Coolify and Dokploy — see
   which syncs the label — do not treat the column as the source of truth.
 - `Project#as_json` serializes `environments` (id, name, slug, is_default, service_count). Without
   it the environment switcher renders empty even though the settings pane is populated.
-- Not implemented yet: duplicating an environment, syncing services between environments, PR
-  environments, and environment-scoped variables (`shared_vars` remain project-level).
+- **Duplication is staged, never live.** `EnvironmentDuplicator` copies every service and its
+  configuration into a new environment, but every copy starts `stopped` with no deployment and
+  nothing is created on the Dokku host. Railway stages a duplicate for review before it can reach
+  anyone; keep it that way. `EnvironmentSync` adds and updates, never deletes — services that exist
+  only in the target are reported (`plan.removed`) so they can be removed through the guarded
+  destroy endpoint instead of a sync silently deleting a database. Do not add a delete path to
+  `EnvironmentSync`.
+- **A copy must never inherit an instance identity.** `ServiceCopier` (used by both the duplicator
+  and the sync) builds from `ServiceBlueprint`, which deliberately excludes `dokku_app_name`,
+  `webhook_token`, `status`, `last_deployed`, canvas coordinates, backups, deployments, PITR and
+  process types. `Service#generate_dokku_app_name` only fills a *nil* attribute, so a `dup` would
+  carry the original app name and collide on the host. A copied Docker volume likewise gets a fresh
+  name (`StorageMount.volume_name_for`) — sharing one would let two services write the same data.
+- **`ServiceBlueprint#differences_from` is directional on purpose.** It reports what the target is
+  missing or has drifted on, so a staging-only variable or an extra build setting is not "drift".
+  Sync merges `config`/`config_overrides`/`external_networks` instead of replacing them, and never
+  removes a variable, mount, schedule or link. Diff labels name fields, never values, because
+  environment variable values are secrets and those labels are rendered in the UI.
+- Duplication does not copy domains: two Dokku apps cannot serve one hostname. A copy of a publicly
+  reachable service gets its own temporary domain, and skipped custom domains are reported back in
+  `summary[:warnings]`.
+- Not implemented yet: PR environments and environment-scoped variables (`shared_vars` remain
+  project-level).
 
 ## Destructive operations
 
