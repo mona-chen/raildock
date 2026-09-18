@@ -4,23 +4,36 @@ RSpec.describe Project, type: :model do
   describe "validations" do
     it { is_expected.to validate_presence_of(:name) }
 
-    it "is valid with a recognized environment" do
-      %w[production staging development].each do |env|
+    # The label mirrors the project's primary environment, which is free-form
+    # now that environments are first-class rows.
+    it "accepts an arbitrary primary environment label" do
+      %w[production staging development qa-sandbox].each do |env|
         expect(build(:project, environment: env)).to be_valid
       end
     end
 
-    it "is invalid with an unrecognized environment" do
-      project = build(:project, environment: "testing")
-      expect(project).not_to be_valid
-      expect(project.errors[:environment]).to include("is not included in the list")
+    it "defaults a blank primary environment label to production" do
+      project = build(:project, environment: nil)
+
+      expect(project).to be_valid
+      expect(project.environment).to eq("production")
     end
   end
 
   describe "associations" do
     it { is_expected.to belong_to(:server).optional }
     it { is_expected.to have_many(:services).dependent(:destroy) }
+    it { is_expected.to have_many(:environments).dependent(:delete_all) }
     it { is_expected.to have_many(:activity_events).dependent(:destroy) }
+  end
+
+  describe "#default_environment" do
+    it "returns the production environment created with the project" do
+      project = create(:project)
+
+      expect(project.default_environment.name).to eq("production")
+      expect(project.default_environment).to be_default
+    end
   end
 
   describe "#service_ids" do
@@ -120,14 +133,19 @@ RSpec.describe Project, type: :model do
       expect(project.services.count).to eq(1)
     end
 
-    it "destroys associated services on destroy once resources are allowed" do
+    it "destroys associated services and environments on destroy once resources are allowed" do
       project = create(:project)
       service = create(:service, project: project)
+      staging = project.environments.create!(name: "staging")
       project.allow_resource_destruction = true
       allow_any_instance_of(DokkuEngine).to receive(:app_destroy).and_return({ success: true })
 
-      expect { project.destroy }.to change { Service.count }.by(-1)
+      expect { project.destroy }
+        .to change { Service.count }.by(-1)
+        .and change { Environment.count }.by(-2)
+
       expect(Service.exists?(service.id)).to be false
+      expect(Environment.exists?(staging.id)).to be false
     end
 
     it "keeps the project when Dokku could not remove its resources" do

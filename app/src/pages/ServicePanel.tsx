@@ -224,6 +224,10 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         { key: 'logs', label: 'Logs' },
         { key: 'variables', label: 'Variables' },
         { key: 'networking', label: 'Networking' },
+        // An app that owns volumes can back them up, so it gets the same
+        // Backups surface a database has. Without this the volume snapshot
+        // schedules seeded or created for an app were unreachable in the UI.
+        ...(svc.storageMounts?.length ? [{ key: 'backups', label: 'Backups' }] : []),
         { key: 'metrics', label: 'Metrics' },
         { key: 'settings', label: 'Settings' },
       ]

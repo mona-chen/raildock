@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_18_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -66,6 +66,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
   create_table "backup_schedules", force: :cascade do |t|
     t.string "backup_kind", default: "database", null: false
     t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
     t.string "frequency"
     t.datetime "last_run_at"
     t.jsonb "metadata", default: {}
@@ -190,6 +191,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
     t.datetime "updated_at", null: false
     t.text "value"
     t.index ["service_id"], name: "index_environment_variables_on_service_id"
+  end
+
+  create_table "environments", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "description"
+    t.boolean "is_default", default: false, null: false
+    t.string "name", null: false
+    t.bigint "project_id", null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "slug"], name: "index_environments_on_project_id_and_slug", unique: true
+    t.index ["project_id"], name: "index_environments_on_one_default_per_project", unique: true, where: "is_default"
+    t.index ["project_id"], name: "index_environments_on_project_id"
   end
 
   create_table "git_sources", force: :cascade do |t|
@@ -476,6 +490,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
     t.integer "detected_port"
     t.string "docker_image"
     t.string "dokku_app_name"
+    t.bigint "environment_id"
     t.boolean "exposed"
     t.jsonb "external_networks", default: [], null: false
     t.string "framework"
@@ -498,6 +513,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
     t.datetime "updated_at", null: false
     t.string "version"
     t.string "webhook_token"
+    t.index ["environment_id"], name: "index_services_on_environment_id"
     t.index ["managed_by"], name: "index_services_on_managed_by"
     t.index ["project_id"], name: "index_services_on_project_id"
     t.index ["webhook_token"], name: "index_services_on_webhook_token", unique: true
@@ -558,6 +574,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
   add_foreign_key "deployments", "services"
   add_foreign_key "domains", "services"
   add_foreign_key "environment_variables", "services"
+  add_foreign_key "environments", "projects"
   add_foreign_key "git_sources", "organizations"
   add_foreign_key "git_sources", "users"
   add_foreign_key "manifest_changes", "projects"
@@ -582,6 +599,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000001) do
   add_foreign_key "service_links", "services", column: "to_service_id"
   add_foreign_key "service_metrics", "services"
   add_foreign_key "service_subtypes", "plugins"
+  add_foreign_key "services", "environments", on_delete: :nullify
   add_foreign_key "services", "projects"
   add_foreign_key "storage_mounts", "services"
 end

@@ -15,7 +15,7 @@ module Api
       :start, :stop, :restart, :rebuild, :scale, :logs, :link, :unlink,
       :metrics, :metrics_history, :backup, :restore, :restore_backup, :download_backup, :destroy_backup,
       :database_info, :backups, :snapshots, :backup_schedules,
-      :create_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
+      :create_backup_schedule, :update_backup_schedule, :destroy_backup_schedule, :run, :enter, :linked_by,
       :generate_domain
     ]
 
@@ -784,7 +784,11 @@ module Api
     end
 
     def backup_schedules
-      render json: @service.backup_schedules
+      # The mount is included so the Backups tab can label a volume snapshot
+      # with the path it covers instead of an opaque id.
+      render json: @service.backup_schedules.order(:id).as_json(
+        include: { storage_mount: { only: [ :id, :container_path, :host_path, :kind ] } }
+      )
     end
 
     def create_backup_schedule
@@ -793,6 +797,14 @@ module Api
       schedule = @service.backup_schedules.create!(backup_schedule_params)
       schedule.update_next_run!
       render json: schedule, status: :created
+    end
+
+    def update_backup_schedule
+      authorize_service!(@service, action: :update)
+
+      schedule = @service.backup_schedules.find(params[:schedule_id])
+      schedule.update!(backup_schedule_params)
+      render json: schedule
     end
 
     def destroy_backup_schedule
@@ -1166,7 +1178,7 @@ module Api
         :name, :service_type, :subtype, :status, :builder,
         :git_repo, :branch, :version, :exposed, :port,
         :locked, :restart_policy, :restart_max_retries,
-        :docker_image, :auto_deploy, :root_directory,
+        :docker_image, :auto_deploy, :root_directory, :environment_id,
         :start_command, :maintenance_mode,
         :canvas_x, :canvas_y,
         external_networks: [],
@@ -1194,8 +1206,14 @@ module Api
     end
 
     def backup_schedule_params
-      params.require(:backup_schedule).permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, destination_ids: [])
-            .tap { |p| p[:metadata] = { "destination_ids" => Array(p.delete(:destination_ids)).compact_blank } }
+      params.require(:backup_schedule).permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, :enabled, destination_ids: [])
+            .tap do |permitted|
+              # Only rewrite destinations when the caller actually supplied the
+              # key, so a pause/resume toggle cannot wipe a schedule's destinations.
+              next unless permitted.key?(:destination_ids)
+
+              permitted[:metadata] = { "destination_ids" => Array(permitted.delete(:destination_ids)).compact_blank }
+            end
     end
   end
 end

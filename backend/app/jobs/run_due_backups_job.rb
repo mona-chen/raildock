@@ -2,7 +2,8 @@ class RunDueBackupsJob < ApplicationJob
   queue_as :default
 
   def perform
-    BackupSchedule.where(next_run_at: ..Time.current).find_each do |schedule|
+    # Paused schedules keep their next-run bookkeeping but are not executed.
+    BackupSchedule.due.find_each do |schedule|
       backup = create_backup(schedule)
       enqueue_job(schedule, backup)
       schedule.update!(last_run_at: Time.current, next_run_at: schedule.calculate_next_run)

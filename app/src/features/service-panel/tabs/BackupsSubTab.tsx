@@ -12,6 +12,7 @@ import {
   FileCheck2,
   FlaskConical,
   Loader2,
+  Pencil,
   Plus,
   RotateCcw,
   ShieldCheck,
@@ -24,13 +25,16 @@ import {
   useBackupSchedules,
   useBackupService,
   useCreateBackupSchedule,
+  useCreateVolumeBackupSchedule,
   useDeleteBackup,
   useDestroyBackupSchedule,
+  useUpdateBackupSchedule,
   useRestoreBackup,
   useRestoreService,
   useRunRestoreDrill,
 } from '@/hooks/useServices'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
 import type { Service, BackupDestination, BackupSchedule } from '@/types'
 
@@ -45,6 +49,28 @@ function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString() : 'Not yet run'
 }
 
+/** "in 6h" / "2d ago" — the countdown operators actually scan for. */
+function formatRelative(value?: string) {
+  if (!value) return 'Not scheduled'
+  const diff = new Date(value).getTime() - Date.now()
+  const abs = Math.abs(diff)
+  const units: [number, string][] = [[86400000, 'd'], [3600000, 'h'], [60000, 'm']]
+  for (const [ms, label] of units) {
+    if (abs >= ms) {
+      const count = Math.round(abs / ms)
+      return diff >= 0 ? `in ${count}${label}` : `${count}${label} ago`
+    }
+  }
+  return diff >= 0 ? 'in <1m' : 'just now'
+}
+
+// Retention defaults follow the platform conventions (roughly a week of
+// dailies, a month of weeklies, two quarters of monthlies) so a new schedule
+// starts sane instead of at an arbitrary 7.
+const DEFAULT_RETENTION: Record<string, number> = { daily: 7, weekly: 4, monthly: 6 }
+
+const FREQUENCY_LABEL: Record<string, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }
+
 function DestinationBadge({ name, kind }: { name: string; kind?: string }) {
   const color = kind === 'local' ? 'text-white/45' : kind === 'r2' ? 'text-orange-300' : 'text-emerald-300'
   return <span className={`rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] ${color}`}>{name}</span>
@@ -55,7 +81,9 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const { data: schedules = [] } = useBackupSchedules(serviceId)
   const createBackup = useBackupService()
   const createSchedule = useCreateBackupSchedule()
+  const createVolumeSchedule = useCreateVolumeBackupSchedule()
   const destroySchedule = useDestroyBackupSchedule()
+  const updateSchedule = useUpdateBackupSchedule()
   const restoreUpload = useRestoreService()
   const restoreBackup = useRestoreBackup()
   const deleteBackup = useDeleteBackup()
@@ -63,8 +91,16 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [frequency, setFrequency] = useState('daily')
-  const [retentionCount, setRetentionCount] = useState(7)
+  const [retentionCount, setRetentionCount] = useState(DEFAULT_RETENTION.daily)
+  // Once the operator picks a retention window by hand, changing the frequency
+  // must not silently overwrite it.
+  const [retentionTouched, setRetentionTouched] = useState(false)
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null)
+  const [editFrequency, setEditFrequency] = useState('daily')
+  const [editRetention, setEditRetention] = useState(7)
   const [scheduleDestinations, setScheduleDestinations] = useState<string[]>([])
+  const [scheduleKind, setScheduleKind] = useState<'database' | 'volume'>('database')
+  const [scheduleMountId, setScheduleMountId] = useState('')
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
   const [restoreConfirmation, setRestoreConfirmation] = useState('')
   const [pendingUpload, setPendingUpload] = useState<File | null>(null)
@@ -74,6 +110,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const { data: recovery } = useRecovery(serviceId)
   const destinations = recovery?.destinations || []
   const hasDestinations = destinations.length > 0
+  const volumeMounts = svc.storageMounts ?? []
 
   const latestVerified = useMemo(
     () => backups.find((backup) => backup.status === 'completed' && backup.metadata?.verifiedAt),
@@ -210,8 +247,17 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           </div>
         </div>
         <div className="px-5 py-3">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-white/25">Retention policy</div>
-          <div className="mt-1 text-[12px] text-white/70">{schedules[0] ? `Keep ${schedules[0].retentionCount} · ${schedules[0].frequency}` : 'Manual only'}</div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-white/25">Scheduled backups</div>
+          <div className="mt-1 text-[12px] text-white/70">
+            {schedules.length === 0
+              ? 'Manual only'
+              : `${schedules.length} schedule${schedules.length === 1 ? '' : 's'} · next ${formatRelative(
+                  schedules
+                    .map((schedule) => schedule.nextRunAt)
+                    .filter(Boolean)
+                    .sort()[0] as string | undefined,
+                )}`}
+          </div>
         </div>
       </div>
 
@@ -245,23 +291,103 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         </div>
       </section>
 
-      <section className="px-5 py-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Schedule</h3>
-          <button type="button" onClick={() => setShowSchedule((value) => !value)} className="text-[11px] text-[#a78bfa] hover:text-[#c4b5fd]">{showSchedule ? 'Cancel' : 'Configure'}</button>
+      <section className="border-b border-white/[0.06] px-5 py-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Scheduled backups</h3>
+            <p className="mt-1 text-[10px] text-white/20">
+              Every schedule keeps its own retention window and destinations, and can be paused
+              without losing its place in the rotation.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSchedule((value) => !value)}
+            className="shrink-0 text-[11px] text-[#a78bfa] hover:text-[#c4b5fd]"
+          >
+            {showSchedule ? 'Cancel' : '+ Add schedule'}
+          </button>
         </div>
+
         {showSchedule && (
-          <form className="mb-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3" onSubmit={(event) => {
-            event.preventDefault()
-            createSchedule.mutate(
-              { id: serviceId, data: { frequency, retentionCount, destinationIds: scheduleDestinations } },
-              { onSuccess: () => { setShowSchedule(false); setScheduleDestinations([]) } }
-            )
-          }}>
+          <form
+            className="mb-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const onCreated = () => {
+                setShowSchedule(false)
+                setScheduleDestinations([])
+                setScheduleMountId('')
+                setRetentionTouched(false)
+              }
+              if (scheduleKind === 'volume') {
+                if (!scheduleMountId) return
+                createVolumeSchedule.mutate(
+                  {
+                    id: serviceId,
+                    data: {
+                      frequency,
+                      retentionCount,
+                      storageMountId: scheduleMountId,
+                      destinationIds: scheduleDestinations,
+                    },
+                  },
+                  { onSuccess: onCreated }
+                )
+                return
+              }
+              createSchedule.mutate(
+                { id: serviceId, data: { frequency, retentionCount, destinationIds: scheduleDestinations } },
+                { onSuccess: onCreated }
+              )
+            }}
+          >
+            {volumeMounts.length > 0 && (
+              <div className="mb-2 flex items-end gap-2">
+                <label className="flex-1 text-[10px] text-white/35">
+                  Back up
+                  <Select
+                    value={scheduleKind}
+                    onValueChange={(value) => setScheduleKind(value as 'database' | 'volume')}
+                  >
+                    <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                      <SelectValue placeholder="Database" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="database">Database</SelectItem>
+                      <SelectItem value="volume">Volume snapshot</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                {scheduleKind === 'volume' && (
+                  <label className="flex-1 text-[10px] text-white/35">
+                    Mounted path
+                    <Select value={scheduleMountId} onValueChange={setScheduleMountId}>
+                      <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                        <SelectValue placeholder="Choose a volume" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {volumeMounts.map((mount) => (
+                          <SelectItem key={mount.id} value={mount.id}>
+                            {mount.containerPath}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                )}
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <label className="flex-1 text-[10px] text-white/35">
                 Frequency
-                <Select value={frequency} onValueChange={(value) => setFrequency(value)}>
+                <Select
+                  value={frequency}
+                  onValueChange={(value) => {
+                    setFrequency(value)
+                    if (!retentionTouched) setRetentionCount(DEFAULT_RETENTION[value] ?? 7)
+                  }}
+                >
                   <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
                     <SelectValue placeholder="Frequency" />
                   </SelectTrigger>
@@ -274,16 +400,35 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
               </label>
               <label className="w-28 text-[10px] text-white/35">
                 Keep latest
-                <input type="number" min={1} max={30} value={retentionCount} onChange={(event) => setRetentionCount(Number(event.target.value))} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]" />
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={retentionCount}
+                  onChange={(event) => {
+                    setRetentionTouched(true)
+                    setRetentionCount(Number(event.target.value))
+                  }}
+                  className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+                />
               </label>
-              <button className="rounded-md bg-white/[0.08] px-3 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.12]">Save</button>
+              <button className="rounded-md bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark">
+                Save
+              </button>
             </div>
+            <p className="mt-2 text-[10px] text-white/25">
+              Keeps the newest artifact of every kind, and never expires a pre-destroy or pre-restore
+              safety snapshot.
+            </p>
             {destinations.length > 0 && (
               <div className="mt-3">
                 <div className="mb-1 text-[10px] text-white/35">Also send scheduled backups to</div>
                 <div className="flex flex-wrap gap-2">
                   {destinations.map((destination: BackupDestination) => (
-                    <label key={destination.id} className="flex items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 cursor-pointer hover:bg-white/[0.03]">
+                    <label
+                      key={destination.id}
+                      className="flex cursor-pointer items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 hover:bg-white/[0.03]"
+                    >
                       <input
                         type="checkbox"
                         checked={scheduleDestinations.includes(destination.id)}
@@ -298,15 +443,127 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             )}
           </form>
         )}
-        {schedules.filter((s: BackupSchedule) => s.backupKind === 'database' || !s.backupKind).map((schedule) => (
-          <div key={schedule.id} className="flex items-center gap-3 border-y border-white/[0.05] py-2.5 text-[12px]">
-            <Clock3 size={13} className="text-white/25" />
-            <span className="capitalize text-white/65">{schedule.frequency}</span>
-            <span className="text-white/25">Next {formatDate(schedule.nextRunAt)}</span>
-            <span className="ml-auto text-white/25">Keep {schedule.retentionCount}</span>
-            <button type="button" aria-label="Delete schedule" onClick={() => destroySchedule.mutate({ id: serviceId, scheduleId: schedule.id })} className="rounded p-1 text-white/25 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={12} /></button>
+
+        {schedules.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/[0.08] py-6 text-center">
+            <Clock3 size={18} className="mx-auto mb-2 text-white/15" />
+            <div className="text-[12px] text-white/45">No scheduled backups</div>
+            <div className="mt-1 text-[11px] text-white/20">
+              Add a daily, weekly or monthly cadence so recoverability does not depend on remembering.
+            </div>
           </div>
-        ))}
+        ) : (
+          <div className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.05]">
+            {schedules.map((schedule: BackupSchedule) => {
+              const isEditing = editingScheduleId === schedule.id
+              const isVolume = schedule.backupKind === 'volume'
+              return (
+                <div key={schedule.id} className={`px-3 py-2.5 ${schedule.enabled ? '' : 'opacity-55'}`}>
+                  <div className="flex items-center gap-3">
+                    <Clock3 size={13} className={schedule.enabled ? 'text-rail-purple' : 'text-white/20'} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 text-[12px] text-white/70">
+                        <span className="font-medium">
+                          {FREQUENCY_LABEL[schedule.frequency] || schedule.frequency}
+                        </span>
+                        <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-white/40">
+                          {isVolume ? 'volume' : 'database'}
+                        </span>
+                        {isVolume && schedule.storageMount?.containerPath && (
+                          <span className="truncate font-mono text-[10px] text-white/30">
+                            {schedule.storageMount.containerPath}
+                          </span>
+                        )}
+                        <span className="text-white/30">keep {schedule.retentionCount}</span>
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-white/25">
+                        {schedule.enabled ? `Next ${formatRelative(schedule.nextRunAt)}` : 'Paused'}
+                        {' · '}
+                        {schedule.lastRunAt ? `last run ${formatRelative(schedule.lastRunAt)}` : 'never run'}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={Boolean(schedule.enabled)}
+                      aria-label={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
+                      onCheckedChange={(checked) =>
+                        updateSchedule.mutate({ id: serviceId, scheduleId: schedule.id, data: { enabled: checked } })
+                      }
+                    />
+                    <button
+                      type="button"
+                      aria-label="Edit schedule"
+                      onClick={() => {
+                        if (isEditing) {
+                          setEditingScheduleId(null)
+                          return
+                        }
+                        setEditingScheduleId(schedule.id)
+                        setEditFrequency(schedule.frequency)
+                        setEditRetention(schedule.retentionCount)
+                      }}
+                      className="rounded p-1 text-white/25 hover:bg-white/[0.06] hover:text-white/60"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Delete schedule"
+                      onClick={() => destroySchedule.mutate({ id: serviceId, scheduleId: schedule.id })}
+                      className="rounded p-1 text-white/25 hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+
+                  {isEditing && (
+                    <div className="mt-2 flex items-end gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+                      <label className="flex-1 text-[10px] text-white/35">
+                        Frequency
+                        <Select value={editFrequency} onValueChange={(value) => setEditFrequency(value)}>
+                          <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                            <SelectValue placeholder="Frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      <label className="w-28 text-[10px] text-white/35">
+                        Keep latest
+                        <input
+                          type="number"
+                          min={1}
+                          max={90}
+                          value={editRetention}
+                          onChange={(event) => setEditRetention(Number(event.target.value))}
+                          className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSchedule.mutate(
+                            {
+                              id: serviceId,
+                              scheduleId: schedule.id,
+                              data: { frequency: editFrequency, retentionCount: editRetention },
+                            },
+                            { onSuccess: () => setEditingScheduleId(null) }
+                          )
+                        }
+                        className="rounded-md bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       <section className="px-5 pb-5">

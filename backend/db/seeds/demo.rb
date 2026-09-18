@@ -87,6 +87,15 @@ playbook.environment = "production"
 playbook.description ||= "Static Vite site deployed as a static bundle."
 playbook.save!
 
+# Every project is created with a default `production` environment (see
+# Project#create_default_environment). The demo adds a `staging` environment so
+# the environment switcher has something to switch between.
+staging = hello.environments.find_or_initialize_by(slug: "staging")
+staging.name = "staging"
+staging.description = "Auto-deploys from the staging branch"
+staging.is_default = false
+staging.save!
+
 # ── Services ────────────────────────────────────────────────────────────────
 
 def demo_service(project, name, attributes)
@@ -293,7 +302,19 @@ schedule.frequency = "daily"
 schedule.retention_count = 7
 schedule.last_run_at = 6.hours.ago
 schedule.next_run_at = 18.hours.from_now
+schedule.enabled = true
 schedule.save!
+
+# A paused volume-snapshot schedule so the Backups tab shows both schedule
+# kinds and the pause/resume control has a real example.
+volume_schedule = BackupSchedule.find_or_initialize_by(service: api, backup_kind: "volume")
+volume_schedule.storage_mount = volume
+volume_schedule.frequency = "weekly"
+volume_schedule.retention_count = 4
+volume_schedule.last_run_at = 3.days.ago
+volume_schedule.next_run_at = 4.days.from_now
+volume_schedule.enabled = false
+volume_schedule.save!
 
 # ── History: deployments, activity, metrics ─────────────────────────────────
 

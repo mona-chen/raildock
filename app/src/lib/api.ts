@@ -7,6 +7,7 @@
 
 import type {
   Project,
+  Environment,
   Service,
   Server,
   GitSource,
@@ -48,6 +49,7 @@ import {
   wrapBody,
   normalizeService,
   normalizeProject,
+  normalizeEnvironment,
   normalizeServer,
   normalizeActivityEvent,
   normalizeGitSource,
@@ -176,6 +178,41 @@ export const projectsApi = {
   },
 }
 
+// ── Environments API ──────────────────────────
+// A project always has a default (`production`) environment that cannot be
+// deleted; extra environments are created, renamed and deleted explicitly.
+
+export const environmentsApi = {
+  list: async (projectId: string): Promise<Environment[]> => {
+    const data = await fetchJson<unknown[]>(`/api/projects/${projectId}/environments`)
+    return data.map(normalizeEnvironment)
+  },
+
+  create: async (projectId: string, data: { name: string; description?: string }): Promise<Environment> => {
+    const res = await fetchJson<unknown>(`/api/projects/${projectId}/environments`, {
+      method: 'POST',
+      body: wrapBody('environment', data),
+    })
+    return normalizeEnvironment(res)
+  },
+
+  update: async (
+    projectId: string,
+    id: string,
+    data: { name?: string; description?: string | null },
+  ): Promise<Environment> => {
+    const res = await fetchJson<unknown>(`/api/projects/${projectId}/environments/${id}`, {
+      method: 'PATCH',
+      body: wrapBody('environment', data),
+    })
+    return normalizeEnvironment(res)
+  },
+
+  destroy: async (projectId: string, id: string): Promise<void> => {
+    await fetchJson(`/api/projects/${projectId}/environments/${id}`, { method: 'DELETE' })
+  },
+}
+
 // ── Services API ─────────────────────────────
 
 export const servicesApi = {
@@ -189,7 +226,7 @@ export const servicesApi = {
     return normalizeService(data)
   },
 
-  create: async (projectId: string, data: { name: string; subtype: string; category: string; builder?: string; git_repo?: string; branch?: string; docker_image?: string; version?: string; root_directory?: string }): Promise<Service> => {
+  create: async (projectId: string, data: { name: string; subtype: string; category: string; builder?: string; git_repo?: string; branch?: string; docker_image?: string; version?: string; root_directory?: string; environment_id?: string }): Promise<Service> => {
     const body = { ...data, serviceType: data.category }
     const res = await fetchJson<unknown>(`/api/projects/${projectId}/services`, { method: 'POST', body: wrapBody('service', body) })
     return normalizeService(res)
@@ -346,6 +383,17 @@ export const servicesApi = {
 
   createSnapshotSchedule: async (id: string, data: { frequency: string; retentionCount: number; storageMountId: string; destinationIds?: string[] }): Promise<void> => {
     await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: { ...data, backup_kind: 'volume' } }) })
+  },
+
+  updateBackupSchedule: async (
+    id: string,
+    scheduleId: string,
+    data: { frequency?: string; retentionCount?: number; enabled?: boolean; destinationIds?: string[] },
+  ): Promise<BackupSchedule> => {
+    return fetchJson(`/api/services/${id}/backup_schedules/${scheduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ backup_schedule: data }),
+    })
   },
 
   destroyBackupSchedule: async (id: string, scheduleId: string): Promise<void> => {
@@ -1224,6 +1272,7 @@ export const updateApi = {
 export const api = {
   auth: authApi,
   projects: projectsApi,
+  environments: environmentsApi,
   services: servicesApi,
   servers: serversApi,
   gitSources: gitSourcesApi,

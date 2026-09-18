@@ -7,6 +7,17 @@ class BackupSchedule < ApplicationRecord
   validates :backup_kind, inclusion: { in: %w[database volume] }
   validate :storage_mount_matches_service
 
+  scope :enabled, -> { where(enabled: true) }
+  scope :due, -> { enabled.where(next_run_at: ..Time.current) }
+
+  # Retention windows that mirror the platform defaults operators expect:
+  # a week of dailies, a month of weeklies, two quarters of monthlies.
+  DEFAULT_RETENTION = { "daily" => 7, "weekly" => 4, "monthly" => 6 }.freeze
+
+  def self.default_retention_for(frequency)
+    DEFAULT_RETENTION.fetch(frequency.to_s, 7)
+  end
+
   FREQUENCY_INTERVALS = {
     "daily" => 1.day,
     "weekly" => 1.week,

@@ -74,9 +74,41 @@ export default function ProjectCanvas() {
   const location = useLocation()
 
   const projectRealtime = useProjectRealtime(projectId || '')
-  const { data: services = [], isLoading, isError, refetch } = useServices(projectId || '')
   const { data: project } = useProject(projectId || '')
+  const { data: allServices = [], isLoading, isError, refetch } = useServices(projectId || '')
   const { data: activity = [] } = useActivity(projectId || '')
+
+  const environments = useMemo(() => project?.environments ?? [], [project])
+
+  // The URL owns the active environment (like the service panel), so switching
+  // is deep-linkable, survives a refresh and is undone by browser Back.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const envParam = searchParams.get('env')
+  const activeEnvironmentId = useMemo(() => {
+    if (envParam && environments.some((environment) => environment.id === envParam)) return envParam
+    return environments.find((environment) => environment.isDefault)?.id ?? environments[0]?.id
+  }, [envParam, environments])
+
+  // Environments are a view over one project's services, so the canvas filters
+  // the already-loaded list instead of refetching (switching stays instant).
+  const services = useMemo(() => {
+    if (!activeEnvironmentId) return allServices
+    return allServices.filter((service) => service.environmentId === activeEnvironmentId)
+  }, [allServices, activeEnvironmentId])
+
+  const activeEnvironmentName =
+    environments.find((environment) => environment.id === activeEnvironmentId)?.name ?? 'this environment'
+
+  const setActiveEnvironment = useCallback((environmentId: string) => {
+    storeSetActiveService(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('env', environmentId)
+      next.delete('service')
+      return next
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setSearchParams])
 
   const zoom = useCanvasStore((s) => s.zoom)
   const pan = useCanvasStore((s) => s.pan)
@@ -90,7 +122,6 @@ export default function ProjectCanvas() {
 
   // The URL owns which service panel is open, so the panel is deep-linkable,
   // survives a refresh, and closes on browser Back.
-  const [searchParams, setSearchParams] = useSearchParams()
   const activeServiceId = searchParams.get('service')
   const setActiveService = useCallback((id: string | null) => {
     storeSetActiveService(id)
@@ -457,7 +488,8 @@ export default function ProjectCanvas() {
 
   const navTo = (key: string) => {
     setActiveService(null)
-    navigate(`/dashboard/project/${projectId}/${key}`)
+    const query = activeEnvironmentId ? `?env=${activeEnvironmentId}` : ''
+    navigate(`/dashboard/project/${projectId}/${key}${query}`)
   }
 
   if (isLoading) {
@@ -485,6 +517,9 @@ export default function ProjectCanvas() {
         projectId={projectId || ''}
         projectName={project?.name || 'Project'}
         projectEnvironment={project?.environment || 'production'}
+        environments={environments}
+        activeEnvironmentId={activeEnvironmentId}
+        onSelectEnvironment={setActiveEnvironment}
         connectionState={projectRealtime.connectionState}
         views={sidebarItems}
         activeView={view}
@@ -613,10 +648,25 @@ export default function ProjectCanvas() {
                   <div className="w-16 h-16 rounded-2xl bg-[rgba(139,92,246,0.08)] border border-[rgba(139,92,246,0.12)] flex items-center justify-center mx-auto mb-4">
                     <Rocket size={28} className="text-rail-purple" />
                   </div>
-                  <h3 className="text-base font-semibold text-white mb-1">This project is empty</h3>
-                  <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
-                    Projects contain apps, databases, and services. Add your first service to start deploying.
-                  </p>
+                  {allServices.length > 0 ? (
+                    <>
+                      <h3 className="text-base font-semibold text-white mb-1">
+                        Nothing in {activeEnvironmentName} yet
+                      </h3>
+                      <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
+                        This project&apos;s {allServices.length} service
+                        {allServices.length === 1 ? '' : 's'} live in another environment. Add a
+                        service here to run it in {activeEnvironmentName}.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-base font-semibold text-white mb-1">This project is empty</h3>
+                      <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
+                        Projects contain apps, databases, and services. Add your first service to start deploying.
+                      </p>
+                    </>
+                  )}
                   <button
                     onClick={() => setShowAdd(true)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-rail-purple text-white text-sm font-medium rounded-xl hover:bg-rail-purple-dark transition-all"
@@ -654,6 +704,7 @@ export default function ProjectCanvas() {
       {showAdd && (
         <AddServiceModal
           projectId={projectId!}
+          environmentId={activeEnvironmentId}
           onClose={() => setShowAdd(false)}
         />
       )}

@@ -29,7 +29,7 @@ export function wrapBody(resource: string, body: unknown): string {
   return JSON.stringify({ [resource]: snakeifyKeys(body) })
 }
 
-import type { Service, Project, Server, ActivityEvent, GitSource } from '@/types'
+import type { Service, Project, Server, ActivityEvent, GitSource, Environment } from '@/types'
 
 export function normalizeService(data: unknown): Service {
   const camel = camelizeKeys(data) as Record<string, unknown>
@@ -114,7 +114,27 @@ export function normalizeProject(data: unknown): Project {
   if (Array.isArray(camel.serviceIds)) {
     camel.serviceIds = camel.serviceIds.map((id) => String(id))
   }
+  // Accept both the `environments` key and the older `environmentsForApi`
+  // method-serialized name.
+  const listedEnvironments = camel.environments ?? camel.environmentsForApi
+  if (Array.isArray(listedEnvironments)) {
+    camel.environments = (listedEnvironments as unknown[]).map(normalizeEnvironment)
+  }
+  delete camel.environmentsForApi
   return camel as unknown as Project
+}
+
+export function normalizeEnvironment(data: unknown): Environment {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (camel.id != null && typeof camel.id !== 'string') {
+    camel.id = String(camel.id)
+  }
+  if (Array.isArray(camel.serviceIds)) {
+    camel.serviceIds = camel.serviceIds.map((id) => String(id))
+  }
+  // Rails serializes the boolean column as `is_default`; be tolerant of both.
+  if (camel.isDefault == null) camel.isDefault = false
+  return camel as unknown as Environment
 }
 
 export function normalizeServer(data: unknown): Server {

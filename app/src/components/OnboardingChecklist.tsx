@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   CheckCircle2,
+  ChevronRight,
   Circle,
   Server,
   Folder,
   Box,
   Rocket,
-  X,
-  ChevronRight,
   Sparkles,
+  X,
 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
 import { useProjects } from '@/hooks/useProjects'
@@ -24,197 +24,179 @@ interface Step {
   action: string
 }
 
+const STEPS: Step[] = [
+  {
+    id: 'server',
+    label: 'Connect a server',
+    description: 'Link your Dokku host via SSH',
+    icon: Server,
+    action: 'Add server',
+  },
+  {
+    id: 'project',
+    label: 'Create a project',
+    description: 'Organize your apps and databases',
+    icon: Folder,
+    action: 'New project',
+  },
+  {
+    id: 'service',
+    label: 'Add a service',
+    description: 'Deploy an app or provision a database',
+    icon: Box,
+    action: 'Add service',
+  },
+  {
+    id: 'deploy',
+    label: 'Deploy',
+    description: 'Push code and watch it go live',
+    icon: Rocket,
+    action: 'Deploy now',
+  },
+]
+
+function readDismissed() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Compact getting-started strip for the projects list.
+ *
+ * It stays a single slim row until you ask for the full checklist, collapses by
+ * itself once you have made progress, and disappears for good the moment every
+ * step is satisfied — a first-run hint should never become permanent chrome.
+ */
 export default function OnboardingChecklist() {
   const navigate = useNavigate()
-  const [dismissed, setDismissed] = useState(false)
-  const [expanded, setExpanded] = useState(true)
+  const [dismissed, setDismissed] = useState(readDismissed)
   const { data: servers = [] } = useServers()
   const { data: projects = [] } = useProjects()
 
-  useEffect(() => {
-    setDismissed(localStorage.getItem(STORAGE_KEY) === 'true')
-  }, [])
+  const checks: Record<string, boolean> = useMemo(
+    () => ({
+      server: servers.some((server) => server.status === 'connected'),
+      project: projects.length > 0,
+      service: projects.some((project) => (project.serviceCounts?.total || project.serviceIds?.length || 0) > 0),
+      deploy: projects.some((project) => project.hasDeployments),
+    }),
+    [servers, projects],
+  )
+
+  const completedCount = STEPS.filter((step) => checks[step.id]).length
+  const allCompleted = completedCount === STEPS.length
+  const nextStep = STEPS.find((step) => !checks[step.id])
+
+  // Started users get the compact row; brand-new users see the steps once. The
+  // choice is deferred (null) until either the data says "no progress yet" or
+  // the user toggles, so the strip collapses as soon as projects load instead of
+  // staying expanded from the pre-fetch render.
+  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null)
+  const expanded = expandedOverride ?? completedCount === 0
 
   const handleDismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true')
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true')
+    } catch {
+      /* localStorage can be unavailable (private mode) — not fatal */
+    }
     setDismissed(true)
   }
 
-  const steps: Step[] = useMemo(
-    () => [
-      {
-        id: 'server',
-        label: 'Connect a server',
-        description: 'Link your Dokku host via SSH',
-        icon: Server,
-        action: 'Add server',
-      },
-      {
-        id: 'project',
-        label: 'Create a project',
-        description: 'Organize your apps and databases',
-        icon: Folder,
-        action: 'New project',
-      },
-      {
-        id: 'service',
-        label: 'Add a service',
-        description: 'Deploy an app or provision a database',
-        icon: Box,
-        action: 'Add service',
-      },
-      {
-        id: 'deploy',
-        label: 'Deploy',
-        description: 'Push code and watch it go live',
-        icon: Rocket,
-        action: 'Deploy now',
-      },
-    ],
-    []
-  )
-
-  // Compute completion state
-  const checks: Record<string, boolean> = useMemo(
-    () => ({
-      server: servers.some((s) => s.status === 'connected'),
-      project: projects.length > 0,
-      service: projects.some((p) => (p.serviceCounts?.total || p.serviceIds?.length || 0) > 0),
-      deploy: projects.some((p) => p.hasDeployments),
-    }),
-    [servers, projects]
-  )
-
-  const completedCount = steps.filter((s) => checks[s.id]).length
-  const allCompleted = completedCount === steps.length
-
-  const nextStep = useMemo(() => steps.find((s) => !checks[s.id]), [steps, checks])
-
   const getStepHref = (step: Step): string => {
     if (step.id === 'server') return '/dashboard/servers'
-    if (step.id === 'project') return '/dashboard/projects'
+    if (step.id === 'project') return '/dashboard/projects?new=1'
     const firstProject = projects[0]
-    if (firstProject) return `/dashboard/project/${firstProject.id}`
-    return '/dashboard/projects'
-  }
-
-  const handlePrimaryAction = () => {
-    if (!nextStep) return
-    navigate(getStepHref(nextStep))
+    return firstProject ? `/dashboard/project/${firstProject.id}` : '/dashboard/projects'
   }
 
   if (dismissed || allCompleted) return null
 
   return (
-    <div className="mb-6 rounded-xl border border-[rgba(139,92,246,0.12)] bg-gradient-to-br from-[rgba(139,92,246,0.06)] to-[rgba(139,92,246,0.02)] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[rgba(139,92,246,0.18)] bg-[rgba(139,92,246,0.1)]">
-            <Sparkles size={16} className="text-rail-purple" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-white">Getting Started</h2>
-            <p className="mt-0.5 text-[11px] text-[#6B6B78]">
-              {completedCount === 0
-                ? 'Complete these steps to deploy your first app'
-                : `${completedCount} of ${steps.length} completed — keep going!`}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
-            title={expanded ? 'Collapse' : 'Expand'}
-          >
-            <ChevronRight
-              size={16}
-              className={`transition-transform ${expanded ? 'rotate-90' : ''}`}
+    <div className="mb-6 overflow-hidden rounded-xl border border-[rgba(139,92,246,0.12)] bg-gradient-to-br from-[rgba(139,92,246,0.06)] to-[rgba(139,92,246,0.02)]">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <Sparkles size={14} className="shrink-0 text-rail-purple" />
+        <button
+          type="button"
+          onClick={() => setExpandedOverride(!expanded)}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <span className="shrink-0 text-[12px] font-medium text-white">Getting started</span>
+          <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/[0.06]">
+            <span
+              className="block h-full rounded-full bg-rail-purple transition-all"
+              style={{ width: `${(completedCount / STEPS.length) * 100}%` }}
             />
-          </button>
+          </span>
+          <span className="truncate text-[11px] text-[#6B6B78]">
+            {completedCount} of {STEPS.length}
+            {nextStep ? ` · next: ${nextStep.label.toLowerCase()}` : ''}
+          </span>
+          <ChevronRight
+            size={13}
+            className={`shrink-0 text-[#6b6b7b] transition-transform ${expanded ? 'rotate-90' : ''}`}
+          />
+        </button>
+        {nextStep && (
           <button
-            onClick={handleDismiss}
-            className="rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
-            title="Dismiss"
+            type="button"
+            onClick={() => navigate(getStepHref(nextStep))}
+            className="hidden shrink-0 items-center gap-1.5 rounded-lg bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-rail-purple-dark sm:flex"
           >
-            <X size={14} />
+            {nextStep.action}
+            <ChevronRight size={12} />
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Dismiss getting started"
+          className="shrink-0 rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
+        >
+          <X size={13} />
+        </button>
       </div>
 
       {expanded && (
-        <>
-          <div className="mt-4 space-y-1.5">
-            {steps.map((step, index) => {
-              const isDone = checks[step.id]
-              const isNext = !isDone && steps.slice(0, index).every((s) => checks[s.id])
-              const href = getStepHref(step)
-
-              return (
+        <ul className="space-y-0.5 px-2 pb-2">
+          {STEPS.map((step) => {
+            const isDone = checks[step.id]
+            const isNext = step.id === nextStep?.id
+            return (
+              <li key={step.id}>
                 <Link
-                  key={step.id}
-                  to={href}
-                  className={`group flex items-center gap-3 rounded-lg border p-2.5 transition-all ${
+                  to={getStepHref(step)}
+                  className={`group flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
                     isDone
-                      ? 'border-transparent bg-white/[0.02] opacity-60'
+                      ? 'opacity-55'
                       : isNext
-                        ? 'border-[rgba(139,92,246,0.16)] bg-[rgba(139,92,246,0.06)] hover:bg-[rgba(139,92,246,0.1)]'
-                        : 'border-transparent bg-white/[0.02] hover:bg-white/[0.04]'
+                        ? 'bg-[rgba(139,92,246,0.08)] hover:bg-[rgba(139,92,246,0.14)]'
+                        : 'hover:bg-white/[0.04]'
                   }`}
                 >
-                  <div className="shrink-0">
-                    {isDone ? (
-                      <CheckCircle2 size={18} className="text-rail-green" />
-                    ) : (
-                      <Circle
-                        size={18}
-                        className={`${isNext ? 'text-rail-purple' : 'text-[#6b6b7b]'}`}
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className={`text-xs font-medium ${
-                        isDone ? 'text-[#A0A0B0] line-through' : 'text-white'
-                      }`}
-                    >
-                      {step.label}
-                    </div>
-                    <div className="text-[10px] text-[#6B6B78]">{step.description}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <step.icon
-                      size={14}
-                      className={`shrink-0 ${isDone ? 'text-[#6b6b7b]' : 'text-[#6B6B78] group-hover:text-white/60'}`}
-                    />
-                    <ChevronRight
-                      size={12}
-                      className="shrink-0 text-[#6b6b7b] opacity-0 transition-opacity group-hover:opacity-100"
-                    />
-                  </div>
+                  {isDone ? (
+                    <CheckCircle2 size={15} className="shrink-0 text-rail-green" />
+                  ) : (
+                    <Circle size={15} className={`shrink-0 ${isNext ? 'text-rail-purple' : 'text-[#6b6b7b]'}`} />
+                  )}
+                  <span
+                    className={`flex-1 truncate text-[12px] ${isDone ? 'text-[#A0A0B0] line-through' : 'text-white/85'}`}
+                  >
+                    {step.label}
+                  </span>
+                  <span className="hidden truncate text-[10px] text-[#6B6B78] sm:block">
+                    {step.description}
+                  </span>
+                  <step.icon size={12} className="shrink-0 text-[#6B6B78]" />
                 </Link>
-              )
-            })}
-          </div>
-
-          {nextStep && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="h-1.5 flex-1 rounded-full bg-white/[0.04] overflow-hidden mr-4">
-                <div
-                  className="h-full rounded-full bg-rail-purple transition-all"
-                  style={{ width: `${(completedCount / steps.length) * 100}%` }}
-                />
-              </div>
-              <button
-                onClick={handlePrimaryAction}
-                className="shrink-0 flex items-center gap-1.5 rounded-lg bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark transition-colors"
-              >
-                {nextStep.action}
-                <ChevronRight size={12} />
-              </button>
-            </div>
-          )}
-        </>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )

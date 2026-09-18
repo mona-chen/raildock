@@ -53,6 +53,39 @@ RSpec.describe BackupSchedule, type: :model do
     expect(schedule).to be_valid
   end
 
+  describe "enabled state" do
+    it "defaults new schedules to enabled" do
+      schedule = service.backup_schedules.create!(frequency: "daily", retention_count: 7)
+
+      expect(schedule.enabled).to be(true)
+    end
+
+    it "excludes paused schedules from the due scope" do
+      service.backup_schedules.create!(frequency: "daily", retention_count: 7, next_run_at: 1.minute.ago)
+      paused = service.backup_schedules.create!(
+        frequency: "daily",
+        retention_count: 7,
+        next_run_at: 1.minute.ago,
+        enabled: false
+      )
+
+      expect(BackupSchedule.due).not_to include(paused)
+      expect(BackupSchedule.due.count).to eq(1)
+    end
+  end
+
+  describe ".default_retention_for" do
+    it "maps each frequency to a platform-style retention window" do
+      expect(described_class.default_retention_for("daily")).to eq(7)
+      expect(described_class.default_retention_for("weekly")).to eq(4)
+      expect(described_class.default_retention_for("monthly")).to eq(6)
+    end
+
+    it "falls back to a week for an unknown frequency" do
+      expect(described_class.default_retention_for("hourly")).to eq(7)
+    end
+  end
+
   describe "#destination_ids" do
     it "reads destination ids from metadata" do
       schedule = service.backup_schedules.create!(

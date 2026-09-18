@@ -392,6 +392,45 @@ export function useCreateBackupSchedule() {
   })
 }
 
+// Volume snapshots are their own schedule kind: they capture a mounted path
+// rather than the database, and carry the mount through to the runner.
+export function useCreateVolumeBackupSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: { frequency: string; retentionCount: number; storageMountId: string; destinationIds?: string[] }
+    }) => api.services.createSnapshotSchedule(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      toast.success('Volume snapshot schedule created')
+    },
+    onError: (err) => toast.error(`Failed to create schedule: ${err.message}`),
+  })
+}
+
+export function useUpdateBackupSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      scheduleId,
+      data,
+    }: {
+      id: string
+      scheduleId: string
+      data: { frequency?: string; retentionCount?: number; enabled?: boolean; destinationIds?: string[] }
+    }) => api.services.updateBackupSchedule(id, scheduleId, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+    },
+    onError: (err) => toast.error(`Failed to update schedule: ${err.message}`),
+  })
+}
+
 export function useDestroyBackupSchedule() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -399,6 +438,7 @@ export function useDestroyBackupSchedule() {
       api.services.destroyBackupSchedule(id, scheduleId),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
       toast.success('Backup schedule removed')
     },
     onError: (err) => toast.error(`Failed to remove schedule: ${err.message}`),

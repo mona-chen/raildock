@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Ban, Box, ChevronDown, Rocket, RotateCcw, Square, Loader2, type LucideIcon } from 'lucide-react'
+import ProjectNavigator from './ProjectNavigator'
+import EnvironmentSwitcher from './EnvironmentSwitcher'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +17,15 @@ import {
   useStopAllServices,
 } from '@/hooks/useProjects'
 import { realtimeStateLabel, type RealtimeState } from '@/hooks/useRealtimeState'
+import type { Environment } from '@/types'
 
 interface CanvasToolbarProps {
   projectId: string
   projectName: string
   projectEnvironment: string
+  environments?: Environment[]
+  activeEnvironmentId?: string
+  onSelectEnvironment?: (environmentId: string) => void
   connectionState: RealtimeState
   views?: { key: string; label: string; icon: LucideIcon }[]
   activeView?: string
@@ -30,6 +36,9 @@ export default function CanvasToolbar({
   projectId,
   projectName,
   projectEnvironment,
+  environments = [],
+  activeEnvironmentId,
+  onSelectEnvironment,
   connectionState,
   views = [],
   activeView,
@@ -57,16 +66,15 @@ export default function CanvasToolbar({
           <Box size={16} className="text-white" />
         </button>
         <div className="w-px h-4 bg-white/[0.08]" />
-        <button
-          type="button"
-          onClick={() => navigate('/dashboard/projects')}
-          className="flex items-center gap-1 text-[13px]"
-        >
-          <span className="font-medium text-white/90">{projectName}</span>
-          <ChevronDown size={13} className="text-white/50" />
-        </button>
-        <div className="w-px h-4 bg-white/[0.08]" />
-        <span className="text-[12px] text-white/50 capitalize">{projectEnvironment}</span>
+        <ProjectNavigator projectId={projectId} projectName={projectName} />
+        <span className="text-white/25">/</span>
+        <EnvironmentSwitcher
+          projectId={projectId}
+          environments={environments}
+          activeEnvironmentId={activeEnvironmentId}
+          fallbackName={projectEnvironment}
+          onSelect={(environmentId) => onSelectEnvironment?.(environmentId)}
+        />
         <div className="flex items-center gap-1.5 text-[10px] text-white/50" title="Project state synchronization">
           <span className={`h-1.5 w-1.5 rounded-full ${connectionState === 'live' ? 'bg-emerald-400' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
           {realtimeStateLabel(connectionState)}

@@ -4,6 +4,7 @@ import { ExternalLink, FolderGit2, KeyRound, Server, Settings, Trash2, Eye, EyeO
 import { useProject, useUpdateProjectSharedVars } from '@/hooks/useProjects'
 import { useServers } from '@/hooks/useServers'
 import type { Server as ServerRecord } from '@/types'
+import EnvironmentsSection from '@/features/project-settings/EnvironmentsSection'
 
 export function ProjectSettingsView() {
   const { projectId = '' } = useParams<{ projectId: string }>()
@@ -27,6 +28,7 @@ export function ProjectSettingsView() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-3xl mx-auto space-y-5">
+          <EnvironmentsSection projectId={projectId} />
           <SharedVarsSection />
           <ServerSection server={server} />
           <PlatformSourcesCard />

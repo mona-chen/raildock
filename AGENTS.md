@@ -138,7 +138,13 @@ When changing code that touches Rails credentials, ensure fresh installs still w
 ## Backups
 
 - Service backup artifacts are stored under `${BACKUPS_DIR:-./data/backups}` and mounted at `/rails/storage/backups` in production.
-- `RunDueBackupsJob` scans due schedules every minute through Solid Queue recurring tasks.
+- `RunDueBackupsJob` scans due schedules every minute through Solid Queue recurring tasks. A
+  schedule can be paused (`enabled = false`) without losing its next-run bookkeeping; the job uses
+  the `BackupSchedule.due` scope so paused schedules are skipped. Retention defaults follow the
+  cadence (daily 7, weekly 4, monthly 6) and the cap is 90.
+- `PATCH /api/services/:id/backup_schedules/:schedule_id` edits frequency, retention, `enabled` and
+  destinations. Destination ids are only rewritten when the request includes the key, so toggling a
+  schedule can never silently drop its destinations.
 - A backup is only marked completed after its artifact is persisted and SHA-256 verified.
 - A backup is only marked completed once at least one copy exists. Remote copies are verified with `head_object` (size match) right after upload; request a destination that cannot be written and the run fails loudly instead of reporting success.
 - `BackupDestination.reachable_from(server)` resolves both the server's own destinations and its organization's, so a destination selectable in the UI is always writable by scheduled backups.
@@ -150,6 +156,30 @@ When changing code that touches Rails credentials, ensure fresh installs still w
 - PostgreSQL PITR uses daily physical base backups plus continuous WAL archiving. `RunPostgresPitrJob` uploads WAL every minute and applies the configured retention window.
 - `RunRecoveryDrillsJob` restores the latest artifacts into disposable databases/volumes each week and always removes the isolated resource afterward.
 - Surfaces: Settings → Backups (organization destinations) and `GET /api/admin/data-safety` (`DataSafetyReport`) list datastores without a verified destination, volumes without snapshots, destinations that stopped verifying, backups that only exist on this host, and PITR configs whose WAL archiving stalled or errored.
+
+## Environments
+
+Each project owns environments; `production` is created with the project, is marked `is_default`,
+and cannot be deleted. This mirrors Railway, Coolify and Dokploy — see
+`docs/reviews/2026-09-18-003-environments-and-backup-schedules.md` for the comparison.
+
+- `Service belongs_to :environment` and is assigned to the project's default environment on create.
+  The canvas filters the already-loaded service list by the active environment (`?env=<id>`), and
+  `AddServiceModal` passes the active `environment_id` so a service is never created in the wrong
+  environment by accident.
+- Creating a service while viewing `staging` creates it in `staging`. Never drop `environment_id`
+  from `ServicesController#service_params`.
+- `Environment#before_destroy` refuses the default environment and refuses any environment that
+  still owns services (matching Dokploy's `deleteEnvironment`). Do not weaken either guard: a
+  switcher must never be able to orphan a running app.
+- Deleting an environment is refused with `422 environment_guarded`, not a silent success.
+- `projects.environment` is a **display label** kept in sync with the default environment's name so
+  the projects list keeps working. Rename the environment through `Api::EnvironmentsController`,
+  which syncs the label — do not treat the column as the source of truth.
+- `Project#as_json` serializes `environments` (id, name, slug, is_default, service_count). Without
+  it the environment switcher renders empty even though the settings pane is populated.
+- Not implemented yet: duplicating an environment, syncing services between environments, PR
+  environments, and environment-scoped variables (`shared_vars` remain project-level).
 
 ## Destructive operations
 

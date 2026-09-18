@@ -4,6 +4,10 @@ class Project < ApplicationRecord
   belongs_to :server, optional: true
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
+  # `delete_all`, not `destroy`: project teardown is already guarded by
+  # `destroy_services_dokku`, and the rows must not re-run Environment's
+  # "environment still owns services" guard while the services are vanishing.
+  has_many :environments, dependent: :delete_all
 
   # `prepend: true` matters: the dependent-association callbacks declared above
   # delete the service rows first, which would leave this guard looking at an
@@ -12,11 +16,14 @@ class Project < ApplicationRecord
   before_destroy :destroy_services_dokku, prepend: true
 
   validates :name, presence: true
-  validates :environment, inclusion: { in: %w[production staging development] }
+  # Free-form since environments are first-class: the label mirrors the
+  # project's primary environment name, which users can rename.
+  validates :environment, presence: true
 
   before_validation :set_default_environment, on: :create
   before_validation :set_default_server, on: %i[create update]
   after_create :set_network_name
+  after_create :create_default_environment
 
   # Opt-in flag for the before_destroy hook below. Deliberately not persisted.
   attr_accessor :allow_resource_destruction
@@ -113,6 +120,35 @@ class Project < ApplicationRecord
     self.environment ||= "production"
   end
 
+  # Railway, Coolify and Dokploy all hand a new project a `production`
+  # environment. RailDock does the same, named after whatever label the caller
+  # picked so `project.environment` and the default environment agree.
+  def create_default_environment
+    environments.create!(name: environment.presence || "production", is_default: true)
+  end
+
+  # The environment the canvas opens on and the one `project.environment`
+  # labels. Falls back to the first environment for rows created before
+  # environments existed (or if the default was somehow cleared).
+  def default_environment
+    environments.find_by(is_default: true) || environments.ordered.first
+  end
+
+  # Serialized shape consumed by the project navigator and the Environments
+  # pane so neither has to guess at the project's environment list.
+  def environments_for_api
+    environments.ordered.map do |environment|
+      {
+        id: environment.id,
+        name: environment.name,
+        slug: environment.slug,
+        description: environment.description,
+        is_default: environment.is_default,
+        service_count: environment.services.size
+      }
+    end
+  end
+
   def set_default_server
     return if server_id.present?
     self.server ||= Server.where(user_id: user_id).first if user_id.present?
@@ -179,9 +215,25 @@ class Project < ApplicationRecord
     Deployment.joins(:service).where(services: { project_id: id }).exists?
   end
 
+  # Serialized without the `?` so camelization produces the `hasDeployments` key
+  # the frontend reads. `has_deployments?` serializes as `hasDeployments?`, which
+  # made the onboarding "Deploy" step permanently unsatisfied.
+  def has_deployments
+    has_deployments?
+  end
+
+  def manifest_synced
+    manifest_synced?
+  end
+
   def as_json(options = {})
+    # `environments` is merged in as a real key rather than a serialized method
+    # so the API exposes the name the frontend already expects.
     super(options.merge(
-      methods: [ :service_ids, :service_counts, :shared_vars_for_api, :manifest_synced?, :has_deployments? ]
-    ))
+      methods: [
+        :service_ids, :service_counts, :shared_vars_for_api,
+        :manifest_synced, :manifest_synced?, :has_deployments, :has_deployments?
+      ]
+    )).merge("environments" => environments_for_api)
   end
 end

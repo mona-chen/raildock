@@ -218,4 +218,8 @@ Applied to RailDock in this pass:
 
 Still open from the earlier reviews (unchanged by this pass): the command palette, the
 settings changeset with diff + apply, deployment markers on metrics, danger zones
-replacing native `confirm()`, and environments as a first-class concept.
+replacing native `confirm()`.
+
+**Follow-up:** environments and backup schedules were implemented in the next pass, with the
+Coolify/Dokploy comparison behind the decisions — see
+`docs/reviews/2026-09-18-003-environments-and-backup-schedules.md`.

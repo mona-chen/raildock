@@ -1,5 +1,9 @@
 class Service < ApplicationRecord
   belongs_to :project
+  # Every service lives in exactly one environment. Optional at the DB level so
+  # a service can be detached before an environment is deleted, and assigned to
+  # the project's default environment on create when the caller omits it.
+  belongs_to :environment, optional: true
   has_many :environment_variables, dependent: :destroy
   has_many :domains, dependent: :destroy
   has_many :storage_mounts, dependent: :destroy
@@ -26,6 +30,7 @@ class Service < ApplicationRecord
   validates :service_type, inclusion: { in: %w[app database cache queue search service] }
   validates :status, inclusion: { in: %w[running stopped deploying error building] }
   validate :external_networks_must_be_strings
+  validate :environment_belongs_to_project
   validate :subtype_must_be_registered, on: :create
   validate :builder_must_be_registered, on: :create, if: -> { service_type_app? }
 
@@ -45,6 +50,8 @@ class Service < ApplicationRecord
     error: "error",
     building: "building"
   }
+
+  before_validation :assign_default_environment, on: :create
 
   enum :restart_policy, {
     never: "never",
@@ -243,6 +250,20 @@ class Service < ApplicationRecord
     base = ENV.fetch("RAILDOCK_API_URL", "")
     return nil if base.blank?
     "#{base.chomp("/")}/api/services/#{id}/webhooks/#{webhook_token}/deploy"
+  end
+
+  def assign_default_environment
+    return if environment_id.present? || environment.present?
+    return if project.blank?
+
+    self.environment = project.default_environment
+  end
+
+  def environment_belongs_to_project
+    return if environment.nil? || project.nil?
+    return if environment.project_id == project_id
+
+    errors.add(:environment, "must belong to the same project")
   end
 
   def external_networks_must_be_strings

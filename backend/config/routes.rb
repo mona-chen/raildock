@@ -23,6 +23,9 @@ Rails.application.routes.draw do
     end
 
     resources :projects do
+      # Environments belong to a project and are switched from the project
+      # navigator. The default (`production`) environment cannot be deleted.
+      resources :environments, only: [ :index, :create, :update, :destroy ]
       resource :repository_import, path: "repository-import", only: [] do
         post :preview, on: :collection
         post :apply, on: :collection
@@ -105,6 +108,7 @@ Rails.application.routes.draw do
       get "storage/:id/browse", to: "storage_mounts#browse"
       get "data", to: "database_viewer#tables"
       get "data/:table", to: "database_viewer#rows"
+      patch "backup_schedules/:schedule_id", to: "services#update_backup_schedule"
       delete "backup_schedules/:schedule_id", to: "services#destroy_backup_schedule"
       get "backups/:backup_id/download", to: "services#download_backup"
       post "backups/:backup_id/restore", to: "services#restore_backup"

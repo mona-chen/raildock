@@ -19,6 +19,8 @@ import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 
 interface AddServiceModalProps {
   projectId: string
+  /** Environment the new service is created in (defaults to the project's default). */
+  environmentId?: string
   onClose: () => void
 }
 
@@ -54,7 +56,7 @@ function slugifyName(value: string): string {
     .slice(0, 40) || 'app'
 }
 
-export default function AddServiceModal({ projectId, onClose }: AddServiceModalProps) {
+export default function AddServiceModal({ projectId, environmentId, onClose }: AddServiceModalProps) {
   const createService = useCreateService()
   const [step, setStep] = useState<Step>('type')
 
@@ -169,6 +171,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           branch: sourceType === 'git' ? gitBranch : undefined,
           docker_image: sourceType === 'docker' ? dockerImage : undefined,
           root_directory: sourceType === 'git' ? rootDirectory || undefined : undefined,
+          environment_id: environmentId,
         },
       },
       { onSuccess: onClose }
@@ -228,6 +231,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
           subtype: db.subtype,
           category: 'database',
           version: db.defaultVersion,
+          environment_id: environmentId,
         },
       },
       { onSuccess: onClose }
@@ -239,7 +243,7 @@ export default function AddServiceModal({ projectId, onClose }: AddServiceModalP
     createService.mutate(
       {
         projectId,
-        data: { name: finalName, subtype, category: 'service' },
+        data: { name: finalName, subtype, category: 'service', environment_id: environmentId },
       },
       { onSuccess: onClose }
     )

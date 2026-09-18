@@ -4,16 +4,17 @@ module Api
 
     def index
       authorize_project!(nil, action: :read) # Check user has org access
-      projects = scoped_projects.includes(:services)
-      render json: projects.as_json(methods: [ :service_ids, :service_counts ])
+      # Project#as_json owns the serialized shape (including has_deployments and
+      # the environment list); passing `methods:` here is ignored, not merged.
+      projects = scoped_projects.includes(:services, environments: :services)
+      render json: projects
     end
 
     def show
-      project = scoped_projects.find(params[:id])
+      project = scoped_projects.includes(environments: :services).find(params[:id])
       authorize_project!(project)
       render json: project.as_json(
-        methods: [ :service_ids, :service_counts ],
-        include: { services: { only: [ :id, :name, :service_type, :subtype, :status ] } }
+        include: { services: { only: [ :id, :name, :service_type, :subtype, :status, :environment_id ] } }
       )
     end
 

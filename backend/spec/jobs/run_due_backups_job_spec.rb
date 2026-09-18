@@ -42,4 +42,19 @@ RSpec.describe RunDueBackupsJob, type: :job do
     expect(schedule.reload.last_run_at).to be_present
     expect(schedule.next_run_at).to be > Time.current
   end
+
+  it "skips a paused schedule even when its next run is due" do
+    service = create(:service, :database)
+    paused = service.backup_schedules.create!(
+      frequency: "daily",
+      retention_count: 7,
+      next_run_at: 1.minute.ago,
+      enabled: false
+    )
+
+    expect { described_class.perform_now }.not_to change(Backup, :count)
+
+    paused.reload
+    expect(paused.last_run_at).to be_nil
+  end
 end

@@ -10,13 +10,30 @@ export interface Project {
   id: string
   name: string
   description: string
-  environment: 'production' | 'staging' | 'development'
+  /** Display label for the project's primary (default) environment. */
+  environment: string
   serviceIds: string[]       // references to services in this project
   serviceCounts: { total: number; app: number; database: number; cache: number }
   sharedVars: SharedVar[]    // project-level env vars (Railway shared variables)
   serverId?: string
   hasDeployments?: boolean
+  environments?: Environment[]
   createdAt: string
+}
+
+// ───────────────────────────────────────────────
+// Environment (a switchable grouping of a project's services)
+// Every project starts with a default `production` environment.
+// ───────────────────────────────────────────────
+
+export interface Environment {
+  id: string
+  name: string
+  slug: string
+  description?: string | null
+  isDefault: boolean
+  serviceCount?: number
+  serviceIds?: string[]
 }
 
 export interface SharedVar {
@@ -37,6 +54,8 @@ export interface Service {
   type: ServiceType
   subtype: string           // 'web' | 'worker' | 'postgres' | 'redis' | 'mysql' | 'mongo'
   projectId: string
+  /** The environment this service belongs to (every service has exactly one). */
+  environmentId?: string
   status: 'running' | 'stopped' | 'deploying' | 'error' | 'building'
   // For apps
   builder?: 'herokuish' | 'pack' | 'dockerfile' | 'nixpacks' | 'railpack' | 'lambda' | 'null'
@@ -179,6 +198,7 @@ export interface BackupSchedule {
   frequency: 'daily' | 'weekly' | 'monthly'
   retentionCount: number
   backupKind: 'database' | 'volume'
+  enabled: boolean
   storageMountId?: string
   storageMount?: StorageMount
   lastRunAt?: string
