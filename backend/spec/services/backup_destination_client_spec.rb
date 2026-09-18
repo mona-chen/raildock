@@ -90,7 +90,10 @@ RSpec.describe BackupDestinationClient do
       )
 
       expect(client.upload(@path, "raildock/k.enc")).to eq("raildock/k.enc")
-      expect(uploader).to have_received(:upload).with(@path, hash_including(bucket: "raildock-backups", key: "raildock/k.enc"))
+      # Exactly bucket/key: the SDK forwards every other option to
+      # `put_object`, which rejects unknown parameters for files below the
+      # multipart threshold ("unexpected value at params[:thread_count]").
+      expect(uploader).to have_received(:upload).with(@path, { bucket: "raildock-backups", key: "raildock/k.enc" })
     end
 
     it "raises when the destination stored fewer bytes than the source" do
@@ -98,6 +101,29 @@ RSpec.describe BackupDestinationClient do
       allow(s3).to receive(:head_object).and_return(instance_double(Aws::S3::Types::HeadObjectOutput, content_length: 0))
 
       expect { client.upload(@path, "raildock/k.enc") }.to raise_error(/is 0 bytes on the destination, expected 5/)
+    end
+
+    it "gives the SDK uploader a per-upload executor and shuts it down again" do
+      executor = nil
+      allow(Concurrent::FixedThreadPool).to receive(:new).and_wrap_original do |original, *args|
+        executor = original.call(*args)
+      end
+      allow(s3).to receive(:put_object)
+      allow(s3).to receive(:head_object).and_return(
+        instance_double(Aws::S3::Types::HeadObjectOutput, content_length: 5, etag: "\"etag\"", last_modified: Time.current)
+      )
+
+      expect(Aws::S3::FileUploader).to receive(:new).with(
+        client: s3,
+        multipart_threshold: described_class::DEFAULT_MULTIPART_THRESHOLD,
+        executor: kind_of(Concurrent::FixedThreadPool)
+      ).and_call_original
+
+      # No uploader is injected, so the client has to build a real one.
+      described_class.new(destination, client: s3).upload(@path, "raildock/k.enc")
+
+      expect(Concurrent::FixedThreadPool).to have_received(:new).with(described_class::UPLOAD_THREADS)
+      expect(executor).to be_shutdown
     end
   end
 

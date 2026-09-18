@@ -26,7 +26,7 @@ class BackupDestinationClient
   def initialize(destination, client: nil, uploader: nil)
     @destination = destination
     @client = client || Aws::S3::Client.new(client_options)
-    @uploader = uploader || Aws::S3::FileUploader.new(client: @client, multipart_threshold: multipart_threshold)
+    @uploader = uploader
   end
 
   # Round-trips a small object through the bucket. A destination is only marked
@@ -67,12 +67,33 @@ class BackupDestinationClient
   end
 
   # Uploads a file and confirms the destination stored every byte.
+  #
+  # aws-sdk-s3 made the multipart executor an injected dependency: `FileUploader`
+  # no longer accepts `thread_count`, and it does not supply an executor itself.
+  # Passing `thread_count` now leaks into `put_object` for files below the
+  # multipart threshold ("unexpected value at params[:thread_count]"), while a
+  # multipart upload without an executor raises on its first part. The pool is
+  # built for one upload and shut down afterwards so no process hoards idle
+  # threads and nothing has to survive a fork.
   def upload(path, key)
-    with_retries do
-      @uploader.upload(path, bucket: @destination.bucket, key: key, thread_count: UPLOAD_THREADS)
-      verify_upload!(key, expected_size: File.size(path))
+    with_uploader do |uploader|
+      with_retries do
+        uploader.upload(path, bucket: @destination.bucket, key: key)
+        verify_upload!(key, expected_size: File.size(path))
+      end
     end
     key
+  end
+
+  def with_uploader
+    return yield(@uploader) if @uploader
+
+    executor = Concurrent::FixedThreadPool.new(UPLOAD_THREADS)
+    begin
+      yield Aws::S3::FileUploader.new(client: @client, multipart_threshold: multipart_threshold, executor: executor)
+    ensure
+      executor.shutdown
+    end
   end
 
   def verify_upload!(key, expected_size:)

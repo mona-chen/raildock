@@ -10,7 +10,11 @@ class PostgresBaseBackupJob < ApplicationJob
       backup_destination: config.backup_destination, metadata: { "trigger" => "pitr" })
     path = Rails.root.join("tmp", "#{backup.id}-base.tar.gz").to_s
     container = "dokku.postgres.#{service.dokku_app_name}"
-    command = "docker exec #{Shellwords.escape(container)} pg_basebackup -U postgres -D - -Ft -z -X stream"
+    # `-X stream` cannot be combined with tar output on stdout ("cannot stream
+    # write-ahead logs in tar mode to stdout"), and it is pg_basebackup's default
+    # WAL method, so it has to be turned off explicitly: `-X fetch` writes the
+    # required WAL segments into the archive itself.
+    command = "docker exec #{Shellwords.escape(container)} pg_basebackup -U postgres -D - -Ft -z -X fetch"
     result = HostEngine.new(service.project.server).run_to_file(command, path)
     raise result[:output].presence || "PostgreSQL base backup failed" unless result[:success]
 
