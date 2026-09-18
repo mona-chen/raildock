@@ -37,6 +37,14 @@ export function normalizeService(data: unknown): Service {
   if (camel.id != null && typeof camel.id !== 'string') {
     camel.id = String(camel.id)
   }
+  // Every id the UI compares against another normalized id has to be a string.
+  // `environmentId` was the exception: the canvas filters with
+  // `service.environmentId === env.id`, and Rails sends both ids as integers, so
+  // a raw numeric `environmentId` never matched a normalized environment id and
+  // every canvas rendered empty even though the services existed.
+  if (camel.environmentId != null && typeof camel.environmentId !== 'string') {
+    camel.environmentId = String(camel.environmentId)
+  }
   // Map camelized environmentVariables → envVars (our type uses envVars)
   if (camel.environmentVariables !== undefined) {
     camel.envVars = camel.environmentVariables
