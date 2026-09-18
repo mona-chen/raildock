@@ -177,6 +177,18 @@ class ManifestSchema
       errors << "#{prefix}: 'framework' must be a string"
     end
 
+    %w[publish_directory publishDirectory].each do |key|
+      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].is_a?(String)
+    end
+
+    %w[spa_fallback spaFallback].each do |key|
+      errors << "#{prefix}: '#{key}' must be a boolean" if svc.key?(key) && ![ true, false ].include?(svc[key])
+    end
+
+    %w[node_version nodeVersion].each do |key|
+      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].is_a?(String)
+    end
+
     if svc["proxy"].is_a?(Hash)
       if svc["proxy"]["type"] && !PROXY_TYPES.include?(svc["proxy"]["type"].to_s)
         errors << "#{prefix}.proxy: 'type' must be one of: #{PROXY_TYPES.join(', ')}"

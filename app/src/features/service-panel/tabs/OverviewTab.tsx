@@ -5,6 +5,8 @@ import {
   useContainerStatus,
 } from '@/hooks/useServices'
 import type { Service } from '@/types'
+import { statusMeta } from '@/lib/status'
+import StatusBadge from '@/features/shared/StatusBadge'
 import ConnectionsCard from './ConnectionsCard'
 
 export default function OverviewTab({
@@ -29,26 +31,18 @@ export default function OverviewTab({
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515' }}
+              style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#6b6b7b15' }}
             >
               <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={20} />
             </div>
             <div>
               <div className="text-[14px] font-medium text-white/80">{svc.name}</div>
-              <div className="text-[12px] text-white/40">
-                {svc.subtype} · {svc.status}
+              <div className="text-[12px] text-white/50">
+                {svc.subtype} · {statusMeta(svc.status).label}
               </div>
             </div>
           </div>
-          <span
-            className="text-[11px] px-2.5 py-1 rounded-full font-medium"
-            style={{
-              backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515',
-              color: svc.status === 'running' ? '#22c55e' : '#8A8A95',
-            }}
-          >
-            {svc.status === 'running' ? 'Online' : svc.status}
-          </span>
+          <StatusBadge status={svc.status} />
         </div>
 
       </div>
@@ -68,7 +62,7 @@ export default function OverviewTab({
             .filter((f) => f.v)
             .map((f) => (
               <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
-                <div className="text-[11px] text-white/40">{f.l}</div>
+                <div className="text-[11px] text-white/50">{f.l}</div>
                 <div className="text-[12px] text-white/70 font-mono mt-0.5 break-all">{f.v}</div>
               </div>
             ))}
@@ -81,7 +75,7 @@ export default function OverviewTab({
           <div className="text-[13px] font-medium text-white/70 mb-2">Source</div>
           {svc.gitRepo && (
             <div className="flex items-center gap-2 text-[12px]">
-              <GitBranch size={13} className="text-white/30" />
+              <GitBranch size={13} className="text-white/50" />
               <span className="text-white/50">{svc.gitRepo}</span>
               <span className="text-white/20">on</span>
               <span className="text-white/50 font-mono">{svc.branch || 'main'}</span>
@@ -90,14 +84,14 @@ export default function OverviewTab({
           {svc.dockerImage && (
             <div className="flex items-center gap-2 text-[12px]">
               <ServiceIcon subtype="docker" size={13} />
-              <span className="text-white/40">Image:</span>
+              <span className="text-white/50">Image:</span>
               <span className="text-white/60 font-mono">{svc.dockerImage}</span>
             </div>
           )}
           {svc.builder && (
             <div className="flex items-center gap-2 text-[12px]">
-              <Settings2 size={13} className="text-white/30" />
-              <span className="text-white/40">Builder:</span>
+              <Settings2 size={13} className="text-white/50" />
+              <span className="text-white/50">Builder:</span>
               <span className="text-white/60 capitalize">{svc.builder}</span>
             </div>
           )}
@@ -116,12 +110,12 @@ export default function OverviewTab({
               >
                 <div>
                   <div className="text-[13px] font-medium text-white/80">{pt.name}</div>
-                  <div className="text-[11px] text-white/40 font-mono mt-0.5">
+                  <div className="text-[11px] text-white/50 font-mono mt-0.5">
                     {pt.command || 'No command'}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[12px] text-white/40">
+                  <span className="text-[12px] text-white/50">
                     {pt.running}/{pt.quantity} running
                   </span>
                   <div className="flex items-center border border-white/[0.1] rounded-lg overflow-hidden">
@@ -133,7 +127,7 @@ export default function OverviewTab({
                           quantity: Math.max(0, pt.quantity - 1),
                         })
                       }
-                      className="px-2.5 py-1.5 text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
+                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
                     >
                       −
                     </button>
@@ -148,7 +142,7 @@ export default function OverviewTab({
                           quantity: pt.quantity + 1,
                         })
                       }
-                      className="px-2.5 py-1.5 text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
+                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
                     >
                       +
                     </button>
@@ -169,7 +163,7 @@ export default function OverviewTab({
               className={`text-[10px] px-2 py-0.5 rounded-full ${
                 containerStatus.status === 'running'
                   ? 'bg-[#22c55e]/10 text-[#22c55e]'
-                  : 'bg-white/5 text-white/40'
+                  : 'bg-white/5 text-white/50'
               }`}
             >
               {containerStatus.status}

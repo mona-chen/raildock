@@ -123,7 +123,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[13px] font-mono text-[#8b5cf6]/80">{ev.key}</span>
             {ev.source && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/40 rounded-full">
+              <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/50 rounded-full">
                 {ev.source}
               </span>
             )}
@@ -166,7 +166,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
               </button>
               <button
                 onClick={() => setEditing(null)}
-                className="px-2 py-1 bg-white/5 text-white/40 rounded text-[11px] hover:bg-white/10"
+                className="px-2 py-1 bg-white/5 text-white/50 rounded text-[11px] hover:bg-white/10"
               >
                 Cancel
               </button>
@@ -222,7 +222,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[14px] font-medium text-white/70">Environment Variables</div>
-          <div className="text-[12px] text-white/40 mt-0.5">
+          <div className="text-[12px] text-white/50 mt-0.5">
             {userVars.length} user-defined · {dokkuVars.length} dokku-internal
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
       {mode === 'raw' && (
         <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4 space-y-3">
           <div className="text-[13px] font-medium text-white/70">Bulk Import</div>
-          <p className="text-[11px] text-white/30">
+          <p className="text-[11px] text-white/50">
             Paste <code className="text-white/50">KEY=VALUE</code> pairs, one per line. Lines starting with # are
             ignored.
           </p>
@@ -267,14 +267,14 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             className="w-full h-40 bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/60 focus:outline-none focus:border-[#8b5cf6]/40 resize-none"
           />
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-white/30">{parseRawEnv(rawText).length} variable(s) ready to import</span>
+            <span className="text-[11px] text-white/50">{parseRawEnv(rawText).length} variable(s) ready to import</span>
             <div className="flex gap-2">
               <button
                 onClick={() => {
                   setRawText('')
                   setMode('list')
                 }}
-                className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-[12px] hover:bg-white/10"
+                className="px-3 py-1.5 bg-white/5 text-white/50 rounded-lg text-[12px] hover:bg-white/10"
               >
                 Cancel
               </button>
@@ -350,12 +350,12 @@ export default function VariablesTab({ svc }: { svc: Service }) {
 
             {sharedVars.length > 0 && (
               <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] text-white/30">Insert shared:</span>
+                <span className="text-[11px] text-white/50">Insert shared:</span>
                 {sharedVars.map((sv) => (
                   <button
                     key={sv.key}
                     onClick={() => handleInsertShared(sv.key)}
-                    className="text-[11px] px-2 py-1 bg-white/5 text-white/40 rounded hover:bg-white/10 hover:text-white/60 transition-colors"
+                    className="text-[11px] px-2 py-1 bg-white/5 text-white/50 rounded hover:bg-white/10 hover:text-white/60 transition-colors"
                   >
                     {sv.key}
                   </button>

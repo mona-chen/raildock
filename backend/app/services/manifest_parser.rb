@@ -587,6 +587,9 @@ class ManifestParser
       docker_image: svc_hash["docker_image"] || svc_hash[:docker_image],
       root_directory: svc_hash["root_directory"] || svc_hash[:root_directory],
       start_command: svc_hash["start_command"] || svc_hash[:start_command],
+      publish_directory: value_for(svc_hash, "publish_directory") || value_for(svc_hash, "publishDirectory"),
+      spa_fallback: spa_fallback_value_for(svc_hash),
+      node_version: value_for(svc_hash, "node_version") || value_for(svc_hash, "nodeVersion"),
       exposed: value_for(svc_hash, "exposed"),
       port: svc_hash["port"] || svc_hash[:port],
       restart_policy: svc_hash["restart_policy"] || svc_hash[:restart_policy],
@@ -611,6 +614,18 @@ class ManifestParser
     return hash[key] if hash.key?(key)
 
     hash[key.to_sym]
+  end
+
+  # spa_fallback is a boolean, so `value_for(a) || value_for(b)` would turn an
+  # explicit false into nil. Look for each spelling in turn.
+  def spa_fallback_value_for(hash)
+    %w[spa_fallback spaFallback].each do |key|
+      return hash[key] if hash.key?(key)
+
+      symbol = key.to_sym
+      return hash[symbol] if hash.key?(symbol)
+    end
+    nil
   end
 
   def normalize_source(source)

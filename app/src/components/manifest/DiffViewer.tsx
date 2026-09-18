@@ -32,13 +32,13 @@ function ChangeRow({ change }: { change: ManifestChange }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[13px] text-white/70 font-medium">{change.serviceName}</span>
-          <span className="text-[11px] text-white/30">·</span>
-          <span className="text-[11px] text-white/40 font-mono">{change.field}</span>
+          <span className="text-[11px] text-white/50">·</span>
+          <span className="text-[11px] text-white/50 font-mono">{change.field}</span>
           <ChangeBadge severity={change.severity} size="sm" />
         </div>
         {change.changeType === 'modified' && (
           <div className="space-y-1">
-            <div className="text-[11px] text-white/30 line-through">{formatValue(change.oldValue)}</div>
+            <div className="text-[11px] text-white/50 line-through">{formatValue(change.oldValue)}</div>
             <div className="text-[11px] text-white/60">{formatValue(change.newValue)}</div>
           </div>
         )}
@@ -57,7 +57,7 @@ export default function DiffViewer({ changes, severity, warnings }: DiffViewerPr
   if (changes.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-[13px] text-white/40">No changes detected</div>
+        <div className="text-[13px] text-white/50">No changes detected</div>
         <div className="text-[11px] text-white/25 mt-1">Your manifest is in sync with the current state</div>
       </div>
     )
@@ -107,7 +107,7 @@ export default function DiffViewer({ changes, severity, warnings }: DiffViewerPr
       <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg">
         {Object.entries(byService).map(([serviceName, serviceChanges]) => (
           <div key={serviceName} className="px-3">
-            <div className="text-[11px] text-white/30 uppercase tracking-wider py-2 border-b border-white/[0.04]">
+            <div className="text-[11px] text-white/50 uppercase tracking-wider py-2 border-b border-white/[0.04]">
               {serviceName}
             </div>
             <div>

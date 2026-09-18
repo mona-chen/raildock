@@ -26,6 +26,21 @@ RSpec.describe MetricsSamplerJob, type: :job do
     expect(metric.sampled_at).to be_present
   end
 
+  it "persists network and disk I/O counters" do
+    allow(host_engine).to receive(:docker_stats).and_return(
+      cpu: 10.0, memory: 25.0, memory_used: 1024, memory_limit: 4096,
+      network_rx: 2048, network_tx: 4096, block_read: 8192, block_write: 16_384
+    )
+
+    MetricsSamplerJob.perform_now
+
+    metric = ServiceMetric.last
+    expect(metric.network_in).to eq(2048)
+    expect(metric.network_out).to eq(4096)
+    expect(metric.block_read).to eq(8192)
+    expect(metric.block_write).to eq(16_384)
+  end
+
   it "skips services without a docker image" do
     service.update!(docker_image: nil)
     expect { MetricsSamplerJob.perform_now }.not_to change(ServiceMetric, :count)

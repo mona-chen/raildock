@@ -146,7 +146,72 @@ module Api
       }
     end
 
+    # GET /api/projects/:project_id/manifest/drift
+    # Read-only: how the stored manifest differs from the live services, and
+    # which services can be folded back in with a merge.
+    def drift
+      content = @project.manifest_content
+      return render json: { error: "No manifest configured" }, status: :not_found if content.blank?
+
+      begin
+        desired = ManifestParser.parse(content, filename: @project.manifest_format)
+      rescue ManifestParser::ParseError => e
+        return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
+      end
+
+      analysis = ManifestDrift.new(@project, desired: desired)
+      report = analysis.report
+
+      render json: {
+        supported: analysis.supported?,
+        format: analysis.format,
+        drift_detected: report[:drift_detected],
+        summary: report[:summary],
+        services: report[:services]
+      }
+    end
+
+    # POST /api/projects/:project_id/manifest/merge
+    # Review-first: returns the proposed manifest but never persists it. The
+    # client saves it through PATCH /manifest, so validation and the removal
+    # confirmation flow still run on the merged content.
+    def merge
+      content = @project.manifest_content
+      return render json: { error: "No manifest configured" }, status: :not_found if content.blank?
+
+      begin
+        desired = ManifestParser.parse(content, filename: @project.manifest_format)
+      rescue ManifestParser::ParseError => e
+        return render json: { error: "Parse error", details: e.message }, status: :unprocessable_entity
+      end
+
+      analysis = ManifestDrift.new(@project, desired: desired)
+      unless analysis.supported?
+        return render json: {
+          error: "Merging live values is only supported for raildock.toml and raildock.json manifests"
+        }, status: :unprocessable_entity
+      end
+
+      result = analysis.merged(
+        merge_requested_services,
+        accept_all: ActiveModel::Type::Boolean.new.cast(params[:accept_all])
+      )
+
+      render json: {
+        content: result[:content],
+        format: result[:format],
+        adopted: result[:adopted],
+        skipped: result[:skipped]
+      }
+    end
+
     private
+
+    def merge_requested_services
+      names = params[:services]
+      names = names.values if names.is_a?(ActionController::Parameters)
+      Array(names).map(&:to_s)
+    end
 
     # What this manifest would destroy, plus the token the client must echo
     # back to authorise it. Empty for non-destructive changes.

@@ -481,6 +481,83 @@ RSpec.describe DeploymentJob, type: :job do
       end
     end
 
+    context "when the service is a static site" do
+      let(:config) { { "staticSite" => { "publishDirectory" => "dist" } } }
+      let(:service) do
+        create(
+          :service,
+          project: project,
+          branch: "main",
+          config: config,
+          builder: "herokuish",
+          status: :stopped,
+          start_command: nil,
+          git_repo: "https://github.com/example/repo.git"
+        )
+      end
+
+      it "builds with railpack and serves the bundle with Caddy" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:builder_set).with(service.dokku_app_name, "railpack")
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /Caddyfile --adapter caddyfile"
+        )
+        expect(engine).to have_received(:config_replace_all) do |_app, env|
+          expect(env).to include("RAILPACK_SPA_OUTPUT_DIR" => "dist")
+        end
+        expect(deployment.reload.status).to eq("succeeded")
+      end
+
+      it "falls back to nixpacks with a supported Node version" do
+        allow(host_engine).to receive(:builder_available?).and_return(false)
+        allow(host_engine).to receive(:builder_available?).with("nixpacks").and_return(true)
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:builder_set).with(service.dokku_app_name, "nixpacks")
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /assets/Caddyfile --adapter caddyfile"
+        )
+        expect(engine).to have_received(:config_replace_all) do |_app, env|
+          expect(env).to include("NIXPACKS_SPA_OUT_DIR" => "dist", "NIXPACKS_NODE_VERSION" => "22")
+        end
+      end
+
+      it "fails with an actionable message when no static builder is installed" do
+        allow(host_engine).to receive(:builder_available?).and_return(false)
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("failed")
+        expect(deployment.deploy_log).to include("No static-capable builder")
+      end
+
+      it "clears a stale process command when the service is no longer static" do
+        service.update!(config: {})
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:ps_set).with(service.dokku_app_name, "dockerfile-start-cmd", "")
+      end
+
+      it "passes through a Dockerfile deploy without substituting a builder" do
+        service.update!(builder: "dockerfile")
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:builder_set).with(service.dokku_app_name, "dockerfile")
+        expect(engine).to have_received(:config_replace_all) do |_app, env|
+          expect(env).not_to include("RAILPACK_SPA_OUTPUT_DIR")
+        end
+        expect(deployment.reload.status).to eq("succeeded")
+      end
+    end
+
     context "when a manifest-managed service deploys from a git push" do
       let!(:owner) { create(:user) }
       let!(:project) { create(:project, server: server, user: owner) }

@@ -76,6 +76,7 @@ export interface Service {
   webhookToken?: string
   rootDirectory?: string
   startCommand?: string
+  staticSite?: StaticSiteSettings
   maintenanceMode: boolean
   dataView?: boolean
   managedBy?: 'ui' | 'manifest' | 'hybrid'
@@ -84,6 +85,16 @@ export interface Service {
   canvas_x?: number | null
   canvas_y?: number | null
   externalNetworks: string[]
+}
+
+// Static/SPA frontends that build to a folder of files. A non-blank
+// publishDirectory marks the service as a static site; RailDock then builds
+// with a static-capable builder and serves the bundle instead of running the
+// app's start script.
+export interface StaticSiteSettings {
+  publishDirectory?: string
+  spaFallback?: boolean
+  nodeVersion?: string
 }
 
 export interface ProcessType {
@@ -479,6 +490,10 @@ export interface RepositoryImportService {
   subtype: string
   builder?: string
   rootDirectory?: string
+  /** Publish directory when the discovery decided this is a static site. */
+  publishDirectory?: string
+  /** Variable names documented in the repo's example .env files. */
+  envKeys?: string[]
   scripts?: { build?: string; predeploy?: string; postdeploy?: string }
   checks?: { enabled?: boolean; path?: string }
 }

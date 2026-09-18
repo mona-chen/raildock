@@ -48,6 +48,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 
 const PROVIDER_INFO: Record<string, { name: string; icon: typeof Github; color: string }> = {
   github: { name: 'GitHub', icon: Github, color: '#8b5cf6' },
@@ -178,19 +179,19 @@ export default function GitSourcesTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Connected Git Sources</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">
             Repositories synced from your connected accounts
           </p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
       ) : connected.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <FolderGit2 size={24} className="text-[#4A4A55] mx-auto mb-2" />
+          <FolderGit2 size={24} className="text-[#6b6b7b] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No git sources connected</p>
-          <p className="text-[11px] text-[#4A4A55] mt-1">
+          <p className="text-[11px] text-[#6b6b7b] mt-1">
             Connect GitHub, GitLab, or Bitbucket to deploy from repositories.
           </p>
         </div>
@@ -234,7 +235,7 @@ export default function GitSourcesTab() {
                   </div>
                   <div>
                     <div className="text-sm text-white font-medium">{info.name}</div>
-                    <div className="text-[10px] text-[#4A4A55]">
+                    <div className="text-[10px] text-[#6b6b7b]">
                       {isConnected ? 'Connected' : isGitHub && ghAppEnabled ? 'App or PAT' : 'Personal Access Token'}
                     </div>
                   </div>
@@ -285,7 +286,7 @@ export default function GitSourcesTab() {
             <DialogTitle className="text-sm">
               Connect {PROVIDER_INFO[patProvider]?.name || patProvider}
             </DialogTitle>
-            <DialogDescription className="text-[11px] text-[#4A4A55]">
+            <DialogDescription className="text-[11px] text-[#6b6b7b]">
               Enter a personal access token with repository read access.
             </DialogDescription>
           </DialogHeader>
@@ -299,7 +300,7 @@ export default function GitSourcesTab() {
               className="w-full px-3 py-2.5 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
               onKeyDown={(e) => e.key === 'Enter' && handlePatConnect()}
             />
-            <p className="text-[10px] text-[#4A4A55] mt-1.5">
+            <p className="text-[10px] text-[#6b6b7b] mt-1.5">
               The token is encrypted at rest and only used to fetch repository metadata.
             </p>
           </div>
@@ -322,6 +323,7 @@ export default function GitSourcesTab() {
 
 function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
   const [expanded, setExpanded] = useState(false)
+  const [disconnectOpen, setDisconnectOpen] = useState(false)
   const { data: settings = [] } = useSystemSettings()
   const { data: ghConfig } = useGitHubAppConfig()
   const createManifest = useCreateGitHubAppManifest()
@@ -380,9 +382,9 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors w-full"
       >
-        <Wrench size={14} className="text-[#4A4A55]" />
+        <Wrench size={14} className="text-[#6b6b7b]" />
         <span className="font-medium">Admin Configuration</span>
-        <span className="text-[10px] px-1.5 py-0.5 bg-[rgba(255,255,255,0.06)] text-[#4A4A55] rounded ml-1">Admin only</span>
+        <span className="text-[10px] px-1.5 py-0.5 bg-[rgba(255,255,255,0.06)] text-[#6b6b7b] rounded ml-1">Admin only</span>
         {expanded ? <ChevronDown size={14} className="ml-auto" /> : <ChevronRight size={14} className="ml-auto" />}
       </button>
 
@@ -390,9 +392,9 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
         <div className="mt-3 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-4 space-y-4">
           {!hasGitHubApp ? (
             <div className="text-center py-4">
-              <Github size={32} className="text-[#4A4A55] mx-auto mb-3" />
+              <Github size={32} className="text-[#6b6b7b] mx-auto mb-3" />
               <p className="text-sm text-[#A0A0B0] mb-1">No GitHub App configured</p>
-              <p className="text-[11px] text-[#4A4A55] mb-4 max-w-md mx-auto">
+              <p className="text-[11px] text-[#6b6b7b] mb-4 max-w-md mx-auto">
                 Create a GitHub App directly from RailDock. You'll be redirected to GitHub to name and create the app, then redirected back here.
               </p>
               <Button
@@ -412,28 +414,28 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                   <Github size={18} className="text-[#8b5cf6]" />
                   <div>
                     <div className="text-sm text-white font-medium">{ghConfig?.githubApp?.appSlug}</div>
-                    <div className="text-[11px] text-[#4A4A55]">GitHub App configured</div>
+                    <div className="text-[11px] text-[#6b6b7b]">GitHub App configured</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="text-[#4A4A55]">App ID: <span className="text-[#A0A0B0]">{settingMap['github_app_id'] || '—'}</span></div>
-                  <div className="text-[#4A4A55]">Client ID: <span className="text-[#A0A0B0]">{settingMap['github_client_id'] || '—'}</span></div>
+                  <div className="text-[#6b6b7b]">App ID: <span className="text-[#A0A0B0]">{settingMap['github_app_id'] || '—'}</span></div>
+                  <div className="text-[#6b6b7b]">Client ID: <span className="text-[#A0A0B0]">{settingMap['github_client_id'] || '—'}</span></div>
                 </div>
               </div>
 
               {/* Installations List */}
               {appInstallations.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[11px] text-[#4A4A55] font-medium">Installed Accounts</p>
+                  <p className="text-[11px] text-[#6b6b7b] font-medium">Installed Accounts</p>
                   {appInstallations.map((inst) => (
                     <div
                       key={inst.id}
                       className="flex items-center justify-between bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2"
                     >
                       <div className="flex items-center gap-2">
-                        <Github size={14} className="text-[#4A4A55]" />
+                        <Github size={14} className="text-[#6b6b7b]" />
                         <span className="text-[12px] text-[#A0A0B0]">{inst.username || 'Unknown'}</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#4A4A55]">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#6b6b7b]">
                           {inst.accountType === 'organization' ? 'Organization' : 'Personal'}
                         </span>
                         {inst.connected ? (
@@ -443,7 +445,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#4A4A55]">{inst.repos?.length || 0} repos</span>
+                        <span className="text-[10px] text-[#6b6b7b]">{inst.repos?.length || 0} repos</span>
                         <InstallationDeleteButton installationId={inst.installationId || ''} />
                       </div>
                     </div>
@@ -464,7 +466,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                   variant="ghost"
                   onClick={handleCreateApp}
                   disabled={createManifest.isPending}
-                  className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+                  className="text-[11px] text-[#6b6b7b] hover:text-white h-8"
                 >
                   <RotateCcw size={12} className="mr-1.5" />
                   Recreate
@@ -473,18 +475,14 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                 <Button
                   variant="ghost"
                   onClick={() => window.open(`https://github.com/settings/apps/${ghConfig?.githubApp?.appSlug}`, '_blank', 'noopener,noreferrer')}
-                  className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+                  className="text-[11px] text-[#6b6b7b] hover:text-white h-8"
                 >
                   <ExternalLink size={12} className="mr-1.5" />
                   GitHub Settings
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    if (confirm('Disconnect this GitHub App from RailDock? The app and its installations will remain on GitHub until you remove them in GitHub Settings.')) {
-                      deleteApp.mutate()
-                    }
-                  }}
+                  onClick={() => setDisconnectOpen(true)}
                   disabled={deleteApp.isPending}
                   className="text-[11px] text-red-400 hover:text-red-300 h-8"
                 >
@@ -494,7 +492,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
               </div>
 
               {appInstallations.length > 0 && (
-                <p className="text-[10px] text-[#4A4A55]">
+                <p className="text-[10px] text-[#6b6b7b]">
                   To add an organization, click "Add Another Account" to open GitHub's install page.
                   GitHub lets you select your personal account or an organization. The installation
                   stays attached to the RailDock workspace currently selected above.
@@ -504,6 +502,24 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={disconnectOpen}
+        onOpenChange={setDisconnectOpen}
+        title="Disconnect GitHub App?"
+        description="RailDock will stop using this GitHub App. The app and its installations stay on GitHub until you remove them in GitHub Settings."
+        confirmLabel="Disconnect RailDock"
+        destructive
+        pending={deleteApp.isPending}
+        onConfirm={async () => {
+          try {
+            await deleteApp.mutateAsync()
+            setDisconnectOpen(false)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
     </div>
   )
 }
@@ -516,7 +532,7 @@ function TestConnectionButton() {
       variant="ghost"
       onClick={() => testConnection.mutate()}
       disabled={testConnection.isPending}
-      className="text-[11px] text-[#4A4A55] hover:text-white h-8"
+      className="text-[11px] text-[#6b6b7b] hover:text-white h-8"
     >
       {testConnection.isPending ? (
         <RefreshCw size={12} className="mr-1 animate-spin" />
@@ -532,22 +548,42 @@ function TestConnectionButton() {
 
 function InstallationDeleteButton({ installationId }: { installationId: string }) {
   const deleteInstallation = useDeleteGitHubAppInstallation()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const handleDelete = () => {
     if (!installationId) return
-    if (!confirm('Uninstall this GitHub App from the account? This will remove access to all repositories.')) return
-    deleteInstallation.mutate(installationId)
+    setConfirmOpen(true)
   }
 
   return (
-    <button
-      onClick={handleDelete}
-      disabled={deleteInstallation.isPending}
-      className="text-[#4A4A55] hover:text-red-400 transition-colors disabled:opacity-50"
-      title="Uninstall"
-    >
-      <Trash2 size={13} />
-    </button>
+    <>
+      <button
+        onClick={handleDelete}
+        disabled={deleteInstallation.isPending}
+        className="text-[#6b6b7b] hover:text-red-400 transition-colors disabled:opacity-50"
+        title="Uninstall"
+        aria-label="Uninstall GitHub App from this account"
+      >
+        <Trash2 size={13} />
+      </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Uninstall GitHub App?"
+        description="GitHub will revoke this installation, so RailDock loses access to all repositories it could previously read or deploy."
+        confirmLabel="Uninstall"
+        destructive
+        pending={deleteInstallation.isPending}
+        onConfirm={async () => {
+          try {
+            await deleteInstallation.mutateAsync(installationId)
+            setConfirmOpen(false)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
+    </>
   )
 }
 
@@ -587,15 +623,15 @@ function GitSourceCard({
             <div className="flex items-center gap-2">
               <span className="text-sm text-white font-medium">{info.name}</span>
               {source.authMethod && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#4A4A55]">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#6b6b7b]">
                   {source.authMethod === 'oauth_app' ? 'App' : 'Token'}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-[#4A4A55]">{source.username || 'Unknown user'}</span>
+              <span className="text-[11px] text-[#6b6b7b]">{source.username || 'Unknown user'}</span>
               {source.accountType && (
-                <span className="text-[9px] flex items-center gap-0.5 text-[#4A4A55]">
+                <span className="text-[9px] flex items-center gap-0.5 text-[#6b6b7b]">
                   {source.accountType === 'organization' ? (
                     <><Building2 size={8} /> Org</>
                   ) : (
@@ -609,7 +645,7 @@ function GitSourceCard({
         <div className="flex items-center gap-2">
           <button
             onClick={onToggle}
-            className="text-[11px] flex items-center gap-1 text-[#4A4A55] hover:text-[#A0A0B0] transition-colors"
+            className="text-[11px] flex items-center gap-1 text-[#6b6b7b] hover:text-[#A0A0B0] transition-colors"
           >
             {repos.length} repos
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -619,7 +655,7 @@ function GitSourceCard({
             size="sm"
             onClick={onDisconnect}
             disabled={isDisconnecting}
-            className="text-[11px] text-[#4A4A55] hover:text-red-400 h-8"
+            className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-8"
           >
             <Trash2 size={13} />
           </Button>
@@ -630,12 +666,12 @@ function GitSourceCard({
       {expanded && (
         <div className="border-t border-[rgba(255,255,255,0.05)] px-4 py-3">
           {syncing && repos.length === 0 ? (
-            <div className="flex items-center gap-2 text-[11px] text-[#4A4A55]">
+            <div className="flex items-center gap-2 text-[11px] text-[#6b6b7b]">
               <RefreshCw size={12} className="animate-spin" />
               Syncing repositories...
             </div>
           ) : repos.length === 0 ? (
-            <div className="text-[11px] text-[#4A4A55]">No repositories found</div>
+            <div className="text-[11px] text-[#6b6b7b]">No repositories found</div>
           ) : (
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {repos.map((repo: GitRepo) => (
@@ -644,13 +680,13 @@ function GitSourceCard({
                   className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[rgba(255,255,255,0.02)]"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <FolderGit2 size={12} className="text-[#4A4A55] shrink-0" />
+                    <FolderGit2 size={12} className="text-[#6b6b7b] shrink-0" />
                     <span className="text-[12px] text-[#A0A0B0] truncate">{repo.fullName}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] text-[#4A4A55]">{repo.defaultBranch}</span>
+                    <span className="text-[10px] text-[#6b6b7b]">{repo.defaultBranch}</span>
                     {repo.private && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#4A4A55]">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#6b6b7b]">
                         Private
                       </span>
                     )}

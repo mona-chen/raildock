@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { useCopy } from '@/hooks/useCopy'
 import { useDataSafety } from '@/hooks/useDataSafety'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import type { BackupDestination } from '@/types'
 
 const EMPTY_FORM = {
@@ -53,6 +54,7 @@ export default function BackupDestinationsTab() {
   const warningFindings = safety?.findings.filter((finding) => finding.severity === 'warning') ?? []
   const [dialogOpen, setDialogOpen] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<BackupDestination | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const handleCreate = () => {
@@ -79,7 +81,7 @@ export default function BackupDestinationsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Backup Destinations</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">
             S3-compatible destinations shared across all services in this organization.
           </p>
         </div>
@@ -93,7 +95,7 @@ export default function BackupDestinationsTab() {
           <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3] max-w-lg">
             <DialogHeader>
               <DialogTitle className="text-sm">Add Backup Destination</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#4A4A55]">
+              <DialogDescription className="text-[11px] text-[#6b6b7b]">
                 Files are encrypted with AES-256-GCM before leaving this server.
               </DialogDescription>
             </DialogHeader>
@@ -257,13 +259,13 @@ export default function BackupDestinationsTab() {
               </div>
               <ul className="mt-1.5 space-y-1">
                 {[...criticalFindings, ...warningFindings].slice(0, 4).map((finding) => (
-                  <li key={`${finding.code}-${finding.message}`} className="text-[11px] text-white/40">
+                  <li key={`${finding.code}-${finding.message}`} className="text-[11px] text-white/50">
                     {finding.message}
                   </li>
                 ))}
               </ul>
               {[...criticalFindings, ...warningFindings].length > 4 && (
-                <div className="mt-1 text-[10px] text-white/30">
+                <div className="mt-1 text-[10px] text-white/50">
                   +{[...criticalFindings, ...warningFindings].length - 4} more
                 </div>
               )}
@@ -273,12 +275,12 @@ export default function BackupDestinationsTab() {
       )}
 
       {isLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading destinations…</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading destinations…</div>
       ) : destinations.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Cloud size={24} className="text-[#4A4A55] mx-auto mb-2" />
+          <Cloud size={24} className="text-[#6b6b7b] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No backup destinations yet</p>
-          <p className="text-[11px] text-[#4A4A55] mt-1">
+          <p className="text-[11px] text-[#6b6b7b] mt-1">
             Add an S3-compatible destination so services can back up off-site.
           </p>
         </div>
@@ -308,18 +310,15 @@ export default function BackupDestinationsTab() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      if (confirm(`Delete "${destination.name}"? Backups already stored there will not be removed.`)) {
-                        currentOrganizationId && remove.mutate({ organizationId: currentOrganizationId, destinationId: destination.id })
-                      }
-                    }}
-                    className="text-[11px] text-[#4A4A55] hover:text-red-400 h-7"
+                    onClick={() => setRemoveTarget(destination)}
+                    className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+                    aria-label={`Delete destination ${destination.name}`}
                   >
                     <Trash2 size={13} />
                   </Button>
                 </div>
               </div>
-              <div className="text-[10px] text-[#4A4A55] flex flex-wrap gap-x-4 gap-y-1">
+              <div className="text-[10px] text-[#6b6b7b] flex flex-wrap gap-x-4 gap-y-1">
                 <span className="capitalize">{destination.provider}</span>
                 <span>{destination.bucket}</span>
                 <span>{destination.region}</span>
@@ -329,6 +328,31 @@ export default function BackupDestinationsTab() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title="Delete backup destination?"
+        description={
+          <>
+            RailDock will stop writing backups to <span className="font-medium text-white">{removeTarget?.name}</span>.
+            Backups already stored there are <span className="text-white/80">not</span> removed — you can still restore
+            from them, and you would need the destination's key to read them again.
+          </>
+        }
+        confirmLabel="Delete destination"
+        destructive
+        pending={remove.isPending}
+        onConfirm={async () => {
+          if (!removeTarget || !currentOrganizationId) return
+          try {
+            await remove.mutateAsync({ organizationId: currentOrganizationId, destinationId: removeTarget.id })
+            setRemoveTarget(null)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
     </div>
   )
 }

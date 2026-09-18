@@ -503,6 +503,26 @@ RSpec.describe "Api::ServicesController", type: :request do
 
       expect(JSON.parse(response.body)["samples"]).to be_empty
     end
+
+    it "includes network and disk I/O counters" do
+      create(
+        :service_metric,
+        service: service,
+        sampled_at: 5.minutes.ago,
+        network_in: 2048,
+        network_out: 4096,
+        block_read: 8192,
+        block_write: 16_384
+      )
+
+      get "/api/services/#{service.id}/metrics_history?hours=24", headers: auth_headers(user)
+
+      sample = JSON.parse(response.body)["samples"].first
+      expect(sample["network_in"]).to eq(2048)
+      expect(sample["network_out"]).to eq(4096)
+      expect(sample["block_read"]).to eq(8192)
+      expect(sample["block_write"]).to eq(16_384)
+    end
   end
 
   describe "GET /api/services/:id/container_status" do

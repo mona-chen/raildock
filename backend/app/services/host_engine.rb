@@ -286,12 +286,12 @@ class HostEngine
   def docker_stats(container)
     result = run(
       "docker stats --no-stream --format " \
-      "'{{.CPUPerc}}\t{{.MemUsage}}' " \
+      "'{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}' " \
       "#{Shellwords.escape(container)}"
     )
     return nil unless result[:success]
 
-    cpu_str, mem_usage = result[:output].to_s.split("\t", 2)
+    cpu_str, mem_usage, net_io, block_io = result[:output].to_s.chomp.split("\t", 4)
     return nil if cpu_str.blank? || mem_usage.blank?
 
     cpu = cpu_str.to_s.delete("%").to_f
@@ -311,8 +311,18 @@ class HostEngine
       cpu_cores: cpu_cores,
       memory: memory,
       memory_used: used,
-      memory_limit: limit
+      memory_limit: limit,
+      network_rx: io_counter_bytes(net_io, 0),
+      network_tx: io_counter_bytes(net_io, 1),
+      block_read: io_counter_bytes(block_io, 0),
+      block_write: io_counter_bytes(block_io, 1)
     }
+  end
+
+  # `docker stats` reports network and block I/O as cumulative "rx / tx" byte
+  # counters ("12.3MB / 4.5kB"). Return one side as bytes.
+  def io_counter_bytes(pair, index)
+    human_size_to_bytes(pair.to_s.split("/", 2)[index].to_s.strip)
   end
 
   # Report whether a builder binary is present and usable on the host. Public

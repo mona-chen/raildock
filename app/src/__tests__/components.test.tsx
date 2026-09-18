@@ -470,7 +470,7 @@ describe('SettingsPage integrations tab', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Platform Settings')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
     expect(screen.getByText('Relational database')).toBeInTheDocument()
     expect(screen.getByText('Redis')).toBeInTheDocument()

@@ -29,7 +29,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
               className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] border-b-2 transition-all whitespace-nowrap ${
                 subTab === t.key
                   ? 'border-[#8b5cf6] text-[#8b5cf6]'
-                  : 'border-transparent text-white/40 hover:text-white/60'
+                  : 'border-transparent text-white/50 hover:text-white/60'
               }`}
             >
               <Icon size={12} />

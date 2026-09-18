@@ -124,7 +124,7 @@ export default function OnboardingChecklist() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="rounded p-1 text-[#4A4A55] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
+            className="rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
             title={expanded ? 'Collapse' : 'Expand'}
           >
             <ChevronRight
@@ -134,7 +134,7 @@ export default function OnboardingChecklist() {
           </button>
           <button
             onClick={handleDismiss}
-            className="rounded p-1 text-[#4A4A55] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
+            className="rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
             title="Dismiss"
           >
             <X size={14} />
@@ -168,7 +168,7 @@ export default function OnboardingChecklist() {
                     ) : (
                       <Circle
                         size={18}
-                        className={`${isNext ? 'text-rail-purple' : 'text-[#4A4A55]'}`}
+                        className={`${isNext ? 'text-rail-purple' : 'text-[#6b6b7b]'}`}
                       />
                     )}
                   </div>
@@ -185,11 +185,11 @@ export default function OnboardingChecklist() {
                   <div className="flex items-center gap-2">
                     <step.icon
                       size={14}
-                      className={`shrink-0 ${isDone ? 'text-[#4A4A55]' : 'text-[#6B6B78] group-hover:text-white/60'}`}
+                      className={`shrink-0 ${isDone ? 'text-[#6b6b7b]' : 'text-[#6B6B78] group-hover:text-white/60'}`}
                     />
                     <ChevronRight
                       size={12}
-                      className="shrink-0 text-[#4A4A55] opacity-0 transition-opacity group-hover:opacity-100"
+                      className="shrink-0 text-[#6b6b7b] opacity-0 transition-opacity group-hover:opacity-100"
                     />
                   </div>
                 </Link>

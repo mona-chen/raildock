@@ -49,6 +49,37 @@ class DeploymentJob < ApplicationJob
   def perform_deployment(service, project, deployment, engine, host_engine)
     server = project.server
 
+    # Build output accumulates from the very first step so builder-substitution
+    # notes (and any early failure output) land in the stored deploy log.
+    deploy_output = ""
+
+    # A static site (publish directory set) cannot be built or served by every
+    # builder. Resolve the builder up front so the env sync and the process
+    # command below match what Dokku will actually run. A Dockerfile deploy
+    # owns its own serving, so it passes through untouched.
+    static_site = StaticSiteConfigurator.new(service)
+    static_builder = static_site.resolve_builder(available: ->(slug) { host_engine.builder_available?(slug) })
+    if static_site.static? && !static_site.passthrough? && static_builder.blank?
+      return mark_failed(
+        deployment, service,
+        "No static-capable builder is available",
+        "Static sites need the Railpack (with BuildKit) or Nixpacks builder. " \
+        "Run './install.sh update' on the server, then retry this deployment."
+      )
+    end
+    if static_site.builder_overridden?(static_builder)
+      note = "-----> Static site: using #{static_builder} to build and serve this app " \
+             "(requested builder: #{service.builder.presence || 'auto-detect'})\n"
+      deploy_output += note
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: deployment.status,
+        log_chunk: note,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at&.iso8601
+      })
+    end
+
     # 0. For manifest-managed services, a push-triggered deploy is also the
     #    moment to re-sync RailDock state from the repo's manifest: env vars,
     #    domains, or services declared there must reach the DB before the
@@ -90,6 +121,7 @@ class DeploymentJob < ApplicationJob
     # time, so without this safety net config:clear would silently
     # strip them.
     env_hash = build_full_env_hash(service, engine)
+    apply_static_site_build_env!(env_hash, static_site, static_builder)
     begin
       result = engine.config_replace_all(service.dokku_app_name, env_hash)
       unless result[:success]
@@ -162,7 +194,7 @@ class DeploymentJob < ApplicationJob
     # 8.5. Set builder on the Dokku app so the correct buildpack is used.
     #      The service.builder field is a registry slug; "auto" or nil means
     #      let Dokku auto-detect (no explicit builder:set).
-    dokku_builder = service.builder_record&.dokku_builder
+    dokku_builder = static_builder.presence || service.builder_record&.dokku_builder
     if dokku_builder.present? && dokku_builder != "auto" && !service.docker_image.present?
       unless host_engine.builder_available?(dokku_builder)
         requirement = dokku_builder == "railpack" ? "railpack and its BuildKit service" : dokku_builder
@@ -193,14 +225,21 @@ class DeploymentJob < ApplicationJob
     # Check if cancelled before starting the build
     return if abort_if_cancelled(deployment)
 
-    # 8.8 Forward the start_command to Dokku's dockerfile-start-cmd property.
-    #      A manifest start_command overrides the image's Dockerfile CMD, which
-    #      for images ending in CMD ["sh"] would otherwise exit immediately when
-    #      started non-interactively (breaking every deploy's healthcheck).
-    if service.start_command.present?
-      ps_cmd_result = engine.ps_set(service.dokku_app_name, "dockerfile-start-cmd", service.start_command)
-      return mark_failed(deployment, service, "Process command sync failed", ps_cmd_result[:output] || ps_cmd_result[:error]) unless ps_cmd_result[:success]
-    end
+    # 8.8 Reconcile the process command via Dokku's dockerfile-start-cmd
+    #      property, which the docker-local scheduler reads for every
+    #      non-herokuish image (railpack, nixpacks, dockerfile).
+    #
+    #      - An explicit start_command always wins. It also overrides an image
+    #        CMD like ["sh"] that would otherwise exit immediately.
+    #      - A static site uses the builder's Caddy serve command. This is what
+    #        makes railpack/nixpacks static deploys start at all: both builders
+    #        put their start command in the image CMD, and their Dokku build
+    #        stages set ENTRYPOINT, which clears the inherited CMD.
+    #      - Otherwise clear the property so a removed start_command or static
+    #        config cannot leave a stale command behind.
+    resolved_start_command = service.start_command.presence || static_site.serve_command(static_builder)
+    ps_cmd_result = engine.ps_set(service.dokku_app_name, "dockerfile-start-cmd", resolved_start_command.to_s)
+    return mark_failed(deployment, service, "Process command sync failed", ps_cmd_result[:output] || ps_cmd_result[:error]) unless ps_cmd_result[:success]
 
     # 9. Deploy (with real-time log streaming)
     deployment.update!(status: :building, started_at: Time.current)
@@ -215,8 +254,6 @@ class DeploymentJob < ApplicationJob
       type: "deployment", service_id: service.id, deployment_id: deployment.id,
       status: "building", timestamp: Time.current.iso8601
     })
-
-    deploy_output = ""
 
     if service.docker_image.present?
       # Docker image deploy: git:from-image builds and deploys synchronously
@@ -993,6 +1030,17 @@ class DeploymentJob < ApplicationJob
       .exists?
 
     service.update!(status: has_queued_deployment ? :deploying : (success ? :running : :error))
+  end
+
+  # Static-site build settings are derived, not user env vars, so they are
+  # injected after the normal env hash is built. Reconcile them explicitly:
+  # carry-forward of host-only keys must not keep a stale publish directory
+  # alive after the static config is removed.
+  def apply_static_site_build_env!(env_hash, configurator, builder)
+    StaticSiteConfigurator::BUILD_ENV_KEYS.each { |key| env_hash.delete(key) }
+    return env_hash unless builder.present?
+
+    env_hash.merge!(configurator.build_env(builder))
   end
 
   # Determine the container port we expect the app to listen on. Explicit

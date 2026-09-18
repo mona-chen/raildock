@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/layout/AuthGuard'
 import RootRedirect from '@/components/RootRedirect'
 import { ErrorBoundary } from '@/features/shared/ErrorBoundary'
+import CommandPalette from '@/features/command-palette/CommandPalette'
 
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage'))
@@ -15,6 +16,7 @@ const ProjectCanvas = lazy(() => import('./pages/ProjectCanvas'))
 const ServerPage = lazy(() => import('./pages/ServerPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const ActivityPage = lazy(() => import('./pages/ActivityPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 
 function App() {
@@ -30,7 +32,9 @@ function App() {
               <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
               <Route path="/dashboard" element={
                 <AuthGuard>
-                  <DashboardLayout />
+                  <ErrorBoundary>
+                    <DashboardLayout />
+                  </ErrorBoundary>
                 </AuthGuard>
               }>
                 <Route index element={<Navigate to="projects" replace />} />
@@ -40,9 +44,11 @@ function App() {
                 <Route path="activity" element={<ActivityPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
+        <CommandPalette />
         <Toaster
           position="top-right"
           theme="dark"

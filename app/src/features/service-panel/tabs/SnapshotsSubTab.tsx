@@ -117,7 +117,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 snapshotVolume.mutate({ id: serviceId, storageMountId: svc.storageMounts[0]?.id || '' })
               }}
               disabled={snapshotVolume.isPending || svc.storageMounts.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-50"
             >
               {snapshotVolume.isPending ? <Loader2 size={12} className="animate-spin" /> : <DatabaseBackup size={12} />}
               Snapshot now
@@ -198,7 +198,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
           <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Snapshots</h3>
           <span className="text-[10px] text-white/20">{snapshots.length} total</span>
         </div>
-        {isLoading ? <div className="py-10 text-center text-[12px] text-white/30">Loading snapshots…</div> : isError ? (
+        {isLoading ? <div className="py-10 text-center text-[12px] text-white/50">Loading snapshots…</div> : isError ? (
           <button onClick={() => refetch()} className="flex w-full items-center justify-center gap-2 py-10 text-[12px] text-red-400"><AlertCircle size={14} /> Could not load snapshots · Retry</button>
         ) : snapshots.length === 0 ? (
           <div className="border-y border-dashed border-white/[0.08] py-12 text-center">
@@ -229,8 +229,8 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                   </div>
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download snapshot" className="rounded p-1.5 text-white/30 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
-                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore snapshot" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download snapshot" className="rounded p-1.5 text-white/50 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore snapshot" className="rounded p-1.5 text-white/50 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete snapshot" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
                 </article>
@@ -244,7 +244,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-emerald-300"><Clock3 size={16} /><h3 className="text-[14px] font-medium">Schedule volume snapshot</h3></div>
-            <p className="mt-3 text-[12px] leading-5 text-white/40">Create an encrypted snapshot of a mounted volume on a recurring schedule.</p>
+            <p className="mt-3 text-[12px] leading-5 text-white/50">Create an encrypted snapshot of a mounted volume on a recurring schedule.</p>
             <form className="mt-4 space-y-3" onSubmit={(event) => {
               event.preventDefault()
               createSchedule.mutate(
@@ -323,15 +323,15 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
             <div className="flex items-center gap-2 text-amber-300"><RotateCcw size={16} /><h3 id="snapshot-restore-title" className="text-[14px] font-medium">Restore this snapshot?</h3></div>
             {restoreTarget && (
               <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
-                <div className="flex justify-between"><span className="text-white/30">Mount</span><span className="text-white/65">{restoreTarget.metadata?.containerPath || restoreTarget.metadata?.hostPath || 'volume'}</span></div>
-                <div className="flex justify-between"><span className="text-white/30">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
-                <div className="flex justify-between"><span className="text-white/30">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Mount</span><span className="text-white/65">{restoreTarget.metadata?.containerPath || restoreTarget.metadata?.hostPath || 'volume'}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
               </div>
             )}
-            <p className="mt-3 text-[12px] leading-5 text-white/40">
+            <p className="mt-3 text-[12px] leading-5 text-white/50">
               Current volume files will be replaced. This operation cannot be undone.
             </p>
-            <label className="mt-3 block text-[11px] text-white/40">
+            <label className="mt-3 block text-[11px] text-white/50">
               Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
               <input
                 value={restoreConfirmation}

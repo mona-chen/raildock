@@ -7,6 +7,8 @@ FactoryBot.define do
     memory_limit { 1073741824 }
     network_in { 0 }
     network_out { 0 }
+    block_read { 0 }
+    block_write { 0 }
     sampled_at { Time.current }
   end
 end

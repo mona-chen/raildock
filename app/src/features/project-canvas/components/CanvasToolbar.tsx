@@ -52,11 +52,11 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
           className="flex items-center gap-1 text-[13px]"
         >
           <span className="font-medium text-white/90">{projectName}</span>
-          <ChevronDown size={13} className="text-white/30" />
+          <ChevronDown size={13} className="text-white/50" />
         </button>
         <div className="w-px h-4 bg-white/[0.08]" />
         <span className="text-[12px] text-white/50 capitalize">{projectEnvironment}</span>
-        <div className="flex items-center gap-1.5 text-[10px] text-white/30" title="Project state synchronization">
+        <div className="flex items-center gap-1.5 text-[10px] text-white/50" title="Project state synchronization">
           <span className={`h-1.5 w-1.5 rounded-full ${connectionState === 'live' ? 'bg-emerald-400' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
           {realtimeStateLabel(connectionState)}
         </div>
@@ -77,7 +77,7 @@ export default function CanvasToolbar({ projectId, projectName, projectEnvironme
                 <Rocket size={12} />
               )}
               Actions
-              <ChevronDown size={11} className="text-white/40" />
+              <ChevronDown size={11} className="text-white/50" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent

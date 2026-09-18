@@ -21,7 +21,7 @@ export default function CanvasControls({
     <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 z-30" onMouseDown={(e) => e.stopPropagation()}>
       <button
         onClick={onLayout}
-        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
+        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
         title="Auto layout"
         aria-label="Auto layout services"
       >
@@ -31,7 +31,7 @@ export default function CanvasControls({
       <div className="flex flex-col gap-0.5">
         <button
           onClick={onZoomIn}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
+          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
           title="Zoom in"
           aria-label="Zoom in"
         >
@@ -39,7 +39,7 @@ export default function CanvasControls({
         </button>
         <button
           onClick={onZoomOut}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
+          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
           title="Zoom out"
           aria-label="Zoom out"
         >
@@ -47,7 +47,7 @@ export default function CanvasControls({
         </button>
         <button
           onClick={onFit}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
+          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
           title="Fit to view"
           aria-label="Fit canvas to view"
         >
@@ -58,7 +58,7 @@ export default function CanvasControls({
       <div className="flex flex-col gap-0.5">
         <button
           disabled={!canUndo}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
+          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
           title="Undo"
           aria-label="Undo last action"
         >
@@ -66,7 +66,7 @@ export default function CanvasControls({
         </button>
         <button
           disabled={!canRedo}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
+          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
           title="Redo"
           aria-label="Redo last action"
         >
@@ -75,7 +75,7 @@ export default function CanvasControls({
       </div>
 
       <button
-        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
+        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
         title="Layers"
         aria-label="Toggle layers"
       >

@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Keyboard, AlertTriangle, X } from 'lucide-react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import {
   Box, Activity, Settings, Rocket, Plus, Search, FileCode,
 } from 'lucide-react'
-import { useServices, useLinkService, useUnlinkService } from '@/hooks/useServices'
+import { useServices, useLinkService, useUnlinkService, useDeployService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
 import { useActivity } from '@/hooks/useActivity'
 import { useCanvasStore } from '@/stores/useCanvasStore'
-import { toast } from 'sonner'
 import type { Service } from '@/types'
 import { SkeletonPage } from '@/components/ui/skeleton'
 import { useProjectRealtime } from '@/hooks/useProjectRealtime'
+import ErrorState from '@/features/shared/ErrorState'
 
 import CanvasGrid from '@/features/project-canvas/components/CanvasGrid'
 import ServiceCard from '@/features/project-canvas/components/ServiceCard'
@@ -74,19 +74,34 @@ export default function ProjectCanvas() {
   const location = useLocation()
 
   const projectRealtime = useProjectRealtime(projectId || '')
-  const { data: services = [], isLoading } = useServices(projectId || '')
+  const { data: services = [], isLoading, isError, refetch } = useServices(projectId || '')
   const { data: project } = useProject(projectId || '')
   const { data: activity = [] } = useActivity(projectId || '')
 
   const zoom = useCanvasStore((s) => s.zoom)
   const pan = useCanvasStore((s) => s.pan)
-  const activeServiceId = useCanvasStore((s) => s.activeServiceId)
   const filter = useCanvasStore((s) => s.filter)
   const searchQuery = useCanvasStore((s) => s.searchQuery)
   const setZoom = useCanvasStore((s) => s.setZoom)
   const setPan = useCanvasStore((s) => s.setPan)
-  const setActiveService = useCanvasStore((s) => s.setActiveService)
+  const storeSetActiveService = useCanvasStore((s) => s.setActiveService)
   const resetView = useCanvasStore((s) => s.resetView)
+  const deployService = useDeployService()
+
+  // The URL owns which service panel is open, so the panel is deep-linkable,
+  // survives a refresh, and closes on browser Back.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeServiceId = searchParams.get('service')
+  const setActiveService = useCallback((id: string | null) => {
+    storeSetActiveService(id)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (id) next.set('service', id)
+      else next.delete('service')
+      return next
+    }, { replace: id === null })
+  }, [storeSetActiveService, setSearchParams])
+
   const linkService = useLinkService()
   const unlinkService = useUnlinkService()
   const queryClient = useQueryClient()
@@ -109,6 +124,17 @@ export default function ProjectCanvas() {
   useEffect(() => {
     try { setWarningsDismissedAt(parseInt(localStorage.getItem(`raildock:canvas-warnings-dismissed:${projectId}`) || '0', 10)) } catch { /* ignore */ }
   }, [projectId])
+
+  // The command palette deep-links here with ?new=1 to open the add-service dialog.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setShowAdd(true)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('new')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const dragRef = useRef({
     sx: 0, sy: 0,
@@ -386,8 +412,7 @@ export default function ProjectCanvas() {
         if (activeServiceId) {
           setShowAdd(false)
           setShowHelp(false)
-          // Trigger deploy via programmatic click on the active service's deploy button in the panel
-          toast.info('Press D again to deploy — or use the Deploy tab')
+          deployService.mutate(activeServiceId)
         }
       }
       if (e.key === 'n' || e.key === 'N' || e.key === '+') {
@@ -417,7 +442,7 @@ export default function ProjectCanvas() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeServiceId, setActiveService, setPan, pan])
+  }, [activeServiceId, setActiveService, setPan, pan, zoom, deployService])
 
   // View routing
   const pathParts = location.pathname.split('/')
@@ -439,6 +464,19 @@ export default function ProjectCanvas() {
     return <SkeletonPage />
   }
 
+  if (isError) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[#0f0f13] p-8">
+        <ErrorState
+          className="max-w-lg"
+          title="Couldn't load this project"
+          message="RailDock could not reach the API for this project's services. Your deployments are unaffected — retry to load the canvas."
+          onRetry={() => refetch()}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col bg-[#0f0f13]">
       <CanvasToolbar projectId={projectId || ''} projectName={project?.name || 'Project'} projectEnvironment={project?.environment || 'production'} connectionState={projectRealtime.connectionState} />
@@ -452,7 +490,7 @@ export default function ProjectCanvas() {
             className={`px-3 py-1 rounded-md text-[12px] flex items-center gap-1.5 transition-all whitespace-nowrap ${
               view === item.key
                 ? 'bg-white/[0.08] text-white/70'
-                : 'text-white/30 hover:text-white/50 hover:bg-white/[0.04]'
+                : 'text-white/50 hover:text-white/50 hover:bg-white/[0.04]'
             }`}
           >
             <item.icon size={13} />
@@ -563,7 +601,7 @@ export default function ProjectCanvas() {
                     <Search size={28} className="text-white/20" />
                   </div>
                   <h3 className="text-base font-semibold text-white/70 mb-1">No services match</h3>
-                  <p className="text-xs text-[#4A4A55] max-w-xs mx-auto mb-5">
+                  <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
                     Try adjusting your filter or search query.
                   </p>
                   <button
@@ -584,7 +622,7 @@ export default function ProjectCanvas() {
                     <Rocket size={28} className="text-rail-purple" />
                   </div>
                   <h3 className="text-base font-semibold text-white mb-1">This project is empty</h3>
-                  <p className="text-xs text-[#4A4A55] max-w-xs mx-auto mb-5">
+                  <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
                     Projects contain apps, databases, and services. Add your first service to start deploying.
                   </p>
                   <button
@@ -630,24 +668,30 @@ export default function ProjectCanvas() {
 
       {showHelp && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setShowHelp(false)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-white flex items-center gap-2">
                 <Keyboard size={16} className="text-rail-purple" /> Keyboard Shortcuts
               </h3>
-              <button type="button" onClick={() => setShowHelp(false)} className="text-white/30 hover:text-white/60" aria-label="Close help">
+              <button type="button" onClick={() => setShowHelp(false)} className="text-white/50 hover:text-white/60" aria-label="Close help">
                 <span className="text-lg">×</span>
               </button>
             </div>
             <div className="space-y-2">
               {[
                 { key: 'N / +', desc: 'Add new service' },
+                { key: 'D', desc: 'Deploy selected service' },
+                { key: '?', desc: 'Toggle this help' },
                 { key: 'Esc', desc: 'Close panel / modal' },
+                { key: 'Delete', desc: 'Close service panel' },
                 { key: '↑ ↓ ← →', desc: 'Pan canvas' },
                 { key: 'Scroll', desc: 'Zoom in/out' },
                 { key: 'Drag', desc: 'Move service card' },
                 { key: 'Click', desc: 'Open service panel' },
                 { key: 'Middle-click drag', desc: 'Pan canvas' },
+                { key: '⌘ + / ⌘ -', desc: 'Zoom in/out' },
+                { key: '⌘ 0', desc: 'Reset view' },
+                { key: '⌘ K', desc: 'Command palette' },
               ].map((item) => (
                 <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-white/[0.04] last:border-0">
                   <span className="text-[13px] text-white/60">{item.desc}</span>

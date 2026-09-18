@@ -179,7 +179,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
               </div>
             </div>
 
-            <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationIds: selectedDestinations })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]">
+            <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationIds: selectedDestinations })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]">
               {createBackup.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
               Create backup
             </button>
@@ -314,7 +314,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Artifacts</h3>
           <span className="text-[10px] text-white/20">{backups.length} total</span>
         </div>
-        {isLoading ? <div className="py-10 text-center text-[12px] text-white/30">Loading recovery history…</div> : isError ? (
+        {isLoading ? <div className="py-10 text-center text-[12px] text-white/50">Loading recovery history…</div> : isError ? (
           <button onClick={() => refetch()} className="flex w-full items-center justify-center gap-2 py-10 text-[12px] text-red-400"><AlertCircle size={14} /> Could not load backups · Retry</button>
         ) : backups.length === 0 ? (
           <div className="border-y border-dashed border-white/[0.08] py-12 text-center">
@@ -356,9 +356,9 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   </div>
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download backup" className="rounded p-1.5 text-white/30 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
-                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore backup" className="rounded p-1.5 text-white/30 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
-                    <button type="button" disabled={!ready || backup.backupKind === 'volume' || backup.backupKind === 'wal'} onClick={() => runDrill.mutate({ id: serviceId, backupId: backup.id })} aria-label="Run isolated restore drill" className="rounded p-1.5 text-white/30 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-20"><FlaskConical size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download backup" className="rounded p-1.5 text-white/50 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore backup" className="rounded p-1.5 text-white/50 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
+                    <button type="button" disabled={!ready || backup.backupKind === 'volume' || backup.backupKind === 'wal'} onClick={() => runDrill.mutate({ id: serviceId, backupId: backup.id })} aria-label="Run isolated restore drill" className="rounded p-1.5 text-white/50 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-20"><FlaskConical size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete backup" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
                 </article>
@@ -373,15 +373,15 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-300"><Upload size={16} /><h3 id="upload-restore-title" className="text-[14px] font-medium">Restore from an uploaded dump?</h3></div>
             <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
-              <div className="flex justify-between"><span className="text-white/30">File</span><span className="max-w-[60%] truncate text-white/65">{pendingUpload.name}</span></div>
-              <div className="flex justify-between"><span className="text-white/30">Size</span><span className="text-white/65">{formatSize(pendingUpload.size)}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">File</span><span className="max-w-[60%] truncate text-white/65">{pendingUpload.name}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(pendingUpload.size)}</span></div>
             </div>
-            <p className="mt-3 text-[12px] leading-5 text-white/40">
+            <p className="mt-3 text-[12px] leading-5 text-white/50">
               The current database contents will be replaced by this dump. A safety snapshot of the current state is
               taken first when a verified destination is available, but anything written since this dump was created
               cannot be recovered.
             </p>
-            <label className="mt-3 block text-[11px] text-white/40">
+            <label className="mt-3 block text-[11px] text-white/50">
               Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
               <input
                 value={uploadConfirmation}
@@ -405,18 +405,18 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             <div className="flex items-center gap-2 text-amber-300"><RotateCcw size={16} /><h3 id="restore-title" className="text-[14px] font-medium">Restore this recovery point?</h3></div>
             {restoreTarget && (
               <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
-                <div className="flex justify-between"><span className="text-white/30">Type</span><span className="text-white/65 capitalize">{restoreTarget.backupKind === 'volume' ? 'Volume snapshot' : restoreTarget.backupKind}</span></div>
-                <div className="flex justify-between"><span className="text-white/30">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
-                <div className="flex justify-between"><span className="text-white/30">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
-                {restoreTarget.metadata?.checksum && <div className="flex justify-between"><span className="text-white/30">Checksum</span><span className="font-mono text-white/65">sha256:{restoreTarget.metadata.checksum.slice(0, 10)}…</span></div>}
+                <div className="flex justify-between"><span className="text-white/50">Type</span><span className="text-white/65 capitalize">{restoreTarget.backupKind === 'volume' ? 'Volume snapshot' : restoreTarget.backupKind}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
+                {restoreTarget.metadata?.checksum && <div className="flex justify-between"><span className="text-white/50">Checksum</span><span className="font-mono text-white/65">sha256:{restoreTarget.metadata.checksum.slice(0, 10)}…</span></div>}
               </div>
             )}
-            <p className="mt-3 text-[12px] leading-5 text-white/40">
+            <p className="mt-3 text-[12px] leading-5 text-white/50">
               Current {restoreTarget?.backupKind === 'volume' ? 'volume files' : 'database contents'} will be replaced.
               A safety snapshot of the current state is taken first when a verified destination is available, but
               everything written since this recovery point is replaced.
             </p>
-            <label className="mt-3 block text-[11px] text-white/40">
+            <label className="mt-3 block text-[11px] text-white/50">
               Type <span className="font-mono text-white/70">{svc.name}</span> to confirm
               <input
                 value={restoreConfirmation}

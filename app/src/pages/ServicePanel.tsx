@@ -24,6 +24,7 @@ import StorageTab from '@/features/service-panel/tabs/StorageTab'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
+import StatusBadge from '@/features/shared/StatusBadge'
 
 interface ServicePanelProps {
   serviceId: string
@@ -103,7 +104,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             <Box size={24} className="text-red-400" />
           </div>
           <p className="text-white/60 text-[14px] mb-2">Failed to load service details</p>
-          {error && <p className="text-white/40 text-[12px] mb-6 max-w-md">{error.message}</p>}
+          {error && <p className="text-white/50 text-[12px] mb-6 max-w-md">{error.message}</p>}
           <button
             type="button"
             onClick={() => refetch()}
@@ -118,7 +119,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
 
   const db = svc.type === 'database'
   const tabs = db
-    ? ['overview', ...(svc.dataView ? ['data'] : []), 'logs', 'console', 'database', 'backups', 'variables', 'metrics', 'settings']
+    ? ['overview', ...(svc.dataView ? ['data'] : []), 'database', 'logs', 'console', 'backups', 'variables', 'metrics', 'settings']
     : ['overview', 'deploy', 'logs', 'console', 'variables', 'domains', 'storage', 'metrics', 'settings']
 
   const color = getServiceColor(svc.subtype, svc.framework, svc.dockerImage)
@@ -149,7 +150,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           </div>
           <div>
             <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
-            <div className="text-[11px] text-white/40">
+            <div className="text-[11px] text-white/50">
               {svc.subtype} {svc.version ? `v${svc.version}` : ''}
               {deploymentRealtime.lastUpdate && <span className="ml-2 text-white/25">· {deploymentRealtime.lastUpdate.message}</span>}
             </div>
@@ -210,15 +211,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
               {rebuildService.isPending ? '...' : 'Rebuild'}
             </button>
           </div>
-          <span
-            className="text-[11px] px-2 py-0.5 rounded-full"
-            style={{
-              backgroundColor: svc.status === 'running' ? '#22c55e15' : '#4A4A5515',
-              color: svc.status === 'running' ? '#22c55e' : '#8A8A95',
-            }}
-          >
-            {svc.status === 'running' ? 'Online' : svc.status}
-          </span>
+          <StatusBadge status={svc.status} />
           <span className={`h-2 w-2 rounded-full ${deploymentRealtime.connectionState === 'live' ? 'bg-emerald-400' : deploymentRealtime.connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'}`} title={`${realtimeStateLabel(deploymentRealtime.connectionState)} updates`} />
         </div>
       </div>
@@ -235,7 +228,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             className={`px-4 py-2.5 text-[13px] border-b-2 transition-all whitespace-nowrap ${
               tab === t
                 ? 'border-[#8b5cf6] text-[#8b5cf6]'
-                : 'border-transparent text-white/40 hover:text-white/60'
+                : 'border-transparent text-white/50 hover:text-white/60'
             }`}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}

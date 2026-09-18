@@ -148,4 +148,96 @@ RSpec.describe "Api::ManifestsController", type: :request do
       expect(body["removals"].map { |removal| removal["service_name"] }).to eq([ "old-worker" ])
     end
   end
+
+  describe "GET /api/projects/:project_id/manifest/drift" do
+    let(:manifest) do
+      <<~TOML
+        [[services]]
+        name = "web"
+        category = "app"
+        subtype = "web"
+        port = 3000
+
+        [[services]]
+        name = "db"
+        category = "database"
+        subtype = "postgres"
+      TOML
+    end
+
+    before do
+      project.update!(manifest_content: manifest, manifest_format: "raildock.toml")
+      create(:service, project: project, name: "web", managed_by: :manifest, port: 8080)
+      create(:service, project: project, name: "worker", managed_by: :manifest)
+      create(:service, project: project, name: "cache", managed_by: :ui)
+    end
+
+    it "reports per-service drift and which services can be merged" do
+      get "/api/projects/#{project.id}/manifest/drift", headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+
+      expect(body["supported"]).to be(true)
+      expect(body["format"]).to eq("raildock.toml")
+      expect(body["drift_detected"]).to be(true)
+      expect(body["services"].map { |service| service["name"] }).to contain_exactly("web", "db", "worker")
+
+      web = body["services"].find { |service| service["name"] == "web" }
+      expect(web["status"]).to eq("drifted")
+      expect(web["changes"].map { |change| change["field"] }).to include("port")
+    end
+  end
+
+  describe "POST /api/projects/:project_id/manifest/merge" do
+    let(:manifest) do
+      <<~TOML
+        [[services]]
+        name = "web"
+        category = "app"
+        subtype = "web"
+        port = 3000
+      TOML
+    end
+
+    before do
+      project.update!(manifest_content: manifest, manifest_format: "raildock.toml")
+      create(:service, project: project, name: "web", managed_by: :manifest, port: 8080)
+      create(:service, project: project, name: "worker", managed_by: :manifest)
+    end
+
+    it "returns the merged manifest for review without saving it" do
+      post "/api/projects/#{project.id}/manifest/merge",
+        params: { services: [ "web", "worker" ] }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body["adopted"]).to contain_exactly("web", "worker")
+      expect(body["skipped"]).to be_empty
+
+      reparsed = ManifestParser.parse(body["content"], filename: "raildock.toml")
+      web = reparsed.services.find { |service| service[:name] == "web" }
+      expect(web[:port]).to eq(8080)
+      expect(reparsed.services.map { |service| service[:name] }).to include("worker")
+
+      expect(project.reload.manifest_content).to eq(manifest)
+    end
+
+    it "merges every mergeable service when accept_all is set" do
+      post "/api/projects/#{project.id}/manifest/merge",
+        params: { accept_all: true }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["adopted"]).to contain_exactly("web", "worker")
+    end
+
+    it "refuses to merge compatibility formats" do
+      project.update!(manifest_content: "[build]\nbuilder = \"NIXPACKS\"\n", manifest_format: "railway.toml")
+
+      post "/api/projects/#{project.id}/manifest/merge", headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["error"]).to match(/only supported/)
+    end
+  end
 end

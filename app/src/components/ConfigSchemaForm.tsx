@@ -51,7 +51,7 @@ export default function ConfigSchemaForm({ schema, initialValues, onSubmit, isSu
 
   const fields = Object.entries(schema)
   if (fields.length === 0) {
-    return <div className="text-[11px] text-[#4A4A55]">No configuration options for this plugin.</div>
+    return <div className="text-[11px] text-[#6b6b7b]">No configuration options for this plugin.</div>
   }
 
   return (
@@ -65,7 +65,7 @@ export default function ConfigSchemaForm({ schema, initialValues, onSubmit, isSu
             </Label>
           </div>
           {field.description && (
-            <p className="text-[10px] text-[#4A4A55]">{field.description}</p>
+            <p className="text-[10px] text-[#6b6b7b]">{field.description}</p>
           )}
           {renderField(key, field, values[key], handleChange)}
         </div>
@@ -88,7 +88,7 @@ function renderField(
   onChange: (key: string, value: string | number | boolean) => void
 ) {
   const commonInputClass =
-    'bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#4A4A55]'
+    'bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#6b6b7b]'
 
   switch (field.type) {
     case 'boolean':

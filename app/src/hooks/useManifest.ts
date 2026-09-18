@@ -19,6 +19,27 @@ export function useManifestStatus(projectId: string) {
   })
 }
 
+export function useManifestDrift(projectId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'manifest', 'drift'],
+    queryFn: () => api.manifest.drift(projectId),
+    enabled: !!projectId && enabled,
+  })
+}
+
+export function useManifestMerge() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    // Merge is review-first: it returns proposed content but never stores it.
+    mutationFn: ({ projectId, services, acceptAll }: { projectId: string; services?: string[]; acceptAll?: boolean }) =>
+      api.manifest.merge(projectId, { services, acceptAll }),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest', 'drift'] })
+    },
+    onError: (err) => toast.error(`Merge failed: ${err.message}`),
+  })
+}
+
 export function useUpdateManifest() {
   const queryClient = useQueryClient()
   return useMutation({

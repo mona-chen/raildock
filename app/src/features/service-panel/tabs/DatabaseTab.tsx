@@ -48,7 +48,7 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
           {info?.status && (
             <span
               className={`text-[11px] px-2 py-0.5 rounded-full ${
-                info.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/40'
+                info.status === 'running' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/50'
               }`}
             >
               {info.status}
@@ -65,11 +65,11 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
           <>
             <div className="bg-black/20 rounded-lg p-3 mb-3 relative group">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-[11px] text-white/40">Connection URL</div>
+                <div className="text-[11px] text-white/50">Connection URL</div>
                 <button
                   type="button"
                   onClick={() => copy(connectionUrl, 'url')}
-                  className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
+                  className="text-[11px] text-white/50 hover:text-white/60 transition-colors"
                 >
                   {copiedKey === 'url' ? 'Copied!' : 'Copy'}
                 </button>
@@ -82,11 +82,11 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
                 {connectionFields.map((f) => (
                   <div key={f.label} className="bg-black/20 rounded-lg p-2.5 relative group">
                     <div className="flex items-center justify-between mb-0.5">
-                      <div className="text-[11px] text-white/40">{f.label}</div>
+                      <div className="text-[11px] text-white/50">{f.label}</div>
                       <button
                         type="button"
                         onClick={() => copy(f.value!, f.label)}
-                        className="opacity-0 group-hover:opacity-100 text-[10px] text-white/30 hover:text-white/60 transition-all"
+                        className="opacity-0 group-hover:opacity-100 text-[10px] text-white/50 hover:text-white/60 transition-all"
                       >
                         {copiedKey === f.label ? 'Copied!' : 'Copy'}
                       </button>
@@ -100,11 +100,11 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
             {quickConnect && (
               <div className="bg-black/20 rounded-lg p-3 relative group">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-[11px] text-white/40">Quick Connect</div>
+                  <div className="text-[11px] text-white/50">Quick Connect</div>
                   <button
                     type="button"
                     onClick={() => copy(quickConnect, 'cmd')}
-                    className="text-[11px] text-white/30 hover:text-white/60 transition-colors"
+                    className="text-[11px] text-white/50 hover:text-white/60 transition-colors"
                   >
                     {copiedKey === 'cmd' ? 'Copied!' : 'Copy'}
                   </button>
@@ -114,7 +114,7 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
             )}
           </>
         ) : (
-          <div className="text-[12px] text-white/30">
+          <div className="text-[12px] text-white/50">
             {info?.error || 'No connection details available. Ensure the database server is running.'}
           </div>
         )}
@@ -135,7 +135,7 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
             .filter((f) => f.v)
             .map((f) => (
               <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
-                <div className="text-[11px] text-white/40">{f.l}</div>
+                <div className="text-[11px] text-white/50">{f.l}</div>
                 <div className="text-[12px] text-white/70 font-mono mt-0.5 break-all">{f.v}</div>
               </div>
             ))}

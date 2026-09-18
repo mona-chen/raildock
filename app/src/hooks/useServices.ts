@@ -57,7 +57,16 @@ export function useUpdateService() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.services.update>[1] }) =>
       api.services.update(id, data),
-    onSuccess: (_, { id }) => {
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['services', id] })
+      const previous = queryClient.getQueryData<Service>(['services', id])
+      if (previous) queryClient.setQueryData<Service>(['services', id], { ...previous, ...data })
+      return { id, previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['services', context.id], context.previous)
+    },
+    onSettled: (_, __, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       queryClient.invalidateQueries({ queryKey: ['projects'] })
     },
@@ -69,11 +78,19 @@ export function useUpdateServiceConfig() {
   return useMutation({
     mutationFn: ({ id, config }: { id: string; config: Record<string, unknown> }) =>
       api.services.update(id, { config }),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['services', id] })
-      toast.success('Settings synced to Dokku')
+    onMutate: async ({ id, config }) => {
+      await queryClient.cancelQueries({ queryKey: ['services', id] })
+      const previous = queryClient.getQueryData<Service>(['services', id])
+      if (previous) queryClient.setQueryData<Service>(['services', id], { ...previous, config })
+      return { id, previous }
     },
-    onError: (err) => toast.error(`Failed to sync settings: ${err.message}`),
+    onError: (err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['services', context.id], context.previous)
+      toast.error(`Failed to sync settings: ${err.message}`)
+    },
+    onSettled: (_, __, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id] })
+    },
   })
 }
 

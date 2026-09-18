@@ -78,7 +78,7 @@ export default function AcceptInvitationPage() {
     return (
       <CenteredCard>
         <Loader2 size={20} className="text-rail-purple animate-spin mx-auto" />
-        <p className="text-[11px] text-[#4A4A55] mt-3 text-center">Loading invitation...</p>
+        <p className="text-[11px] text-[#6b6b7b] mt-3 text-center">Loading invitation...</p>
       </CenteredCard>
     )
   }
@@ -115,7 +115,7 @@ export default function AcceptInvitationPage() {
       <form onSubmit={handleAccept} className="space-y-3">
         {!invitation.existingUser && (
           <div>
-            <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+            <label className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
               Full Name
             </label>
             <input
@@ -125,14 +125,14 @@ export default function AcceptInvitationPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+              className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
               placeholder="Your name"
             />
           </div>
         )}
 
         <div>
-          <label className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+          <label className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
             {invitation.existingUser ? 'Confirm your password' : 'Choose a password'}
           </label>
           <div className="relative">
@@ -144,14 +144,14 @@ export default function AcceptInvitationPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+              className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
               placeholder="••••••••"
             />
             <button
               type="button"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#4A4A55] hover:text-[#A0A0B0]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b] hover:text-[#A0A0B0]"
             >
               {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
@@ -191,7 +191,7 @@ export default function AcceptInvitationPage() {
         </button>
       </form>
 
-      <p className="text-center text-[10px] text-[#4A4A55] mt-4">
+      <p className="text-center text-[10px] text-[#6b6b7b] mt-4">
         Already have an account?{' '}
         <Link to="/login" className="text-rail-purple hover:underline">
           Sign in

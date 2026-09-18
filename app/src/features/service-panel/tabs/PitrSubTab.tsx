@@ -26,7 +26,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
   }
 
   if (isLoading) {
-    return <div className="py-16 text-center text-[12px] text-white/30">Loading PITR status…</div>
+    return <div className="py-16 text-center text-[12px] text-white/50">Loading PITR status…</div>
   }
 
   return (

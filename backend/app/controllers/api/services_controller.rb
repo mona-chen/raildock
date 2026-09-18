@@ -524,14 +524,16 @@ module Api
               memory: stats[:memory],
               memoryUsed: stats[:memory_used],
               memoryLimit: stats[:memory_limit],
-              networkIn: 0,
-              networkOut: 0
+              networkIn: stats[:network_rx] || 0,
+              networkOut: stats[:network_tx] || 0,
+              blockRead: stats[:block_read] || 0,
+              blockWrite: stats[:block_write] || 0
             }
           end
         end
       end
 
-      render json: { cpu: nil, memory: nil, networkIn: 0, networkOut: 0 }
+      render json: { cpu: nil, memory: nil, networkIn: 0, networkOut: 0, blockRead: 0, blockWrite: 0 }
     end
 
     # Historical time series from service_metrics. Optional ?hours= window
@@ -543,19 +545,23 @@ module Api
       samples = @service.service_metrics
         .where(sampled_at: since..)
         .order(:sampled_at)
-        .pluck(:sampled_at, :cpu, :cpu_cores, :memory, :memory_used, :memory_limit)
+        .pluck(:sampled_at, :cpu, :cpu_cores, :memory, :memory_used, :memory_limit, :network_in, :network_out, :block_read, :block_write)
 
       render json: {
         service: @service.name,
         window_hours: hours,
-        samples: samples.map do |t, cpu, cores, mem, used, limit|
+        samples: samples.map do |t, cpu, cores, mem, used, limit, net_in, net_out, block_read, block_write|
           {
             at: t.iso8601,
             cpu: cpu,
             cpu_cores: cores,
             memory: mem,
             memory_used: used,
-            memory_limit: limit
+            memory_limit: limit,
+            network_in: net_in,
+            network_out: net_out,
+            block_read: block_read,
+            block_write: block_write
           }
         end
       }
@@ -1182,7 +1188,8 @@ module Api
         checks: [ :enabled, :mode, :wait, :timeout, :attempts, :waitToRetire, { skipList: [] } ],
         letsencrypt: [ :enabled, :email, :staging, :autoRenew ],
         git: [ :deployBranch, :keepGitDir, :revEnvVar ],
-        traefik: [ :labels, :properties ]
+        traefik: [ :labels, :properties ],
+        staticSite: [ :publishDirectory, :spaFallback, :nodeVersion ]
       ]
     end
 

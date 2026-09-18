@@ -6,6 +6,8 @@ import { useProject } from '@/hooks/useProjects'
 import { useProjects } from '@/hooks/useProjects'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import ErrorState from '@/features/shared/ErrorState'
+import EmptyState from '@/features/shared/EmptyState'
 
 const ACTION_ICON: Record<string, React.ElementType> = {
   deployed: GitBranch,
@@ -38,7 +40,7 @@ export default function ActivityPage() {
   const isScoped = !!projectId
   const { data: project } = useProject(projectId || '')
   const { data: projects = [] } = useProjects()
-  const { data: events = [], isLoading } = useActivity(projectId || '')
+  const { data: events = [], isLoading, isError, refetch } = useActivity(projectId || '')
   const [query, setQuery] = useState('')
   const [action, setAction] = useState('all')
   const actions = useMemo(() => Array.from(new Set(events.map((event) => event.action))).sort(), [events])
@@ -55,10 +57,10 @@ export default function ActivityPage() {
           <Activity size={18} className="text-rail-purple" />
           <h1 className="text-base font-semibold text-white">Activity</h1>
           {isScoped && project && (
-            <span className="text-[11px] text-[#4A4A55]">{project.name}</span>
+            <span className="text-[11px] text-[#6b6b7b]">{project.name}</span>
           )}
           {!isScoped && (
-            <span className="text-[11px] text-[#4A4A55]">All projects</span>
+            <span className="text-[11px] text-[#6b6b7b]">All projects</span>
           )}
         </div>
         <div className="mt-4 flex max-w-3xl items-center gap-2">
@@ -80,6 +82,12 @@ export default function ActivityPage() {
                 <Skeleton className="h-5 w-16 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState
+              title="Couldn't load activity"
+              message="RailDock could not reach the API for the activity feed. Retry to load it."
+              onRetry={() => refetch()}
+            />
           ) : visibleEvents.length > 0 ? (
             <div className="relative divide-y divide-white/[0.05] border-y border-white/[0.05] before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-white/[0.06]">
             {visibleEvents.map((event) => {
@@ -99,16 +107,16 @@ export default function ActivityPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] text-white/80">{event.message}</div>
-                    <div className="text-[11px] text-[#4A4A55] mt-0.5">
+                    <div className="text-[11px] text-[#6b6b7b] mt-0.5">
                       {event.serviceName && event.serviceName !== '-' && (
-                        <span className="text-white/40">{event.serviceName}</span>
+                        <span className="text-white/50">{event.serviceName}</span>
                       )}
                       {event.serviceName && event.serviceName !== '-' && (
                         <span className="mx-1.5 text-white/10">·</span>
                       )}
                       {!isScoped && eventProject && (
                         <>
-                          <span className="text-white/30">{eventProject.name}</span>
+                          <span className="text-white/50">{eventProject.name}</span>
                           <span className="mx-1.5 text-white/10">·</span>
                         </>
                       )}
@@ -124,11 +132,26 @@ export default function ActivityPage() {
                 </article>
               )
             })}</div>
+          ) : events.length === 0 ? (
+            <EmptyState
+              icon={Activity}
+              title="No activity yet"
+              description="Deploys, restarts, and configuration changes are recorded here as they happen."
+            />
           ) : (
-            <div className="text-center py-16 text-[#4A4A55]">
-              <Activity size={48} className="mx-auto mb-4 opacity-30" />
-              <p className="text-sm">No activity yet</p>
-            </div>
+            <EmptyState
+              icon={Search}
+              title="No matching activity"
+              description="No events match the current search or action filter."
+              action={
+                <button
+                  onClick={() => { setQuery(''); setAction('all') }}
+                  className="rounded-lg border border-[rgba(255,255,255,0.1)] px-3 py-2 text-[13px] text-[#A0A0B0] hover:text-white transition-colors"
+                >
+                  Clear filters
+                </button>
+              }
+            />
           )}
         </div>
       </div>

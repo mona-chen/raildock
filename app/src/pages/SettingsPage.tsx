@@ -6,6 +6,7 @@ import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUni
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
 import { useDeployKeys, useCreateDeployKey, useDeleteDeployKey } from '@/hooks/useDeployKeys'
 import { useAuthStore } from '@/stores/useAuthStore'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -35,15 +36,28 @@ import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { AppUpdateInfo, Module } from '@/types'
 
-const TABS = [
-  { key: 'integrations', label: 'Integrations', icon: Puzzle },
-  { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
-  { key: 'organizations', label: 'Organizations', icon: Building2 },
-  { key: 'members', label: 'Members', icon: Users },
-  { key: 'backup-destinations', label: 'Backups', icon: Cloud },
-  { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
-  { key: 'email', label: 'Email', icon: Mail },
-  { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
+// Two scopes live here: things the current organization owns, and things that
+// are configured once for this RailDock instance. Grouping them stops a user
+// from hunting for "Members" among instance-level plugin settings.
+const TAB_GROUPS = [
+  {
+    label: 'Organization',
+    tabs: [
+      { key: 'members', label: 'Members', icon: Users },
+      { key: 'organizations', label: 'Organizations', icon: Building2 },
+      { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
+      { key: 'backup-destinations', label: 'Backups', icon: Cloud },
+      { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
+    ],
+  },
+  {
+    label: 'Instance',
+    tabs: [
+      { key: 'integrations', label: 'Integrations', icon: Puzzle },
+      { key: 'email', label: 'Email', icon: Mail },
+      { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
+    ],
+  },
 ]
 
 export default function SettingsPage() {
@@ -58,22 +72,30 @@ export default function SettingsPage() {
       <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)]">
         <div className="flex items-center gap-3">
           <Settings size={18} className="text-rail-purple" />
-          <h1 className="text-base font-semibold text-white">Platform Settings</h1>
+          <h1 className="text-base font-semibold text-white">Settings</h1>
         </div>
-        <div className="flex gap-4 mt-3">
-          {TABS.map((tab) => (
-            <button
-              type="button"
-              key={tab.key}
-              onClick={() => setSearchParams({ tab: tab.key })}
-              className={`text-xs font-medium pb-1 border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? 'text-rail-purple border-rail-purple'
-                  : 'text-[#4A4A55] border-transparent hover:text-[#A0A0B0]'
-              }`}
-            >
-              {tab.label}
-            </button>
+        <div className="flex items-center gap-4 mt-3 overflow-x-auto">
+          {TAB_GROUPS.map((group, index) => (
+            <div key={group.label} className="flex items-center gap-4 flex-shrink-0">
+              {index > 0 && <div className="w-px h-4 bg-white/[0.08]" aria-hidden="true" />}
+              <span className="text-[10px] uppercase tracking-wider text-[#8a8a99]">{group.label}</span>
+              {group.tabs.map((tab) => (
+                <button
+                  type="button"
+                  key={tab.key}
+                  onClick={() => setSearchParams({ tab: tab.key })}
+                  aria-current={activeTab === tab.key ? 'page' : undefined}
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium pb-1 border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? 'text-rail-purple border-rail-purple'
+                      : 'text-[#8a8a99] border-transparent hover:text-[#A0A0B0]'
+                  }`}
+                >
+                  <tab.icon size={13} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -104,7 +126,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Plugins & Integrations</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">
             Enable, install, and configure plugins that extend RailDock capabilities.
           </p>
         </div>
@@ -124,7 +146,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading plugins...</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading plugins...</div>
       ) : (
         <div className="space-y-3">
           {modules.map((mod) => (
@@ -137,7 +159,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
           ))}
           {modules.length === 0 && (
             <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-              <Puzzle size={24} className="text-[#4A4A55] mx-auto mb-2" />
+              <Puzzle size={24} className="text-[#6b6b7b] mx-auto mb-2" />
               <p className="text-sm text-[#A0A0B0]">No plugins loaded</p>
             </div>
           )}
@@ -153,6 +175,7 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
   const enable = useEnablePlugin()
   const disable = useDisablePlugin()
   const uninstall = useUninstallPlugin()
+  const [uninstallOpen, setUninstallOpen] = useState(false)
   const isBuiltIn = mod.status === 'built_in'
   const isEnabled = mod.status === 'built_in' || mod.status === 'enabled'
   const hasConfig = mod.configSchema && Object.keys(mod.configSchema).length > 0
@@ -167,6 +190,7 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
   }
 
   return (
+    <>
     <div className="flex items-center justify-between p-4 bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
@@ -181,7 +205,7 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
             {mod.status.replace('_', ' ')}
           </span>
         </div>
-        <div className="text-[10px] text-[#4A4A55] mt-0.5 truncate">{mod.description}</div>
+        <div className="text-[10px] text-[#6b6b7b] mt-0.5 truncate">{mod.description}</div>
         <div className="flex flex-wrap gap-1 mt-2">
           {mod.serviceSubtypes.map((s) => (
             <span key={s.subtype} className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">
@@ -228,19 +252,34 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              if (confirm(`Uninstall "${mod.name}"? This cannot be undone.`)) {
-                uninstall.mutate(mod.slug)
-              }
-            }}
+            onClick={() => setUninstallOpen(true)}
             disabled={uninstall.isPending}
-            className="text-[11px] text-[#4A4A55] hover:text-red-400 h-7"
+            className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+            aria-label={`Uninstall ${mod.name}`}
           >
             <Trash2 size={13} />
           </Button>
         )}
       </div>
     </div>
+    <ConfirmDialog
+      open={uninstallOpen}
+      onOpenChange={setUninstallOpen}
+      title={`Uninstall ${mod.name}?`}
+      description="The plugin is removed from RailDock. Any datastores or apps it provisions stay on the host, but RailDock will no longer manage or back them up."
+      confirmLabel="Uninstall plugin"
+      destructive
+      pending={uninstall.isPending}
+      onConfirm={async () => {
+        try {
+          await uninstall.mutateAsync(mod.slug)
+          setUninstallOpen(false)
+        } catch {
+          /* surfaced by the mutation hook */
+        }
+      }}
+    />
+    </>
   )
 }
 
@@ -263,7 +302,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
     <form onSubmit={handleSubmit}>
       <DialogHeader>
         <DialogTitle className="text-sm">Install Plugin</DialogTitle>
-        <DialogDescription className="text-[11px] text-[#4A4A55]">
+        <DialogDescription className="text-[11px] text-[#6b6b7b]">
           Install a plugin from a remote manifest URL (YAML or JSON).
         </DialogDescription>
       </DialogHeader>
@@ -288,7 +327,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://example.com/raildock-plugin.yml"
-            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#4A4A55]"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#6b6b7b]"
           />
         </div>
         <div>
@@ -298,7 +337,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
             value={sourceRef}
             onChange={(e) => setSourceRef(e.target.value)}
             placeholder="main"
-            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#4A4A55]"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#6b6b7b]"
           />
         </div>
       </div>
@@ -330,14 +369,14 @@ function PluginConfigDialog({
       <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
         <DialogHeader>
           <DialogTitle className="text-sm">{plugin ? `${plugin.name} Settings` : 'Plugin Settings'}</DialogTitle>
-          <DialogDescription className="text-[11px] text-[#4A4A55]">
+          <DialogDescription className="text-[11px] text-[#6b6b7b]">
             Configure this plugin before enabling it.
           </DialogDescription>
         </DialogHeader>
         {plugin && (
           <div className="py-2">
             {isLoading ? (
-              <div className="text-[11px] text-[#4A4A55]">Loading settings...</div>
+              <div className="text-[11px] text-[#6b6b7b]">Loading settings...</div>
             ) : (
               <ConfigSchemaForm
                 key={plugin.slug}
@@ -419,12 +458,12 @@ function UpdatesTab() {
   return (
     <div className="max-w-3xl space-y-5">
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+        <div className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
           <ArrowUpCircle size={12} className="text-rail-purple" /> Version & Updates
         </div>
 
         {isLoading ? (
-          <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+          <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
         ) : isError ? (
           <div className="text-[11px] text-red-400">Failed to load update info</div>
         ) : updateInfo ? (
@@ -432,10 +471,10 @@ function UpdatesTab() {
             {/* Current version + last checked */}
             <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
               <div>
-                <div className="text-[11px] text-[#4A4A55]">Current Version</div>
+                <div className="text-[11px] text-[#6b6b7b]">Current Version</div>
                 <div className="text-sm text-white font-mono mt-0.5">{updateInfo.currentVersion}</div>
               </div>
-              <div className="text-[10px] text-[#4A4A55] text-right">
+              <div className="text-[10px] text-[#6b6b7b] text-right">
                 Last checked: <span className="text-white/60">{formatDate(updateInfo.checkedAt)}</span>
               </div>
             </div>
@@ -474,7 +513,7 @@ function UpdatesTab() {
               <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
                 <div className="text-sm text-[#A0A0B0]">You're up to date</div>
                 {updateInfo.latestVersion && (
-                  <div className="text-[11px] text-[#4A4A55] mt-0.5">
+                  <div className="text-[11px] text-[#6b6b7b] mt-0.5">
                     Latest available: <span className="font-mono text-white/60">{updateInfo.latestVersion}</span>
                   </div>
                 )}
@@ -523,13 +562,13 @@ function UpdatesTab() {
 
       {/* Auto-update settings */}
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+        <div className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
           <RefreshCw size={12} className="text-rail-purple" /> Auto-Update
         </div>
         <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg gap-4">
           <div className="min-w-0">
             <div className="text-sm text-white">Automatic Updates</div>
-            <div className="text-[11px] text-[#4A4A55] mt-0.5">
+            <div className="text-[11px] text-[#6b6b7b] mt-0.5">
               When enabled, RailDock checks for updates every 6 hours and applies them automatically.
             </div>
           </div>
@@ -562,6 +601,7 @@ function DeployKeysTab() {
   const deleteKey = useDeleteDeployKey()
   const [name, setName] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
   const { copiedKey, copy } = useCopy(2000)
 
   const handleCreate = () => {
@@ -579,7 +619,7 @@ function DeployKeysTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Deploy Keys</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">SSH keys for cloning private repositories</p>
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">SSH keys for cloning private repositories</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -591,7 +631,7 @@ function DeployKeysTab() {
           <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
             <DialogHeader>
               <DialogTitle className="text-sm">Create Deploy Key</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#4A4A55]">
+              <DialogDescription className="text-[11px] text-[#6b6b7b]">
                 Generates a new ED25519 SSH key pair. The private key is stored encrypted.
               </DialogDescription>
             </DialogHeader>
@@ -618,12 +658,12 @@ function DeployKeysTab() {
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
       ) : keys.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Key size={24} className="text-[#4A4A55] mx-auto mb-2" />
+          <Key size={24} className="text-[#6b6b7b] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No deploy keys yet</p>
-          <p className="text-[11px] text-[#4A4A55] mt-1">Create one to deploy from private Git repos via SSH.</p>
+          <p className="text-[11px] text-[#6b6b7b] mt-1">Create one to deploy from private Git repos via SSH.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -640,17 +680,14 @@ function DeployKeysTab() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    if (confirm(`Delete "${key.name}"? This cannot be undone.`)) {
-                      deleteKey.mutate(key.id)
-                    }
-                  }}
-                  className="text-[11px] text-[#4A4A55] hover:text-red-400 h-7"
+                  onClick={() => setRemoveTarget({ id: key.id, name: key.name })}
+                  className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+                  aria-label={`Delete deploy key ${key.name}`}
                 >
                   <Trash2 size={13} />
                 </Button>
               </div>
-              <div className="text-[10px] text-[#4A4A55]">Fingerprint: {key.fingerprint}</div>
+              <div className="text-[10px] text-[#6b6b7b]">Fingerprint: {key.fingerprint}</div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1 truncate">
                   {key.publicKey}
@@ -668,6 +705,25 @@ function DeployKeysTab() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title={`Delete deploy key${removeTarget ? ` "${removeTarget.name}"` : ''}?`}
+        description="Any service still cloning a private repo with this key will fail on its next deploy until a new key is added."
+        confirmLabel="Delete key"
+        destructive
+        pending={deleteKey.isPending}
+        onConfirm={async () => {
+          if (!removeTarget) return
+          try {
+            await deleteKey.mutateAsync(removeTarget.id)
+            setRemoveTarget(null)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
     </div>
   )
 }
@@ -680,6 +736,7 @@ function OrganizationsTab() {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
 
   const handleCreate = () => {
     if (!name.trim() || !slug.trim()) return
@@ -697,7 +754,7 @@ function OrganizationsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Organizations</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">Manage teams and shared resources</p>
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">Manage teams and shared resources</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -709,7 +766,7 @@ function OrganizationsTab() {
           <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
             <DialogHeader>
               <DialogTitle className="text-sm">Create Organization</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#4A4A55]">
+              <DialogDescription className="text-[11px] text-[#6b6b7b]">
                 Organizations let you share projects and git sources with your team.
               </DialogDescription>
             </DialogHeader>
@@ -747,12 +804,12 @@ function OrganizationsTab() {
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
       ) : organizations.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Building2 size={24} className="text-[#4A4A55] mx-auto mb-2" />
+          <Building2 size={24} className="text-[#6b6b7b] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No organizations yet</p>
-          <p className="text-[11px] text-[#4A4A55] mt-1">Create one to share projects with your team.</p>
+          <p className="text-[11px] text-[#6b6b7b] mt-1">Create one to share projects with your team.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -771,7 +828,7 @@ function OrganizationsTab() {
                 </div>
                 <div>
                   <div className="text-sm text-white font-medium">{org.name}</div>
-                  <div className="text-[10px] text-[#4A4A55] flex items-center gap-2">
+                  <div className="text-[10px] text-[#6b6b7b] flex items-center gap-2">
                     <span>@{org.slug}</span>
                     <span className="flex items-center gap-1">
                       <Users size={10} />
@@ -796,13 +853,9 @@ function OrganizationsTab() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    if (confirm(`Delete "${org.name}"? This cannot be undone.`)) {
-                      deleteOrg.mutate(org.id)
-                      if (currentOrganizationId === org.id) setCurrentOrganizationId(null)
-                    }
-                  }}
-                  className="text-[11px] text-[#4A4A55] hover:text-red-400 h-7"
+                  onClick={() => setRemoveTarget(org)}
+                  className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+                  aria-label={`Delete organization ${org.name}`}
                 >
                   <Trash2 size={13} />
                 </Button>
@@ -811,6 +864,38 @@ function OrganizationsTab() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title="Delete organization?"
+        description={
+          <>
+            <span className="font-medium text-white">{removeTarget?.name}</span>, its projects, services and
+            servers will be removed from RailDock. Apps and datastores already running on your hosts are left
+            untouched, but RailDock will no longer deploy to or back them up.
+          </>
+        }
+        confirmLabel="Delete organization"
+        destructive
+        confirmWord={removeTarget?.name}
+        confirmWordLabel={
+          <>
+            Type <span className="font-mono font-medium text-white">{removeTarget?.name}</span> to confirm
+          </>
+        }
+        pending={deleteOrg.isPending}
+        onConfirm={async () => {
+          if (!removeTarget) return
+          try {
+            await deleteOrg.mutateAsync(removeTarget.id)
+            if (currentOrganizationId === removeTarget.id) setCurrentOrganizationId(null)
+            setRemoveTarget(null)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
     </div>
   )
 }

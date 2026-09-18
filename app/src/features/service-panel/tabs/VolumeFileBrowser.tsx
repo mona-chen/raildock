@@ -35,12 +35,12 @@ export default function VolumeFileBrowser({ serviceId, storageMountId, container
   return (
     <div className="rounded-lg border border-white/[0.07] bg-[#17171b]">
       <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
-        <HardDrive size={12} className="text-white/30" />
+        <HardDrive size={12} className="text-white/50" />
         <span className="text-[11px] text-white/50">{containerPath}</span>
         <ChevronRight size={12} className="text-white/20" />
         <span className="font-mono text-[11px] text-white/70">{path}</span>
         {path !== '/' && (
-          <button onClick={goUp} className="ml-auto text-[10px] text-white/40 hover:text-white/70">
+          <button onClick={goUp} className="ml-auto text-[10px] text-white/50 hover:text-white/70">
             Up
           </button>
         )}
@@ -48,7 +48,7 @@ export default function VolumeFileBrowser({ serviceId, storageMountId, container
 
       <div className="max-h-64 overflow-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-white/30">
+          <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-white/50">
             <Loader2 size={13} className="animate-spin" /> Reading volume…
           </div>
         ) : isError ? (
@@ -68,7 +68,7 @@ export default function VolumeFileBrowser({ serviceId, storageMountId, container
                   {entry.type === 'directory' ? (
                     <Folder size={13} className="text-amber-300/70" />
                   ) : (
-                    <File size={13} className="text-white/30" />
+                    <File size={13} className="text-white/50" />
                   )}
                   <span className="flex-1 truncate font-mono text-[11px] text-white/65">{entry.name}</span>
                   <span className="text-[10px] text-white/25">{formatSize(entry.size)}</span>

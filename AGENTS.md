@@ -189,6 +189,18 @@ version the target servers run before assuming a behavior.
   itself only for manifests that are not in the deployed repo: UI/DB/template
   manifests, `git:from-image` deploys, and subdirectory deploys. Keep it that
   way.
+- **Static sites are built by a static-capable builder and served by Caddy.**
+  A service with `config["staticSite"]["publishDirectory"]` (manifest
+  `publish_directory`) is a static bundle. `StaticSiteConfigurator` forces
+  railpack (else nixpacks), merges `RAILPACK_SPA_OUTPUT_DIR` /
+  `RAILPACK_NODE_VERSION` or `NIXPACKS_SPA_OUT_DIR` / `NIXPACKS_NODE_VERSION`
+  into the build env, and writes the Caddy command to
+  `ps:set <app> dockerfile-start-cmd`. The command has to be supplied because
+  Dokku's railpack and nixpacks build stages set `ENTRYPOINT`, which clears the
+  image `CMD` railpack put the serve command in, and nixpacks otherwise defaults
+  to the removed Node 18. An explicit `start_command` or a `dockerfile` builder
+  passes through untouched. `StaticSiteDetector` records this automatically when
+  importing a recognized Vite/CRA/Angular/Astro/Gatsby/Next-export repo.
 - **Reconcile, do not track.** Apply the desired state and diff it against what
   is actually on the host (`docker-options:report`, `ports:report`), removing
   anything stale. Never rely only on the labels RailDock *thinks* it wrote —
@@ -201,6 +213,22 @@ version the target servers run before assuming a behavior.
   both backend labels, routers with no backend, or a missing host rule) — not
   for a benign pending change such as a container still on the `port` label
   that the next deploy turns into `url`.
+- **Drift merge is review-first and never destructive.** `ManifestDrift`
+  (surfaced at `GET /api/projects/:id/manifest/drift` and
+  `POST /api/projects/:id/manifest/merge`) reports how the stored manifest
+  differs from live services and proposes a manifest that folds accepted live
+  values back in. It never persists anything: the proposed content goes back
+  into the editor and is saved through the normal `PATCH /manifest` path, so
+  validation and the removal-confirmation flow still run. A service the
+  manifest declares but that no longer exists is never merged away, and
+  services the manifest does not own (`managed_by: ui`) are never adopted.
+  Only native `raildock.toml`/`raildock.json` can be regenerated; compatibility
+  formats (railway.toml, railway.json, app.json) report `supported: false`.
+- **`restart_policy` is stored hyphenated.** Rails' enum reader returns the
+  label (`on_failure`) while the database, manifests and the JSON API use the
+  stored value (`on-failure`). Use `Service#restart_policy_value` (as `as_json`
+  and `ManifestReconciler#build_actual_state` do) rather than the bare reader
+  whenever a value is compared against or written to a manifest.
 
 ## Making changes
 

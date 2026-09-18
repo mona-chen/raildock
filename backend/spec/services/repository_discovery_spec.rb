@@ -82,6 +82,59 @@ RSpec.describe RepositoryDiscovery do
     expect(result.warnings.join).to include("used the native manifest")
   end
 
+  it "detects a static frontend and records its publish directory" do
+    stub_tree("package.json")
+    stub_content("package.json", JSON.generate(
+      "scripts" => { "dev" => "vite", "build" => "tsc && vite build" },
+      "devDependencies" => { "vite" => "^6.0.0" }
+    ))
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.first).to include("publish_directory" => "dist")
+    expect(result.services.first["builder"]).to be_nil
+    expect(result.evidence.first[:decision]).to include("Static vite")
+  end
+
+  it "does not mark a server-rendered Next app as static" do
+    stub_tree("package.json")
+    stub_content("package.json", JSON.generate(
+      "scripts" => { "build" => "next build" },
+      "dependencies" => { "next" => "^15.0.0" }
+    ))
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.first).not_to have_key("publish_directory")
+  end
+
+  it "lists variable names documented in example dotenv files" do
+    stub_tree("package.json", ".env.example")
+    stub_content("package.json", JSON.generate(name: "storefront"))
+    stub_content(".env.example", <<~ENV)
+      # comment
+      DATABASE_URL=postgres://localhost/app
+      export REDIS_URL=redis://localhost:6379
+      API_KEY=
+      not a variable
+    ENV
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.first["env_keys"]).to eq(%w[API_KEY DATABASE_URL REDIS_URL])
+    expect(result.canonical_manifest).not_to include("env_keys")
+  end
+
+  it "never reads a real .env file" do
+    stub_tree("package.json", ".env")
+    stub_content("package.json", JSON.generate(name: "storefront"))
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.first["env_keys"]).to eq([])
+    expect(client).not_to have_received(:contents).with(repository, path: ".env", ref: commit_sha)
+  end
+
   def stub_tree(*paths)
     entries = paths.map { |path| OpenStruct.new(type: "blob", path: path) }
     allow(client).to receive(:tree).with(repository, commit_sha, recursive: true).and_return(

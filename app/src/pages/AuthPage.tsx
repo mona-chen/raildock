@@ -138,7 +138,7 @@ export default function AuthPage() {
           <h1 className="text-base font-semibold text-white mb-1">
             {isSetup ? 'Create Admin Account' : 'Sign In'}
           </h1>
-          <p className="text-xs text-[#4A4A55] mb-5">
+          <p className="text-xs text-[#6b6b7b] mb-5">
             {isSetup
               ? 'Set up your first admin user to get started.'
               : 'Enter your credentials to access the dashboard.'}
@@ -154,7 +154,7 @@ export default function AuthPage() {
           <form onSubmit={isSetup ? handleSetup : handleLogin} className="space-y-3">
             {isSetup && (
               <div>
-                <label htmlFor="auth-name" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-name" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
                   Full Name
                 </label>
                 <input
@@ -165,13 +165,13 @@ export default function AuthPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                  className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
                   placeholder="Admin User"
                 />
               </div>
             )}
             <div>
-              <label htmlFor="auth-email" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-email" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
                 Email
               </label>
               <input
@@ -182,12 +182,12 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
                 placeholder="admin@example.com"
               />
             </div>
             <div>
-              <label htmlFor="auth-password" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-password" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -200,14 +200,14 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                  className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#4A4A55] hover:text-[#A0A0B0]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b] hover:text-[#A0A0B0]"
                 >
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -230,7 +230,7 @@ export default function AuthPage() {
                       { label: 'Number', met: /[0-9]/.test(password) },
                       { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
                     ].map((req) => (
-                      <span key={req.label} className={`text-[10px] flex items-center gap-1 ${req.met ? 'text-rail-green' : 'text-[#4A4A55]'}`}>
+                      <span key={req.label} className={`text-[10px] flex items-center gap-1 ${req.met ? 'text-rail-green' : 'text-[#6b6b7b]'}`}>
                         {req.met ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
                         {req.label}
                       </span>
@@ -242,7 +242,7 @@ export default function AuthPage() {
 
             {isSetup && (
               <div>
-                <label htmlFor="auth-confirm-password" className="block text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-confirm-password" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
                   Confirm Password
                 </label>
                 <input
@@ -253,7 +253,7 @@ export default function AuthPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className={`w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border rounded-lg text-sm text-white placeholder-[#4A4A55] focus:outline-none transition-colors ${
+                  className={`w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none transition-colors ${
                     passwordsMatch ? 'border-[rgba(255,255,255,0.08)] focus:border-[rgba(139,92,246,0.4)]' : 'border-red-500/30 focus:border-red-500/50'
                   }`}
                   placeholder="••••••••"
@@ -287,7 +287,7 @@ export default function AuthPage() {
             <div className="mt-3 text-center">
               <button
                 onClick={() => toast.info('Password reset is not yet configured. Contact your admin.')}
-                className="text-[11px] text-[#4A4A55] hover:text-[#A0A0B0] transition-colors"
+                className="text-[11px] text-[#6b6b7b] hover:text-[#A0A0B0] transition-colors"
               >
                 Forgot password?
               </button>
@@ -295,7 +295,7 @@ export default function AuthPage() {
           )}
         </div>
 
-        <p className="text-center text-[10px] text-[#4A4A55] mt-4">
+        <p className="text-center text-[10px] text-[#6b6b7b] mt-4">
           {isSetup ? 'Already have an account? ' : 'Need to set up? '}
           {isSetup ? (
             <button onClick={() => navigate('/login')} className="text-rail-purple hover:underline">

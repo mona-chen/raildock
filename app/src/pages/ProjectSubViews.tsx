@@ -77,7 +77,7 @@ function SharedVarsSection() {
         <div className="flex items-center gap-2">
           <KeyRound size={14} className="text-rail-purple" />
           <h2 className="text-sm font-medium text-white">Shared Variables</h2>
-          <span className="ml-auto text-[10px] text-white/30">{vars.length} variables</span>
+          <span className="ml-auto text-[10px] text-white/50">{vars.length} variables</span>
         </div>
         <p className="text-[11px] text-white/35 mt-1">
           Reference these in the manifest as <code className="text-white/55">${'{{ shared.KEY }}'}</code>.
@@ -92,7 +92,7 @@ function SharedVarsSection() {
               return (
                 <div key={variable.key} className="px-4 py-3 flex items-center gap-3 group">
                   <code className="text-[12px] text-white/70 flex-1">{variable.key}</code>
-                  <span className="text-[11px] font-mono text-white/40 break-all">
+                  <span className="text-[11px] font-mono text-white/50 break-all">
                     {isRevealed ? variable.value : '••••••••••••'}
                   </span>
                   <button

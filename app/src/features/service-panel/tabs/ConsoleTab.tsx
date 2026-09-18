@@ -85,7 +85,7 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[12px] text-white/50">Enter Container Shell</div>
-            <div className="text-[11px] text-white/30 mt-0.5">Interactive shell session within the container</div>
+            <div className="text-[11px] text-white/50 mt-0.5">Interactive shell session within the container</div>
           </div>
           <button
             onClick={copyEnterCommand}
@@ -95,8 +95,8 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
             {copied ? 'Copied!' : 'Copy Command'}
           </button>
         </div>
-        <div className="mt-2 bg-black/30 rounded-lg p-2.5 font-mono text-[12px] text-white/40 flex items-center gap-2">
-          <Monitor size={13} className="text-white/30 shrink-0" />
+        <div className="mt-2 bg-black/30 rounded-lg p-2.5 font-mono text-[12px] text-white/50 flex items-center gap-2">
+          <Monitor size={13} className="text-white/50 shrink-0" />
           <span className="text-white/60">{enterCommand}</span>
         </div>
       </div>

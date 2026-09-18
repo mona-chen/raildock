@@ -82,11 +82,11 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-[#0f0f13]">
         <div className="flex items-center gap-2">
-          <Monitor size={14} className="text-white/40" />
+          <Monitor size={14} className="text-white/50" />
           <span className="text-[12px] text-white/60 font-medium">
             {serviceName}
           </span>
-          <span className="text-[10px] text-white/30">
+          <span className="text-[10px] text-white/50">
             — Interactive Shell
           </span>
         </div>
@@ -100,9 +100,9 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
 
           {/* Shell selector */}
           <div className="flex items-center gap-1.5">
-            <Shell size={12} className="text-white/30" />
+            <Shell size={12} className="text-white/50" />
             <Select value={shell} onValueChange={setShell}>
-              <SelectTrigger className="bg-transparent text-[11px] text-white/50 hover:text-white/70 hover:bg-transparent border-white/10 rounded px-1.5 py-0.5 h-auto w-auto gap-1 cursor-pointer outline-none focus:ring-0 focus:border-white/10 [&_svg]:size-3 [&_svg]:text-white/30">
+              <SelectTrigger className="bg-transparent text-[11px] text-white/50 hover:text-white/70 hover:bg-transparent border-white/10 rounded px-1.5 py-0.5 h-auto w-auto gap-1 cursor-pointer outline-none focus:ring-0 focus:border-white/10 [&_svg]:size-3 [&_svg]:text-white/50">
                 <SelectValue placeholder="Select shell" />
               </SelectTrigger>
               <SelectContent className="bg-[#0f0f13] border-white/10">
@@ -117,7 +117,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
 
           <button
             onClick={() => setShowSearch((s) => !s)}
-            className="text-white/30 hover:text-white/60 transition-colors"
+            className="text-white/50 hover:text-white/60 transition-colors"
             title="Search (Ctrl+F)"
           >
             <Search size={14} />
@@ -135,7 +135,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           ) : (
             <button
               onClick={() => setIsExpanded(true)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Expand terminal"
             >
               <Maximize2 size={13} />
@@ -144,7 +144,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
 
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : error ? 'bg-red-400' : 'bg-amber-500'}`} />
-            <span className="text-[10px] text-white/40">
+            <span className="text-[10px] text-white/50">
               {isConnected ? 'Connected' : error ? 'Unavailable' : 'Connecting...'}
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
       {/* Search bar */}
       {showSearch && (
         <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/[0.06] bg-[#131318]">
-          <Search size={12} className="text-white/30" />
+          <Search size={12} className="text-white/50" />
           <input
             type="text"
             value={searchQuery}
@@ -165,21 +165,21 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           />
           <button
             onClick={handleFindPrev}
-            className="text-white/30 hover:text-white/60 transition-colors p-0.5"
+            className="text-white/50 hover:text-white/60 transition-colors p-0.5"
             title="Previous match"
           >
             <ChevronUp size={14} />
           </button>
           <button
             onClick={handleFindNext}
-            className="text-white/30 hover:text-white/60 transition-colors p-0.5"
+            className="text-white/50 hover:text-white/60 transition-colors p-0.5"
             title="Next match"
           >
             <ChevronDown size={14} />
           </button>
           <button
             onClick={() => { setShowSearch(false); clearSearch() }}
-            className="text-white/30 hover:text-white/60 transition-colors p-0.5"
+            className="text-white/50 hover:text-white/60 transition-colors p-0.5"
             title="Close search"
           >
             <X size={14} />
@@ -190,7 +190,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
       {/* Info banner — dismissible */}
       {showInfo && (
         <div className="px-4 py-2 border-b border-white/[0.06] bg-[#131318] flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[11px] text-white/40">
+          <div className="flex items-center gap-2 text-[11px] text-white/50">
             <Power size={12} className="text-[#8b5cf6]" />
             <span>
               Type commands directly. Supports <code className="text-white/60">vim</code>,{' '}
@@ -201,7 +201,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           </div>
           <button
             onClick={() => setShowInfo(false)}
-            className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+            className="text-[10px] text-white/50 hover:text-white/60 transition-colors"
           >
             Dismiss
           </button>
@@ -212,7 +212,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
       <div className="flex-1 relative overflow-hidden">
         {!isConnected && !error && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0B0B0D]/80 z-10">
-            <div className="flex flex-col items-center gap-2 text-white/30">
+            <div className="flex flex-col items-center gap-2 text-white/50">
               <Loader2 size={20} className="animate-spin" />
               <span className="text-[12px]">Opening terminal session...</span>
             </div>
@@ -226,7 +226,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
               </div>
               <div>
                 <p className="text-[13px] font-medium text-white/80">Couldn’t open the terminal</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/40">{error}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/50">{error}</p>
               </div>
               <button
                 type="button"

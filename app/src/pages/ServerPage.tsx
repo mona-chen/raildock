@@ -10,9 +10,12 @@ import ServerUnmanagedDatastoresModal from '@/features/servers/ServerUnmanagedDa
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
+import ErrorState from '@/features/shared/ErrorState'
+import EmptyState from '@/features/shared/EmptyState'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 
 export default function ServerPage() {
-  const { data: servers = [], isLoading } = useServers()
+  const { data: servers = [], isLoading, isError, refetch } = useServers()
   const destroyServer = useDestroyServer()
   const validateServer = useValidateServer()
   const updateServer = useUpdateServer()
@@ -24,6 +27,7 @@ export default function ServerPage() {
   const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
   const [importServer, setImportServer] = useState<ServerRecord | null>(null)
   const [adoptServer, setAdoptServer] = useState<ServerRecord | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<ServerRecord | null>(null)
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [proxyNetwork, setProxyNetwork] = useState('')
   const [httpEntrypoint, setHttpEntrypoint] = useState('web')
@@ -114,6 +118,12 @@ export default function ServerPage() {
                 </div>
               </div>
             ))
+          ) : isError ? (
+            <ErrorState
+              title="Couldn't load servers"
+              message="RailDock could not reach the API to list your Dokku hosts. Retry to load them."
+              onRetry={() => refetch()}
+            />
           ) : (
             servers.map((srv) => (
               <div key={srv.id} className="relative group">
@@ -125,18 +135,18 @@ export default function ServerPage() {
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-white">{srv.name}</div>
-                        <div className="text-[10px] text-[#4A4A55]">{srv.host} · {srv.os}</div>
+                        <div className="text-[10px] text-[#6b6b7b]">{srv.host} · {srv.os}</div>
                         {srv.baseDomain && (
                           <div className="text-[10px] text-rail-purple mt-0.5">*.{srv.baseDomain}</div>
                         )}
                         {srv.publicIp && (
-                          <div className="text-[10px] text-[#4A4A55] mt-0.5">IP {srv.publicIp}</div>
+                          <div className="text-[10px] text-[#6b6b7b] mt-0.5">IP {srv.publicIp}</div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${srv.status === 'connected' ? 'bg-rail-green' : srv.status === 'error' ? 'bg-rail-red' : 'bg-rail-yellow'}`} />
-                      <span className="text-[11px] text-[#6B6B7B] capitalize">{srv.status}</span>
+                      <span className="text-[11px] text-[#8a8a99] capitalize">{srv.status}</span>
                       {srv.status !== 'connected' && (
                         <button
                           onClick={() => validateServer.mutate(srv.id)}
@@ -148,21 +158,21 @@ export default function ServerPage() {
                       )}
                       <button
                         onClick={() => setImportServer(srv)}
-                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
                         title="Import Docker containers"
                       >
                         <Container size={14} />
                       </button>
                       <button
                         onClick={() => setAdoptServer(srv)}
-                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
                         title="Adopt untracked datastores"
                       >
                         <Database size={14} />
                       </button>
                       <button
                         onClick={() => openSettings(srv)}
-                        className="p-1 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
                         title="Proxy settings"
                       >
                         <Settings size={14} />
@@ -173,19 +183,19 @@ export default function ServerPage() {
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.projectIds.length}</div>
-                      <div className="text-[10px] text-[#4A4A55]">Projects</div>
+                      <div className="text-[10px] text-[#6b6b7b]">Projects</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.dokkuVersion}</div>
-                      <div className="text-[10px] text-[#4A4A55]">Dokku</div>
+                      <div className="text-[10px] text-[#6b6b7b]">Dokku</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.dockerVersion}</div>
-                      <div className="text-[10px] text-[#4A4A55]">Docker</div>
+                      <div className="text-[10px] text-[#6b6b7b]">Docker</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white capitalize">{srv.defaultProxy}</div>
-                      <div className="text-[10px] text-[#4A4A55]">Proxy</div>
+                      <div className="text-[10px] text-[#6b6b7b]">Proxy</div>
                     </div>
                   </div>
 
@@ -193,7 +203,7 @@ export default function ServerPage() {
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <HardDrive size={12} className="text-rail-blue" />
-                        <span className="text-[10px] text-[#4A4A55]">Disk</span>
+                        <span className="text-[10px] text-[#6b6b7b]">Disk</span>
                       </div>
                       <div className="text-sm font-bold text-white">{srv.diskUsage.used}/{srv.diskUsage.total} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
@@ -203,7 +213,7 @@ export default function ServerPage() {
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Activity size={12} className="text-rail-purple" />
-                        <span className="text-[10px] text-[#4A4A55]">Memory</span>
+                        <span className="text-[10px] text-[#6b6b7b]">Memory</span>
                       </div>
                       <div className="text-sm font-bold text-white">{srv.memoryUsage.used}/{srv.memoryUsage.total} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
@@ -214,11 +224,10 @@ export default function ServerPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    if (confirm(`Remove server "${srv.name}"?`)) destroyServer.mutate(srv.id)
-                  }}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.04] transition-all"
+                  onClick={() => setRemoveTarget(srv)}
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
                   title="Remove server"
+                  aria-label={`Remove server ${srv.name}`}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -226,23 +235,60 @@ export default function ServerPage() {
             ))
           )}
 
-          {servers.length === 0 && !isLoading && (
-            <div className="text-center py-16 text-[#4A4A55]">
-              <Server size={48} className="mx-auto mb-4 opacity-30" />
-              <p className="text-sm">No servers connected</p>
-              {canCreateServer ? (
-                <button onClick={() => setShowAdd(true)} className="mt-3 text-rail-purple text-sm hover:underline">
-                  Connect your first server
-                </button>
-              ) : (
-                <p className="mt-3 text-[11px]">Only organization owners can connect servers.</p>
-              )}
-            </div>
+          {servers.length === 0 && !isLoading && !isError && (
+            <EmptyState
+              icon={Server}
+              title="No servers connected"
+              description="Connect a Dokku host over SSH and RailDock will run its builds and deployments there."
+              action={
+                canCreateServer ? (
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-2 text-[13px] font-medium text-white hover:bg-[#7c3aed] transition-colors"
+                  >
+                    <Plus size={14} /> Connect a server
+                  </button>
+                ) : undefined
+              }
+              hint={canCreateServer ? undefined : 'Only organization owners can connect servers.'}
+            />
           )}
         </div>
       </div>
 
       {showAdd && <ServerSetupWizard isOpen={showAdd} onClose={() => setShowAdd(false)} />}
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title="Remove server?"
+        description={
+          <>
+            RailDock will stop managing{' '}
+            <span className="font-medium text-white">{removeTarget?.name}</span>. Apps and
+            datastores already running on the host are left untouched, but you will lose the
+            ability to deploy or back them up from here.
+          </>
+        }
+        confirmLabel="Remove server"
+        destructive
+        confirmWord={removeTarget?.name}
+        confirmWordLabel={
+          <>
+            Type <span className="font-mono font-medium text-white">{removeTarget?.name}</span> to confirm
+          </>
+        }
+        pending={destroyServer.isPending}
+        onConfirm={async () => {
+          if (!removeTarget) return
+          try {
+            await destroyServer.mutateAsync(removeTarget.id)
+            setRemoveTarget(null)
+          } catch {
+            /* error toast is surfaced by the mutation hook */
+          }
+        }}
+      />
 
       {importServer && (
         <ServerDockerImportModal
@@ -264,11 +310,11 @@ export default function ServerPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setSettingsServer(null)}>
           <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[560px] max-h-[90vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
             <h3 className="text-base font-semibold text-white">Proxy Settings</h3>
-            <p className="text-xs text-[#6B6B7B] mt-1 mb-5">{settingsServer.name}</p>
+            <p className="text-xs text-[#8a8a99] mt-1 mb-5">{settingsServer.name}</p>
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="proxy-mode" className="text-[11px] text-[#6B6B7B] block mb-1.5">Proxy Mode</label>
+                <label htmlFor="proxy-mode" className="text-[11px] text-[#8a8a99] block mb-1.5">Proxy Mode</label>
                 <Select value={proxyMode} onValueChange={(value) => setProxyMode(value as 'managed' | 'external')}>
                   <SelectTrigger id="proxy-mode">
                     <SelectValue placeholder="Select proxy mode" />
@@ -284,7 +330,7 @@ export default function ServerPage() {
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label htmlFor="proxy-network" className="text-[11px] text-[#6B6B7B]">Traefik Docker Network</label>
+                      <label htmlFor="proxy-network" className="text-[11px] text-[#8a8a99]">Traefik Docker Network</label>
                       <button
                         type="button"
                         disabled={!proxyNetwork || validateNetwork.isPending}
@@ -316,11 +362,11 @@ export default function ServerPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="default-labels" className="text-[11px] text-[#6B6B7B] block mb-1.5">Default Traefik labels (JSON)</label>
+                    <label htmlFor="default-labels" className="text-[11px] text-[#8a8a99] block mb-1.5">Default Traefik labels (JSON)</label>
                     <textarea id="default-labels" value={defaultLabels} onChange={(event) => setDefaultLabels(event.target.value)} rows={5} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-xs text-white font-mono" />
                   </div>
 
-                  <p className="text-[10px] text-[#6B6B7B]">
+                  <p className="text-[10px] text-[#8a8a99]">
                     RailDock will not start, stop, or reconfigure the existing Traefik container. Services attach to this network when redeployed.
                   </p>
                 </>
@@ -349,7 +395,7 @@ function ProxyInput({ id, label, value, onChange, placeholder }: {
 }) {
   return (
     <div>
-      <label htmlFor={id} className="text-[11px] text-[#6B6B7B] block mb-1.5">{label}</label>
+      <label htmlFor={id} className="text-[11px] text-[#8a8a99] block mb-1.5">{label}</label>
       <input id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-white/10 rounded-lg text-sm text-white" />
     </div>
   )

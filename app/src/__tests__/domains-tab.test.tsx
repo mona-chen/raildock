@@ -185,9 +185,7 @@ describe('DomainsTab', () => {
     expect(screen.getByText(/container port 3000/i)).toBeInTheDocument()
   })
 
-  it('removes a domain after confirmation', () => {
-    vi.stubGlobal('confirm', vi.fn(() => true))
-
+  it('removes a domain after confirmation', async () => {
     const service = mockService({
       detectedPort: 3000,
       domains: [mockDomain({ hostname: 'api.example.com' })],
@@ -195,15 +193,12 @@ describe('DomainsTab', () => {
     renderWithClient(<DomainsTab svc={service} />)
 
     fireEvent.click(screen.getByTitle('Remove domain'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     expect(removeMutate).toHaveBeenCalledWith({ id: 'svc-1', hostname: 'api.example.com' })
-
-    vi.unstubAllGlobals()
   })
 
-  it('does not remove a domain when confirmation is cancelled', () => {
-    vi.stubGlobal('confirm', vi.fn(() => false))
-
+  it('does not remove a domain when confirmation is cancelled', async () => {
     const service = mockService({
       detectedPort: 3000,
       domains: [mockDomain({ hostname: 'api.example.com' })],
@@ -211,9 +206,8 @@ describe('DomainsTab', () => {
     renderWithClient(<DomainsTab svc={service} />)
 
     fireEvent.click(screen.getByTitle('Remove domain'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
     expect(removeMutate).not.toHaveBeenCalled()
-
-    vi.unstubAllGlobals()
   })
 })

@@ -54,13 +54,13 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
               <Link2 size={14} className="text-[#8b5cf6]" />
               <div className="text-[13px] font-medium text-white/70">Connections</div>
             </div>
-            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
+            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/50 rounded">
               {connectionVars.length}
             </span>
           </div>
 
           {connectionVars.length === 0 ? (
-            <div className="text-[12px] text-white/30 py-2">No databases linked. Use the canvas to link a service.</div>
+            <div className="text-[12px] text-white/50 py-2">No databases linked. Use the canvas to link a service.</div>
           ) : (
             <div className="space-y-3">
               {connectionVars.map((ev) => {
@@ -76,7 +76,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => copy(ev.value, ev.key)}
-                          className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+                          className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
                           title="Copy connection string"
                         >
                           {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
@@ -84,7 +84,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                       </div>
                     </div>
 
-                    <div className="font-mono text-[11px] text-white/40 break-all bg-black/20 rounded px-2.5 py-2 mb-2">
+                    <div className="font-mono text-[11px] text-white/50 break-all bg-black/20 rounded px-2.5 py-2 mb-2">
                       {maskConnectionUrl(ev.value)}
                     </div>
 
@@ -124,13 +124,13 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
               <Link2 size={14} className="text-[#8b5cf6]" />
               <div className="text-[13px] font-medium text-white/70">Connected Apps</div>
             </div>
-            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/40 rounded">
+            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/50 rounded">
               {linkedByServices?.length || 0}
             </span>
           </div>
 
           {!linkedByServices || linkedByServices.length === 0 ? (
-            <div className="text-[12px] text-white/30 py-2">No apps are using this database yet.</div>
+            <div className="text-[12px] text-white/50 py-2">No apps are using this database yet.</div>
           ) : (
             <div className="space-y-2">
               {linkedByServices.map((app) => (
@@ -138,7 +138,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                   <div className="flex items-center gap-2">
                     <ServiceIcon subtype={app.subtype} dockerImage={app.dockerImage} size={13} />
                     <span className="text-[12px] text-white/60">{app.name}</span>
-                    <span className="text-[10px] text-white/30">{app.subtype}</span>
+                    <span className="text-[10px] text-white/50">{app.subtype}</span>
                   </div>
                   <button
                     onClick={() => unlinkService.mutate({ id: app.id, targetId: serviceId })}

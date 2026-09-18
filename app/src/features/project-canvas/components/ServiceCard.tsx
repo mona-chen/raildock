@@ -1,6 +1,7 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { Box, HardDrive, Link2, Unlink, X, Lock, Wrench } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
+import { statusMeta } from '@/lib/status'
 import type { Service } from '@/types'
 
 interface ServiceCardProps {
@@ -16,6 +17,7 @@ interface ServiceCardProps {
 function ServiceCard({ service, position, isSelected, onMouseDown, otherServices, onLink, onUnlink }: ServiceCardProps) {
   const color = getServiceColor(service.subtype, service.framework, service.dockerImage)
   const isDb = service.type === 'database'
+  const status = statusMeta(service.status)
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -94,7 +96,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                   ref={buttonRef}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); showLinkMenu ? setShowLinkMenu(false) : openMenu() }}
-                  className="p-1 rounded hover:bg-white/[0.08] text-white/30 hover:text-white/60 transition-colors"
+                  className="p-1 rounded hover:bg-white/[0.08] text-white/50 hover:text-white/60 transition-colors"
                   title="Link services"
                   type="button"
                 >
@@ -108,7 +110,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                   >
                     {linked.length > 0 && (
                       <>
-                        <div className="px-3 py-1 text-[10px] text-white/30 uppercase tracking-wider">Linked</div>
+                        <div className="px-3 py-1 text-[10px] text-white/50 uppercase tracking-wider">Linked</div>
                         {linked.map((s) => (
                           <button
                             key={s.id}
@@ -125,7 +127,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                     {linkable.length > 0 && linked.length > 0 && <div className="my-1 border-t border-white/[0.06]" />}
                     {linkable.length > 0 && (
                       <>
-                        <div className="px-3 py-1 text-[10px] text-white/30 uppercase tracking-wider">Link to</div>
+                        <div className="px-3 py-1 text-[10px] text-white/50 uppercase tracking-wider">Link to</div>
                         {linkable.map((s) => (
                           <button
                             key={s.id}
@@ -140,7 +142,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                       </>
                     )}
                     {linkable.length === 0 && linked.length === 0 && (
-                      <div className="px-3 py-2 text-[12px] text-white/30">No other services</div>
+                      <div className="px-3 py-2 text-[12px] text-white/50">No other services</div>
                     )}
                   </div>
                 )}
@@ -150,23 +152,10 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
           <div className="flex items-center gap-2 mt-3">
             <div
               className="w-2 h-2 rounded-full"
-              style={{
-                backgroundColor:
-                  service.status === 'running' ? '#22c55e' :
-                  service.status === 'error' ? '#ef4444' :
-                  service.status === 'building' ? '#eab308' :
-                  service.status === 'deploying' ? '#8b5cf6' :
-                  service.status === 'stopped' ? '#f97316' :
-                  '#4A4A55',
-              }}
+              style={{ backgroundColor: status.color }}
             />
             <span className="text-[12px] text-white/60">
-              {service.status === 'running' ? 'Online' :
-               service.status === 'error' ? 'Error' :
-               service.status === 'building' ? 'Building' :
-               service.status === 'deploying' ? 'Deploying' :
-               service.status === 'stopped' ? 'Stopped' :
-               service.status}
+              {status.label}
             </span>
             {(service as Service & { locked?: boolean }).locked && (
               <span title="App locked"><Lock size={11} className="text-amber-400/60" /></span>

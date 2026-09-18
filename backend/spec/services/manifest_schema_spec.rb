@@ -73,6 +73,34 @@ RSpec.describe ManifestSchema do
       end
     end
 
+    context 'valid static site settings' do
+      let(:hash) do
+        {
+          "services" => [
+            {
+              "name" => "web", "category" => "app", "subtype" => "web",
+              "publish_directory" => "dist", "spa_fallback" => true, "node_version" => "22"
+            }
+          ]
+        }
+      end
+
+      it 'returns success' do
+        expect(described_class.validate(hash).success?).to be true
+      end
+    end
+
+    context 'invalid static site settings' do
+      it 'rejects a non-boolean spa_fallback' do
+        result = described_class.validate(
+          "services" => [ { "name" => "web", "subtype" => "web", "spa_fallback" => "yes" } ]
+        )
+
+        expect(result.success?).to be false
+        expect(result.errors).to include(a_string_matching(/spa_fallback.*boolean/))
+      end
+    end
+
     context 'valid app.json' do
       let(:hash) do
         {

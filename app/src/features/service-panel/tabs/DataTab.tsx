@@ -64,14 +64,14 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
       <div className="w-[220px] flex-shrink-0 border-r border-white/[0.06] flex flex-col">
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06]">
           <div className="text-[11px] font-medium text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-            <Database size={12} className="text-white/40" />
+            <Database size={12} className="text-white/50" />
             Tables
           </div>
           <button
             type="button"
             onClick={() => refetchTables()}
             disabled={tablesFetching}
-            className="text-white/30 hover:text-white/60 transition-colors disabled:opacity-50"
+            className="text-white/50 hover:text-white/60 transition-colors disabled:opacity-50"
             title="Refresh"
           >
             <RefreshCw size={12} className={tablesFetching ? 'animate-spin' : ''} />
@@ -93,7 +93,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
               </div>
             )
           ) : tables.length === 0 ? (
-            <div className="px-3 py-3 text-[12px] text-white/30">No tables found</div>
+            <div className="px-3 py-3 text-[12px] text-white/50">No tables found</div>
           ) : (
             tables.map((t) => (
               <button
@@ -117,7 +117,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
         {!table ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <Table2 size={22} className="text-white/20 mb-3" />
-            <p className="text-[13px] text-white/40">Select a table to preview its data</p>
+            <p className="text-[13px] text-white/50">Select a table to preview its data</p>
             <p className="text-[12px] text-white/25 mt-1">Read-only view, up to {PAGE_SIZE} rows per page</p>
           </div>
         ) : rowsLoading ? (
@@ -173,7 +173,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
             <div className="flex-1 overflow-auto">
               {rows.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                  <p className="text-[13px] text-white/40">No rows in this table</p>
+                  <p className="text-[13px] text-white/50">No rows in this table</p>
                 </div>
               ) : (
                 <Table>

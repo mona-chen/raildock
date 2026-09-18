@@ -82,7 +82,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
           {svc.storageMounts.length > 0 && (
             <div className="flex items-center gap-2">
               <Select value={snapshotDestination} onValueChange={(value) => setSnapshotDestination(value)}>
-                <SelectTrigger aria-label="Snapshot destination" className="rounded border border-white/[0.07] bg-[#17171b] px-2 py-1 text-[10px] text-white/40">
+                <SelectTrigger aria-label="Snapshot destination" className="rounded border border-white/[0.07] bg-[#17171b] px-2 py-1 text-[10px] text-white/50">
                   <SelectValue placeholder="Local snapshots" />
                 </SelectTrigger>
                 <SelectContent>
@@ -108,7 +108,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                     <span className="truncate font-mono text-[11px] text-white/65">{mount.hostPath}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-5">
-                    <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-white/40">
+                    <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-white/50">
                       {kindLabel(mount.kind)}
                     </span>
                   </div>
@@ -158,7 +158,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-white/[0.07] py-10 text-center text-[12px] text-white/30">
+          <div className="rounded-lg border border-dashed border-white/[0.07] py-10 text-center text-[12px] text-white/50">
             No persistent mounts yet.
           </div>
         )}
@@ -178,7 +178,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
           </label>
 
           {!showAdvanced && containerPath && (
-            <div className="mt-2 flex items-center gap-2 text-[10px] text-white/30">
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-white/50">
               <Database size={12} />
               <span>
                 RailDock will create a Docker Volume named <span className="font-mono text-white/50">{generatedHostPath || '...'}</span>
@@ -188,7 +188,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
 
           {showAdvanced && (
             <div className="mt-3 space-y-3 rounded-lg border border-white/[0.06] bg-[#17171b]/50 p-3">
-              <label className="block text-[10px] text-white/40">
+              <label className="block text-[10px] text-white/50">
                 Storage type
                 <Select value={kind} onValueChange={(value) => setKind(value as StorageMountKind)}>
                   <SelectTrigger className="mt-1 h-9 w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 text-[11px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
@@ -199,7 +199,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                       <SelectItem key={k.value} value={k.value}>
                         <div className="flex flex-col">
                           <span className="text-[11px]">{k.label}</span>
-                          <span className="text-[9px] text-white/40">{k.description}</span>
+                          <span className="text-[9px] text-white/50">{k.description}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -207,7 +207,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                 </Select>
               </label>
 
-              <label className="block text-[10px] text-white/40">
+              <label className="block text-[10px] text-white/50">
                 {kind === 'volume' ? 'Volume name (override auto-generated)' : 'Host path'}
                 <input
                   value={hostPath}
@@ -235,7 +235,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
             </button>
             <button
               disabled={!canSubmit || addStorage.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-2 text-[11px] font-medium text-white hover:bg-[#7c4fe0] disabled:opacity-30"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-2 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-30"
             >
               <Plus size={12} /> Attach
             </button>
@@ -255,7 +255,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
               <AlertTriangle size={16} />
               <h3 className="text-[14px] font-medium">Detach persistent storage?</h3>
             </div>
-            <p className="mt-3 text-[12px] leading-5 text-white/40">
+            <p className="mt-3 text-[12px] leading-5 text-white/50">
               The data on <span className="font-mono text-white/60">{pendingRemoval.hostPath}</span> is not deleted,
               but the service will lose access to{' '}
               <span className="font-mono text-white/60">{pendingRemoval.containerPath}</span>. A redeploy is required

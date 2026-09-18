@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useContext, createContext } from 'react'
 import { Trash2, Loader2, Globe, Server, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, Folder, ExternalLink } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GitSource, Service } from '@/types'
@@ -29,7 +29,6 @@ function ManifestBanner({ svc }: { svc: Service }) {
   if (svc.managedBy === 'ui' || !svc.managedBy) return null
 
   const isManifest = svc.managedBy === 'manifest'
-  const isHybrid = svc.managedBy === 'hybrid'
 
   return (
     <div className={`mb-4 p-3 rounded-lg border ${
@@ -43,7 +42,7 @@ function ManifestBanner({ svc }: { svc: Service }) {
           {isManifest ? 'Managed by Manifest' : 'Hybrid Mode'}
         </span>
       </div>
-      <div className="text-[11px] text-white/40 mt-1">
+      <div className="text-[11px] text-white/50 mt-1">
         {isManifest
           ? 'This service is fully controlled by the project manifest. Edit in the Manifest Editor to make changes.'
           : 'This service is mostly managed by the manifest, but UI overrides are allowed for certain fields.'}
@@ -58,60 +57,237 @@ function ManifestBanner({ svc }: { svc: Service }) {
   )
 }
 
-export function SettingsPanel({ svc }: { svc: Service }) {
-  const [tab, setTab] = useState<string>('general')
+function SettingsSyncBar({ draft }: { draft: SettingsDraftState }) {
+  const { status, isDirty, saveNow } = draft
+  if (status === 'idle' && !isDirty) return null
 
   return (
-    <div className="flex h-full">
-      <div className="w-[180px] border-r border-white/[0.06] bg-[#0f0f13] p-3 space-y-0.5 flex-shrink-0">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
-              tab === t.key ? 'bg-white/[0.06] text-white/70' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            <t.icon size={13} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-y-auto p-5">
-        <ManifestBanner svc={svc} />
-        {tab === 'general' && <GeneralSettings svc={svc} />}
-        {tab === 'deploy' && <DeploySettings svc={svc} />}
-        {tab === 'network' && <NetworkSettings svc={svc} />}
-        {tab === 'resources' && <ResourceSettings svc={svc} />}
-        {tab === 'advanced' && <AdvancedSettings svc={svc} />}
-        {tab === 'danger' && <DangerZone svc={svc} />}
-      </div>
+    <div className="flex items-center justify-end gap-3 h-9 px-5 border-b border-white/[0.06] bg-[#0f0f13] text-[11px] flex-shrink-0">
+      {status === 'saving' && (
+        <span className="flex items-center gap-1.5 text-white/50">
+          <Loader2 size={12} className="animate-spin" /> Saving…
+        </span>
+      )}
+      {status === 'error' && <span className="text-red-400">Couldn’t save changes.</span>}
+      {status === 'saved' && !isDirty && (
+        <span className="flex items-center gap-1.5 text-[#22c55e]">
+          <Check size={12} /> Saved
+        </span>
+      )}
+      {isDirty && status !== 'saving' && (
+        <button
+          onClick={saveNow}
+          className="px-2 py-1 rounded bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors"
+        >
+          Save now
+        </button>
+      )}
     </div>
   )
 }
 
-// ── Helper: update config nested property ──────────────────
-function useConfigUpdater(svc: Service) {
+export function SettingsPanel({ svc }: { svc: Service }) {
+  const [tab, setTab] = useState<string>('general')
+  const draft = useSettingsDraft(svc)
+  const effectiveSvc = draft.svc
+
+  return (
+    <SettingsDraftContext.Provider value={draft}>
+      <div className="flex h-full">
+        <div className="w-[180px] border-r border-white/[0.06] bg-[#0f0f13] p-3 space-y-0.5 flex-shrink-0 overflow-y-auto">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
+                tab === t.key ? 'bg-white/[0.06] text-white/70' : 'text-white/50 hover:text-white/60'
+              }`}
+            >
+              <t.icon size={13} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <SettingsSyncBar draft={draft} />
+          <div className="flex-1 overflow-y-auto p-5">
+            <ManifestBanner svc={effectiveSvc} />
+            {tab === 'general' && <GeneralSettings svc={effectiveSvc} />}
+            {tab === 'deploy' && <DeploySettings svc={effectiveSvc} />}
+            {tab === 'network' && <NetworkSettings svc={effectiveSvc} />}
+            {tab === 'resources' && <ResourceSettings svc={effectiveSvc} />}
+            {tab === 'advanced' && <AdvancedSettings svc={effectiveSvc} />}
+            {tab === 'danger' && <DangerZone svc={effectiveSvc} />}
+          </div>
+        </div>
+      </div>
+    </SettingsDraftContext.Provider>
+  )
+}
+
+// ── Debounced, optimistic settings sync ────────────────────
+// Edits are buffered locally so a background refetch can never rewind a
+// controlled input mid-typing, then flushed as a single request after a short
+// pause. The panel shows a "Saving…/Saved" indicator instead of a toast per
+// keystroke.
+type SyncStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+interface SettingsDraftState {
+  svc: Service
+  setConfigPath: (path: string, value: unknown) => void
+  setField: (field: keyof Service, value: unknown) => void
+  status: SyncStatus
+  isDirty: boolean
+  saveNow: () => void
+}
+
+const SettingsDraftContext = createContext<SettingsDraftState | null>(null)
+
+const SYNC_DEBOUNCE_MS = 600
+const SYNC_SAVED_VISIBLE_MS = 2500
+
+function useConfigUpdater(): SettingsDraftState {
+  const ctx = useContext(SettingsDraftContext)
+  if (!ctx) throw new Error('useConfigUpdater must be used inside SettingsPanel')
+  return ctx
+}
+
+function useSettingsDraft(svc: Service): SettingsDraftState {
   const updateConfig = useUpdateServiceConfig()
   const updateService = useUpdateService()
 
-  const setConfigPath = (path: string, value: unknown) => {
+  const [config, setConfig] = useState<Record<string, unknown>>(() => svc.config ?? {})
+  const [fields, setFields] = useState<Partial<Service>>({})
+  const [status, setStatus] = useState<SyncStatus>('idle')
+  const [isDirty, setIsDirty] = useState(false)
+
+  const configRef = useRef(config)
+  const pendingConfig = useRef<Record<string, unknown> | null>(null)
+  const pendingFields = useRef<Partial<Service>>({})
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inFlight = useRef(false)
+  const flushRef = useRef<() => void>(() => {})
+
+  const effectiveSvc = useMemo(
+    () => ({ ...svc, ...fields, config }),
+    [svc, config, fields],
+  )
+
+  const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+    if (inFlight.current) return
+    const nextConfig = pendingConfig.current
+    const nextFields = pendingFields.current
+    const fieldKeys = Object.keys(nextFields) as (keyof Service)[]
+    if (!nextConfig && fieldKeys.length === 0) return
+    pendingConfig.current = null
+    pendingFields.current = {}
+    inFlight.current = true
+    setStatus('saving')
+
+    let settled = 0
+    let failed = false
+    const jobs = (nextConfig ? 1 : 0) + (fieldKeys.length ? 1 : 0)
+    const settle = () => {
+      settled += 1
+      if (settled < jobs) return
+      inFlight.current = false
+      if (failed) {
+        setIsDirty(true)
+        setStatus('error')
+        return
+      }
+      if (pendingConfig.current || Object.keys(pendingFields.current).length) {
+        flushRef.current()
+        return
+      }
+      setIsDirty(false)
+      setStatus('saved')
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setStatus('idle'), SYNC_SAVED_VISIBLE_MS)
+    }
+    const fail = () => {
+      failed = true
+      settle()
+    }
+    if (nextConfig) {
+      updateConfig.mutate({ id: svc.id, config: nextConfig }, { onSuccess: settle, onError: fail })
+    }
+    if (fieldKeys.length) {
+      updateService.mutate({ id: svc.id, data: nextFields }, { onSuccess: settle, onError: fail })
+    }
+  }, [svc.id, updateConfig, updateService])
+
+  useEffect(() => {
+    configRef.current = config
+    flushRef.current = flush
+  }, [config, flush])
+
+  const schedule = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => flushRef.current(), SYNC_DEBOUNCE_MS)
+  }, [])
+
+  const setConfigPath = useCallback((path: string, value: unknown) => {
     const keys = path.split('.')
-    const next = { ...svc.config } as Record<string, unknown>
+    const next = { ...configRef.current } as Record<string, unknown>
     let cur: Record<string, unknown> = next
     for (let i = 0; i < keys.length - 1; i++) {
       cur[keys[i]] = { ...(cur[keys[i]] as Record<string, unknown> || {}) }
       cur = cur[keys[i]] as Record<string, unknown>
     }
     cur[keys[keys.length - 1]] = value
-    updateConfig.mutate({ id: svc.id, config: next })
-  }
+    setConfig(next)
+    pendingConfig.current = next
+    setIsDirty(true)
+    setStatus('idle')
+    schedule()
+  }, [schedule])
 
-  const setField = (field: keyof Service, value: unknown) => {
-    updateService.mutate({ id: svc.id, data: { [field]: value } })
-  }
+  const setField = useCallback((field: keyof Service, value: unknown) => {
+    pendingFields.current = { ...pendingFields.current, [field]: value }
+    setFields((prev) => ({ ...prev, [field]: value }))
+    setIsDirty(true)
+    setStatus('idle')
+    schedule()
+  }, [schedule])
 
-  return { setConfigPath, setField, isPending: updateConfig.isPending || updateService.isPending }
+  const serverRef = useRef(svc)
+  useEffect(() => {
+    const previous = serverRef.current
+    serverRef.current = svc
+    if (previous.id !== svc.id) {
+      pendingConfig.current = null
+      pendingFields.current = {}
+      setConfig(svc.config ?? {})
+      setFields({})
+      setIsDirty(false)
+      setStatus('idle')
+      return
+    }
+    // Adopt server truth on a background refetch, but never while the user has
+    // unsaved edits or a request is still in flight.
+    if (!isDirty && !inFlight.current) {
+      setConfig(svc.config ?? {})
+      setFields({})
+    }
+  }, [svc, isDirty])
+
+  // Best-effort flush so a pending edit is not lost when the panel unmounts.
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    if (pendingConfig.current || Object.keys(pendingFields.current).length) flushRef.current()
+  }, [])
+
+  return useMemo(
+    () => ({ svc: effectiveSvc, setConfigPath, setField, status, isDirty, saveNow: flush }),
+    [effectiveSvc, setConfigPath, setField, status, isDirty, flush],
+  )
 }
 
 // ── Git helpers ────────────────────────────────────────────
@@ -134,7 +310,7 @@ function findGitSourceForRepo(sources: GitSource[] | undefined, repo?: string): 
 
 // ── General Settings ───────────────────────────────────────
 function GeneralSettings({ svc }: { svc: Service }) {
-  const { setConfigPath, setField } = useConfigUpdater(svc)
+  const { setConfigPath, setField } = useConfigUpdater()
   const isApp = svc.type === 'app'
 
   return (
@@ -184,18 +360,47 @@ function GeneralSettings({ svc }: { svc: Service }) {
             </div>
           </SettingCard>
 
+          <SettingCard
+            title="Static Site"
+            description="For frontends that build to a folder of files (React, Vue, Angular, Astro). RailDock builds with Railpack/Nixpacks and serves the bundle with Caddy on the app's port. A start command overrides this."
+          >
+            <TextField
+              label="Publish directory"
+              value={svc.staticSite?.publishDirectory || ''}
+              placeholder="dist"
+              onChange={(v) => setConfigPath('staticSite.publishDirectory', v)}
+            />
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] text-white/70">Single-page app fallback</div>
+                <div className="text-[11px] text-white/50">Serve index.html for unmatched client-side routes</div>
+              </div>
+              <AccessibleToggle
+                checked={svc.staticSite?.spaFallback ?? true}
+                onChange={(v) => setConfigPath('staticSite.spaFallback', v)}
+                label="SPA fallback"
+              />
+            </div>
+            <TextField
+              label="Node version"
+              value={svc.staticSite?.nodeVersion || ''}
+              placeholder="22"
+              onChange={(v) => setConfigPath('staticSite.nodeVersion', v)}
+            />
+          </SettingCard>
+
           <SettingCard title="Deploy Options">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[13px] text-white/70">Auto-deploy</div>
-                <div className="text-[11px] text-white/40">Automatically deploy on git push</div>
+                <div className="text-[11px] text-white/50">Automatically deploy on git push</div>
               </div>
               <AccessibleToggle checked={svc.autoDeploy} onChange={(v) => setField('autoDeploy', v)} label="Auto-deploy" />
             </div>
             {svc.webhookUrl && (
               <div className="border-t border-white/[0.06] pt-4 mt-4">
                 <div className="text-[13px] text-white/70 mb-1">Deploy Webhook</div>
-                <div className="text-[11px] text-white/40 mb-2">Use this URL in your CI/CD pipeline to trigger deployments.</div>
+                <div className="text-[11px] text-white/50 mb-2">Use this URL in your CI/CD pipeline to trigger deployments.</div>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-black/30 rounded-lg px-3 py-2 text-[11px] font-mono text-white/50 truncate">
                     {svc.webhookUrl}
@@ -238,7 +443,7 @@ function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyo
                   href={svc.gitRepo}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] text-white/40 hover:text-[#8b5cf6] flex items-center gap-1"
+                  className="text-[11px] text-white/50 hover:text-[#8b5cf6] flex items-center gap-1"
                 >
                   View repository <ExternalLink size={10} />
                 </a>
@@ -265,7 +470,7 @@ function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyo
             placeholder="https://github.com/user/repo"
             onChange={(v) => setField('gitRepo', v)}
           />
-          <div className="text-[11px] text-white/40">Connect a GitHub repository to enable branch and directory selectors.</div>
+          <div className="text-[11px] text-white/50">Connect a GitHub repository to enable branch and directory selectors.</div>
         </div>
       )}
 
@@ -289,7 +494,7 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <GitBranch size={13} className="text-white/40" />
+        <GitBranch size={13} className="text-white/50" />
         <span className="text-[12px] text-white/60">Deploy Branch</span>
       </div>
       <div className="text-[11px] text-white/35 mb-2">Changes pushed to this branch will deploy automatically.</div>
@@ -313,7 +518,7 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
             className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
             placeholder="main"
           />
-          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 animate-spin" />}
+          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
           {error && <div className="text-[10px] text-red-300/70 mt-1">Could not load branches</div>}
         </div>
       )}
@@ -329,7 +534,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <Folder size={13} className="text-white/40" />
+        <Folder size={13} className="text-white/50" />
         <span className="text-[12px] text-white/60">Root Directory</span>
       </div>
       <div className="text-[11px] text-white/35 mb-2">Where your app code lives inside the repository.</div>
@@ -353,7 +558,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
             className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
             placeholder="./"
           />
-          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 animate-spin" />}
+          {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
           {error && <div className="text-[10px] text-red-300/70 mt-1">Could not load directories</div>}
         </div>
       )}
@@ -363,7 +568,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
 
 // ── Deploy Settings ────────────────────────────────────────
 function DeploySettings({ svc }: { svc: Service }) {
-  const { setConfigPath, setField } = useConfigUpdater(svc)
+  const { setConfigPath, setField } = useConfigUpdater()
   const checks = {
     enabled: svc.checks?.enabled ?? false,
     mode: svc.checks?.mode ?? 'enabled',
@@ -424,7 +629,7 @@ function DeploySettings({ svc }: { svc: Service }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[13px] text-white/70">Maintenance Mode</div>
-            <div className="text-[11px] text-white/40">Serve a maintenance page for all requests</div>
+            <div className="text-[11px] text-white/50">Serve a maintenance page for all requests</div>
           </div>
           <AccessibleToggle checked={svc.maintenanceMode} onChange={(v) => setField('maintenanceMode', v)} label="Maintenance mode" />
         </div>
@@ -437,7 +642,7 @@ function DeploySettings({ svc }: { svc: Service }) {
 
 // ── Network Settings ───────────────────────────────────────
 function NetworkSettings({ svc }: { svc: Service }) {
-  const { setConfigPath, setField } = useConfigUpdater(svc)
+  const { setConfigPath, setField } = useConfigUpdater()
   const proxy = {
     enabled: svc.proxy?.enabled ?? true,
     proxyType: svc.proxy?.proxyType ?? 'traefik',
@@ -491,7 +696,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
         {proxy.enabled && (
           <>
             <div className="mb-3">
-              <div className="text-[11px] text-white/40 mb-1">Proxy Type</div>
+              <div className="text-[11px] text-white/50 mb-1">Proxy Type</div>
               <Select value={proxy.proxyType} onValueChange={(v) => setConfigPath('proxy.proxyType', v)}>
                 <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
                   <SelectValue placeholder="Select proxy type" />
@@ -546,7 +751,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
             ))}
           </div>
         ) : (
-          <div className="text-[12px] text-white/30 mb-3">No port mappings configured</div>
+          <div className="text-[12px] text-white/50 mb-3">No port mappings configured</div>
         )}
         <button
           onClick={addPort}
@@ -577,7 +782,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
       </SettingCard>
 
       <SettingCard title="External Networks">
-        <div className="text-[12px] text-white/40 mb-3">
+        <div className="text-[12px] text-white/50 mb-3">
           Connect this service to Docker networks from other projects or stacks. The service will be reachable by container name on these networks.
         </div>
         {connectableNetworks.length > 0 ? (
@@ -597,7 +802,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] text-white/70 truncate">{net.name}</div>
-                    <div className="text-[10px] text-white/30">
+                    <div className="text-[10px] text-white/50">
                       {net.driver}{net.containers?.length != null ? ` · ${net.containers.length} container(s)` : ''}
                     </div>
                   </div>
@@ -606,7 +811,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
             })}
           </div>
         ) : (
-          <div className="text-[12px] text-white/30">
+          <div className="text-[12px] text-white/50">
             {server ? 'No connectable networks found on this server.' : 'No server assigned to this project.'}
           </div>
         )}
@@ -629,7 +834,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
 
 // ── Resource Settings ──────────────────────────────────────
 function ResourceSettings({ svc }: { svc: Service }) {
-  const { setConfigPath } = useConfigUpdater(svc)
+  const { setConfigPath } = useConfigUpdater()
   const limits = svc.resourceLimits || []
   const reservations = svc.resourceReservations || []
 
@@ -660,14 +865,14 @@ function ResourceSettings({ svc }: { svc: Service }) {
           return (
             <SettingCard key={pt.name} title={`Process: ${pt.name}`}>
               <div className="space-y-4">
-                <div className="text-[11px] text-white/40 uppercase tracking-wide">Limits</div>
+                <div className="text-[11px] text-white/50 uppercase tracking-wide">Limits</div>
                 <div className="grid grid-cols-2 gap-2">
                   <ResourceInput label="CPU" value={(limit as unknown as Record<string, string>).cpu || ''} onChange={(v) => updateLimit(pt.name, 'cpu', v)} />
                   <ResourceInput label="Memory" value={(limit as unknown as Record<string, string>).memory || ''} onChange={(v) => updateLimit(pt.name, 'memory', v)} />
                   <ResourceInput label="Swap" value={(limit as unknown as Record<string, string>).memorySwap || ''} onChange={(v) => updateLimit(pt.name, 'memorySwap', v)} />
                   <ResourceInput label="NVIDIA GPU" value={String((limit as unknown as Record<string, unknown>).nvidiaGpu || '')} onChange={(v) => updateLimit(pt.name, 'nvidiaGpu', v)} />
                 </div>
-                <div className="text-[11px] text-white/40 uppercase tracking-wide">Reservations</div>
+                <div className="text-[11px] text-white/50 uppercase tracking-wide">Reservations</div>
                 <div className="grid grid-cols-2 gap-2">
                   <ResourceInput label="CPU" value={(reserve as unknown as Record<string, string>).cpu || ''} onChange={(v) => updateReservation(pt.name, 'cpu', v)} />
                   <ResourceInput label="Memory" value={(reserve as unknown as Record<string, string>).memory || ''} onChange={(v) => updateReservation(pt.name, 'memory', v)} />
@@ -679,7 +884,7 @@ function ResourceSettings({ svc }: { svc: Service }) {
         })
       ) : (
         <SettingCard title="Resources">
-          <div className="text-[12px] text-white/30">No process types configured. Deploy this service to detect process types.</div>
+          <div className="text-[12px] text-white/50">No process types configured. Deploy this service to detect process types.</div>
         </SettingCard>
       )}
     </div>
@@ -688,7 +893,7 @@ function ResourceSettings({ svc }: { svc: Service }) {
 
 // ── Advanced Settings ──────────────────────────────────────
 function AdvancedSettings({ svc }: { svc: Service }) {
-  const { setConfigPath } = useConfigUpdater(svc)
+  const { setConfigPath } = useConfigUpdater()
   const [newPhase, setNewPhase] = useState<'build' | 'deploy' | 'run'>('run')
   const [newOption, setNewOption] = useState('')
   const [schedule, setSchedule] = useState('')
@@ -729,7 +934,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
           <div className="space-y-2 mb-3">
             {options.map((opt, i) => (
               <div key={i} className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5 group">
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/40 rounded uppercase">{opt.phase}</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/50 rounded uppercase">{opt.phase}</span>
                 <span className="text-[12px] text-white/60 font-mono flex-1 truncate">{opt.option}</span>
                 <button onClick={() => removeOption(i)} className="p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 size={12} />
@@ -738,7 +943,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
             ))}
           </div>
         ) : (
-          <div className="text-[12px] text-white/30 mb-3">No docker options configured</div>
+          <div className="text-[12px] text-white/50 mb-3">No docker options configured</div>
         )}
         <div className="flex gap-2">
           <Select value={newPhase} onValueChange={(v) => setNewPhase(v as 'build' | 'deploy' | 'run')}>
@@ -779,7 +984,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
             ))}
           </div>
         ) : (
-          <div className="text-[12px] text-white/30 mb-3">No cron jobs configured</div>
+          <div className="text-[12px] text-white/50 mb-3">No cron jobs configured</div>
         )}
         <div className="flex gap-2">
           <input
@@ -857,7 +1062,7 @@ function DangerZone({ svc }: { svc: Service }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[13px] text-white/70">Destroy Service</div>
-              <div className="text-[11px] text-white/40 mt-0.5">
+              <div className="text-[11px] text-white/50 mt-0.5">
                 Permanently delete {svc.name} and all associated data. This cannot be undone.
               </div>
             </div>
@@ -888,7 +1093,7 @@ function DangerZone({ svc }: { svc: Service }) {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-white">Destroy Service</h3>
-                <p className="text-xs text-[#6B6B7B]">This action cannot be undone</p>
+                <p className="text-xs text-[#8a8a99]">This action cannot be undone</p>
               </div>
             </div>
 
@@ -898,7 +1103,7 @@ function DangerZone({ svc }: { svc: Service }) {
               . This will remove the Dokku app and all data including databases, storage, and logs.
             </p>
 
-            <p className="text-[11px] text-[#6B6B7B] mb-4">
+            <p className="text-[11px] text-[#8a8a99] mb-4">
               RailDock takes a verified snapshot on a configured backup destination before deleting data. If no
               destination is verified, the deletion is refused until you acknowledge the loss.
             </p>
@@ -910,7 +1115,7 @@ function DangerZone({ svc }: { svc: Service }) {
             )}
 
             <div className="mb-4">
-              <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
+              <label className="text-[11px] text-[#8a8a99] block mb-1.5">
                 Type <span className="font-mono font-medium text-white">{svc.name}</span> to confirm
               </label>
               <input
@@ -979,7 +1184,7 @@ function SecuritySettings({ svc }: { svc: Service }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[13px] text-white/70">App Lock</div>
-          <div className="text-[11px] text-white/40 mt-0.5">Prevent deployments when locked. Use during maintenance or migrations.</div>
+          <div className="text-[11px] text-white/50 mt-0.5">Prevent deployments when locked. Use during maintenance or migrations.</div>
         </div>
         <button
           onClick={toggleLock}
@@ -1006,7 +1211,7 @@ function SettingCard({ title, description, children }: { title?: string; descrip
   return (
     <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4 space-y-3">
       {title && <div className="text-[13px] font-medium text-white/70">{title}</div>}
-      {description && <div className="text-[11px] text-white/40">{description}</div>}
+      {description && <div className="text-[11px] text-white/50">{description}</div>}
       {children}
     </div>
   )
@@ -1015,7 +1220,7 @@ function SettingCard({ title, description, children }: { title?: string; descrip
 function TextField({ label, value, placeholder, type = 'text', onChange }: { label: string; value: string; placeholder?: string; type?: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <div className="text-[11px] text-white/40 mb-1">{label}</div>
+      <div className="text-[11px] text-white/50 mb-1">{label}</div>
       <input
         type={type}
         value={value}
@@ -1033,7 +1238,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => copy(text, 'settings-webhook')}
-      className="px-3 py-2 bg-white/5 text-white/40 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
+      className="px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
     >
       {isCopied ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
       {isCopied ? 'Copied' : 'Copy'}
@@ -1044,7 +1249,7 @@ function CopyButton({ text }: { text: string }) {
 function ResourceInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <div className="text-[11px] text-white/40">{label}</div>
+      <div className="text-[11px] text-white/50">{label}</div>
       <input
         type="text"
         value={value}

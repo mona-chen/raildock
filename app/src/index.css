@@ -18,8 +18,8 @@
     --border-focus: rgba(139,92,246,0.5);
     --text-primary: #F0F0F5;
     --text-secondary: #A0A0B0;
-    --text-muted: #6B6B7B;
-    --text-disabled: #4A4A55;
+    --text-muted: #8a8a99;
+    --text-disabled: #6b6b7b;
     --accent-purple: #8B5CF6;
     --accent-purple-dark: #7C3AED;
     --accent-purple-light: #A78BFA;
@@ -81,7 +81,7 @@
     @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all;
   }
   .input-dark {
-    @apply w-full px-3 py-2 bg-[#151518] border border-[rgba(255,255,255,0.1)] rounded-lg text-sm text-[#F0F0F5] placeholder-[#4A4A55] focus:outline-none focus:border-[rgba(139,92,246,0.5)] focus:ring-1 focus:ring-[rgba(139,92,246,0.2)] transition-all;
+    @apply w-full px-3 py-2 bg-[#151518] border border-[rgba(255,255,255,0.1)] rounded-lg text-sm text-[#F0F0F5] placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.5)] focus:ring-1 focus:ring-[rgba(139,92,246,0.2)] transition-all;
   }
   .card-dark {
     @apply bg-[#1A1A1F] border border-[rgba(255,255,255,0.06)] rounded-xl;
@@ -96,7 +96,7 @@
     @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)] transition-all cursor-pointer;
   }
   .tab-item {
-    @apply px-4 py-2.5 text-sm font-medium text-[#6B6B7B] border-b-2 border-transparent hover:text-[#A0A0B0] transition-all cursor-pointer;
+    @apply px-4 py-2.5 text-sm font-medium text-[#8a8a99] border-b-2 border-transparent hover:text-[#A0A0B0] transition-all cursor-pointer;
   }
   .tab-item-active {
     @apply px-4 py-2.5 text-sm font-medium text-[#8B5CF6] border-b-2 border-[#8B5CF6] transition-all cursor-pointer;
@@ -120,7 +120,7 @@
     @apply badge bg-[rgba(139,92,246,0.15)] text-[#8B5CF6];
   }
   .badge-gray {
-    @apply badge bg-[rgba(255,255,255,0.06)] text-[#6B6B7B];
+    @apply badge bg-[rgba(255,255,255,0.06)] text-[#8a8a99];
   }
 }
 
@@ -144,7 +144,7 @@
 .log-warning { color: #EAB308; }
 .log-error { color: #EF4444; }
 .log-info { color: #3B82F6; }
-.log-debug { color: #6B6B7B; }
+.log-debug { color: #8a8a99; }
 
 /* Terminal */
 .terminal-dark {

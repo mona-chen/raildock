@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound } from 'lucide-react'
+import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound, Rocket, RefreshCw, Hammer } from 'lucide-react'
 import {
   useScaleProcess,
   useRollbackService,
@@ -7,6 +7,9 @@ import {
   useContainerStatus,
   useDeployment,
   useCancelDeployment,
+  useDeployService,
+  useRestartService,
+  useRebuildService,
 } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import type { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
@@ -14,6 +17,7 @@ import type { Service } from '@/types'
 import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/clipboard'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
+import { statusMeta } from '@/lib/status'
 
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
@@ -77,7 +81,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
   if (isLoading && !liveLog) {
     return (
       <div className="ml-6 bg-[#131318] border border-white/[0.06] rounded-xl p-4">
-        <div className="text-[12px] text-white/30">Loading logs...</div>
+        <div className="text-[12px] text-white/50">Loading logs...</div>
       </div>
     )
   }
@@ -88,8 +92,8 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <Terminal size={12} className="text-white/30" />
-            <span className="text-[11px] text-white/40">Deployment Log</span>
+            <Terminal size={12} className="text-white/50" />
+            <span className="text-[11px] text-white/50">Deployment Log</span>
           </div>
           <span className="text-[10px] text-white/20">{lines.length.toLocaleString()} lines</span>
         </div>
@@ -111,7 +115,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
           <button
             type="button"
             onClick={handleCopyAll}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
             title="Copy all logs"
           >
             {copiedAll ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
@@ -119,7 +123,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
           <button
             type="button"
             onClick={() => setWrapLines((w) => !w)}
-            className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/30 hover:text-white/60'}`}
+            className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
             title="Wrap lines"
           >
             <WrapText size={13} />
@@ -127,7 +131,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
           <button
             type="button"
             onClick={handleExport}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
             title="Export log"
           >
             <Download size={13} />
@@ -136,7 +140,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
           <button
             type="button"
             onClick={() => setIsExpanded(true)}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
             title="Expand logs"
           >
             <Maximize2 size={13} />
@@ -203,7 +207,7 @@ function RollbackConfirmDialog({
           </div>
           <div>
             <div className="text-[14px] font-semibold text-white/90">Rollback Deployment?</div>
-            <div className="text-[12px] text-white/40">This will redeploy an older version.</div>
+            <div className="text-[12px] text-white/50">This will redeploy an older version.</div>
           </div>
         </div>
         <p className="text-[12px] text-white/50 mb-5">
@@ -239,7 +243,7 @@ function WebhookCard({ url }: { url: string }) {
         <Link2 size={13} className="text-[#8b5cf6]" />
         <div className="text-[13px] font-medium text-white/70">Deploy Webhook</div>
       </div>
-      <p className="text-[11px] text-white/30 mb-2">
+      <p className="text-[11px] text-white/50 mb-2">
         POST to this URL from your CI/CD pipeline to trigger a deployment.
       </p>
       <div className="flex items-center gap-2">
@@ -248,7 +252,7 @@ function WebhookCard({ url }: { url: string }) {
         </code>
         <button
           onClick={() => copy(url, 'webhook')}
-          className="px-3 py-2 bg-white/5 text-white/40 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
+          className="px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
         >
           {copiedKey === 'webhook' ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
           {copiedKey === 'webhook' ? 'Copied' : 'Copy'}
@@ -268,6 +272,9 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
   const scaleProcess = useScaleProcess()
   const rollbackService = useRollbackService()
   const cancelDeployment = useCancelDeployment()
+  const deployService = useDeployService()
+  const restartService = useRestartService()
+  const rebuildService = useRebuildService()
   const { data: deployments } = useServiceDeployments(svc.id)
   const { data: containerStatus } = useContainerStatus(serviceId)
   const { lastUpdate, isConnected, connectionState, logMap } = realtime
@@ -284,6 +291,22 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
     deployments?.filter((d) => d.status === 'pending' || d.status === 'building' || d.status === 'deploying').length ?? 0,
     [deployments]
   )
+
+  const containerState = containerStatus?.status
+  const isCrashLooping = containerState === 'restarting' || containerState === 'exited' || containerState === 'dead'
+  // A deploy can report success and the container still die right after. Call
+  // that "crashed" rather than letting it read as a plain failure, and surface
+  // the restart/rollback affordances next to it.
+  const succeededDeployments = useMemo(
+    () => (deployments ?? [])
+      .filter((d) => d.status === 'succeeded')
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+    [deployments]
+  )
+  const latestSucceeded = succeededDeployments[0] ?? null
+  const previousSucceeded = succeededDeployments[1] ?? null
+  const crashedAfterSuccess = isCrashLooping && !!latestSucceeded
+  const busy = deployService.isPending || restartService.isPending || rebuildService.isPending || pendingCount > 0
 
   const handleCancelAllPending = () => {
     deployments?.forEach((d) => {
@@ -325,18 +348,78 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
           </div>
         </div>
         {svc.gitRepo && (
-          <div className="mt-3 flex items-center gap-2 text-[12px] text-white/40">
+          <div className="mt-3 flex items-center gap-2 text-[12px] text-white/50">
             <span>{svc.gitRepo}</span>
             <span className="text-white/20">on</span>
             <span className="text-white/50">{svc.branch || 'main'}</span>
           </div>
         )}
         {svc.builder && (
-          <div className="mt-2 text-[12px] text-white/40">
+          <div className="mt-2 text-[12px] text-white/50">
             Builder: <span className="text-white/60">{svc.builder}</span>
           </div>
         )}
       </div>
+
+      {/* Deploy actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => deployService.mutate(svc.id)}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rail-purple text-white text-[12px] font-medium hover:bg-rail-purple-dark disabled:opacity-50 transition-colors"
+        >
+          <Rocket size={13} /> Deploy latest
+        </button>
+        <button
+          type="button"
+          onClick={() => restartService.mutate(svc.id)}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-white/70 text-[12px] hover:bg-white/[0.1] hover:text-white disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw size={13} /> Restart
+        </button>
+        <button
+          type="button"
+          onClick={() => rebuildService.mutate(svc.id)}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-white/70 text-[12px] hover:bg-white/[0.1] hover:text-white disabled:opacity-50 transition-colors"
+        >
+          <Hammer size={13} /> Rebuild
+        </button>
+      </div>
+
+      {crashedAfterSuccess && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3">
+          <AlertTriangle size={15} className="text-red-400 mt-0.5 flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-[12px] font-medium text-red-300">Crashed after a successful deploy</div>
+            <p className="text-[11px] text-white/50 mt-0.5">
+              The build succeeded but the container is {containerState}. Check the logs, then restart it
+              {previousSucceeded ? ' or roll back to the previous revision.' : '.'}
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => restartService.mutate(svc.id)}
+                disabled={restartService.isPending}
+                className="px-2.5 py-1 rounded-md bg-red-500/15 text-red-300 text-[11px] hover:bg-red-500/25 disabled:opacity-50 transition-colors"
+              >
+                Restart container
+              </button>
+              {previousSucceeded && (
+                <button
+                  type="button"
+                  onClick={() => setRollbackTarget(previousSucceeded.id)}
+                  className="px-2.5 py-1 rounded-md bg-white/[0.06] text-white/60 text-[11px] hover:bg-white/[0.1] transition-colors"
+                >
+                  Roll back to previous
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Webhook URL */}
       {svc.webhookUrl && <WebhookCard url={svc.webhookUrl} />}
@@ -352,12 +435,12 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
               >
                 <div>
                   <div className="text-[13px] font-medium text-white/80">{pt.name}</div>
-                  <div className="text-[11px] text-white/40 font-mono mt-0.5">
+                  <div className="text-[11px] text-white/50 font-mono mt-0.5">
                     {pt.command || 'No command'}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[12px] text-white/40">
+                  <span className="text-[12px] text-white/50">
                     {pt.running}/{pt.quantity} running
                   </span>
                   <div className="flex items-center border border-white/[0.1] rounded-lg overflow-hidden">
@@ -369,7 +452,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                           quantity: Math.max(0, pt.quantity - 1),
                         })
                       }
-                      className="px-2.5 py-1.5 text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
+                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
                     >
                       −
                     </button>
@@ -384,7 +467,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                           quantity: pt.quantity + 1,
                         })
                       }
-                      className="px-2.5 py-1.5 text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
+                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
                     >
                       +
                     </button>
@@ -401,7 +484,11 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
           <div className="flex items-center justify-between">
             <div className="text-[12px] text-white/60">Container Status</div>
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-              containerStatus.status === 'running' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-white/5 text-white/40'
+              containerStatus.status === 'running'
+                ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                : isCrashLooping
+                  ? 'bg-red-500/10 text-red-400'
+                  : 'bg-white/5 text-white/50'
             }`}>{containerStatus.status}</span>
           </div>
         </div>
@@ -417,7 +504,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
             lastUpdate.status === 'failed' ? 'bg-red-500/10 text-red-400' :
             lastUpdate.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
             'bg-[#8b5cf6]/10 text-[#8b5cf6]'
-          }`}>{lastUpdate.status}</span>
+          }`}>{statusMeta(lastUpdate.status).label}</span>
         </div>
       )}
 
@@ -451,14 +538,8 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     {expandedDeployment === d.id ? <ChevronDown size={13} className="shrink-0 text-white/25" /> : <ChevronRight size={13} className="shrink-0 text-white/25" />}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
-                        d.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
-                        d.status === 'failed' ? 'bg-red-500/10 text-red-400' :
-                        d.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
-                        d.status === 'deploying' || d.status === 'building' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' :
-                        'bg-white/5 text-white/40'
-                      }`}>
-                        {d.status}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium shrink-0 ${statusMeta(d.status).badge}`}>
+                        {statusMeta(d.status).label}
                       </span>
                       {d.kind && d.kind !== 'deploy' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-medium uppercase tracking-wider shrink-0">
@@ -474,8 +555,8 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                       )}
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-white/35"><UserRound size={11} /><span className="truncate">{d.triggeredBy?.replace('_', ' ') || 'manual'}</span></div>
-                  <span className="text-[10px] text-white/30">{d.createdAt ? timeAgo(d.createdAt) : '—'}</span>
-                  <div className="flex items-center justify-end gap-1 text-[10px] font-mono text-white/30"><Timer size={10} />{d.startedAt && d.completedAt ? `${Math.round((new Date(d.completedAt).getTime() - new Date(d.startedAt).getTime()) / 1000)}s` : d.status === 'building' || d.status === 'deploying' ? 'live' : '—'}
+                  <span className="text-[10px] text-white/50">{d.createdAt ? timeAgo(d.createdAt) : '—'}</span>
+                  <div className="flex items-center justify-end gap-1 text-[10px] font-mono text-white/50"><Timer size={10} />{d.startedAt && d.completedAt ? `${Math.round((new Date(d.completedAt).getTime() - new Date(d.startedAt).getTime()) / 1000)}s` : d.status === 'building' || d.status === 'deploying' ? 'live' : '—'}
                     {(d.status === 'pending' || d.status === 'building' || d.status === 'deploying') && (!d.kind || d.kind === 'deploy') && (
                       <button
                         onClick={(e) => {
@@ -495,7 +576,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                           setRollbackTarget(d.id)
                         }}
                         disabled={rollbackService.isPending}
-                        className="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-white/40 hover:bg-white/[0.1] hover:text-white/70 disabled:opacity-50"
+                        className="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/[0.1] hover:text-white/70 disabled:opacity-50"
                       >
                         Rollback
                       </button>
@@ -508,7 +589,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
               </article>
             ))
           ) : (
-            <div className="text-[12px] text-white/30 py-4 text-center">No deployment history</div>
+            <div className="text-[12px] text-white/50 py-4 text-center">No deployment history</div>
           )}
         </div>
       </section>

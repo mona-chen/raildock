@@ -77,6 +77,14 @@ RSpec.describe Service, type: :model do
     it "defines restart_policy enum" do
       expect(described_class.restart_policies.keys).to contain_exactly("never", "on_failure", "always", "unless_stopped")
     end
+
+    it "exposes the stored restart_policy value rather than the enum label" do
+      service = create(:service, restart_policy: :on_failure)
+
+      expect(service.restart_policy).to eq("on_failure")
+      expect(service.restart_policy_value).to eq("on-failure")
+      expect(service.as_json["restart_policy"]).to eq("on-failure")
+    end
   end
 
   describe "scopes" do

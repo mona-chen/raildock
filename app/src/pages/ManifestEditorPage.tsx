@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   FileCode, Play, Eye, AlertTriangle, CheckCircle2,
-  ChevronLeft, Download, Copy, RotateCcw, Loader2,
-  LayoutTemplate, BookOpen
+  ChevronLeft, Copy, RotateCcw, Loader2,
+  LayoutTemplate, BookOpen, GitCompareArrows
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -17,7 +17,8 @@ import DiffViewer from '@/components/manifest/DiffViewer'
 import TemplateGallery from '@/components/manifest/TemplateGallery'
 import ChangeBadge from '@/components/manifest/ChangeBadge'
 import ManifestCodeEditor from '@/components/manifest/ManifestCodeEditor'
-import type { ManifestChange } from '@/lib/api'
+import DriftPanel from '@/components/manifest/DriftPanel'
+import type { ManifestChange, ManifestMergeResult } from '@/lib/api'
 import type { ManifestRemoval } from '@/types'
 
 const DEFAULT_MANIFEST = `# RailDock Manifest
@@ -44,7 +45,7 @@ source = { type = "git" }
 
 export default function ManifestEditorPage() {
   const { projectId } = useParams<{ projectId: string }>()
-  const { data: manifest, isLoading } = useManifest(projectId!)
+  const { data: manifest } = useManifest(projectId!)
   const { data: status } = useManifestStatus(projectId!)
   const updateManifest = useUpdateManifest()
   const previewManifest = useManifestPreview()
@@ -52,7 +53,7 @@ export default function ManifestEditorPage() {
 
   const [content, setContent] = useState(DEFAULT_MANIFEST)
   const hasEditedRef = useRef(false)
-  const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'templates'>('editor')
+  const [activeTab, setActiveTab] = useState<'editor' | 'drift' | 'preview' | 'templates'>('editor')
   const [previewResult, setPreviewResult] = useState<{
     changes: ManifestChange[]
     severity: 'reload' | 'restart' | 'redeploy'
@@ -141,6 +142,17 @@ export default function ManifestEditorPage() {
     toast.success(`Loaded "${templateId}" into editor`)
   }, [])
 
+  // Drift merge loads the proposed manifest into the editor for review. It is
+  // deliberately not saved here — the operator reviews, then Preview/Apply.
+  const handleMergeIntoEditor = useCallback((merged: string, result: ManifestMergeResult) => {
+    hasEditedRef.current = true
+    setContent(merged)
+    setPreviewResult(null)
+    setActiveTab('editor')
+    const skipped = result.skipped.length > 0 ? ` ${result.skipped.length} skipped.` : ''
+    toast.success(`Merged ${result.adopted.length} service(s) into the editor.${skipped} Review, then Preview.`)
+  }, [])
+
   const hasChanges = content !== (manifest?.content || '')
   const isApplying = applyManifest.isPending
   const isPreviewing = previewManifest.isPending || updateManifest.isPending
@@ -152,7 +164,7 @@ export default function ManifestEditorPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="p-1.5 hover:bg-white/[0.06] rounded-lg text-white/30 hover:text-white/60 transition-colors"
+            className="p-1.5 hover:bg-white/[0.06] rounded-lg text-white/50 hover:text-white/60 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
@@ -161,10 +173,15 @@ export default function ManifestEditorPage() {
             <span className="text-[14px] font-medium text-white/80">Manifest Editor</span>
           </div>
           {status?.driftDetected && (
-            <div className="flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+            <button
+              type="button"
+              onClick={() => setActiveTab('drift')}
+              title="Review drift and merge live values"
+              className="flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded transition-colors"
+            >
               <AlertTriangle size={12} />
               Drift detected
-            </div>
+            </button>
           )}
           {status?.synced && (
             <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
@@ -176,14 +193,14 @@ export default function ManifestEditorPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
           >
             <Copy size={13} />
             Copy
           </button>
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/40 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
           >
             <RotateCcw size={13} />
             Reset
@@ -203,6 +220,7 @@ export default function ManifestEditorPage() {
       <div className="flex items-center gap-1 px-4 border-b border-white/[0.06]">
         {[
           { id: 'editor' as const, label: 'Editor', icon: FileCode },
+          { id: 'drift' as const, label: 'Drift', icon: GitCompareArrows },
           { id: 'preview' as const, label: 'Preview', icon: Eye },
           { id: 'templates' as const, label: 'Templates', icon: LayoutTemplate },
         ].map((tab) => (
@@ -212,11 +230,14 @@ export default function ManifestEditorPage() {
             className={`flex items-center gap-1.5 px-3 py-2 text-[12px] border-b-2 transition-all ${
               activeTab === tab.id
                 ? 'text-[#8b5cf6] border-[#8b5cf6]'
-                : 'text-white/40 border-transparent hover:text-white/60'
+                : 'text-white/50 border-transparent hover:text-white/60'
             }`}
           >
             <tab.icon size={13} />
             {tab.label}
+            {tab.id === 'drift' && status?.driftDetected && (
+              <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
+            )}
             {tab.id === 'preview' && previewResult && (
               <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06]">
                 {previewResult.changes.length}
@@ -228,11 +249,19 @@ export default function ManifestEditorPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
+        {activeTab === 'drift' && projectId && (
+          <DriftPanel
+            projectId={projectId}
+            enabled={activeTab === 'drift'}
+            onMerge={handleMergeIntoEditor}
+          />
+        )}
+
         {activeTab === 'editor' && (
           <div className="h-full flex">
             <div className="flex-1 flex flex-col">
               <div className="px-3 py-1.5 border-b border-white/[0.04] flex items-center gap-2">
-                <span className="text-[10px] text-white/30 font-mono">
+                <span className="text-[10px] text-white/50 font-mono">
                   {manifest?.format || 'raildock.toml'}
                 </span>
                 {hasChanges && (
@@ -251,8 +280,8 @@ export default function ManifestEditorPage() {
             <div className="w-[320px] border-l border-white/[0.06] bg-white/[0.01] overflow-y-auto">
               <div className="p-4 space-y-4">
                 <div>
-                  <div className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Quick Reference</div>
-                  <div className="space-y-2 text-[11px] text-white/30">
+                  <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Quick Reference</div>
+                  <div className="space-y-2 text-[11px] text-white/50">
                     <div><code className="text-white/50">[[services]]</code> — Define a service</div>
                     <div><code className="text-white/50">name</code> — Service name</div>
                     <div><code className="text-white/50">category</code> — app, database, cache</div>
@@ -264,7 +293,7 @@ export default function ManifestEditorPage() {
                   </div>
                 </div>
                 <div className="border-t border-white/[0.06] pt-3">
-                  <div className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Formats</div>
+                  <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Formats</div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-[11px]">
                       <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
@@ -314,7 +343,7 @@ export default function ManifestEditorPage() {
               ) : (
                 <div className="text-center py-12">
                   <Eye size={32} className="text-white/10 mx-auto mb-3" />
-                  <div className="text-[13px] text-white/40">No preview yet</div>
+                  <div className="text-[13px] text-white/50">No preview yet</div>
                   <div className="text-[11px] text-white/25 mt-1">
                     Click Preview in the toolbar to see what changes will be applied
                   </div>
@@ -323,7 +352,7 @@ export default function ManifestEditorPage() {
             </div>
             {previewResult && previewResult.changes.length > 0 && (
               <div className="w-[280px] border-l border-white/[0.06] bg-white/[0.01] p-4">
-                <div className="text-[11px] text-white/40 uppercase tracking-wider mb-3">Summary</div>
+                <div className="text-[11px] text-white/50 uppercase tracking-wider mb-3">Summary</div>
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-[12px]">
                     <span className="text-white/50">Total changes</span>
@@ -335,8 +364,8 @@ export default function ManifestEditorPage() {
                   </div>
                 </div>
                 <div className="border-t border-white/[0.06] pt-3">
-                  <div className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Impact</div>
-                  <div className="text-[11px] text-white/30">
+                  <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Impact</div>
+                  <div className="text-[11px] text-white/50">
                     {previewResult.severity === 'reload' && 'These changes can be applied without restarting any services.'}
                     {previewResult.severity === 'restart' && 'Some services will be restarted. There may be brief downtime.'}
                     {previewResult.severity === 'redeploy' && 'Full rebuilds are required. Services will be unavailable during deploy.'}
@@ -348,7 +377,7 @@ export default function ManifestEditorPage() {
                       <AlertTriangle size={12} />
                       {removals.length} service{removals.length === 1 ? '' : 's'} not in this manifest
                     </div>
-                    <div className="text-[11px] text-white/40 mb-2">
+                    <div className="text-[11px] text-white/50 mb-2">
                       They will be kept unless you confirm their removal.
                     </div>
                     <ul className="space-y-1">
@@ -396,7 +425,7 @@ export default function ManifestEditorPage() {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-white">Confirm service removals</h3>
-                <p className="text-xs text-[#6B6B7B]">This deletes data and cannot be undone</p>
+                <p className="text-xs text-[#8a8a99]">This deletes data and cannot be undone</p>
               </div>
             </div>
 
@@ -409,9 +438,9 @@ export default function ManifestEditorPage() {
                 <li key={removal.serviceName} className="bg-black/30 border border-white/[0.06] rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-mono text-white">{removal.serviceName}</span>
-                    <span className="text-[11px] text-white/40">{removal.serviceType}/{removal.subtype}</span>
+                    <span className="text-[11px] text-white/50">{removal.serviceType}/{removal.subtype}</span>
                   </div>
-                  <div className="text-[11px] text-white/40 mt-1">
+                  <div className="text-[11px] text-white/50 mt-1">
                     {removal.datastore ? 'Database — data will be destroyed. ' : ''}
                     {removal.storageMounts.length > 0
                       ? `${removal.storageMounts.length} volume(s) attached. `
@@ -465,7 +494,7 @@ export default function ManifestEditorPage() {
             <button
               onClick={() => performApply(false)}
               disabled={isApplying}
-              className="w-full mt-2 py-2 text-[11px] text-white/40 hover:text-white/60 transition-all disabled:opacity-50"
+              className="w-full mt-2 py-2 text-[11px] text-white/50 hover:text-white/60 transition-all disabled:opacity-50"
             >
               Apply everything else and keep these services
             </button>

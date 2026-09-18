@@ -312,14 +312,14 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/data/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`)
   },
 
-  metrics: async (id: string): Promise<{ cpu: number; cpuCores: number; memory: number; networkIn: number; networkOut: number }> => {
+  metrics: async (id: string): Promise<{ cpu: number; cpuCores: number; memory: number; networkIn: number; networkOut: number; blockRead: number; blockWrite: number }> => {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
   metricsHistory: async (id: string, hours = 24): Promise<{
     service: string
     window_hours: number
-    samples: Array<{ at: string; cpu: number | null; cpu_cores: number | null; memory: number | null; memory_used: number | null; memory_limit: number | null }>
+    samples: Array<{ at: string; cpu: number | null; cpu_cores: number | null; memory: number | null; memory_used: number | null; memory_limit: number | null; network_in: number | null; network_out: number | null; block_read: number | null; block_write: number | null }>
   }> => {
     return fetchJson(`/api/services/${id}/metrics_history?hours=${hours}`)
   },
@@ -896,6 +896,46 @@ export interface ManifestPreview {
   requiresRemovalConfirmation?: boolean
 }
 
+export interface ManifestDriftChange {
+  field: string
+  changeType: 'added' | 'removed' | 'modified' | 'added_to_manifest'
+  severity: 'reload' | 'restart' | 'redeploy'
+  // What the manifest declares today; null when the manifest omits the field.
+  manifestValue: unknown
+  // What the running service actually has.
+  liveValue: unknown
+}
+
+export interface ManifestDriftService {
+  name: string
+  managedBy?: string | null
+  status: 'drifted' | 'missing_from_manifest' | 'missing_from_host'
+  mergeable: boolean
+  reason?: string | null
+  changes: ManifestDriftChange[]
+}
+
+export interface ManifestDriftReport {
+  supported: boolean
+  format: string
+  driftDetected: boolean
+  summary: {
+    driftDetected: boolean
+    driftedFields: number
+    missingFromManifest: number
+    missingFromHost: number
+    mergeableServices: number
+  }
+  services: ManifestDriftService[]
+}
+
+export interface ManifestMergeResult {
+  content: string
+  format: string
+  adopted: string[]
+  skipped: string[]
+}
+
 
 export const manifestApi = {
   get: async (projectId: string): Promise<{
@@ -956,6 +996,26 @@ export const manifestApi = {
     hasManifest: boolean
   }> => {
     return fetchJson(`/api/projects/${projectId}/manifest/status`)
+  },
+
+  // Read-only drift report: how the stored manifest differs from live services.
+  drift: async (projectId: string): Promise<ManifestDriftReport> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/drift`)
+  },
+
+  // Review-first merge: returns proposed content but never saves it. The caller
+  // loads it into the editor and saves through `update`.
+  merge: async (
+    projectId: string,
+    options: { services?: string[]; acceptAll?: boolean } = {},
+  ): Promise<ManifestMergeResult> => {
+    return fetchJson(`/api/projects/${projectId}/manifest/merge`, {
+      method: 'POST',
+      body: JSON.stringify({
+        services: options.services ?? [],
+        accept_all: options.acceptAll ?? false,
+      }),
+    })
   },
 }
 

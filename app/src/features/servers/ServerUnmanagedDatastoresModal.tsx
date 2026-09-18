@@ -45,13 +45,13 @@ export default function ServerUnmanagedDatastoresModal({
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-base font-semibold text-white">Untracked datastores</h3>
-            <p className="text-[11px] text-[#6B6B7B] mt-0.5">{serverName}</p>
+            <p className="text-[11px] text-[#8a8a99] mt-0.5">{serverName}</p>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/[0.05] disabled:opacity-40"
+              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/[0.05] disabled:opacity-40"
               title="Rescan the host"
               aria-label="Rescan the host"
             >
@@ -59,7 +59,7 @@ export default function ServerUnmanagedDatastoresModal({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/[0.05]"
+              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
               aria-label="Close"
             >
               <X size={14} />
@@ -86,7 +86,7 @@ export default function ServerUnmanagedDatastoresModal({
 
         <div className="flex-1 overflow-y-auto">
           {isLoading && (
-            <div className="flex items-center gap-2 py-8 justify-center text-[12px] text-[#6B6B7B]">
+            <div className="flex items-center gap-2 py-8 justify-center text-[12px] text-[#8a8a99]">
               <Loader2 size={14} className="animate-spin" /> Scanning the host…
             </div>
           )}
@@ -100,7 +100,7 @@ export default function ServerUnmanagedDatastoresModal({
           {!isLoading && !isError && resources.length === 0 && (
             <div className="py-10 text-center">
               <Database size={32} className="mx-auto mb-3 opacity-30 text-white" />
-              <p className="text-[12px] text-[#6B6B7B]">
+              <p className="text-[12px] text-[#8a8a99]">
                 Every datastore on this host is tracked by RailDock.
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function ServerUnmanagedDatastoresModal({
                         {resource.subtype}
                       </span>
                     </div>
-                    <div className="mt-1 text-[10px] text-[#6B6B7B]">
+                    <div className="mt-1 text-[10px] text-[#8a8a99]">
                       {resource.status}
                       {resource.linkedApps.length > 0 && (
                         <> · linked to <span className="font-mono">{resource.linkedApps.join(', ')}</span></>

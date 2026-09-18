@@ -22,6 +22,16 @@ class ManifestGenerator
     end
   end
 
+  # The canonical manifest hash for one service's live configuration. Public so
+  # drift merge can adopt live values field by field instead of guessing at the
+  # mapping from database columns to manifest keys.
+  def service_state(service_name)
+    service = @project.services
+      .includes(:environment_variables, :domains, :storage_mounts, :process_types, :outgoing_links)
+      .find_by(name: service_name)
+    service && service_to_hash(service)
+  end
+
   private
 
   def build_desired_state
@@ -50,6 +60,12 @@ class ManifestGenerator
     h[:docker_image] = svc.docker_image if svc.docker_image.present?
     h[:start_command] = svc.start_command if svc.start_command.present?
     h[:root_directory] = svc.root_directory if svc.root_directory.present?
+    static_site = svc.static_site_config
+    if static_site["publishDirectory"].present?
+      h[:publish_directory] = static_site["publishDirectory"]
+      h[:spa_fallback] = static_site["spaFallback"] unless static_site["spaFallback"].nil?
+      h[:node_version] = static_site["nodeVersion"] if static_site["nodeVersion"].present?
+    end
     h[:exposed] = svc.exposed unless svc.exposed.nil?
     h[:port] = svc.port if svc.port.present?
     h[:maintenance] = svc.maintenance_mode if svc.maintenance_mode
@@ -207,6 +223,9 @@ class ManifestGenerator
       lines << "docker_image = #{quote(svc[:docker_image])}" if svc[:docker_image]
       lines << "start_command = #{quote(svc[:start_command])}" if svc[:start_command]
       lines << "root_directory = #{quote(svc[:root_directory])}" if svc[:root_directory]
+      lines << "publish_directory = #{quote(svc[:publish_directory])}" if svc[:publish_directory]
+      lines << "spa_fallback = #{svc[:spa_fallback]}" unless svc[:spa_fallback].nil?
+      lines << "node_version = #{quote(svc[:node_version])}" if svc[:node_version]
       lines << "exposed = #{svc[:exposed]}" unless svc[:exposed].nil?
       lines << "port = #{svc[:port]}" if svc[:port]
       lines << "maintenance = #{svc[:maintenance]}" if svc[:maintenance]

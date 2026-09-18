@@ -31,6 +31,8 @@ Rails.application.routes.draw do
         post :preview, on: :collection
         post :apply, on: :collection
         get :status, on: :collection
+        get :drift, on: :collection
+        post :merge, on: :collection
       end
       resources :services, shallow: true do
         member do

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Globe, Trash2, ShieldCheck, ShieldAlert, ShieldQuestion, Info, Copy, Check, ExternalLink, AlertTriangle, ChevronDown } from 'lucide-react'
 import { useAddDomain, useRemoveDomain, useGenerateDomain } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import type { Service, Domain } from '@/types'
 
 interface NormalizedInput {
@@ -92,7 +93,7 @@ function SslBadge({ domain }: { domain: Domain }) {
     default:
       return (
         <span
-          className="text-[10px] px-1.5 bg-white/5 text-white/40 rounded-full"
+          className="text-[10px] px-1.5 bg-white/5 text-white/50 rounded-full"
           title="No SSL — HTTP only"
         >
           HTTP
@@ -116,6 +117,7 @@ function SslAlert({ domain }: { domain: Domain }) {
 
 function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; onRemove: () => void }) {
   const { copy, copiedKey } = useCopy(1500)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const scheme = domain.ssl ? 'https' : 'http'
   const url = `${scheme}://${domain.hostname}`
   const targetPort = domain.targetPort || svc.detectedPort || svc.port || 80
@@ -126,7 +128,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
   return (
     <div className="space-y-0">
       <div className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-3 group hover:border-white/[0.10] transition-colors">
-        <Globe size={15} className="text-white/30 flex-shrink-0" />
+        <Globe size={15} className="text-white/50 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <a
@@ -146,7 +148,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] text-white/30">→ container port {targetPort}</span>
+            <span className="text-[11px] text-white/50">→ container port {targetPort}</span>
             {isRoutingMismatch && (
               <span className="text-[10px] text-amber-400/80 flex items-center gap-1" title="Domain target port differs from the app's detected port. Redeploy to align them.">
                 <AlertTriangle size={10} /> mismatch
@@ -173,19 +175,33 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
             <ExternalLink size={12} />
           </a>
           <button
-            onClick={() => {
-              if (confirm(`Remove domain ${domain.hostname}?`)) {
-                onRemove()
-              }
-            }}
+            onClick={() => setConfirmOpen(true)}
             className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 transition-colors"
             title="Remove domain"
+            aria-label={`Remove domain ${domain.hostname}`}
           >
             <Trash2 size={12} />
           </button>
         </div>
       </div>
       <SslAlert domain={domain} />
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Remove domain?"
+        description={
+          <>
+            <span className="font-medium text-white">{domain.hostname}</span> will stop routing to{' '}
+            {svc.name}. Traffic to this hostname will fail until it is re-added.
+          </>
+        }
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          onRemove()
+          setConfirmOpen(false)
+        }}
+      />
     </div>
   )
 }
@@ -234,7 +250,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[14px] font-medium text-white/70">Domains</div>
-          <div className="text-[11px] text-white/40">
+          <div className="text-[11px] text-white/50">
             {svc.domains.length === 0
               ? 'No domains configured'
               : `${svc.domains.length} domain${svc.domains.length === 1 ? '' : 's'} configured`}
@@ -280,11 +296,11 @@ export default function DomainsTab({ svc }: { svc: Service }) {
                 {normalized.error}
               </div>
             ) : (
-              <div className="text-[11px] text-white/40">
+              <div className="text-[11px] text-white/50">
                 Will be saved as{' '}
                 <span className="text-white/70 font-medium">{normalized.hostname}</span>
                 {(normalized.hadProtocol || normalized.hadPort || normalized.hadPath) && (
-                  <span className="text-white/30">
+                  <span className="text-white/50">
                     {' '}
                     (stripped
                     {normalized.hadProtocol ? ' protocol' : ''}
@@ -299,7 +315,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
 
         <button
           onClick={() => setShowAdvanced((v) => !v)}
-          className="flex items-center gap-1 text-[11px] text-white/40 hover:text-white/60 transition-colors"
+          className="flex items-center gap-1 text-[11px] text-white/50 hover:text-white/60 transition-colors"
         >
           <ChevronDown size={12} className={showAdvanced ? 'rotate-180' : ''} />
           Advanced
@@ -307,7 +323,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
 
         {showAdvanced && (
           <div className="space-y-2 pt-1">
-            <label className="text-[11px] text-white/40 block">Target container port</label>
+            <label className="text-[11px] text-white/50 block">Target container port</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -316,7 +332,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
                 placeholder={String(detectedOrDefault)}
                 className="w-28 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
               />
-              <span className="text-[11px] text-white/30">
+              <span className="text-[11px] text-white/50">
                 Leave blank to use {detectedOrDefault === 80 ? 'the detected port' : detectedOrDefault}
               </span>
             </div>
@@ -339,7 +355,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
         <div className="text-center py-8 border border-dashed border-white/[0.06] rounded-xl">
           <Globe size={24} className="mx-auto text-white/20 mb-2" />
           <div className="text-[13px] text-white/50">No domains yet</div>
-          <div className="text-[11px] text-white/30 mt-0.5">
+          <div className="text-[11px] text-white/50 mt-0.5">
             Add a custom domain or generate a temporary one to expose this service.
           </div>
         </div>

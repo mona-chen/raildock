@@ -39,7 +39,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
 
   return (
     <div className="space-y-4">
-      <div className="text-[12px] text-white/40">
+      <div className="text-[12px] text-white/50">
         Templates are open-source TOML files. You can{' '}
         <span className="text-white/50 font-medium">load one into the editor</span> to customize it,
         or <span className="text-white/50 font-medium">deploy it directly</span> to create services.
@@ -62,7 +62,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
           <div key={category}>
             <div className="flex items-center gap-2 mb-2">
               <Icon size={14} style={{ color }} />
-              <span className="text-[11px] text-white/40 uppercase tracking-wider">{category}</span>
+              <span className="text-[11px] text-white/50 uppercase tracking-wider">{category}</span>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {categoryTemplates.map((template) => {
@@ -87,12 +87,12 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-white/70 font-medium">{template.name}</div>
-                      <div className="text-[11px] text-white/40 truncate">{template.description}</div>
+                      <div className="text-[11px] text-white/50 truncate">{template.description}</div>
                       <div className="flex items-center gap-2 mt-1.5">
                         {template.services?.map((s: { name: string; category: string }, i: number) => (
                           <span
                             key={i}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-white/30"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-white/50"
                           >
                             {s.name}
                           </span>
@@ -128,7 +128,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
       {templates.length === 0 && (
         <div className="text-center py-6">
           <GitBranch size={24} className="text-white/20 mx-auto mb-2" />
-          <div className="text-[13px] text-white/40">No templates loaded</div>
+          <div className="text-[13px] text-white/50">No templates loaded</div>
           <div className="text-[11px] text-white/25 mt-1">
             Templates are loaded from disk on boot.
             Set RAILDOCK_TEMPLATES_REPO for community templates.

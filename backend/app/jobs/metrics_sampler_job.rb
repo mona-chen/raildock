@@ -40,8 +40,10 @@ class MetricsSamplerJob < ApplicationJob
       memory: stats[:memory],
       memory_used: stats[:memory_used],
       memory_limit: stats[:memory_limit],
-      network_in: 0,
-      network_out: 0,
+      network_in: stats[:network_rx] || 0,
+      network_out: stats[:network_tx] || 0,
+      block_read: stats[:block_read] || 0,
+      block_write: stats[:block_write] || 0,
       sampled_at: now
     )
   end

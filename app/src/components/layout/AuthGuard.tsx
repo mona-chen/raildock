@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useEffect } from 'react'
 import { authApi } from '@/lib/api'
+import { Spinner } from '@/components/ui/spinner'
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, user, setUser, setCurrentOrganizationId, setLoading, isLoading, logout } = useAuthStore()
@@ -40,7 +41,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0B0B0D] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-rail-purple border-t-transparent rounded-full animate-spin" />
+        <Spinner className="size-6 text-rail-purple" />
       </div>
     )
   }

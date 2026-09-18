@@ -95,6 +95,22 @@ RSpec.describe ManifestGenerator do
         expect(web[:proxy][:type]).to eq("traefik")
       end
 
+      it 'round-trips static-site settings' do
+        @web.update!(config: @web.config.merge(
+          "staticSite" => { "publishDirectory" => "dist", "spaFallback" => true, "nodeVersion" => "22" }
+        ))
+
+        toml = described_class.new(project).generate(format: :toml)
+        expect(toml).to include('publish_directory = "dist"')
+        expect(toml).to include('spa_fallback = true')
+        expect(toml).to include('node_version = "22"')
+
+        web = ManifestParser.parse(toml, filename: "raildock.toml").find_service("web")
+        expect(web[:publish_directory]).to eq("dist")
+        expect(web[:spa_fallback]).to be(true)
+        expect(web[:node_version]).to eq("22")
+      end
+
       it 'renders shared and runtime variables as manifest expressions' do
         project.update!(shared_vars: [ { key: "API_KEY", value: "super-secret" } ])
         @web.environment_variables.create!(key: "API_KEY", value: "super-secret")

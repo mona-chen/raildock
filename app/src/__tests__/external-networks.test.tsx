@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SettingsPanel } from '@/features/service-settings/SettingsPanel'
@@ -191,7 +191,7 @@ describe('External Networks in NetworkSettings', () => {
     expect(screen.queryByText('host')).not.toBeInTheDocument()
   })
 
-  it('toggles a network on when checkbox is clicked', () => {
+  it('toggles a network on when checkbox is clicked', async () => {
     setupNetworks({
       networks: [
         mockNetwork({ name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'] }),
@@ -206,13 +206,16 @@ describe('External Networks in NetworkSettings', () => {
 
     fireEvent.click(checkbox)
 
-    expect(updateServiceMutate).toHaveBeenCalledWith({
-      id: 'svc-1',
-      data: { externalNetworks: ['matrix-postgres'] },
-    })
+    await waitFor(() =>
+      expect(updateServiceMutate).toHaveBeenCalledWith(
+        { id: 'svc-1', data: { externalNetworks: ['matrix-postgres'] } },
+        expect.anything(),
+      ),
+      { timeout: 2000 },
+    )
   })
 
-  it('toggles a network off when checkbox is unchecked', () => {
+  it('toggles a network off when checkbox is unchecked', async () => {
     setupNetworks({
       networks: [
         mockNetwork({ name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'] }),
@@ -228,10 +231,13 @@ describe('External Networks in NetworkSettings', () => {
 
     fireEvent.click(checkbox)
 
-    expect(updateServiceMutate).toHaveBeenCalledWith({
-      id: 'svc-1',
-      data: { externalNetworks: [] },
-    })
+    await waitFor(() =>
+      expect(updateServiceMutate).toHaveBeenCalledWith(
+        { id: 'svc-1', data: { externalNetworks: [] } },
+        expect.anything(),
+      ),
+      { timeout: 2000 },
+    )
   })
 
   it('shows selected networks as tagged pills', () => {
@@ -251,7 +257,7 @@ describe('External Networks in NetworkSettings', () => {
     expect(matches.some((el) => el.closest('[class*="bg-[#8b5cf6]/15"]'))).toBe(true)
   })
 
-  it('removes a network via pill button', () => {
+  it('removes a network via pill button', async () => {
     setupNetworks({
       networks: [
         mockNetwork({ name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'] }),
@@ -271,14 +277,17 @@ describe('External Networks in NetworkSettings', () => {
 
     if (pillRemoveBtn) {
       fireEvent.click(pillRemoveBtn)
-      expect(updateServiceMutate).toHaveBeenCalledWith({
-        id: 'svc-1',
-        data: { externalNetworks: ['proxy_web'] },
-      })
+      await waitFor(() =>
+        expect(updateServiceMutate).toHaveBeenCalledWith(
+          { id: 'svc-1', data: { externalNetworks: ['proxy_web'] } },
+          expect.anything(),
+        ),
+        { timeout: 2000 },
+      )
     }
   })
 
-  it('adds multiple networks', () => {
+  it('adds multiple networks', async () => {
     setupNetworks({
       networks: [
         mockNetwork({ name: 'matrix-postgres', driver: 'bridge', containers: ['db.1'] }),
@@ -293,9 +302,12 @@ describe('External Networks in NetworkSettings', () => {
     const proxyCheckbox = screen.getByRole('checkbox', { name: /proxy_web/i })
     fireEvent.click(proxyCheckbox)
 
-    expect(updateServiceMutate).toHaveBeenCalledWith({
-      id: 'svc-1',
-      data: { externalNetworks: ['matrix-postgres', 'proxy_web'] },
-    })
+    await waitFor(() =>
+      expect(updateServiceMutate).toHaveBeenCalledWith(
+        { id: 'svc-1', data: { externalNetworks: ['matrix-postgres', 'proxy_web'] } },
+        expect.anything(),
+      ),
+      { timeout: 2000 },
+    )
   })
 })

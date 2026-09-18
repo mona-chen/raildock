@@ -184,6 +184,27 @@ class Service < ApplicationRecord
     port || detected_port || 5000
   end
 
+  # Static-site settings live under config["staticSite"]:
+  #   { "publishDirectory" => "dist", "spaFallback" => true, "nodeVersion" => "22" }
+  # A non-blank publish directory marks the service as a static build. See
+  # StaticSiteConfigurator for how this is translated to Dokku.
+  def static_site_config
+    value = config.is_a?(Hash) ? config["staticSite"] : nil
+    value.is_a?(Hash) ? value : {}
+  end
+
+  def publish_directory
+    static_site_config["publishDirectory"].presence
+  end
+
+  # Rails' enum reader returns the label ("on_failure") while the database, the
+  # manifest format and the JSON API all speak the stored value ("on-failure").
+  # Reconcile/drift and the frontend compare against the stored form, so expose
+  # it explicitly instead of letting the label leak out.
+  def restart_policy_value
+    self.class.restart_policies[restart_policy]
+  end
+
   # Whether the built-in database viewer supports this service.
   def data_view
     subtype_record&.has_capability?(:query) || false
@@ -202,7 +223,8 @@ class Service < ApplicationRecord
     )).merge(
       "config" => config || {},
       "configOverrides" => config_overrides || {},
-      "external_networks" => external_networks || []
+      "external_networks" => external_networks || [],
+      "restart_policy" => restart_policy_value
     )
   end
 

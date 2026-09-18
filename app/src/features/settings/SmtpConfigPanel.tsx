@@ -57,18 +57,18 @@ export default function SmtpConfigPanel() {
   const enabled = form.smtp_enabled === 'true'
 
   if (isLoading) {
-    return <div className="text-xs text-[#4A4A55]">Loading...</div>
+    return <div className="text-xs text-[#6b6b7b]">Loading...</div>
   }
 
   return (
     <div className="space-y-5">
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium flex items-center gap-2">
+          <div className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium flex items-center gap-2">
             <Mail size={12} className="text-rail-purple" /> SMTP Configuration
           </div>
           <label className="flex items-center gap-2 cursor-pointer" htmlFor="smtp-enabled">
-            <span className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium">Enabled</span>
+            <span className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium">Enabled</span>
             <input
               id="smtp-enabled"
               type="checkbox"
@@ -95,7 +95,7 @@ export default function SmtpConfigPanel() {
           <Field label="Password" value={form.smtp_password ?? ''} onChange={v => setForm(f => ({ ...f, smtp_password: v }))} type="password" placeholder="••••••••" />
           <Field label="Domain" value={form.smtp_domain ?? ''} onChange={v => setForm(f => ({ ...f, smtp_domain: v }))} placeholder="example.com" />
           <div className="space-y-1">
-            <label htmlFor="smtp-auth" className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium">Auth</label>
+            <label htmlFor="smtp-auth" className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium">Auth</label>
             <Select
               value={form.smtp_auth ?? 'plain'}
               onValueChange={v => setForm(f => ({ ...f, smtp_auth: v }))}
@@ -132,7 +132,7 @@ export default function SmtpConfigPanel() {
                 value={testEmail}
                 onChange={e => setTestEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="w-48 h-8 text-xs bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] text-white placeholder:text-[#4A4A55]"
+                className="w-48 h-8 text-xs bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] text-white placeholder:text-[#6b6b7b]"
               />
               <Button
                 size="sm"
@@ -167,13 +167,13 @@ function Field({ label, value, onChange, placeholder, type }: {
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-[10px] text-[#4A4A55] uppercase tracking-wider font-medium">{label}</label>
+      <label className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium">{label}</label>
       <Input
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         type={type ?? 'text'}
-        className="h-9 text-xs text-white bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] placeholder:text-[#4A4A55]"
+        className="h-9 text-xs text-white bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)] placeholder:text-[#6b6b7b]"
       />
     </div>
   )

@@ -1,13 +1,35 @@
 # frozen_string_literal: true
 
+require "json"
+
 class RepositoryDiscovery
   MANIFEST_NAMES = %w[raildock.toml raildock.json railway.toml railway.json app.json].freeze
   CONVENTIONAL_NAMES = %w[Dockerfile Procfile package.json Gemfile].freeze
+  # Framework config files the static-site detector reads to resolve the
+  # publish directory (e.g. a Vite `outDir` or an Angular `outputPath`).
+  DETECTION_NAMES = %w[
+    vite.config.js vite.config.ts vite.config.mjs vite.config.mts
+    angular.json
+    astro.config.js astro.config.mjs astro.config.ts
+    next.config.js next.config.mjs next.config.ts
+    svelte.config.js gatsby-config.js gatsby-config.ts
+  ].freeze
   MAX_DISCOVERY_FILES = 50
+  # Only example-style dotenv files are read: they exist to document the
+  # variables a service needs and never contain real secrets, so we can list
+  # the expected keys without dragging credentials into a preview.
+  ENV_SAMPLE_NAMES = %w[
+    .env.example .env.sample .env.template .env.dist
+    .env.local.example .env.development.example .env.production.example
+  ].freeze
 
   Result = Data.define(:repository, :branch, :commit_sha, :services, :links, :warnings, :conflicts, :evidence, :original_format, :original_content) do
     def canonical_manifest
-      JSON.pretty_generate({ name: repository.split("/").last, services: services, links: links })
+      JSON.pretty_generate({
+        name: repository.split("/").last,
+        services: services.map { |service| service.except("env_keys") },
+        links: links
+      })
     end
 
     def as_json(*)
@@ -90,7 +112,7 @@ class RepositoryDiscovery
 
       tree.tree.filter_map do |entry|
         next unless entry.type == "blob"
-        next unless (MANIFEST_NAMES + CONVENTIONAL_NAMES).include?(File.basename(entry.path))
+        next unless (MANIFEST_NAMES + CONVENTIONAL_NAMES + DETECTION_NAMES + ENV_SAMPLE_NAMES).include?(File.basename(entry.path))
 
         entry.path
       end.first(MAX_DISCOVERY_FILES)
@@ -169,6 +191,7 @@ class RepositoryDiscovery
         builder = dockerfile ? "dockerfile" : nil
         subtype = "web"
         name = root.present? ? File.basename(root) : @repository.split("/").last
+        static_site = package && dockerfile.nil? ? detect_static_site(package, root_paths, commit_sha) : nil
         services << {
           "name" => name.parameterize,
           "category" => "app",
@@ -176,19 +199,68 @@ class RepositoryDiscovery
           "builder" => builder,
           "source" => { "type" => "git", "repo" => "https://github.com/#{@repository}.git", "branch" => @branch },
           "root_directory" => root,
+          "publish_directory" => static_site&.publish_directory,
+          "spa_fallback" => static_site&.spa_fallback,
+          "node_version" => static_site&.node_version,
           "source_revision" => commit_sha,
+          "env_keys" => env_keys_for(root_paths, commit_sha),
           "env" => {}, "domains" => [], "storage" => [],
           "proxy" => { "enabled" => true, "type" => "traefik", "ports" => [ { "host" => 80, "container" => 3000 } ] },
           "checks" => { "enabled" => true }, "scripts" => {}
         }.compact
+        decision =
+          if dockerfile
+            "Dockerfile build"
+          elsif static_site
+            "Static #{static_site.framework} build (publish directory: #{static_site.publish_directory})"
+          else
+            "Automatic runtime build"
+          end
         evidence << {
           path: dockerfile || package || gemfile,
           format: "convention",
-          decision: dockerfile ? "Dockerfile build" : "Automatic runtime build",
+          decision: decision,
           confidence: dockerfile ? "high" : "medium"
         }
       end
       [ services, evidence, nil, nil ]
+    end
+
+    # Names of the environment variables a repo documents in its example dotenv
+    # files. Surfaced in the import preview so the operator knows what to set
+    # after the first deploy; values are intentionally never read.
+    def env_keys_for(root_paths, commit_sha)
+      root_paths
+        .select { |path| ENV_SAMPLE_NAMES.include?(File.basename(path)) }
+        .flat_map { |path| parse_env_keys(file_content(path, commit_sha)) }
+        .uniq
+        .sort
+        .first(50)
+    end
+
+    def parse_env_keys(content)
+      content.to_s.lines.filter_map do |line|
+        entry = line.strip.sub(/\Aexport\s+/, "")
+        next if entry.empty? || entry.start_with?("#")
+
+        key = entry.split("=", 2).first.to_s.strip
+        key if key.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/)
+      end
+    end
+
+    def detect_static_site(package_path, root_paths, commit_sha)
+      package_json = JSON.parse(file_content(package_path, commit_sha))
+      files = {}
+      root_paths.each do |path|
+        name = File.basename(path)
+        next unless DETECTION_NAMES.include?(name)
+
+        files[name] = file_content(path, commit_sha)
+      end
+      StaticSiteDetector.detect(package_json: package_json, files: files)
+    rescue JSON::ParserError => e
+      Rails.logger.warn "RepositoryDiscovery: ignoring invalid package.json at #{package_path}: #{e.message}"
+      nil
     end
 
     def file_content(path, commit_sha)

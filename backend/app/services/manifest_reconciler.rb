@@ -287,10 +287,11 @@ class ManifestReconciler
         version: svc.version,
         root_directory: svc.root_directory,
         start_command: svc.start_command,
+        static_site: svc.static_site_config.presence,
         exposed: svc.exposed,
         port: svc.port,
         maintenance_mode: svc.maintenance_mode,
-        restart_policy: svc.restart_policy,
+        restart_policy: svc.restart_policy_value,
         restart_max_retries: svc.restart_max_retries,
         auto_deploy: svc.auto_deploy,
         env: svc.environment_variables.reject(&:is_dokku_internal).map { |ev| [ ev.key, ev.value ] }.to_h,
@@ -324,7 +325,7 @@ class ManifestReconciler
   def diff_service(name, desired_svc, actual_svc)
     fields = %i[
       category subtype builder framework git_repo branch docker_image version
-      root_directory start_command exposed port maintenance_mode
+      root_directory start_command static_site exposed port maintenance_mode
       restart_policy restart_max_retries auto_deploy env domains
       storage proxy scaling limits reservations checks cron
       scripts docker_options traefik_labels letsencrypt depends_on
@@ -431,6 +432,8 @@ class ManifestReconciler
       service.key?(:auto_deploy) && !service[:auto_deploy].nil? ? service[:auto_deploy] : true
     when :scripts
       desired_scripts(service)
+    when :static_site
+      static_site_config_from(service)
     else
       service[field]
     end
@@ -1134,6 +1137,10 @@ class ManifestReconciler
     when :branch then service.update!(branch: change.new_value)
     when :root_directory then service.update!(root_directory: change.new_value)
     when :start_command then service.update!(start_command: change.new_value)
+    when :static_site
+      config = (service.config || {}).dup
+      change.new_value.present? ? config["staticSite"] = change.new_value : config.delete("staticSite")
+      service.update!(config: config)
     when :exposed then service.update!(exposed: change.new_value)
     when :port
       service.update!(port: change.new_value.to_s.present? ? change.new_value.to_i : nil)
@@ -1262,6 +1269,18 @@ class ManifestReconciler
     scripts = desired_scripts(svc)
     config["scripts"] = scripts if scripts.any?
     config["dockerfilePath"] = svc[:dockerfile_path] if svc[:dockerfile_path].present?
+    static_site = static_site_config_from(svc)
+    config["staticSite"] = static_site if static_site.present?
     config
+  end
+
+  def static_site_config_from(svc)
+    directory = svc[:publish_directory].to_s.strip
+    return nil if directory.blank?
+
+    static_site = { "publishDirectory" => directory }
+    static_site["spaFallback"] = svc[:spa_fallback] unless svc[:spa_fallback].nil?
+    static_site["nodeVersion"] = svc[:node_version] if svc[:node_version].present?
+    static_site
   end
 end

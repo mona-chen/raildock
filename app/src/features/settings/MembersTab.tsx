@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCopy } from '@/hooks/useCopy'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -63,6 +64,7 @@ export default function MembersTab() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null)
   const [lastInviteEmailEnqueued, setLastInviteEmailEnqueued] = useState<boolean>(false)
+  const [removeTarget, setRemoveTarget] = useState<{ userId: string; name: string; isYou: boolean } | null>(null)
 
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin'
   const isOwner = currentUserRole === 'owner'
@@ -71,9 +73,9 @@ export default function MembersTab() {
     return (
       <div className="max-w-3xl">
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Users size={24} className="text-[#4A4A55] mx-auto mb-2" />
+          <Users size={24} className="text-[#6b6b7b] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No organization selected</p>
-          <p className="text-[11px] text-[#4A4A55] mt-1">
+          <p className="text-[11px] text-[#6b6b7b] mt-1">
             Switch to an organization from the Organizations tab to manage its members.
           </p>
         </div>
@@ -115,10 +117,7 @@ export default function MembersTab() {
   }
 
   const handleRemove = (userId: string, name: string, isYou: boolean) => {
-    const message = isYou ? 'Leave this organization?' : `Remove ${name} from this organization?`
-    if (confirm(message)) {
-      removeMember.mutate(userId)
-    }
+    setRemoveTarget({ userId, name, isYou })
   }
 
   return (
@@ -126,7 +125,7 @@ export default function MembersTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Members</h2>
-          <p className="text-[11px] text-[#4A4A55] mt-0.5">
+          <p className="text-[11px] text-[#6b6b7b] mt-0.5">
             Invite teammates to collaborate on <span className="text-[#A0A0B0]">{currentOrg?.name}</span>
           </p>
         </div>
@@ -143,7 +142,7 @@ export default function MembersTab() {
                 <DialogTitle className="text-sm">
                   {lastInviteUrl ? 'Invitation created' : `Invite to ${currentOrg?.name}`}
                 </DialogTitle>
-                <DialogDescription className="text-[11px] text-[#4A4A55]">
+                <DialogDescription className="text-[11px] text-[#6b6b7b]">
                   {lastInviteUrl
                     ? 'Share this link with your teammate. It expires in 7 days.'
                     : 'Enter an email address. If they already have a RailDock account they\'ll be added immediately; otherwise we\'ll create an invitation.'}
@@ -166,7 +165,7 @@ export default function MembersTab() {
                     </Button>
                   </div>
                   {lastInviteEmailEnqueued ? (
-                    <p className="text-[10px] text-[#4A4A55]">
+                    <p className="text-[10px] text-[#6b6b7b]">
                       We also sent an email with this link.
                     </p>
                   ) : (
@@ -209,7 +208,7 @@ export default function MembersTab() {
                             <Icon size={14} className={`mt-0.5 ${info.color}`} />
                             <div>
                               <div className="text-xs text-white font-medium">{info.label}</div>
-                              <div className="text-[10px] text-[#4A4A55] mt-0.5">
+                              <div className="text-[10px] text-[#6b6b7b] mt-0.5">
                                 {r === 'admin' ? 'Can manage members and projects' : 'Can deploy and view projects'}
                               </div>
                             </div>
@@ -246,7 +245,7 @@ export default function MembersTab() {
 
       {/* Active members */}
       {membersLoading ? (
-        <div className="text-[11px] text-[#4A4A55]">Loading members...</div>
+        <div className="text-[11px] text-[#6b6b7b]">Loading members...</div>
       ) : (
         <div className="space-y-2">
           {members.map((m) => {
@@ -265,9 +264,9 @@ export default function MembersTab() {
                   <div className="min-w-0">
                     <div className="text-sm text-white font-medium truncate flex items-center gap-2">
                       {m.user.name}
-                      {m.isYou && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#4A4A55]">You</span>}
+                      {m.isYou && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] text-[#6b6b7b]">You</span>}
                     </div>
-                    <div className="text-[11px] text-[#4A4A55] truncate">{m.user.email}</div>
+                    <div className="text-[11px] text-[#6b6b7b] truncate">{m.user.email}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -297,7 +296,7 @@ export default function MembersTab() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemove(m.userId, m.user.name, false)}
-                      className="text-[#4A4A55] hover:text-red-400 h-7 w-7 p-0"
+                      className="text-[#6b6b7b] hover:text-red-400 h-7 w-7 p-0"
                       title="Remove from organization"
                     >
                       <Trash2 size={13} />
@@ -308,7 +307,7 @@ export default function MembersTab() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemove(m.userId, m.user.name, true)}
-                      className="text-[#4A4A55] hover:text-red-400 h-7 text-[11px]"
+                      className="text-[#6b6b7b] hover:text-red-400 h-7 text-[11px]"
                     >
                       Leave
                     </Button>
@@ -326,15 +325,15 @@ export default function MembersTab() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-medium text-white">Pending Invitations</h3>
-              <p className="text-[11px] text-[#4A4A55] mt-0.5">Invitations awaiting acceptance</p>
+              <p className="text-[11px] text-[#6b6b7b] mt-0.5">Invitations awaiting acceptance</p>
             </div>
           </div>
 
           {invitationsLoading ? (
-            <div className="text-[11px] text-[#4A4A55]">Loading...</div>
+            <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
           ) : invitations.length === 0 ? (
-            <div className="text-[11px] text-[#4A4A55] bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-lg p-4 text-center">
-              <Mail size={18} className="text-[#4A4A55] mx-auto mb-2" />
+            <div className="text-[11px] text-[#6b6b7b] bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-lg p-4 text-center">
+              <Mail size={18} className="text-[#6b6b7b] mx-auto mb-2" />
               No pending invitations
             </div>
           ) : (
@@ -349,10 +348,10 @@ export default function MembersTab() {
                     className="flex items-center justify-between p-3 rounded-xl border bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.05)]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <Mail size={14} className="text-[#4A4A55] shrink-0" />
+                      <Mail size={14} className="text-[#6b6b7b] shrink-0" />
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{inv.email}</div>
-                        <div className="text-[10px] text-[#4A4A55] flex items-center gap-2">
+                        <div className="text-[10px] text-[#6b6b7b] flex items-center gap-2">
                           <span className={`flex items-center gap-1 ${info.color}`}>
                             <Icon size={10} />
                             {info.label}
@@ -372,7 +371,7 @@ export default function MembersTab() {
                       size="sm"
                       onClick={() => revokeInvitation.mutate(inv.id)}
                       disabled={revokeInvitation.isPending}
-                      className="text-[#4A4A55] hover:text-red-400 h-7 w-7 p-0"
+                      className="text-[#6b6b7b] hover:text-red-400 h-7 w-7 p-0"
                       title="Revoke invitation"
                     >
                       <X size={13} />
@@ -384,6 +383,31 @@ export default function MembersTab() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title={removeTarget?.isYou ? 'Leave this organization?' : 'Remove member?'}
+        description={
+          removeTarget?.isYou ? (
+            <>You will lose access to <span className="font-medium text-white">{currentOrg?.name}</span> and everything in it. An owner can re-invite you later.</>
+          ) : (
+            <><span className="font-medium text-white">{removeTarget?.name}</span> will lose access to <span className="font-medium text-white">{currentOrg?.name}</span> immediately.</>
+          )
+        }
+        confirmLabel={removeTarget?.isYou ? 'Leave' : 'Remove member'}
+        destructive
+        pending={removeMember.isPending}
+        onConfirm={async () => {
+          if (!removeTarget) return
+          try {
+            await removeMember.mutateAsync(removeTarget.userId)
+            setRemoveTarget(null)
+          } catch {
+            /* surfaced by the mutation hook */
+          }
+        }}
+      />
     </div>
   )
 }

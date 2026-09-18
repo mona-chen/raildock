@@ -300,7 +300,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
-              <span className="text-[11px] text-white/40">{realtimeStateLabel(connectionState)}</span>
+              <span className="text-[11px] text-white/50">{realtimeStateLabel(connectionState)}</span>
             </div>
             {isPaused && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded-full">
@@ -331,7 +331,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                 <button
                   type="button"
                   onClick={clearSelection}
-                  className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+                  className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
                   title="Clear selection"
                 >
                   <X size={13} />
@@ -356,7 +356,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={copyAll}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Copy all logs"
             >
               {copiedAll && !selectedRange ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
@@ -364,7 +364,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={() => setIsPaused((p) => !p)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title={isPaused ? 'Resume' : 'Pause'}
             >
               {isPaused ? <Play size={13} /> : <Pause size={13} />}
@@ -372,7 +372,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={() => setWrapLines((w) => !w)}
-              className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/30 hover:text-white/60'}`}
+              className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
               title="Wrap lines"
             >
               <WrapText size={13} />
@@ -380,7 +380,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={() => setShowFilters((s) => !s)}
-              className={`p-1.5 rounded transition-colors ${showFilters ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/30 hover:text-white/60'}`}
+              className={`p-1.5 rounded transition-colors ${showFilters ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
               title="Filters"
             >
               <Filter size={13} />
@@ -388,7 +388,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={exportLogs}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Export logs"
             >
               <Download size={13} />
@@ -396,7 +396,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={handleClear}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Clear"
             >
               <X size={13} />
@@ -405,7 +405,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <button
               type="button"
               onClick={() => setIsExpanded(true)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Expand logs"
             >
               <Maximize2 size={13} />
@@ -428,7 +428,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50"
               >
                 <X size={12} />
               </button>
@@ -473,7 +473,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               <button
                 type="button"
                 onClick={() => { setLevelFilter('all'); setProcessFilter('all'); setSearchQuery('') }}
-                className="text-[11px] text-white/30 hover:text-white/50"
+                className="text-[11px] text-white/50 hover:text-white/50"
               >
                 Reset filters
               </button>

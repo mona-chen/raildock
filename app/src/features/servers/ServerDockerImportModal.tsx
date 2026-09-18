@@ -56,14 +56,14 @@ export default function ServerDockerImportModal({ serverId, serverName, onClose 
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-semibold text-white">Import Docker Containers</h3>
-            <p className="text-[11px] text-[#6B6B7B]">{serverName}</p>
+            <p className="text-[11px] text-[#8a8a99]">{serverName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.05]">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.05]">
             <X size={16} />
           </button>
         </div>
 
-        <p className="text-[11px] text-[#6B6B7B] mb-4">
+        <p className="text-[11px] text-[#8a8a99] mb-4">
           Select existing Docker containers to import as RailDock services. The container image, environment variables,
           published ports, and bind mounts are preserved. A deployment is queued automatically for each imported app.
         </p>
@@ -89,11 +89,11 @@ export default function ServerDockerImportModal({ serverId, serverName, onClose 
 
         <div className="flex-1 overflow-y-auto min-h-[200px] space-y-2 pr-1">
           {isLoading ? (
-            <div className="flex items-center justify-center h-32 text-[11px] text-[#6B6B7B]">
+            <div className="flex items-center justify-center h-32 text-[11px] text-[#8a8a99]">
               <Loader2 size={14} className="animate-spin mr-2" /> Scanning containers...
             </div>
           ) : containers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-[#6B6B7B]">
+            <div className="flex flex-col items-center justify-center h-32 text-[#8a8a99]">
               <Container size={24} className="mb-2 opacity-30" />
               <p className="text-[11px]">No running containers found</p>
             </div>
@@ -105,7 +105,7 @@ export default function ServerDockerImportModal({ serverId, serverName, onClose 
         </div>
 
         <div className="flex items-center justify-between mt-5 pt-4 border-t border-[rgba(255,255,255,0.06)]">
-          <span className="text-[11px] text-[#6B6B7B]">{selected.size} selected</span>
+          <span className="text-[11px] text-[#8a8a99]">{selected.size} selected</span>
           <div className="flex gap-2">
             <button
               onClick={onClose}
@@ -168,7 +168,7 @@ function ContainerRow({
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rail-blue/10 text-rail-blue">{container.subtype}</span>
             )}
           </div>
-          <div className="text-[10px] text-[#6B6B7B] truncate mb-2">{container.image}</div>
+          <div className="text-[10px] text-[#8a8a99] truncate mb-2">{container.image}</div>
           <div className="flex flex-wrap gap-3 text-[10px] text-[#A0A0B0]">
             {container.ports.length > 0 && (
               <span className="flex items-center gap-1">

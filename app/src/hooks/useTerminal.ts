@@ -82,7 +82,7 @@ export function useTerminal(
         magenta: '#8b5cf6',
         cyan: '#06b6d4',
         white: '#F0F1F3',
-        brightBlack: '#4A4A55',
+        brightBlack: '#6b6b7b',
         brightRed: '#f87171',
         brightGreen: '#4ade80',
         brightYellow: '#facc15',

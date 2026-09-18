@@ -1,23 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Folder, Plus, Search, Box, Trash2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
 
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SkeletonCard } from '@/components/ui/skeleton'
+import ErrorState from '@/features/shared/ErrorState'
+import EmptyState from '@/features/shared/EmptyState'
 import { cn, confirmationFieldTone } from '@/lib/utils'
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
-  const { data: projects = [], isLoading } = useProjects()
+  const { data: projects = [], isLoading, isError, refetch } = useProjects()
   const createProject = useCreateProject()
   const destroyProject = useDestroyProject()
   const setActiveProject = useCanvasStore((s) => s.setActiveService)
 
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newEnv, setNewEnv] = useState<'production' | 'staging' | 'development'>('production')
@@ -26,6 +29,15 @@ export default function ProjectsPage() {
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.description.toLowerCase().includes(search.toLowerCase())
   )
+
+  // The command palette deep-links here with ?new=1 to open the create dialog.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setShowCreate(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('new')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const handleOpenProject = (id: string) => {
     setActiveProject(null)
@@ -51,7 +63,7 @@ export default function ProjectsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Projects</h1>
-            <p className="text-sm text-[#4A4A55]">Manage your applications and services</p>
+            <p className="text-sm text-[#6b6b7b]">Manage your applications and services</p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
@@ -62,12 +74,12 @@ export default function ProjectsPage() {
         </div>
 
         <div className="flex items-center bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-2.5 gap-3 max-w-md mb-6">
-          <Search size={16} className="text-[#4A4A55]" />
+          <Search size={16} className="text-[#6b6b7b]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search projects..."
-            className="bg-transparent text-sm text-white placeholder-[#4A4A55] outline-none w-full"
+            className="bg-transparent text-sm text-white placeholder-[#6b6b7b] outline-none w-full"
           />
         </div>
 
@@ -77,6 +89,42 @@ export default function ProjectsPage() {
               <SkeletonCard key={i} className="h-40" />
             ))}
           </div>
+        ) : isError ? (
+          <ErrorState
+            title="Couldn't load projects"
+            message="RailDock could not reach the API. Your projects are unaffected — retry to load them."
+            onRetry={() => refetch()}
+          />
+        ) : filtered.length === 0 ? (
+          projects.length === 0 ? (
+            <EmptyState
+              icon={Folder}
+              title="No projects yet"
+              description="A project groups the apps and databases that belong together on a server."
+              action={
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-2 text-[13px] font-medium text-white hover:bg-[#7c3aed] transition-colors"
+                >
+                  <Plus size={14} /> New Project
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No matching projects"
+              description={`Nothing matches “${search}”. Try a different term, or clear the search.`}
+              action={
+                <button
+                  onClick={() => setSearch('')}
+                  className="rounded-lg border border-[rgba(255,255,255,0.1)] px-3 py-2 text-[13px] text-[#A0A0B0] hover:text-white transition-colors"
+                >
+                  Clear search
+                </button>
+              }
+            />
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((project) => (
@@ -86,26 +134,16 @@ export default function ProjectsPage() {
             ))}
           </div>
         )}
-
-        {filtered.length === 0 && !isLoading && (
-          <div className="text-center py-16 text-[#4A4A55]">
-            <Folder size={48} className="mx-auto mb-4 opacity-30" />
-            <p className="text-sm">No projects found</p>
-            <button onClick={() => setShowCreate(true)} className="mt-3 text-rail-purple text-sm hover:underline">
-              Create your first project
-            </button>
-          </div>
-        )}
       </div>
 
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowCreate(false)}>
           <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white mb-1">New Project</h3>
-            <p className="text-xs text-[#4A4A55] mb-4">Create a new project to organize your services</p>
+            <p className="text-xs text-[#6b6b7b] mb-4">Create a new project to organize your services</p>
             <div className="space-y-3">
               <div>
-                <label htmlFor="project-name" className="text-[11px] text-[#6B6B7B] block mb-1.5">Project Name</label>
+                <label htmlFor="project-name" className="text-[11px] text-[#8a8a99] block mb-1.5">Project Name</label>
                 <input
                   id="project-name"
                   value={newName}
@@ -115,7 +153,7 @@ export default function ProjectsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="project-description" className="text-[11px] text-[#6B6B7B] block mb-1.5">Description</label>
+                <label htmlFor="project-description" className="text-[11px] text-[#8a8a99] block mb-1.5">Description</label>
                 <input
                   id="project-description"
                   value={newDesc}
@@ -125,7 +163,7 @@ export default function ProjectsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="project-environment" className="text-[11px] text-[#6B6B7B] block mb-1.5">Environment</label>
+                <label htmlFor="project-environment" className="text-[11px] text-[#8a8a99] block mb-1.5">Environment</label>
                 <Select value={newEnv} onValueChange={(value) => setNewEnv(value as 'production' | 'staging' | 'development')}>
                   <SelectTrigger id="project-environment">
                     <SelectValue />
@@ -245,9 +283,9 @@ function ProjectCard({
           <h3 className="text-base font-semibold text-white mb-1 group-hover:text-rail-purple transition-colors">
             {project.name}
           </h3>
-          <p className="text-xs text-[#4A4A55] mb-4 line-clamp-2">{project.description}</p>
+          <p className="text-xs text-[#6b6b7b] mb-4 line-clamp-2">{project.description}</p>
 
-          <div className="flex items-center gap-3 text-[10px] text-[#6B6B7B]">
+          <div className="flex items-center gap-3 text-[10px] text-[#8a8a99]">
             <span className="flex items-center gap-1">
               <Box size={10} /> {total} services
             </span>
@@ -262,7 +300,7 @@ function ProjectCard({
             e.stopPropagation()
             handleDeleteClick()
           }}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.04] transition-all"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
           title="Delete project"
         >
           <Trash2 size={14} />
@@ -284,7 +322,7 @@ function ProjectCard({
               </div>
               <div>
                 <h3 className="text-base font-semibold text-white">Delete Project</h3>
-                <p className="text-xs text-[#6B6B7B]">This action cannot be undone</p>
+                <p className="text-xs text-[#8a8a99]">This action cannot be undone</p>
               </div>
             </div>
 
@@ -310,7 +348,7 @@ function ProjectCard({
               . All associated Dokku resources (apps, databases) will be destroyed.
             </p>
 
-            <p className="text-[11px] text-[#6B6B7B] mb-4">
+            <p className="text-[11px] text-[#8a8a99] mb-4">
               Databases and volumes are snapshotted to a verified backup destination first. If none is configured the
               deletion is refused until you acknowledge the loss.
             </p>
@@ -322,7 +360,7 @@ function ProjectCard({
             )}
 
             <div className="mb-4">
-              <label className="text-[11px] text-[#6B6B7B] block mb-1.5">
+              <label className="text-[11px] text-[#8a8a99] block mb-1.5">
                 Type <span className="font-mono font-medium text-white">{project.name}</span> to confirm
               </label>
               <input

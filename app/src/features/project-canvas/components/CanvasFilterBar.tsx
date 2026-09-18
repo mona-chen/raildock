@@ -23,7 +23,7 @@ export default function CanvasFilterBar({ onAddService }: CanvasFilterBarProps) 
     <div className="absolute top-3 left-4 right-4 flex items-center justify-between z-30 pointer-events-none">
       <div className="flex items-center gap-2 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center bg-[#16161a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 gap-2">
-          <Search size={13} className="text-white/30" />
+          <Search size={13} className="text-white/50" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -39,7 +39,7 @@ export default function CanvasFilterBar({ onAddService }: CanvasFilterBarProps) 
               className={`px-2.5 py-1.5 text-[11px] transition-all ${
                 filter === f.key
                   ? 'bg-white/[0.08] text-white/80'
-                  : 'text-white/40 hover:text-white/60'
+                  : 'text-white/50 hover:text-white/60'
               }`}
             >
               {f.label}
