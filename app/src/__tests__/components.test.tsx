@@ -32,6 +32,7 @@ vi.mock('@/hooks/useServices', () => ({
   useRestartService: () => ({ mutate: vi.fn(), isPending: false }),
   useRebuildService: () => ({ mutate: vi.fn(), isPending: false }),
   useDeployment: () => ({ data: null, isLoading: false }),
+  useCancelDeployment: () => ({ mutate: vi.fn(), isPending: false }),
   useServiceLogs: () => ({ data: null }),
   useLinkedByServices: () => ({ data: [] }),
   useLinkService: () => ({ mutate: vi.fn(), isPending: false }),
@@ -287,6 +288,34 @@ describe('ServicePanel', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('jumps between tabs with Railway-style G-prefixed shortcuts', () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+
+    fireEvent.keyDown(window, { key: 'g' })
+    fireEvent.keyDown(window, { key: 'd' })
+    expect(screen.getByRole('tab', { name: 'Deployments' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(window, { key: 'g' })
+    fireEvent.keyDown(window, { key: 'v' })
+    expect(screen.getByRole('tab', { name: 'Variables' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('ignores shortcuts while the user is typing', () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    fireEvent.keyDown(input, { key: 'g' })
+    fireEvent.keyDown(input, { key: 'd' })
+
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
+    input.remove()
   })
 
   it('groups domains and volumes under the Networking tab', () => {

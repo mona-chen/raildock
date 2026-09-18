@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, X, Play, Square, RotateCw, Rocket, Wrench, Terminal } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import {
@@ -43,21 +43,87 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const [networkingView, setNetworkingView] = useState<'domains' | 'volumes'>('domains')
   const [showConsole, setShowConsole] = useState(false)
 
-  // Escape closes the panel, like Railway's service view. While the shell is
-  // open the terminal owns Escape (it uses it to leave search/fullscreen), so
-  // we step aside and let its own handler run.
+  // These have to be known before the early returns below so the shortcut map
+  // can be built in a hook.
+  const db = svc?.type === 'database'
+  const hasData = Boolean(svc?.dataView)
+
+  // Railway's service-view shortcuts: `G` then a letter jumps to a tab, and
+  // `Escape` closes the panel. While the shell is open the terminal owns the
+  // keyboard, so we stand down entirely — otherwise typing `g` + `c` in a
+  // shell would yank the user to another tab.
+  const shortcutTargets = useMemo<Record<string, string>>(() => {
+    const targets: Record<string, string> = {
+      o: 'overview',
+      l: 'logs',
+      v: 'variables',
+      n: 'networking',
+      m: 'metrics',
+      s: 'settings',
+    }
+    if (db) {
+      if (hasData) targets.t = 'data'
+      targets.b = 'backups'
+    } else {
+      targets.d = 'deploy'
+    }
+    return targets
+  }, [db, hasData])
+
   useEffect(() => {
     if (showConsole) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      // An open dialog or popover (a confirm, a select) owns Escape first —
-      // otherwise dismissing it would also tear down the whole panel.
-      if (document.querySelector('[data-state="open"]')) return
-      onClose()
+    let awaitingG = false
+    let resetTimer: number | undefined
+
+    const stopWaiting = () => {
+      awaitingG = false
+      if (resetTimer !== undefined) window.clearTimeout(resetTimer)
     }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      // An open dialog or popover owns the keyboard first — otherwise
+      // dismissing a confirm would also tear down the panel behind it.
+      if (document.querySelector('[data-state="open"]')) return
+
+      const target = event.target as HTMLElement | null
+      const typing = Boolean(
+        target &&
+          (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      )
+
+      if (event.key === 'Escape') {
+        if (!typing) onClose()
+        return
+      }
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return
+
+      const key = event.key.toLowerCase()
+      if (awaitingG) {
+        stopWaiting()
+        if (key === 'c') {
+          event.preventDefault()
+          setShowConsole(true)
+          return
+        }
+        const destination = shortcutTargets[key]
+        if (destination) {
+          event.preventDefault()
+          setTab(destination)
+        }
+        return
+      }
+      if (key === 'g') {
+        awaitingG = true
+        resetTimer = window.setTimeout(stopWaiting, 1200)
+      }
+    }
+
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showConsole, onClose])
+    return () => {
+      stopWaiting()
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [showConsole, onClose, shortcutTargets])
 
   const handleDeploy = () => {
     setShowConsole(false)
@@ -136,7 +202,6 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     )
   }
 
-  const db = svc.type === 'database'
   // Railway's service view keeps a short tab row: Deployments, Variables,
   // Metrics, Settings. Logs stays because it is the first thing an operator
   // reaches for when a deploy misbehaves. Everything else that used to be its
@@ -145,7 +210,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const tabs = db
     ? [
         { key: 'overview', label: 'Overview' },
-        ...(svc.dataView ? [{ key: 'data', label: 'Data' }] : []),
+        ...(hasData ? [{ key: 'data', label: 'Data' }] : []),
         { key: 'logs', label: 'Logs' },
         { key: 'variables', label: 'Variables' },
         { key: 'networking', label: 'Networking' },
@@ -175,8 +240,8 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onClose}
@@ -191,15 +256,15 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           >
             <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={17} />
           </div>
-          <div>
-            <div className="text-[15px] font-semibold text-white/90">{svc.name}</div>
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold text-white/90 truncate">{svc.name}</div>
             <div className="text-[11px] text-white/50">
               {svc.subtype} {svc.version ? `v${svc.version}` : ''}
               {deploymentRealtime.lastUpdate && <span className="ml-2 text-white/25">· {deploymentRealtime.lastUpdate.message}</span>}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {/* Lifecycle actions */}
           <div className="flex items-center gap-1 mr-2">
             {!db && (
@@ -259,7 +324,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             type="button"
             onClick={() => setShowConsole((open) => !open)}
             aria-pressed={showConsole}
-            title={showConsole ? 'Close shell' : 'Open shell'}
+            title={showConsole ? 'Close shell (G then C)' : 'Open shell (G then C)'}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all ${
               showConsole
                 ? 'bg-[#8b5cf6]/20 text-[#8b5cf6]'
@@ -317,7 +382,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             )}
             {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} realtime={deploymentRealtime} />}
             {tab === 'logs' && <LogsTab serviceId={serviceId} />}
-            {tab === 'data' && svc.dataView && <DataTab serviceId={serviceId} />}
+            {tab === 'data' && hasData && <DataTab serviceId={serviceId} />}
             {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
             {tab === 'variables' && <VariablesTab svc={svc} />}
             {tab === 'networking' && (
