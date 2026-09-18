@@ -94,3 +94,20 @@ service with no manual configuration.
   These need `RAILPACK_STATIC_FILE_ROOT`/nginx handling and are not required to
   fix the reported failures.
 - Dockerfile-based static sites: the repo's Dockerfile is authoritative.
+
+## Shipped
+
+- `StaticSiteConfigurator` (settings → build env + `ps:set <app>
+  dockerfile-start-cmd`), `StaticSiteDetector`, and import-time detection in
+  `RepositoryDiscovery` landed in `b0ef5f9`.
+- Deploy-time coverage closed the gap the settings-only path left: a frontend
+  repo that was never given static settings still failed. `StaticSiteProbe`
+  now reads the repo at the deployed revision through its GitHub App connection,
+  and `DeploymentJob` falls back to reading the Caddy serve command out of the
+  built image (`dokku run <app> cat /Caddyfile`), saves the publish directory,
+  and retries the rebuild once when the repo cannot be read at all.
+- Confirmed on a real Dokku 0.38.1 host: `ENTRYPOINT []` in
+  `plugins/builder-railpack/dockerfiles/builder-build.Dockerfile` (and the
+  nixpacks wrapper entrypoint) clears the inherited `CMD` for every build, so
+  `dockerfile-start-cmd` is the only thing that makes a static image start.
+  Upstream `master` still behaves this way.

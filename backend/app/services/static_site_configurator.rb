@@ -42,14 +42,24 @@ class StaticSiteConfigurator
 
   # Railpack writes its Caddyfile to the image root; nixpacks copies generated
   # assets into /assets. RailDock's builder-detected port is exported as
-  # Dokku's PORT, and both Caddyfiles listen on `{$PORT}`.
-  SERVE_COMMANDS = {
-    "railpack" => "caddy run --config /Caddyfile --adapter caddyfile",
-    "nixpacks" => "caddy run --config /assets/Caddyfile --adapter caddyfile"
+  # Dokku's PORT, and both Caddyfiles listen on `{$PORT}`. The paths double as
+  # the fingerprint of a static image, which is how a failed deploy recovers the
+  # command the builder meant to run (see DeploymentJob).
+  CADDY_CONFIG_PATHS = {
+    "railpack" => "/Caddyfile",
+    "nixpacks" => "/assets/Caddyfile"
   }.freeze
 
-  def initialize(service)
+  SERVE_COMMANDS = CADDY_CONFIG_PATHS.transform_values do |path|
+    "caddy run --config #{path} --adapter caddyfile"
+  end.freeze
+
+  # `detected_config` is the deploy-time detection (StaticSiteProbe) for services
+  # that never had static settings saved. Explicit service config wins key by
+  # key, so detection only fills in what the service does not declare.
+  def initialize(service, detected_config: nil)
     @service = service
+    @detected_config = detected_config
   end
 
   def static?
@@ -134,10 +144,16 @@ class StaticSiteConfigurator
   attr_reader :service
 
   def static_config
-    @static_config ||= begin
-      value = service.config.is_a?(Hash) ? service.config["staticSite"] : nil
-      value.is_a?(Hash) ? value : {}
-    end
+    @static_config ||= detected_config.merge(explicit_static_config)
+  end
+
+  def explicit_static_config
+    value = service.config.is_a?(Hash) ? service.config["staticSite"] : nil
+    value.is_a?(Hash) ? value : {}
+  end
+
+  def detected_config
+    @detected_config.is_a?(Hash) ? @detected_config : {}
   end
 
   def configured_builder

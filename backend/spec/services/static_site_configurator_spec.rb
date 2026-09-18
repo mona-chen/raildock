@@ -135,4 +135,37 @@ RSpec.describe StaticSiteConfigurator do
       expect(configurator.serve_command("railpack")).to be_nil
     end
   end
+
+  describe "deploy-time detection" do
+    let(:detected) { { "publishDirectory" => "dist", "spaFallback" => true } }
+
+    it "treats a detected frontend as a static site" do
+      configurator = described_class.new(service_with(config: {}), detected_config: detected)
+
+      expect(configurator).to be_static
+      expect(configurator.publish_directory).to eq("dist")
+      expect(configurator.build_env("railpack")).to eq("RAILPACK_SPA_OUTPUT_DIR" => "dist")
+      expect(configurator.serve_command("railpack")).to eq("caddy run --config /Caddyfile --adapter caddyfile")
+    end
+
+    it "lets explicit settings win key by key" do
+      config = { "staticSite" => { "publishDirectory" => "build", "nodeVersion" => "20" } }
+      configurator = described_class.new(
+        service_with(config: config),
+        detected_config: { "publishDirectory" => "dist", "nodeVersion" => "22" }
+      )
+
+      expect(configurator.publish_directory).to eq("build")
+      expect(configurator.node_version).to eq("20")
+    end
+
+    it "still honours an explicit start command" do
+      configurator = described_class.new(
+        service_with(config: {}, start_command: "node server.js"),
+        detected_config: detected
+      )
+
+      expect(configurator).not_to be_static
+    end
+  end
 end

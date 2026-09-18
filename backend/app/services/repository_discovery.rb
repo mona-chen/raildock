@@ -7,13 +7,7 @@ class RepositoryDiscovery
   CONVENTIONAL_NAMES = %w[Dockerfile Procfile package.json Gemfile].freeze
   # Framework config files the static-site detector reads to resolve the
   # publish directory (e.g. a Vite `outDir` or an Angular `outputPath`).
-  DETECTION_NAMES = %w[
-    vite.config.js vite.config.ts vite.config.mjs vite.config.mts
-    angular.json
-    astro.config.js astro.config.mjs astro.config.ts
-    next.config.js next.config.mjs next.config.ts
-    svelte.config.js gatsby-config.js gatsby-config.ts
-  ].freeze
+  DETECTION_NAMES = StaticSiteDetector::CONFIG_FILES
   MAX_DISCOVERY_FILES = 50
   # Only example-style dotenv files are read: they exist to document the
   # variables a service needs and never contain real secrets, so we can list
@@ -191,7 +185,13 @@ class RepositoryDiscovery
         builder = dockerfile ? "dockerfile" : nil
         subtype = "web"
         name = root.present? ? File.basename(root) : @repository.split("/").last
-        static_site = package && dockerfile.nil? ? detect_static_site(package, root_paths, commit_sha) : nil
+        # A Dockerfile or a Procfile already declares how the app is built and
+        # started, so RailDock must not attach static settings to it. The
+        # deploy-time probe (StaticSiteProbe) applies the same rule.
+        declares_process = root_paths.any? { |path| File.basename(path) == "Procfile" }
+        static_site = if package && dockerfile.nil? && !declares_process
+          detect_static_site(package, root_paths, commit_sha)
+        end
         services << {
           "name" => name.parameterize,
           "category" => "app",

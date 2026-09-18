@@ -558,6 +558,124 @@ RSpec.describe DeploymentJob, type: :job do
       end
     end
 
+    context "when the repository is a static frontend with no saved settings" do
+      let!(:owner) { create(:user) }
+      let!(:project) { create(:project, server: server, user: owner) }
+
+      let(:detected) do
+        StaticSiteDetector::Result.new(
+          framework: "vite",
+          publish_directory: "dist",
+          spa_fallback: true,
+          node_version: nil
+        )
+      end
+
+      before do
+        service.update!(git_repo: "https://github.com/acme/storefront.git")
+        create(
+          :git_source,
+          user: owner,
+          provider: "github",
+          access_token: nil,
+          installation_id: "12345",
+          auth_method: :oauth_app,
+          metadata: { "repos" => [ { "full_name" => "acme/storefront" } ] }
+        )
+        allow(GithubAppService).to receive(:installation_client).with("12345").and_return(double("octokit"))
+        allow(StaticSiteProbe).to receive(:new).and_return(instance_double(StaticSiteProbe, detect: detected))
+        allow(engine).to receive(:escape) { |value| value }
+      end
+
+      it "builds the bundle and serves it with the builder's static server" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:builder_set).with(service.dokku_app_name, "railpack")
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /Caddyfile --adapter caddyfile"
+        )
+        expect(deployment.reload.deploy_log).to include("Detected a static vite build", "publish directory: dist")
+        expect(deployment.reload.status).to eq("succeeded")
+      end
+
+      it "leaves services that already declare static settings to their own config" do
+        service.update!(config: { "staticSite" => { "publishDirectory" => "build" } })
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(StaticSiteProbe).not_to have_received(:new)
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /Caddyfile --adapter caddyfile"
+        )
+      end
+    end
+
+    context "when the build produces an image with no start command" do
+      let(:caddyfile) do
+        <<~CADDY
+          {
+          \tadmin off
+          }
+
+          :{$PORT:80} {
+          \troot * /app/dist
+          }
+        CADDY
+      end
+
+      before do
+        allow(engine).to receive(:escape) { |value| value }
+        allow(engine).to receive(:run).with(/^run .* cat \/Caddyfile$/).and_return({ success: true, output: caddyfile })
+        allow(engine).to receive(:run).with(/^run .* cat \/assets\/Caddyfile$/).and_return({ success: false, output: "No such file or directory" })
+      end
+
+      def stub_build_outcomes(first_success:)
+        attempts = 0
+        allow(engine).to receive(:run_streaming) do |_command, cancelled: nil, &block|
+          attempts += 1
+          output = if attempts == 1
+            "npm error Missing script: \"start\"\nError response from daemon: no command specified"
+          else
+            "recovered deploy"
+          end
+          block&.call(output)
+          { success: attempts > 1 || first_success, output: output, cancelled: false }
+        end
+      end
+
+      it "recovers the serve command from the image, saves it, and retries the deploy" do
+        stub_build_outcomes(first_success: false)
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /Caddyfile --adapter caddyfile"
+        )
+        expect(engine).to have_received(:run_streaming).twice
+        expect(service.reload.publish_directory).to eq("dist")
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(deployment.reload.deploy_log).to include("recovering it from the image", "caddy run --config /Caddyfile")
+      end
+
+      it "fails with an actionable message when the image carries no serve command" do
+        stub_build_outcomes(first_success: false)
+        allow(engine).to receive(:run).with(/^run .* cat /).and_return({ success: false, output: "No such file or directory" })
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(deployment.reload.status).to eq("failed")
+        expect(service.reload.publish_directory).to be_nil
+        expect(deployment.deploy_log).to include("could not determine how to start this app")
+        expect(deployment.deploy_log).to include("Publish Directory")
+      end
+    end
+
     context "when a manifest-managed service deploys from a git push" do
       let!(:owner) { create(:user) }
       let!(:project) { create(:project, server: server, user: owner) }
@@ -599,6 +717,9 @@ RSpec.describe DeploymentJob, type: :job do
         allow(github_client).to receive(:contents) do |_repo, path:, ref:|
           path == "raildock.toml" ? double(content: Base64.encode64(manifest_toml)) : (raise Octokit::NotFound)
         end
+        # Static-site detection is a separate collaborator with its own coverage;
+        # these examples are about the manifest sync.
+        allow(StaticSiteProbe).to receive(:new).and_return(instance_double(StaticSiteProbe, detect: nil))
 
         allow(engine).to receive(:config_set).and_return({ success: true, output: "" })
         allow(engine).to receive(:escape) { |value| value }

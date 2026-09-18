@@ -293,6 +293,19 @@ version the target servers run before assuming a behavior.
   services the manifest does not own (`managed_by: ui`) are never adopted.
   Only native `raildock.toml`/`raildock.json` can be regenerated; compatibility
   formats (railway.toml, railway.json, app.json) report `supported: false`.
+- **A static frontend is a builder decision, not a Procfile.** Dokku's railpack
+  and nixpacks builder stages set `ENTRYPOINT []`, which clears the image `CMD`
+  that carries the builder's start command, so a static site has no process for
+  the docker-local scheduler to run and the deploy dies with
+  `Error response from daemon: no command specified`. `StaticSiteConfigurator`
+  owns that decision: an explicit `config["staticSite"]` wins, `StaticSiteProbe`
+  fills in the publish directory from the repo at the deployed revision when the
+  service declares none, and a deploy that still reaches an image with no
+  command reads the Caddy serve command back out of the built image, saves the
+  publish directory, and retries once (the rebuild is cached). A repo
+  `Dockerfile` or `Procfile` always passes through untouched — it declares its
+  own process — and a herokuish app with no `start` script (`Missing script:
+  "start"`) is sent to the same static-site settings.
 - **`restart_policy` is stored hyphenated.** Rails' enum reader returns the
   label (`on_failure`) while the database, manifests and the JSON API use the
   stored value (`on-failure`). Use `Service#restart_policy_value` (as `as_json`

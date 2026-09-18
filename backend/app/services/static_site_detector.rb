@@ -31,7 +31,28 @@ class StaticSiteDetector
     @tanstack/react-start
   ].freeze
 
-  Result = Data.define(:framework, :publish_directory, :spa_fallback, :node_version)
+  # Framework config files that can override a default publish directory. Kept
+  # here so import-time discovery (RepositoryDiscovery) and deploy-time probing
+  # (StaticSiteProbe) read exactly the same inputs.
+  CONFIG_FILES = %w[
+    vite.config.js vite.config.ts vite.config.mjs vite.config.mts
+    angular.json
+    astro.config.js astro.config.mjs astro.config.ts
+    next.config.js next.config.mjs next.config.ts
+    svelte.config.js gatsby-config.js gatsby-config.ts
+  ].freeze
+
+  Result = Data.define(:framework, :publish_directory, :spa_fallback, :node_version) do
+    # The shape service.config["staticSite"] uses, so a detection result can be
+    # handed straight to StaticSiteConfigurator.
+    def config
+      {
+        "publishDirectory" => publish_directory,
+        "spaFallback" => spa_fallback,
+        "nodeVersion" => node_version
+      }.compact
+    end
+  end
 
   def self.detect(package_json:, files: {})
     new(package_json: package_json, files: files).detect

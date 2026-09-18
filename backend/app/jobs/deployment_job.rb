@@ -57,7 +57,26 @@ class DeploymentJob < ApplicationJob
     # builder. Resolve the builder up front so the env sync and the process
     # command below match what Dokku will actually run. A Dockerfile deploy
     # owns its own serving, so it passes through untouched.
-    static_site = StaticSiteConfigurator.new(service)
+    #
+    # A frontend repo that was never given static settings still has none of
+    # that: it builds a bundle and then has no process to start, because the
+    # railpack/nixpacks build stages clear the image command that would have
+    # served it. Reading the repo here decides the builder, the build env, and
+    # the process command before the build instead of at container start.
+    detected_static_site = detect_static_site(service, deployment)
+    static_site = StaticSiteConfigurator.new(service, detected_config: detected_static_site&.config)
+    if detected_static_site
+      note = "-----> Detected a static #{detected_static_site.framework} build " \
+             "(publish directory: #{detected_static_site.publish_directory})\n"
+      deploy_output += note
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: deployment.status,
+        log_chunk: note,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at&.iso8601
+      })
+    end
     static_builder = static_site.resolve_builder(available: ->(slug) { host_engine.builder_available?(slug) })
     if static_site.static? && !static_site.passthrough? && static_builder.blank?
       return mark_failed(
@@ -384,10 +403,24 @@ class DeploymentJob < ApplicationJob
       )
     end
 
+    # Dokku can build an image that has nothing to run. A repo with no Procfile
+    # and no start script leaves the railpack/nixpacks build with a start command
+    # that lives only in the image CMD, which Dokku's build stage clears. A static
+    # image still carries the command it meant to run, so read it back and retry
+    # instead of failing a deploy that already produced a working bundle.
+    if !result[:success] && resolved_start_command.blank? && deploy_missing_process_command?(deploy_output)
+      recovered = recover_missing_process_command(service, deployment, engine, deploy_output)
+      result = recovered if recovered
+    end
+
     unless result[:success]
       if result[:error].present? && !deploy_output.include?(result[:error])
         deploy_output += "\n\n--- #{LogRedactor.redact(result[:error])} ---"
       end
+      if deploy_missing_process_command?(deploy_output)
+        return mark_failed(deployment, service, missing_process_command_message, deploy_output)
+      end
+
       return mark_failed(deployment, service, "Deploy failed", deploy_output)
     end
 
@@ -627,6 +660,132 @@ class DeploymentJob < ApplicationJob
   # from the deployed repo and executes during release/post-deploy.
   def dokku_processes_deploy_script?(scripts)
     scripts["source"].to_s == "repository" && scripts["format"].to_s == "app.json"
+  end
+
+  # Reads the repo being deployed through its GitHub App connection to decide
+  # whether it is a static frontend. Explicit service settings always win, so
+  # this only runs when the service declares neither a start command nor a
+  # publish directory. Returns a StaticSiteDetector::Result or nil.
+  def detect_static_site(service, deployment)
+    return nil unless service.service_type_app?
+    return nil if service.docker_image.present?
+    return nil if service.start_command.present?
+    return nil if service.publish_directory.present?
+
+    github_source = github_source_for_service(service)
+    return nil unless github_source
+
+    repository = Service.repo_full_name(service.git_repo)
+    return nil if repository.blank?
+
+    probe = StaticSiteProbe.new(
+      client: GithubAppService.installation_client(github_source.installation_id),
+      repository: repository,
+      ref: deployment.commit_sha.presence || deployment.branch.presence || service.branch.presence || "main"
+    )
+    probe.detect(root_directory: service.root_directory)
+  rescue => e
+    Rails.logger.warn "Static site detection failed for service #{service.id}: #{e.message}"
+    nil
+  end
+
+  # Dokku hands Docker an empty command when the app has neither a Procfile
+  # command nor a `dockerfile-start-cmd` property, and the container dies before
+  # it can bind a port. A herokuish app fails the same way one step earlier:
+  # `/start web` runs `npm start` and the repo has no such script.
+  def deploy_missing_process_command?(output)
+    output.to_s.match?(/no command specified|Missing script: "start"/i)
+  end
+
+  def missing_process_command_message
+    "RailDock could not determine how to start this app, so the container exited before it could serve traffic. " \
+      "If this is a static frontend (Vite, CRA, Angular, Astro, a static Next export), set its Publish Directory " \
+      "under Settings -> Static site, or connect the repository through GitHub so RailDock can detect it. " \
+      "Otherwise set a Start command for the service."
+  end
+
+  # Recovers the start command a static image carries after Dokku's build stage
+  # cleared it, then retries the deploy. The image is the source of truth here:
+  # railpack and nixpacks both ship the Caddyfile they would have run, and the
+  # rebuild reuses the build cache, so the retry costs seconds. The publish
+  # directory comes back with it and is saved, so later deploys configure the
+  # builder up front instead of relying on this recovery.
+  #
+  # Returns the retry's result when the deploy went through, otherwise nil.
+  def recover_missing_process_command(service, deployment, engine, deploy_output)
+    return nil if service.docker_image.present?
+
+    static_image = static_image_serve_command(engine, service.dokku_app_name)
+    return nil unless static_image
+
+    command, publish_directory = static_image
+    note = "-----> Static image has no start command (Dokku's build stage clears the image CMD); " \
+           "recovering it from the image: #{command}\n"
+    deploy_output << note
+    deployment.append_log_chunk!(note)
+    safely_broadcast_deployment(service, {
+      deployment_id: deployment.id,
+      status: deployment.status,
+      log_chunk: note,
+      sequence: deployment.event_sequence,
+      started_at: deployment.started_at&.iso8601
+    })
+
+    ps_cmd_result = engine.ps_set(service.dokku_app_name, "dockerfile-start-cmd", command)
+    return nil unless ps_cmd_result[:success]
+
+    persist_detected_publish_directory(service, publish_directory)
+
+    result = engine.run_streaming(
+      "ps:rebuild #{engine.escape(service.dokku_app_name)}",
+      cancelled: -> { deployment.reload.cancelled? }
+    ) do |chunk|
+      redacted_chunk = deployment.append_log_chunk!(chunk)
+      deploy_output << redacted_chunk
+      safely_broadcast_deployment(service, {
+        deployment_id: deployment.id,
+        status: "building",
+        log_chunk: redacted_chunk,
+        sequence: deployment.event_sequence,
+        started_at: deployment.started_at&.iso8601
+      })
+    end
+
+    result[:success] ? result : nil
+  rescue => e
+    Rails.logger.warn "Static serve command recovery failed for service #{service.id}: #{e.message}"
+    nil
+  end
+
+  # [serve command, publish directory] when the built image is a static site,
+  # otherwise nil. Read through `dokku run` so the image name stays Dokku's
+  # business (a registry plugin can rename it).
+  def static_image_serve_command(engine, app_name)
+    StaticSiteConfigurator::CADDY_CONFIG_PATHS.each do |builder, path|
+      result = engine.run("run #{engine.escape(app_name)} cat #{engine.escape(path)}")
+      next unless result[:success]
+
+      return [ StaticSiteConfigurator::SERVE_COMMANDS[builder], publish_directory_from_caddyfile(result[:output]) ]
+    end
+    nil
+  end
+
+  # The generated Caddyfiles serve `root * /app/<publish directory>`, so what
+  # RailDock stores is the part after the container's app root.
+  def publish_directory_from_caddyfile(content)
+    match = content.to_s.match(/^\s*root\s+\*\s+(\S+)\s*$/)
+    return nil unless match
+
+    match[1].sub(%r{\A/app/}, "")
+  end
+
+  def persist_detected_publish_directory(service, publish_directory)
+    return if publish_directory.blank?
+    return if service.publish_directory.present?
+
+    config = (service.config || {}).dup
+    config["staticSite"] = service.static_site_config.merge("publishDirectory" => publish_directory)
+    service.update!(config: config)
   end
 
   # Wait for linked database containers to report running and for their network
