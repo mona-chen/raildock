@@ -16,7 +16,7 @@ class User < ApplicationRecord
   validates :name, presence: true
 
   def jwt_secret_key
-    ENV.fetch("JWT_SECRET_KEY") { Rails.application.credentials.jwt_secret_key || Rails.application.credentials.secret_key_base || Rails.application.secret_key_base }
+    JwtSecret.value
   end
 
   def generate_jwt
