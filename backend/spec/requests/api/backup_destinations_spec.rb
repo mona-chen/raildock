@@ -85,4 +85,59 @@ RSpec.describe "Organization backup destinations", type: :request do
 
     expect(response).to have_http_status(:forbidden)
   end
+
+  describe "organization default destinations" do
+    let!(:destination) do
+      organization.backup_destinations.create!(
+        name: "S3", provider: "s3", region: "us-east-1", bucket: "backups",
+        access_key_id: "access", secret_access_key: "secret"
+      )
+    end
+
+    it "stores the default that every service inherits" do
+      patch "/api/organizations/#{organization.id}/backup-destinations/defaults", headers: headers,
+        params: { destination_ids: [ destination.id ] }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["default_destination_ids"]).to eq([ destination.id.to_s ])
+
+      get "/api/organizations/#{organization.id}/backup-destinations/defaults", headers: headers
+      expect(response.parsed_body["default_destination_ids"]).to eq([ destination.id.to_s ])
+    end
+
+    it "refuses a destination owned by another organization" do
+      other = create(:organization).backup_destinations.create!(
+        name: "Theirs", provider: "s3", region: "us-east-1", bucket: "theirs",
+        access_key_id: "access", secret_access_key: "secret"
+      )
+
+      patch "/api/organizations/#{organization.id}/backup-destinations/defaults", headers: headers,
+        params: { destination_ids: [ other.id ] }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(organization.reload.default_backup_destination_ids).to eq([])
+    end
+
+    it "forbids regular members from changing the default" do
+      member = create(:user)
+      create(:organization_membership, user: member, organization: organization, role: :member)
+      member_headers = auth_headers(member).merge("X-Organization-ID" => organization.id.to_s)
+
+      patch "/api/organizations/#{organization.id}/backup-destinations/defaults", headers: member_headers,
+        params: { destination_ids: [ destination.id ] }, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    # A destination left in the default after deletion would surface in every
+    # service's picker and fail validation on the next backup.
+    it "forgets a deleted destination" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+
+      delete "/api/organizations/#{organization.id}/backup-destinations/#{destination.id}", headers: headers
+
+      expect(response).to have_http_status(:no_content)
+      expect(organization.reload.default_backup_destination_ids).to eq([])
+    end
+  end
 end

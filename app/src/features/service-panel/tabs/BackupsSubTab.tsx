@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle,
@@ -32,6 +32,7 @@ import {
   useRestoreBackup,
   useRestoreService,
   useRunRestoreDrill,
+  useUpdateBackupPreferences,
 } from '@/hooks/useServices'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -88,6 +89,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const restoreBackup = useRestoreBackup()
   const deleteBackup = useDeleteBackup()
   const runDrill = useRunRestoreDrill()
+  const rememberDestinations = useUpdateBackupPreferences()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [frequency, setFrequency] = useState('daily')
@@ -106,11 +108,24 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
   const [pendingUpload, setPendingUpload] = useState<File | null>(null)
   const [uploadConfirmation, setUploadConfirmation] = useState('')
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([])
+  // Seeded once per service from the server so a reload does not silently drop
+  // the operator back to "Local only" (the reported bug), while our own later
+  // toggles are not fought over by a background refetch.
+  const [destinationsSeededFor, setDestinationsSeededFor] = useState<string | null>(null)
 
   const { data: recovery } = useRecovery(serviceId)
   const destinations = recovery?.destinations || []
   const hasDestinations = destinations.length > 0
   const volumeMounts = svc.storageMounts ?? []
+  const preferences = recovery?.backupPreferences
+  const inheritsOrganizationDefault = preferences?.serviceDestinationIds === null
+
+  useEffect(() => {
+    if (!preferences || destinationsSeededFor === serviceId) return
+
+    setSelectedDestinations(preferences.defaultDestinationIds ?? [])
+    setDestinationsSeededFor(serviceId)
+  }, [preferences, serviceId, destinationsSeededFor])
 
   const latestVerified = useMemo(
     () => backups.find((backup) => backup.status === 'completed' && backup.metadata?.verifiedAt),
@@ -129,24 +144,42 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
     setUploadConfirmation('')
   }
 
+  const nextSelection = (id: string, current: string[]) =>
+    current.includes(id) ? current.filter((item) => item !== id) : [ ...current, id ]
+
   const toggleDestination = (id: string, current: string[], setter: (ids: string[]) => void) => {
-    if (current.includes(id)) {
-      setter(current.filter((item) => item !== id))
-    } else {
-      setter([...current, id])
-    }
+    setter(nextSelection(id, current))
+  }
+
+  // The manual-backup picker is the service's own choice, so changing it is
+  // persisted immediately instead of living only in React state.
+  const toggleSelectedDestination = (id: string) => {
+    const next = nextSelection(id, selectedDestinations)
+    setSelectedDestinations(next)
+    rememberDestinations.mutate({ id: serviceId, backupDestinationIds: next })
+  }
+
+  const useOrganizationDefault = () => {
+    setSelectedDestinations(preferences?.organizationDestinationIds ?? [])
+    rememberDestinations.mutate({ id: serviceId, backupDestinationIds: null })
   }
 
   const destinationOptions = (
     <>
-      <label className="flex items-center gap-2 rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05] cursor-pointer">
+      <label
+        className="flex items-center gap-2 rounded px-2 py-1.5 text-[11px] text-white/70 cursor-default"
+        title="RailDock drops the host copy as soon as a remote destination stores the artifact, so a destination is the only durable copy."
+      >
         <input
           type="checkbox"
-          checked={false}
+          checked={selectedDestinations.length === 0}
           disabled
           className="rounded border-white/20 bg-[#17171b]"
         />
-        <span>Local encrypted host (always included)</span>
+        <span>Local encrypted host</span>
+        <span className="ml-auto text-[9px] text-white/30">
+          {selectedDestinations.length === 0 ? 'only copy' : 'not kept'}
+        </span>
       </label>
       {destinations.map((destination: BackupDestination) => (
         <label
@@ -156,7 +189,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           <input
             type="checkbox"
             checked={selectedDestinations.includes(destination.id)}
-            onChange={() => toggleDestination(destination.id, selectedDestinations, setSelectedDestinations)}
+            onChange={() => toggleSelectedDestination(destination.id)}
             className="rounded border-white/20 bg-[#17171b]"
           />
           <span>{destination.name}</span>
@@ -165,6 +198,16 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           </span>
         </label>
       ))}
+      {!inheritsOrganizationDefault && (
+        <button
+          type="button"
+          onClick={useOrganizationDefault}
+          className="mt-1 flex w-full items-center gap-1.5 border-t border-white/[0.06] px-2 py-1.5 text-left text-[10px] text-white/45 hover:text-white/75"
+        >
+          <RotateCcw size={10} />
+          Use organization default
+        </button>
+      )}
     </>
   )
 
@@ -202,7 +245,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             <div className="relative group">
               <button type="button" className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05]">
                 <Cloud size={12} />
-                {selectedDestinations.length === 0 ? 'Local only' : `${selectedDestinations.length} destination${selectedDestinations.length === 1 ? '' : 's'}`}
+                {!recovery ? 'Destinations…' : selectedDestinations.length === 0 ? 'Local only' : `${selectedDestinations.length} destination${selectedDestinations.length === 1 ? '' : 's'}`}
               </button>
               <div className="absolute right-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-white/[0.08] bg-[#17171b] p-1 shadow-xl group-hover:block group-focus-within:block">
                 {destinationOptions}

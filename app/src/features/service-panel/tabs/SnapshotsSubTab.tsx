@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle,
@@ -58,6 +58,17 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
   const [scheduleDestinations, setScheduleDestinations] = useState<string[]>([])
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
   const [restoreConfirmation, setRestoreConfirmation] = useState('')
+  // A new volume schedule starts from the same destinations the backup card
+  // does, instead of silently defaulting to the host copy.
+  const [destinationsSeededFor, setDestinationsSeededFor] = useState<string | null>(null)
+
+  useEffect(() => {
+    const preferences = recovery?.backupPreferences
+    if (!preferences || destinationsSeededFor === serviceId) return
+
+    setScheduleDestinations(preferences.defaultDestinationIds ?? [])
+    setDestinationsSeededFor(serviceId)
+  }, [recovery, serviceId, destinationsSeededFor])
 
   const restoreTarget = snapshots.find((backup) => backup.id === confirmRestore)
   const restoreConfirmed = restoreConfirmation === svc.name

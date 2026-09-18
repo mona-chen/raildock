@@ -279,6 +279,16 @@ export interface RecoveryOverview {
   destinations: BackupDestination[]
   pitr?: PostgresPitrConfig | null
   drills: RestoreDrill[]
+  /**
+   * Which destinations a new backup starts from. `serviceDestinationIds` is
+   * `null` until the service picks its own list, in which case the organization
+   * default applies; `[]` is a deliberate "local only" choice.
+   */
+  backupPreferences: {
+    organizationDestinationIds: string[]
+    serviceDestinationIds: string[] | null
+    defaultDestinationIds: string[]
+  }
 }
 
 // ───────────────────────────────────────────────

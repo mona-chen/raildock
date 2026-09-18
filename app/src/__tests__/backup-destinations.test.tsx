@@ -7,6 +7,10 @@ const mockDestinations = [
   { id: 'dest-1', name: 'Production S3', provider: 's3', bucket: 'backups', region: 'us-east-1', status: 'verified', configured: true },
 ]
 
+// Organization default, mutated per test.
+const defaultsState = { ids: [] as string[] }
+const updateDefaults = vi.fn()
+
 vi.mock('@/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentOrganizationId: 'org-1' }),
 }))
@@ -23,6 +27,8 @@ vi.mock('@/hooks/useBackupDestinations', () => ({
   useDeleteBackupDestination: () => ({ mutate: vi.fn(), isPending: false }),
   useVerifyBackupDestination: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateBackupDestination: () => ({ mutate: vi.fn(), isPending: false }),
+  useBackupDestinationDefaults: () => ({ data: defaultsState.ids, isLoading: false }),
+  useUpdateBackupDestinationDefaults: () => ({ mutate: updateDefaults, isPending: false }),
 }))
 
 function renderWithClient(ui: React.ReactNode) {
@@ -33,6 +39,23 @@ function renderWithClient(ui: React.ReactNode) {
 describe('BackupDestinationsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    defaultsState.ids = []
+  })
+
+  it('marks the organization default and makes one on demand', () => {
+    renderWithClient(<BackupDestinationsTab />)
+
+    fireEvent.click(screen.getByRole('button', { name: /use production s3 by default/i }))
+
+    expect(updateDefaults).toHaveBeenCalledWith({ organizationId: 'org-1', destinationIds: ['dest-1'] })
+  })
+
+  it('shows which destination new backups use by default', () => {
+    defaultsState.ids = ['dest-1']
+
+    renderWithClient(<BackupDestinationsTab />)
+
+    expect(screen.getByText('default')).toBeInTheDocument()
   })
 
   it('lists configured destinations', () => {

@@ -105,5 +105,63 @@ RSpec.describe "Service recovery", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    # The reported bug: the picker was React state only, so every reload put it
+    # back on "Local only".
+    it "remembers the destinations picked for a service" do
+      patch "/api/services/#{service.id}/recovery/preferences", headers: headers,
+        params: { backup_destination_ids: [ destination.id ] }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["backup_preferences"]["default_destination_ids"]).to eq([ destination.id.to_s ])
+      expect(service.reload.default_backup_destination_ids).to eq([ destination.id.to_s ])
+
+      get "/api/services/#{service.id}/recovery", headers: headers
+
+      preferences = response.parsed_body["backup_preferences"]
+      expect(preferences["service_destination_ids"]).to eq([ destination.id.to_s ])
+      expect(preferences["default_destination_ids"]).to eq([ destination.id.to_s ])
+    end
+
+    it "inherits the organization default until the service picks its own" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+
+      get "/api/services/#{service.id}/recovery", headers: headers
+
+      preferences = response.parsed_body["backup_preferences"]
+      expect(preferences["service_destination_ids"]).to be_nil
+      expect(preferences["organization_destination_ids"]).to eq([ destination.id.to_s ])
+      expect(preferences["default_destination_ids"]).to eq([ destination.id.to_s ])
+    end
+
+    it "treats an empty selection as a deliberate local-only choice" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+
+      patch "/api/services/#{service.id}/recovery/preferences", headers: headers,
+        params: { backup_destination_ids: [] }, as: :json
+
+      expect(service.reload.default_backup_destination_ids).to eq([])
+      expect(service.resolved_backup_destination_ids).to eq([])
+    end
+
+    it "clears the service choice so it inherits the organization default again" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+      service.update!(default_backup_destination_ids: [])
+
+      patch "/api/services/#{service.id}/recovery/preferences", headers: headers,
+        params: { backup_destination_ids: nil }, as: :json
+
+      expect(service.reload.default_backup_destination_ids).to be_nil
+      expect(service.resolved_backup_destination_ids).to eq([ destination.id.to_s ])
+    end
+
+    it "drops a deleted destination from the service's remembered choice" do
+      service.update!(default_backup_destination_ids: [ destination.id ])
+
+      delete "/api/organizations/#{organization.id}/backup-destinations/#{destination.id}", headers: headers
+
+      expect(response).to have_http_status(:no_content)
+      expect(service.reload.default_backup_destination_ids).to eq([])
+    end
   end
 end

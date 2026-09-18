@@ -14,6 +14,16 @@ class Organization < ApplicationRecord
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true
 
+  # Backup destinations new backups inherit when a service has not picked its
+  # own. Stored as ids rather than an association because the list is a default,
+  # not ownership: a destination deleted later must not be resurrected by this
+  # column, so it is pruned on delete instead (see `BackupDestination`).
+  validate :default_backup_destinations_are_owned
+
+  def default_backup_destination_ids=(ids)
+    super(Array(ids).map(&:to_s).compact_blank.uniq)
+  end
+
   def members
     users.where(organization_memberships: { role: :member })
   end
@@ -37,4 +47,12 @@ class Organization < ApplicationRecord
   def ensure_ssh_key!
     ssh_key || OrganizationSshKeyService.generate(self)
   end
+
+  private
+    def default_backup_destinations_are_owned
+      return if default_backup_destination_ids.blank?
+
+      unknown = Array(default_backup_destination_ids).map(&:to_s) - backup_destinations.ids.map(&:to_s)
+      errors.add(:default_backup_destination_ids, "reference unknown destinations: #{unknown.join(', ')}") if unknown.any?
+    end
 end

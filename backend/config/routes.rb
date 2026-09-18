@@ -110,6 +110,7 @@ Rails.application.routes.draw do
       put "recovery/pitr", to: "recovery#configure_pitr"
       delete "recovery/pitr", to: "recovery#disable_pitr"
       post "recovery/backups/:backup_id/drills", to: "recovery#create_drill"
+      patch "recovery/preferences", to: "recovery#update_preferences"
       delete "env-vars/:key", to: "environment_variables#destroy"
       put "env-vars", to: "environment_variables#bulk_update"
       delete "domains/*hostname", to: "domains#destroy", format: false
@@ -157,6 +158,10 @@ Rails.application.routes.draw do
       resources :invitations, controller: "organization_invitations", only: [ :index, :create, :destroy ]
       resources :deploy_keys, path: "deploy-keys", only: [ :index, :create, :destroy ]
       resources :backup_destinations, path: "backup-destinations", only: [ :index, :show, :create, :update, :destroy ] do
+        collection do
+          get :defaults
+          patch :defaults, action: :update_defaults
+        end
         member do
           post :verify
         end

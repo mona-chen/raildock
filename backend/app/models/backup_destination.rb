@@ -50,6 +50,13 @@ class BackupDestination < ApplicationRecord
   validate :belongs_to_a_scope
 
   before_validation :ensure_encryption_key, on: :create
+  # A deleted destination must not linger as an organization or service
+  # default: the picker would show a destination that no longer exists and
+  # every backup that inherited it would fail validation. `after_destroy` (not
+  # `before_destroy`) because `dependent: :restrict_with_error` on `backups`
+  # aborts the destroy before callbacks, and a refused delete must change
+  # nothing.
+  after_destroy :forget_from_backup_defaults
 
   # A destination only protects data once it has been proven to accept and
   # serve objects back.
@@ -74,6 +81,16 @@ class BackupDestination < ApplicationRecord
   private
     def ensure_encryption_key
       self.encryption_key ||= SecureRandom.hex(32)
+    end
+
+    def forget_from_backup_defaults
+      id_string = id.to_s
+      [ Organization, Service ].each do |model|
+        model.where("jsonb_exists(default_backup_destination_ids, ?)", id_string).find_each do |record|
+          remaining = Array(record.default_backup_destination_ids) - [ id_string ]
+          record.update_columns(default_backup_destination_ids: remaining, updated_at: Time.current)
+        end
+      end
     end
 
     def belongs_to_a_scope

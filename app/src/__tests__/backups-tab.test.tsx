@@ -5,10 +5,27 @@ import { HashRouter, MemoryRouter } from 'react-router-dom'
 import BackupsTab from '@/features/service-panel/tabs/BackupsTab'
 import type { Service } from '@/types'
 
+// Response of `useRecovery`, mutated per test so a case can opt into remembered
+// destinations without re-mocking the module.
+const recoveryState: {
+  destinations: { id: string; name: string; status: string }[]
+  backupPreferences: {
+    organizationDestinationIds: string[]
+    serviceDestinationIds: string[] | null
+    defaultDestinationIds: string[]
+  }
+} = {
+  destinations: [],
+  backupPreferences: { organizationDestinationIds: [], serviceDestinationIds: null, defaultDestinationIds: [] },
+}
+
+const rememberDestinations = vi.fn()
+
 vi.mock('@/hooks/useServices', () => ({
   useBackups: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
   useVolumeSnapshots: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
-  useRecovery: () => ({ data: { destinations: [], pitr: null }, isLoading: false }),
+  useRecovery: () => ({ data: { ...recoveryState, pitr: null }, isLoading: false }),
+  useUpdateBackupPreferences: () => ({ mutate: rememberDestinations, isPending: false }),
   useBackupSchedules: () => ({ data: [] }),
   useBackupService: () => ({ mutate: vi.fn(), isPending: false }),
   useCreateBackupSchedule: () => ({ mutate: vi.fn(), isPending: false }),
@@ -76,6 +93,12 @@ function mockService(overrides = {}): Service {
 describe('BackupsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    recoveryState.destinations = []
+    recoveryState.backupPreferences = {
+      organizationDestinationIds: [],
+      serviceDestinationIds: null,
+      defaultDestinationIds: [],
+    }
   })
 
   it('renders sub-tabs and defaults to Backups', () => {
@@ -128,5 +151,32 @@ describe('BackupsTab', () => {
     links.forEach((link) => {
       expect(link.getAttribute('href')).toMatch(/^#\/dashboard\/settings\?tab=backup-destinations$/)
     })
+  })
+
+  // The reported bug: the picker was React state only, so every reload put it
+  // back on "Local only".
+  it('restores the destinations remembered for the service', () => {
+    recoveryState.destinations = [{ id: 'dest-1', name: 'Production S3', status: 'verified' }]
+    recoveryState.backupPreferences = {
+      organizationDestinationIds: ['dest-1'],
+      serviceDestinationIds: ['dest-1'],
+      defaultDestinationIds: ['dest-1'],
+    }
+
+    renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
+
+    expect(screen.getByRole('button', { name: /1 destination/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Local only/i })).not.toBeInTheDocument()
+  })
+
+  it('persists the destination picked in the backup card', () => {
+    recoveryState.destinations = [{ id: 'dest-1', name: 'Production S3', status: 'verified' }]
+
+    renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
+
+    const checkbox = screen.getByText('Production S3').closest('label')!.querySelector('input')!
+    fireEvent.click(checkbox)
+
+    expect(rememberDestinations).toHaveBeenCalledWith({ id: 'svc-1', backupDestinationIds: ['dest-1'] })
   })
 })

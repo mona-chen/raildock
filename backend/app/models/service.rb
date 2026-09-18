@@ -31,6 +31,7 @@ class Service < ApplicationRecord
   validates :status, inclusion: { in: %w[running stopped deploying error building] }
   validate :external_networks_must_be_strings
   validate :environment_belongs_to_project
+  validate :default_backup_destinations_are_reachable
   validate :subtype_must_be_registered, on: :create
   validate :builder_must_be_registered, on: :create, if: -> { service_type_app? }
 
@@ -77,6 +78,20 @@ class Service < ApplicationRecord
 
   before_create :generate_dokku_app_name
   before_create :generate_webhook_token
+
+  # Backup destinations a manual backup and a new schedule start from. `nil`
+  # means this service never picked its own and inherits the organization
+  # default; `[]` is a deliberate "local only" choice, so the two cannot be
+  # collapsed into one empty value.
+  def resolved_backup_destination_ids
+    return default_backup_destination_ids unless default_backup_destination_ids.nil?
+
+    Array(project&.organization&.default_backup_destination_ids)
+  end
+
+  def default_backup_destination_ids=(ids)
+    super(ids.nil? ? nil : Array(ids).map(&:to_s).compact_blank.uniq)
+  end
 
   def default_docker_image
     subtype_record&.default_image || DEFAULT_DOCKER_IMAGES[subtype]
@@ -272,6 +287,16 @@ class Service < ApplicationRecord
     unless external_networks.is_a?(Array) && external_networks.all? { |n| n.is_a?(String) && n.present? }
       errors.add(:external_networks, "must be an array of non-empty strings")
     end
+  end
+
+  def default_backup_destinations_are_reachable
+    return if default_backup_destination_ids.blank?
+
+    reachable = BackupDestination
+      .reachable_from(project&.server, organization: project&.organization)
+      .ids.map(&:to_s)
+    unknown = Array(default_backup_destination_ids).map(&:to_s) - reachable
+    errors.add(:default_backup_destination_ids, "reference unknown destinations: #{unknown.join(', ')}") if unknown.any?
   end
 
   def subtype_must_be_registered

@@ -64,3 +64,29 @@ export function useVerifyBackupDestination() {
     onError: (err: Error) => toast.error(`Verification failed: ${err.message}`),
   })
 }
+
+const DEFAULTS_KEY = (organizationId: string) => ['organizations', organizationId, 'backup-destination-defaults']
+
+// The destinations every service in the organization backs up to unless it has
+// picked its own. Reading is open to members; changing it is admin-only.
+export function useBackupDestinationDefaults(organizationId?: string) {
+  return useQuery({
+    queryKey: DEFAULTS_KEY(organizationId || ''),
+    queryFn: () => organizationsApi.backupDestinations.defaults(organizationId!),
+    enabled: !!organizationId,
+  })
+}
+
+export function useUpdateBackupDestinationDefaults() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ organizationId, destinationIds }: { organizationId: string; destinationIds: string[] }) =>
+      organizationsApi.backupDestinations.updateDefaults(organizationId, destinationIds),
+    onSuccess: (_, { organizationId }) => {
+      queryClient.invalidateQueries({ queryKey: DEFAULTS_KEY(organizationId) })
+      // Services inherit this list, so any open Backup tab has to re-read it.
+      queryClient.invalidateQueries({ queryKey: ['services'] })
+    },
+    onError: (err: Error) => toast.error(`Failed to update default destinations: ${err.message}`),
+  })
+}

@@ -8,8 +8,31 @@ module Api
       render json: {
         destinations: reachable_destinations,
         pitr: @service.postgres_pitr_config,
-        drills: RestoreDrill.joins(:backup).where(backups: { service_id: @service.id }).recent.limit(25)
+        drills: RestoreDrill.joins(:backup).where(backups: { service_id: @service.id }).recent.limit(25),
+        backup_preferences: backup_preferences
       }
+    end
+
+    # PATCH /api/services/:id/recovery/preferences
+    #
+    # Remembers the destinations picked in the backup card so it does not reset
+    # to "Local only" on reload. `backup_destination_ids: null` drops the
+    # service's own choice and inherits the organization default again, while
+    # `[]` is stored as a deliberate "local only" choice.
+    def update_preferences
+      authorize_service!(@service, action: :update)
+
+      if params[:backup_destination_ids].nil?
+        @service.update!(default_backup_destination_ids: nil)
+      else
+        ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
+        unknown = ids - destination_scope.ids.map(&:to_s)
+        return render json: { error: "Invalid backup destination(s): #{unknown.join(', ')}" }, status: :unprocessable_entity if unknown.any?
+
+        @service.update!(default_backup_destination_ids: ids)
+      end
+
+      render json: { backup_preferences: backup_preferences }
     end
 
     def create_destination
@@ -104,6 +127,17 @@ module Api
       # "no destinations configured" moments after one was created in Settings.
       def reachable_destinations
         destination_scope.order(:name).to_a
+      end
+
+      # What the destination picker should show: the service's own choice (when
+      # it has one), the organization default it would otherwise inherit, and
+      # the two combined so a first render never flashes "Local only".
+      def backup_preferences
+        {
+          organization_destination_ids: Array(@service.project&.organization&.default_backup_destination_ids),
+          service_destination_ids: @service.default_backup_destination_ids,
+          default_destination_ids: @service.resolved_backup_destination_ids
+        }
       end
 
       def destination_params

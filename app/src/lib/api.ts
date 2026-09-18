@@ -465,6 +465,20 @@ export const servicesApi = {
 
   recovery: async (id: string): Promise<RecoveryOverview> => fetchJson(`/api/services/${id}/recovery`),
 
+  // Remembers the destinations picked in the backup card so the next visit and
+  // every new schedule start from them. `null` drops the service's own choice
+  // and inherits the organization default again; `[]` means "local only".
+  updateBackupPreferences: async (
+    id: string,
+    backupDestinationIds: string[] | null,
+  ): Promise<RecoveryOverview['backupPreferences']> => {
+    const data = await fetchJson<{ backupPreferences: RecoveryOverview['backupPreferences'] }>(
+      `/api/services/${id}/recovery/preferences`,
+      { method: 'PATCH', body: JSON.stringify({ backup_destination_ids: backupDestinationIds }) },
+    )
+    return data.backupPreferences
+  },
+
   createBackupDestination: async (id: string, data: Record<string, string>): Promise<BackupDestination> =>
     fetchJson(`/api/services/${id}/recovery/destinations`, { method: 'POST', body: JSON.stringify(data) }),
 
@@ -899,6 +913,21 @@ export const organizationsApi = {
 
     verify: async (organizationId: string, destinationId: string): Promise<BackupDestination> => {
       return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}/verify`, { method: 'POST' })
+    },
+
+    defaults: async (organizationId: string): Promise<string[]> => {
+      const data = await fetchJson<{ defaultDestinationIds: string[] }>(
+        `/api/organizations/${organizationId}/backup-destinations/defaults`,
+      )
+      return data.defaultDestinationIds ?? []
+    },
+
+    updateDefaults: async (organizationId: string, destinationIds: string[]): Promise<string[]> => {
+      const data = await fetchJson<{ defaultDestinationIds: string[] }>(
+        `/api/organizations/${organizationId}/backup-destinations/defaults`,
+        { method: 'PATCH', body: JSON.stringify({ destination_ids: destinationIds }) },
+      )
+      return data.defaultDestinationIds ?? []
     },
   },
 

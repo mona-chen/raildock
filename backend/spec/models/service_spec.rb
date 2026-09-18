@@ -282,4 +282,46 @@ RSpec.describe Service, type: :model do
       expect(Backup.detached).to include(backup)
     end
   end
+
+  describe "backup destination preferences" do
+    let(:organization) { create(:organization) }
+    let(:server) { create(:server, organization: nil) }
+    let(:project) { create(:project, server: server, organization: organization) }
+    let(:service) { create(:service, :database, project: project, subtype: "postgres") }
+    let(:destination) do
+      organization.backup_destinations.create!(
+        name: "S3", provider: "s3", region: "us-east-1", bucket: "backups",
+        access_key_id: "access", secret_access_key: "secret"
+      )
+    end
+
+    it "inherits the organization default until it has chosen for itself" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+
+      expect(service.default_backup_destination_ids).to be_nil
+      expect(service.resolved_backup_destination_ids).to eq([ destination.id.to_s ])
+    end
+
+    it "distinguishes its own empty choice from never having chosen" do
+      organization.update!(default_backup_destination_ids: [ destination.id ])
+
+      service.update!(default_backup_destination_ids: [])
+      expect(service.resolved_backup_destination_ids).to eq([])
+
+      service.update!(default_backup_destination_ids: [ destination.id ])
+      expect(service.resolved_backup_destination_ids).to eq([ destination.id.to_s ])
+    end
+
+    it "refuses a destination it cannot reach" do
+      other = create(:organization).backup_destinations.create!(
+        name: "Theirs", provider: "s3", region: "us-east-1", bucket: "theirs",
+        access_key_id: "access", secret_access_key: "secret"
+      )
+
+      service.default_backup_destination_ids = [ other.id ]
+
+      expect(service).not_to be_valid
+      expect(service.errors[:default_backup_destination_ids].join).to match(/unknown destinations/)
+    end
+  end
 end

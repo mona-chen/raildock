@@ -3,7 +3,7 @@ module Api
     before_action :set_organization
     before_action :require_member!
     before_action :set_destination, only: [ :show, :update, :destroy, :verify ]
-    before_action :require_admin!, only: [ :create, :update, :destroy ]
+    before_action :require_admin!, only: [ :create, :update, :destroy, :update_defaults ]
 
     def index
       destinations = @organization.backup_destinations.order(:name)
@@ -12,6 +12,22 @@ module Api
 
     def show
       render json: @destination
+    end
+
+    # Destinations every service in this organization backs up to unless it has
+    # picked its own. Reading is open to members because the service Backup tab
+    # renders the inherited choice.
+    def defaults
+      render json: { default_destination_ids: Array(@organization.default_backup_destination_ids) }
+    end
+
+    def update_defaults
+      ids = Array(params[:destination_ids]).compact_blank.map(&:to_s)
+      unknown = ids - @organization.backup_destinations.ids.map(&:to_s)
+      return render json: { error: "Unknown backup destination(s): #{unknown.join(', ')}" }, status: :unprocessable_entity if unknown.any?
+
+      @organization.update!(default_backup_destination_ids: ids)
+      render json: { default_destination_ids: Array(@organization.default_backup_destination_ids) }
     end
 
     def create

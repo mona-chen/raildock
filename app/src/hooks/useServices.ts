@@ -318,6 +318,16 @@ export function useRecovery(id: string) {
   return useQuery({ queryKey: ['services', id, 'recovery'], queryFn: () => api.services.recovery(id), enabled: !!id, refetchInterval: 10000 })
 }
 
+export function useUpdateBackupPreferences() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, backupDestinationIds }: { id: string; backupDestinationIds: string[] | null }) =>
+      api.services.updateBackupPreferences(id, backupDestinationIds),
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }) },
+    onError: (err: Error) => toast.error(`Could not save backup destinations: ${err.message}`),
+  })
+}
+
 export function useCreateBackupDestination() {
   const queryClient = useQueryClient()
   return useMutation({

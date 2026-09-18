@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Cloud, Plus, Trash2, Check, AlertCircle, Loader2, KeyRound } from 'lucide-react'
+import { Cloud, Plus, Trash2, Check, AlertCircle, Loader2, KeyRound, Star } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import {
   useBackupDestinations,
   useCreateBackupDestination,
   useDeleteBackupDestination,
   useVerifyBackupDestination,
+  useBackupDestinationDefaults,
+  useUpdateBackupDestinationDefaults,
 } from '@/hooks/useBackupDestinations'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -47,6 +49,8 @@ export default function BackupDestinationsTab() {
   const create = useCreateBackupDestination()
   const remove = useDeleteBackupDestination()
   const verify = useVerifyBackupDestination()
+  const { data: defaultDestinationIds = [] } = useBackupDestinationDefaults(currentOrganizationId || undefined)
+  const updateDefaults = useUpdateBackupDestinationDefaults()
   const { data: safety } = useDataSafety(currentOrganizationId || undefined)
   const { copiedKey, copy } = useCopy(2000)
 
@@ -76,13 +80,24 @@ export default function BackupDestinationsTab() {
     setForm(EMPTY_FORM)
   }
 
+  // The organization-wide default: what a new backup on any service uses until
+  // that service picks its own destinations.
+  const toggleDefault = (destinationId: string) => {
+    if (!currentOrganizationId) return
+    const next = defaultDestinationIds.includes(destinationId)
+      ? defaultDestinationIds.filter((id) => id !== destinationId)
+      : [ ...defaultDestinationIds, destinationId ]
+    updateDefaults.mutate({ organizationId: currentOrganizationId, destinationIds: next })
+  }
+
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Backup Destinations</h2>
           <p className="text-[11px] text-[#6b6b7b] mt-0.5">
-            S3-compatible destinations shared across all services in this organization.
+            S3-compatible destinations shared across all services in this organization. Star the ones every service
+            should back up to by default.
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -296,8 +311,28 @@ export default function BackupDestinationsTab() {
                   <Cloud size={14} className="text-rail-purple" />
                   <span className="text-sm text-white font-medium">{destination.name}</span>
                   <StatusBadge destination={destination} />
+                  {defaultDestinationIds.includes(destination.id) && (
+                    <span className="rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">default</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleDefault(destination.id)}
+                    disabled={updateDefaults.isPending}
+                    aria-pressed={defaultDestinationIds.includes(destination.id)}
+                    aria-label={`Use ${destination.name} by default`}
+                    title={defaultDestinationIds.includes(destination.id)
+                      ? 'Stop using this destination by default'
+                      : 'Use this destination by default'}
+                    className="h-7 text-[11px] text-[#A0A0B0] hover:text-white"
+                  >
+                    <Star
+                      size={13}
+                      className={defaultDestinationIds.includes(destination.id) ? 'fill-amber-300 text-amber-300' : ''}
+                    />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

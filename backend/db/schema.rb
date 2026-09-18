@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_18_000003) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_19_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -286,6 +286,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000003) do
   create_table "organizations", force: :cascade do |t|
     t.string "avatar_url"
     t.datetime "created_at", null: false
+    t.jsonb "default_backup_destination_ids", default: [], null: false
     t.string "name", null: false
     t.bigint "owner_id", null: false
     t.string "slug", null: false
@@ -487,6 +488,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_18_000003) do
     t.jsonb "config", default: {}
     t.jsonb "config_overrides", default: {}, null: false
     t.datetime "created_at", null: false
+    t.jsonb "default_backup_destination_ids"
     t.integer "detected_port"
     t.string "docker_image"
     t.string "dokku_app_name"
