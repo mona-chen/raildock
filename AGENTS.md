@@ -318,6 +318,7 @@ version the target servers run before assuming a behavior.
 
 - Keep changes minimal and focused.
 - Follow existing Rails/React style.
+- Frontend ids are strings. Rails serializes integer ids, so any resource the UI compares ids for needs a normalizer in `app/src/lib/apiTransforms.ts`. A raw numeric id never equals a stored or typed string id — that silently broke `environmentId` on the canvas and `BackupDestination#id` in the default-destination picker (the star and the checkboxes read as "off" no matter what was saved).
 - Run tests before committing.
 - Update this file if you change install, release, backup, or credentials flow.
 - Do not commit `.env`, `master.key`, or `credentials.yml.enc`.

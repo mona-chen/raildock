@@ -29,6 +29,11 @@ const COLLAPSE_KEY = 'raildock:sidebar-collapsed'
  * Primary navigation. Collapsible so the canvas/panel gets the room when you
  * need it, and expanded when you are moving between sections. The collapsed
  * state persists per browser, and below `md` the rail is always icon-only.
+ *
+ * The project canvas is the one place that needs every pixel, so the rail
+ * enters it icon-only. A manual toggle still wins for as long as you stay on the
+ * canvas, and the stored preference is left alone — it is what the rail falls
+ * back to everywhere else.
  */
 export default function IconRail() {
   const location = useLocation()
@@ -36,16 +41,30 @@ export default function IconRail() {
   const { user, logout, currentOrganizationId, setCurrentOrganizationId } = useAuthStore()
   const { data: organizations = [] } = useOrganizations()
 
-  const [collapsed, setCollapsed] = useState(() => {
+  const [preferenceCollapsed, setPreferenceCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) === '1'
     } catch {
       return false
     }
   })
+  // A toggle made on one project's canvas is keyed to that path so it neither
+  // leaks into another project nor overwrites the stored preference: opening a
+  // canvas always starts icon-only, and everywhere else falls back to what the
+  // user chose.
+  const [canvasState, setCanvasState] = useState<{ path: string; collapsed: boolean } | null>(null)
+
+  const onCanvas = location.pathname.startsWith('/dashboard/project/')
+  const canvasCollapsed = canvasState?.path === location.pathname ? canvasState.collapsed : null
+  const collapsed = onCanvas ? canvasCollapsed ?? true : preferenceCollapsed
 
   const toggle = useCallback(() => {
-    setCollapsed((prev) => {
+    if (onCanvas) {
+      setCanvasState({ path: location.pathname, collapsed: !(canvasCollapsed ?? true) })
+      return
+    }
+
+    setPreferenceCollapsed((prev) => {
       const next = !prev
       try {
         localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0')
@@ -54,7 +73,7 @@ export default function IconRail() {
       }
       return next
     })
-  }, [])
+  }, [onCanvas, canvasCollapsed, location.pathname])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

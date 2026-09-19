@@ -56,6 +56,8 @@ import {
   normalizeServer,
   normalizeActivityEvent,
   normalizeGitSource,
+  normalizeBackupDestination,
+  normalizeRecoveryOverview,
 } from './apiTransforms'
 import {
   normalizeEnvironmentSyncPlan,
@@ -463,7 +465,8 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/backup`, { method: 'POST', body: JSON.stringify({ backup_destination_ids: backupDestinationIds }) })
   },
 
-  recovery: async (id: string): Promise<RecoveryOverview> => fetchJson(`/api/services/${id}/recovery`),
+  recovery: async (id: string): Promise<RecoveryOverview> =>
+    normalizeRecoveryOverview(await fetchJson(`/api/services/${id}/recovery`)),
 
   // Remembers the destinations picked in the backup card so the next visit and
   // every new schedule start from them. `null` drops the service's own choice
@@ -480,10 +483,10 @@ export const servicesApi = {
   },
 
   createBackupDestination: async (id: string, data: Record<string, string>): Promise<BackupDestination> =>
-    fetchJson(`/api/services/${id}/recovery/destinations`, { method: 'POST', body: JSON.stringify(data) }),
+    normalizeBackupDestination(await fetchJson(`/api/services/${id}/recovery/destinations`, { method: 'POST', body: JSON.stringify(data) })),
 
   verifyBackupDestination: async (id: string, destinationId: string): Promise<BackupDestination> =>
-    fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}/verify`, { method: 'POST' }),
+    normalizeBackupDestination(await fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}/verify`, { method: 'POST' })),
 
   deleteBackupDestination: async (id: string, destinationId: string): Promise<void> =>
     fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}`, { method: 'DELETE' }),
@@ -890,21 +893,26 @@ export const organizationsApi = {
 
   backupDestinations: {
     list: async (organizationId: string): Promise<BackupDestination[]> => {
-      return fetchJson<BackupDestination[]>(`/api/organizations/${organizationId}/backup-destinations`)
+      const data = await fetchJson<unknown[]>(`/api/organizations/${organizationId}/backup-destinations`)
+      return data.map(normalizeBackupDestination)
     },
 
     create: async (organizationId: string, data: Record<string, string>): Promise<BackupDestination & { recoveryKey?: string }> => {
-      return fetchJson<BackupDestination & { recoveryKey?: string }>(`/api/organizations/${organizationId}/backup-destinations`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
+      return normalizeBackupDestination(
+        await fetchJson(`/api/organizations/${organizationId}/backup-destinations`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      ) as BackupDestination & { recoveryKey?: string }
     },
 
     update: async (organizationId: string, destinationId: string, data: Record<string, string>): Promise<BackupDestination> => {
-      return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      })
+      return normalizeBackupDestination(
+        await fetchJson(`/api/organizations/${organizationId}/backup-destinations/${destinationId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+      )
     },
 
     destroy: async (organizationId: string, destinationId: string): Promise<void> => {
@@ -912,14 +920,16 @@ export const organizationsApi = {
     },
 
     verify: async (organizationId: string, destinationId: string): Promise<BackupDestination> => {
-      return fetchJson<BackupDestination>(`/api/organizations/${organizationId}/backup-destinations/${destinationId}/verify`, { method: 'POST' })
+      return normalizeBackupDestination(
+        await fetchJson(`/api/organizations/${organizationId}/backup-destinations/${destinationId}/verify`, { method: 'POST' }),
+      )
     },
 
     defaults: async (organizationId: string): Promise<string[]> => {
       const data = await fetchJson<{ defaultDestinationIds: string[] }>(
         `/api/organizations/${organizationId}/backup-destinations/defaults`,
       )
-      return data.defaultDestinationIds ?? []
+      return (data.defaultDestinationIds ?? []).map(String)
     },
 
     updateDefaults: async (organizationId: string, destinationIds: string[]): Promise<string[]> => {
@@ -927,7 +937,7 @@ export const organizationsApi = {
         `/api/organizations/${organizationId}/backup-destinations/defaults`,
         { method: 'PATCH', body: JSON.stringify({ destination_ids: destinationIds }) },
       )
-      return data.defaultDestinationIds ?? []
+      return (data.defaultDestinationIds ?? []).map(String)
     },
   },
 

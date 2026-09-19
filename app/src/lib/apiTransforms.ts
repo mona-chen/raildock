@@ -29,7 +29,49 @@ export function wrapBody(resource: string, body: unknown): string {
   return JSON.stringify({ [resource]: snakeifyKeys(body) })
 }
 
-import type { Service, Project, Server, ActivityEvent, GitSource, Environment } from '@/types'
+import type {
+  Service,
+  Project,
+  Server,
+  ActivityEvent,
+  GitSource,
+  Environment,
+  BackupDestination,
+  RecoveryOverview,
+} from '@/types'
+
+/**
+ * Rails serializes `BackupDestination#id` as an integer. Every id the backup UI
+ * compares it against is a string — the organization default list, the
+ * service's remembered picker, `pitr.backupDestinationId` — so
+ * `["2"].includes(2)` was always false: the "use by default" star never lit up
+ * and the destination checkboxes never rendered as checked.
+ */
+export function normalizeBackupDestination(data: unknown): BackupDestination {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  if (camel.id != null && typeof camel.id !== 'string') camel.id = String(camel.id)
+  return camel as unknown as BackupDestination
+}
+
+export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+
+  if (Array.isArray(camel.destinations)) {
+    camel.destinations = camel.destinations.map(normalizeBackupDestination)
+  }
+
+  const preferences = camel.backupPreferences as Record<string, unknown> | undefined
+  if (preferences) {
+    const keys = [ 'organizationDestinationIds', 'serviceDestinationIds', 'defaultDestinationIds' ]
+    for (const key of keys) {
+      if (Array.isArray(preferences[key])) {
+        preferences[key] = (preferences[key] as unknown[]).map(String)
+      }
+    }
+  }
+
+  return camel as unknown as RecoveryOverview
+}
 
 export function normalizeService(data: unknown): Service {
   const camel = camelizeKeys(data) as Record<string, unknown>
