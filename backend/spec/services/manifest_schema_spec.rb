@@ -101,6 +101,24 @@ RSpec.describe ManifestSchema do
       end
     end
 
+    context 'nil static site settings' do
+      # RepositoryDiscovery serializes a normalized service hash to JSON, which
+      # turns unset optional fields into explicit null. Import validation must
+      # treat those as absent rather than a type error.
+      it 'treats nil as unset' do
+        result = described_class.validate(
+          "services" => [
+            {
+              "name" => "web", "category" => "app", "subtype" => "web",
+              "publish_directory" => nil, "spa_fallback" => nil, "node_version" => nil
+            }
+          ]
+        )
+
+        expect(result.success?).to be true
+      end
+    end
+
     context 'valid app.json' do
       let(:hash) do
         {

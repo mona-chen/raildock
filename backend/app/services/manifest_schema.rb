@@ -177,16 +177,21 @@ class ManifestSchema
       errors << "#{prefix}: 'framework' must be a string"
     end
 
+    # These static-site fields are optional. A normalized service hash (and the
+    # JSON canonical manifest built from it by RepositoryDiscovery) carries them
+    # as explicit `nil` when unset, so treat nil as absent rather than a type
+    # error — otherwise every repo manifest without a static publish directory
+    # fails import validation.
     %w[publish_directory publishDirectory].each do |key|
-      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].is_a?(String)
+      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].nil? && !svc[key].is_a?(String)
     end
 
     %w[spa_fallback spaFallback].each do |key|
-      errors << "#{prefix}: '#{key}' must be a boolean" if svc.key?(key) && ![ true, false ].include?(svc[key])
+      errors << "#{prefix}: '#{key}' must be a boolean" if svc.key?(key) && !svc[key].nil? && ![ true, false ].include?(svc[key])
     end
 
     %w[node_version nodeVersion].each do |key|
-      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].is_a?(String)
+      errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].nil? && !svc[key].is_a?(String)
     end
 
     if svc["proxy"].is_a?(Hash)
