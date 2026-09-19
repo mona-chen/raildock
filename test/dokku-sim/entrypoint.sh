@@ -19,6 +19,10 @@ if [ -n "$KEYS" ]; then
     chmod 700 "$ssh_home/.ssh"
     chmod 600 "$ssh_home/.ssh/authorized_keys"
   done
+  # The `dokku` user is restricted to the shim, exactly like a real Dokku host.
+  # Without this, RailDock's bare subcommands ("domains:add app host") would run
+  # in a plain login shell and fail, silently disabling every Dokku call.
+  echo 'command="/usr/local/bin/dokku" '"$(cat /home/dokku/.ssh/authorized_keys)" > /home/dokku/.ssh/authorized_keys
   chown -R dokku:dokku /home/dokku/.ssh
 fi
 

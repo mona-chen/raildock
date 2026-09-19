@@ -1,50 +1,80 @@
 module Api
   class DomainsController < BaseController
     include Authorizable
-    before_action :set_and_authorize_service!
+    before_action :set_and_authorize_service!, only: [ :create, :destroy ]
+    before_action :set_domain_and_authorize!, only: [ :update ]
 
+    # POST /api/services/:service_id/domains
+    #
+    # Idempotent: re-submitting the same domain (a double click, a retried
+    # request) returns the existing record with 200 instead of an error. A
+    # *conflicting* domain is a 409 the UI can act on, and a host that refuses
+    # the change rolls the record back so the UI never shows a domain that is
+    # not actually routed.
     def create
-      is_wildcard = domain_params[:hostname].to_s.start_with?("*.")
-      target = domain_params[:target_port].presence || @service.port || @service.detected_port || 80
+      hostname = normalize_hostname_param(domain_params[:hostname])
+      return render_error("Hostname is required") if hostname.blank?
 
-      use_ssl = domain_params[:ssl] != false
-      challenge = if is_wildcard
-        "dns"  # Wildcards require DNS challenge
-      else
-        domain_params[:challenge_type].presence || "http"
+      if (existing = find_domain(hostname))
+        return render json: existing, status: :ok if matches_request?(existing)
+
+        return render json: {
+          error: "#{hostname} is already routed to this service on port #{existing.resolved_target_port}. Edit it instead of adding it again.",
+          code: "domain_exists",
+          domain: existing
+        }, status: :conflict
       end
 
-      # Magic domains (sslip.io, nip.io) can't get SSL certs
-      magic = Domain::MAGIC_DOMAINS.any? { |m| domain_params[:hostname].to_s.end_with?(".#{m}") }
-      use_ssl = false if magic
-
-      # Auto-detect Cloudflare — if domain resolves to CF IPs, SSL is
-      # handled by Cloudflare. Keep TLS labels (Cloudflare in Full mode
-      # connects to origin over HTTPS and accepts Traefik's default cert).
-
-      domain = @service.domains.create!(
-        hostname: domain_params[:hostname],
-        port: use_ssl ? (domain_params[:port] || 443) : (domain_params[:port] || 80),
-        target_port: target,
-        ssl: use_ssl,
-        letsencrypt: use_ssl && domain_params[:letsencrypt] != false,
-        wildcard: is_wildcard,
-        ssl_status: use_ssl ? "pending" : "none",
-        challenge_type: challenge
-      )
-
-      # Sync to Dokku
-      sync_to_dokku(:add, domain)
+      attributes = attributes_for(hostname)
+      domain = @service.domains.create!(attributes.merge(ssl_status: ssl_status_for(attributes[:ssl])))
+      result = domain_sync.add(domain)
+      return render_sync_failure(:add, domain, result) if result.failure?
 
       render json: domain, status: :created
     end
 
+    # PATCH /api/domains/:id  (shallow route off `resources :services`)
+    def update
+      domain = @domain
+      hostname = normalize_hostname_param(domain_params[:hostname].presence || domain.hostname)
+      return render_error("Hostname is required") if hostname.blank?
+
+      if (clash = find_domain(hostname)) && clash.id != domain.id
+        return render json: {
+          error: "#{hostname} is already routed to this service. Edit that domain instead.",
+          code: "domain_exists",
+          domain: clash
+        }, status: :conflict
+      end
+
+      previous = domain.attributes
+      ssl_changed = domain_params.key?(:ssl) && cast_bool(domain_params[:ssl]) != domain.ssl
+
+      domain.assign_attributes(attributes_for(hostname, fallback: domain))
+      domain.ssl_status = ssl_status_for(domain.ssl) if ssl_changed
+      return render_validation_errors(domain) unless domain.valid?
+
+      result = domain_sync.replace(domain, previous_hostname: previous["hostname"])
+      return render_sync_failure(:update, domain, result, previous: previous) if result.failure?
+
+      domain.save!
+      render json: domain
+    end
+
+    # DELETE /api/services/:service_id/domains/*hostname
+    #
+    # Idempotent: deleting a domain that is already gone succeeds quietly. The
+    # record is only dropped once the host confirms it stopped routing, so a
+    # failed removal leaves something the UI can retry.
     def destroy
       hostname = normalize_hostname_param(params[:hostname])
-      domain = @service.domains.find_by!(hostname: hostname)
+      domain = find_domain(hostname)
+      return head :no_content unless domain
+
+      result = domain_sync.remove(domain)
+      return render_sync_failure(:remove, domain, result) if result.failure?
 
       domain.destroy!
-      sync_to_dokku(:remove, domain)
       head :no_content
     end
 
@@ -55,8 +85,14 @@ module Api
       authorize_service!(@service)
     end
 
+    def set_domain_and_authorize!
+      @domain = Domain.find(params[:id])
+      @service = @domain.service
+      authorize_service!(@service, action: :update)
+    end
+
     def domain_params
-      params.permit(:hostname, :port, :target_port, :ssl, :letsencrypt)
+      params.permit(:hostname, :port, :target_port, :ssl, :letsencrypt, :challenge_type)
     end
 
     def normalize_hostname_param(value)
@@ -68,99 +104,99 @@ module Api
         .downcase
     end
 
-    def sync_to_dokku(action, domain)
-      return unless @service.project&.server&.ssh_key.present?
+    def find_domain(hostname)
+      return nil if hostname.blank?
 
-      engine = DokkuEngine.new(@service.project.server)
+      @service.domains.where("lower(hostname) = ?", hostname.to_s.downcase).first
+    end
 
-      if domain.wildcard?
-        sync_wildcard_to_dokku(action, domain, engine)
+    # The stored attributes for a create/update. `fallback` is the existing
+    # domain on an edit, so a request that only changes the hostname does not
+    # silently reset SSL, letsencrypt, or the port.
+    #
+    # target_port stays nil unless the user asked for a specific port, so the
+    # domain follows the app instead of freezing whatever the port happened to
+    # be at the time.
+    def attributes_for(hostname, fallback: nil)
+      wildcard = hostname.start_with?("*.")
+      ssl = if domain_params.key?(:ssl)
+        cast_bool(domain_params[:ssl])
       else
-        sync_standard_to_dokku(action, domain, engine)
+        fallback ? fallback.ssl : true
       end
+      ssl = false if Domain::MAGIC_DOMAINS.any? { |m| hostname.end_with?(".#{m}") }
 
-      if @service.project.server.external_proxy?
-        refresh_external_proxy(engine)
-      else
-        sync_port_mapping(domain, engine)
-        rebuild_for_port_change!(engine)
+      {
+        hostname: hostname,
+        wildcard: wildcard,
+        ssl: ssl,
+        port: domain_params[:port].presence&.to_i || fallback&.port || (ssl ? 443 : 80),
+        letsencrypt: letsencrypt_for(ssl, fallback),
+        target_port: domain_params.key?(:target_port) ? domain_params[:target_port].presence&.to_i : fallback&.target_port,
+        challenge_type: wildcard ? "dns" : (domain_params[:challenge_type].presence || fallback&.challenge_type || "http")
+      }
+    end
+
+    def letsencrypt_for(ssl, fallback)
+      return false unless ssl
+      return cast_bool(domain_params[:letsencrypt]) if domain_params.key?(:letsencrypt)
+
+      fallback ? fallback.letsencrypt : true
+    end
+
+    # True when the request would produce the record that already exists — a
+    # genuine duplicate rather than a conflicting edit.
+    def matches_request?(existing)
+      desired = attributes_for(existing.hostname)
+      resolved = desired[:target_port].presence || @service.effective_port
+
+      existing.ssl == desired[:ssl] && existing.resolved_target_port.to_i == resolved.to_i
+    end
+
+    def render_sync_failure(action, domain, result, previous: nil)
+      revert(action, domain, previous)
+      Rails.logger.error "Domain #{action} failed for #{@service.dokku_app_name}: #{result.output}"
+
+      render_error("Failed to #{action} #{domain.hostname}: #{result.output.to_s.strip.presence || 'the server rejected the change'}")
+    end
+
+    # Undo the host-side change so Dokku and the database never disagree.
+    def revert(action, domain, previous)
+      case action
+      when :add
+        domain_sync.remove(domain)
+        domain.destroy
+      when :update
+        return if previous.blank?
+
+        # The row was never saved, so the database is already correct — only the
+        # host needs putting back. Rebuild from the row's own snapshot so the
+        # revert does not inherit the values the host just rejected.
+        restored = @service.domains.new(previous.except("id", "created_at", "updated_at"))
+        domain_sync.replace(restored, previous_hostname: domain.hostname)
       end
+    rescue => e
+      Rails.logger.error "Failed to revert domain #{action} for #{@service.dokku_app_name}: #{e.message}"
     end
 
-    def refresh_external_proxy(engine)
-      server = @service.project.server
-      result = ExternalProxyConfigurator.new(@service.reload, engine, HostEngine.new(server)).apply!
-      raise "External proxy configuration failed: #{result[:output]}" unless result[:success]
-
-      if @service.running?
-        rebuild_result = engine.ps_rebuild(@service.dokku_app_name)
-        raise "External proxy rebuild failed: #{rebuild_result[:output]}" unless rebuild_result[:success]
-      end
+    def render_validation_errors(domain)
+      render json: { error: domain.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
 
-    # When a domain changes the expected container port (e.g. user adds a custom
-    # domain pointing to 3000 on an app currently listening on 5000), rebuild so
-    # Dokku injects the matching PORT env var and the proxy routes correctly.
-    def rebuild_for_port_change!(engine)
-      return unless @service.running?
-
-      target = @service.port ||
-               @service.domains.where(temporary: false).pick(:target_port) ||
-               @service.domains.pick(:target_port) ||
-               @service.detected_port ||
-               5000
-      return if target == @service.detected_port
-
-      result = engine.ps_rebuild(@service.dokku_app_name)
-      raise "Port change rebuild failed: #{result[:output]}" unless result[:success]
-
-      @service.update!(detected_port: target)
+    def render_error(message)
+      render json: { error: message }, status: :unprocessable_entity
     end
 
-    def sync_standard_to_dokku(action, domain, engine)
-      if action == :add
-        engine.domain_add(@service.dokku_app_name, domain.hostname)
-      else
-        engine.domain_remove(@service.dokku_app_name, domain.hostname)
-      end
+    def ssl_status_for(ssl)
+      ssl ? "pending" : "none"
     end
 
-    def sync_wildcard_to_dokku(action, domain, engine)
-      if action == :add
-        labels = TraefikLabelBuilder.new(@service, domain).build_labels
-        labels.each do |key, value|
-          engine.run("traefik:labels:add #{escape(@service.dokku_app_name)} #{escape(key)} #{escape(value)}")
-        end
-      else
-        # Remove wildcard labels — find and remove all labels for this app's wildcard router
-        router_name = "#{@service.dokku_app_name}-wildcard"
-        result = engine.traefik_show_config(@service.dokku_app_name)
-        return unless result[:success]
-
-        # Remove all labels that reference the wildcard router
-        result[:output].each_line do |line|
-          if line.include?(router_name)
-            key = line.split("=").first&.strip
-            if key.present?
-              engine.run("traefik:labels:remove #{escape(@service.dokku_app_name)} #{escape(key)}")
-            end
-          end
-        end
-      end
+    def cast_bool(value)
+      ActiveModel::Type::Boolean.new.cast(value) == true
     end
 
-    def sync_port_mapping(domain, engine)
-      target = domain.target_port || @service.detected_port || 5000
-      # Only map https when the domain has SSL. A stray https:443 mapping on a
-      # managed Traefik without letsencrypt makes Dokku emit an https router
-      # for a nonexistent certresolver, breaking routing for the whole app.
-      mappings = [ "http:80:#{target.to_i}" ]
-      mappings << "https:443:#{target.to_i}" if domain.ssl
-      engine.ports_set(@service.dokku_app_name, *mappings)
-    end
-
-    def escape(value)
-      Shellwords.escape(value.to_s)
+    def domain_sync
+      @domain_sync ||= DomainSync.new(@service)
     end
   end
 end

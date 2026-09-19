@@ -538,7 +538,9 @@ class ManifestReconciler
         service.domains.create!(
           hostname: hostname,
           port: use_ssl ? 443 : 80,
-          target_port: svc[:port].to_i.positive? ? svc[:port].to_i : 80,
+          # No declared port means the domain follows the app rather than
+          # freezing Dokku's old 80 default.
+          target_port: svc[:port].to_i.positive? ? svc[:port].to_i : nil,
           ssl: use_ssl,
           letsencrypt: use_ssl,
           ssl_status: use_ssl ? "pending" : "none"
@@ -980,7 +982,7 @@ class ManifestReconciler
     # Merge: add manifest domains without deleting UI/custom domains that were added via the Domains tab.
     # The Domains tab shows the union; badge indicates from manifest vs custom.
     desired_port = @desired.find_service(service.name)&.dig(:port)
-    desired_port = desired_port.to_i.positive? ? desired_port.to_i : 80
+    desired_port = desired_port.to_i.positive? ? desired_port.to_i : nil
 
     desired.each do |hostname|
       next if service.domains.exists?(hostname: hostname)

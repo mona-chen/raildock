@@ -185,6 +185,10 @@ export interface Domain {
   hostname: string
   port: number
   targetPort?: number
+  // The port the domain actually routes to: `targetPort` when set explicitly,
+  // otherwise the service's effective (detected) port. Resolved by the API so
+  // the UI never has to guess.
+  resolvedTargetPort?: number
   ssl: boolean
   letsencrypt: boolean
   temporary?: boolean

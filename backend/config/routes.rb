@@ -88,7 +88,7 @@ Rails.application.routes.draw do
           end
         end
         resources :environment_variables, path: "env-vars", only: [ :create ]
-        resources :domains, only: [ :create ]
+        resources :domains, only: [ :create, :update ]
         resources :storage_mounts, path: "storage", only: [ :create ]
       end
       resources :activity_events, path: "activity-events", only: [ :index ]

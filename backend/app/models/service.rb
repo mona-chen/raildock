@@ -202,8 +202,16 @@ class Service < ApplicationRecord
     end
   end
 
+  # The container port this service's app is actually reachable on.
+  #
+  # `detected_port` is what Dokku observed from the running container, so it
+  # reflects reality; `port` is the declared value that seeds it before the
+  # first deploy. Every domain-related code path (the UI's port hint, Traefik
+  # labels, Dokku port mappings) must resolve through here instead of
+  # hand-rolling a `port || detected_port` chain — a mismatch between those
+  # chains is what made a freshly added domain route to the wrong port.
   def effective_port
-    port || detected_port || 5000
+    [ detected_port, port ].find { |value| value.to_i.positive? } || 5000
   end
 
   # Static-site settings live under config["staticSite"]:
@@ -237,7 +245,7 @@ class Service < ApplicationRecord
       methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url, :data_view ],
       include: {
         environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },
-        domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ] },
+        domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ], methods: [ :resolved_target_port ] },
         storage_mounts: { only: [ :id, :host_path, :container_path, :kind ] },
         process_types: { only: [ :id, :name, :quantity, :running, :command ] },
         backups: { only: [ :id, :status, :size, :created_at ] }

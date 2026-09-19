@@ -270,14 +270,15 @@ ServiceLink.find_or_create_by!(from_service: api, to_service: cache)
 end
 
 [
-  [ web, "hello-web.127.0.0.1.sslip.io", 443, 3000, "active" ],
-  [ web, "hello-web.localhost", 443, 3000, "active" ],
-  [ api, "hello-api.127.0.0.1.sslip.io", 443, 3000, "pending" ],
-  [ site, "brand-playbook.127.0.0.1.sslip.io", 443, 3000, "active" ]
-].each do |service, hostname, port, target_port, ssl_status|
+  [ web, "hello-web.127.0.0.1.sslip.io", 443, "active" ],
+  [ web, "hello-web.localhost", 443, "active" ],
+  [ api, "hello-api.127.0.0.1.sslip.io", 443, "pending" ],
+  [ site, "brand-playbook.127.0.0.1.sslip.io", 443, "active" ]
+].each do |service, hostname, port, ssl_status|
   domain = Domain.find_or_initialize_by(service: service, hostname: hostname)
   domain.port = port
-  domain.target_port = target_port
+  # No per-domain override: the domain follows the app's detected port.
+  domain.target_port = nil
   domain.letsencrypt = true
   domain.ssl = ssl_status == "active"
   domain.ssl_status = ssl_status

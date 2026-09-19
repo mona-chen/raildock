@@ -940,30 +940,27 @@ module Api
       hostname = server.temporary_hostname(@service.dokku_app_name)
       return render json: { error: "Could not generate hostname" }, status: :unprocessable_entity unless hostname
 
-      # Check for collision
-      if @service.domains.exists?(hostname: hostname)
-        return render json: { error: "Domain already exists" }, status: :unprocessable_entity
+      # Idempotent: the auto-generated hostname often already exists (auto-domains
+      # create one on deploy). Returning it beats an error the user cannot act on.
+      if (existing = @service.domains.find_by(hostname: hostname))
+        return render json: existing, status: :ok
       end
 
       use_ssl = !server.magic_domain?
-      target = @service.port || @service.detected_port || 80
 
       domain = @service.domains.create!(
         hostname: hostname,
         port: use_ssl ? 443 : 80,
-        target_port: target,
+        target_port: nil,
         ssl: use_ssl,
         letsencrypt: use_ssl,
         temporary: true
       )
 
-      # Sync to Dokku. Temporary magic domains never get TLS — only map https
-      # when the domain actually supports SSL (non-magic domain).
-      if server.ssh_key.present?
-        engine = DokkuEngine.new(server)
-        engine.domain_add(@service.dokku_app_name, hostname)
-        engine.sync_port_mappings(@service.dokku_app_name, target, https: use_ssl)
-      end
+      # Sync to Dokku over a single session. Temporary magic domains never get
+      # TLS, so only the standard HTTP mapping is (re)applied for them.
+      result = DomainSync.new(@service).add(domain)
+      return render json: { error: "Failed to generate domain: #{result.output}" }, status: :unprocessable_entity if result.failure?
 
       render json: domain, status: :created
     rescue => e

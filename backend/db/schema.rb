@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_19_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -173,7 +173,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_000001) do
     t.datetime "ssl_expires_at"
     t.string "ssl_status", default: "none", null: false
     t.string "ssl_status_message"
-    t.integer "target_port", default: 80
+    t.integer "target_port"
     t.boolean "temporary", default: false, null: false
     t.datetime "updated_at", null: false
     t.boolean "wildcard", default: false

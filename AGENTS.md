@@ -40,6 +40,10 @@ app, datastore, config, domain, proxy, checks and `ps` commands, and raw `docker
 commands are forwarded to the host daemon (the socket is mounted), so container
 inventory and host metrics see real containers. The simulator authorizes its key
 for both `dokku` and `root`, matching what `install.sh` does on a real host.
+The `dokku` user is restricted with a forced command
+(`command="/usr/local/bin/dokku"`), so bare subcommands such as `domains:add`
+reach the shim instead of failing in a plain login shell the way they would
+without it — keep that entry when editing `entrypoint.sh`.
 `make seed-demo` then creates an admin (`admin@raildock.local` /
 `changeme123`), an organization, a server pointed at the simulator, two projects
 with apps, a database, a cache, domains, a volume, and deployment/activity/metric
@@ -284,6 +288,21 @@ version the target servers run before assuming a behavior.
   both backend labels, routers with no backend, or a missing host rule) — not
   for a benign pending change such as a container still on the `port` label
   that the next deploy turns into `url`.
+- **A domain's port is a reference, not a snapshot.** A blank
+  `Domain#target_port` means "follow the app" and resolves through
+  `Service#effective_port` (`detected_port` → `port` → 5000) in
+  `Domain#resolved_target_port`; only store a `target_port` when the user asks
+  for a per-domain override. Every routing consumer (Traefik labels, Dokku
+  `ports:set`, port detection) must use `resolved_target_port` rather than a
+  hand-rolled `port || detected_port` chain — disagreeing chains are what made a
+  freshly added domain route to a different port than the UI promised.
+  `DomainSync` performs each add/update/remove over a single SSH session and
+  returns a result instead of raising, so `Api::DomainsController` can roll the
+  record back when the host refuses the change. `POST .../domains` is idempotent
+  (an identical resubmission returns `200` with the existing domain) and replies
+  `409 domain_exists` for a conflicting hostname; `DELETE` succeeds quietly when
+  the domain is already gone; `PATCH /api/domains/:id` edits hostname, SSL and
+  the port override.
 - **Drift merge is review-first and never destructive.** `ManifestDrift`
   (surfaced at `GET /api/projects/:id/manifest/drift` and
   `POST /api/projects/:id/manifest/merge`) reports how the stored manifest

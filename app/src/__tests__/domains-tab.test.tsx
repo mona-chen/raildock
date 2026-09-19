@@ -7,11 +7,13 @@ import type { Service, Domain } from '@/types'
 const addMutate = vi.fn()
 const removeMutate = vi.fn()
 const generateMutate = vi.fn()
+const updateMutate = vi.fn()
 
 vi.mock('@/hooks/useServices', () => ({
   useAddDomain: () => ({ mutate: addMutate, isPending: false }),
   useRemoveDomain: () => ({ mutate: removeMutate, isPending: false }),
   useGenerateDomain: () => ({ mutate: generateMutate, isPending: false }),
+  useUpdateDomain: () => ({ mutate: updateMutate, isPending: false }),
 }))
 
 vi.mock('@/hooks/useCopy', () => ({
@@ -92,6 +94,7 @@ describe('DomainsTab', () => {
     addMutate.mockReset()
     removeMutate.mockReset()
     generateMutate.mockReset()
+    updateMutate.mockReset()
   })
 
   it('normalizes https:// prefix when adding a domain', () => {
@@ -209,5 +212,54 @@ describe('DomainsTab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
 
     expect(removeMutate).not.toHaveBeenCalled()
+  })
+
+  it('shows the resolved port for a domain that follows the app', () => {
+    const service = mockService({
+      detectedPort: 3001,
+      domains: [mockDomain({ hostname: 'api.example.com', targetPort: undefined, resolvedTargetPort: 3001 })],
+    })
+    renderWithClient(<DomainsTab svc={service} />)
+
+    expect(screen.getByText(/container port 3001/i)).toBeInTheDocument()
+    expect(screen.getByText(/follows app/i)).toBeInTheDocument()
+  })
+
+  it('edits a domain target port', () => {
+    const service = mockService({
+      detectedPort: 3000,
+      domains: [mockDomain({ hostname: 'api.example.com', targetPort: undefined, resolvedTargetPort: 3000 })],
+    })
+    renderWithClient(<DomainsTab svc={service} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit domain api.example.com' }))
+
+    const portInput = screen.getByPlaceholderText('3000')
+    fireEvent.change(portInput, { target: { value: '8080' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      { id: 'svc-1', domainId: 'd-1', targetPort: 8080 },
+      expect.anything()
+    )
+  })
+
+  it('clears an override so the domain follows the app again', () => {
+    const service = mockService({
+      detectedPort: 3000,
+      domains: [mockDomain({ hostname: 'api.example.com', targetPort: 5000, resolvedTargetPort: 5000 })],
+    })
+    renderWithClient(<DomainsTab svc={service} />)
+
+    expect(screen.getByText(/overrides app port 3000/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit domain api.example.com' }))
+    fireEvent.change(screen.getByPlaceholderText('3000'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      { id: 'svc-1', domainId: 'd-1', targetPort: null },
+      expect.anything()
+    )
   })
 })

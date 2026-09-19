@@ -38,7 +38,7 @@ class TemporaryDomainService
     return nil unless hostname
 
     use_ssl = !@server.magic_domain?
-    target_port = service.config&.dig("proxy", "ports")&.first&.dig("container") || service.effective_port
+    target_port = service.config&.dig("proxy", "ports")&.first&.dig("container")
 
     domain = service.domains.create!(
       hostname: hostname,
@@ -54,7 +54,7 @@ class TemporaryDomainService
     if engine && @server.ssh_key.present?
       engine.domain_add(service.dokku_app_name, hostname)
       # Temporary magic (sslip.io) domains never get TLS certs — always HTTP-only.
-      engine.sync_port_mappings(service.dokku_app_name, target_port, https: false)
+      engine.sync_port_mappings(service.dokku_app_name, domain.resolved_target_port, https: false)
     end
 
     domain

@@ -172,12 +172,40 @@ export function useAddDomain() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, hostname, port, targetPort }: { id: string; hostname: string; port: number; targetPort?: number }) =>
-      api.services.addDomain(id, hostname, port, targetPort),
+      api.services.addDomain(id, { hostname, port, targetPort }),
     onSuccess: (_, { id, hostname }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       toast.success(`Added domain ${hostname}`)
     },
     onError: (err) => toast.error(`Failed to add domain: ${err.message}`),
+  })
+}
+
+export interface UpdateDomainVars {
+  // The service the domain belongs to, used to refresh its query cache.
+  id: string
+  domainId: string
+  hostname?: string
+  port?: number
+  targetPort?: number | null
+  ssl?: boolean
+}
+
+export function useUpdateDomain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: UpdateDomainVars) =>
+      api.services.updateDomain(vars.domainId, {
+        hostname: vars.hostname,
+        port: vars.port,
+        targetPort: vars.targetPort,
+        ssl: vars.ssl,
+      }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['services', vars.id] })
+      toast.success(vars.hostname ? `Updated domain ${vars.hostname}` : 'Domain updated')
+    },
+    onError: (err) => toast.error(`Failed to update domain: ${err.message}`),
   })
 }
 

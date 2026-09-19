@@ -5,7 +5,10 @@ class Domain < ApplicationRecord
 
   validates :hostname, presence: true, uniqueness: { scope: :service_id, case_sensitive: false }
   validates :port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }
-  validates :target_port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }
+  # A blank target_port means "follow the app" — resolve it through
+  # #resolved_target_port rather than storing a snapshot, which is what let a
+  # domain keep pointing at 5000 (or 80) long after the app's port changed.
+  validates :target_port, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 65535 }, allow_nil: true
   validates :ssl_status, inclusion: { in: %w[none pending active failed] }
   validates :challenge_type, inclusion: { in: %w[http dns] }
 
@@ -14,13 +17,20 @@ class Domain < ApplicationRecord
 
   MAGIC_DOMAINS = %w[sslip.io nip.io traefik.me].freeze
 
+  # The container port this hostname should route to. An explicit target_port
+  # is a per-domain override; otherwise the domain follows the service's
+  # effective (actually listening) port.
+  def resolved_target_port
+    target_port.presence || service&.effective_port || 5000
+  end
+
   def wildcard?
     hostname.to_s.start_with?("*.")
   end
 
   def as_json(options = {})
     super(options.merge(
-      methods: [ :temporary, :wildcard, :base_hostname, :traefik_rule ]
+      methods: [ :temporary, :wildcard, :base_hostname, :traefik_rule, :resolved_target_port ]
     ))
   end
 

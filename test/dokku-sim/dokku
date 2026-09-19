@@ -1,6 +1,15 @@
 #!/bin/bash
 # Mock Dokku for integration testing
 
+# A real Dokku host restricts the `dokku` SSH user with a forced command, so the
+# client sends a bare subcommand ("apps:list") and Dokku runs it. sshd hands the
+# requested command over in SSH_ORIGINAL_COMMAND; parse it back into positional
+# arguments so the shim behaves the same way instead of failing with
+# "apps:list: command not found".
+if [ -z "$1" ] && [ -n "$SSH_ORIGINAL_COMMAND" ]; then
+  eval "set -- $SSH_ORIGINAL_COMMAND"
+fi
+
 DOKKU_APPS_DIR="/home/dokku/apps"
 mkdir -p "$DOKKU_APPS_DIR"
 
@@ -94,6 +103,77 @@ case "$1" in
     app_name="$2"
     shift 2
     log "Setting domains for $app_name... done"
+    ;;
+
+  domains:report)
+    app_name="$2"
+    echo "=====> $app_name domains information"
+    echo "       Domains app enabled:           true"
+    echo "       Domains app vhosts:            $app_name.test"
+    ;;
+
+  # Ports are the mapping RailDock reconciles from the domain's target port.
+  # Remember them per app so ports:report/ports:list can echo them back the way
+  # the real plugin does.
+  ports:set)
+    app_name="$2"
+    shift 2
+    echo "$*" > "/home/dokku/ports-$app_name"
+    log "Setting port mappings for $app_name... done"
+    for mapping in "$@"; do echo "       $mapping"; done
+    ;;
+
+  ports:clear)
+    app_name="$2"
+    rm -f "/home/dokku/ports-$app_name"
+    log "Clearing port mappings for $app_name... done"
+    ;;
+
+  ports:list)
+    app_name="$2"
+    cat "/home/dokku/ports-$app_name" 2>/dev/null || true
+    ;;
+
+  ports:report)
+    app_name="$2"
+    echo "=====> $app_name ports information"
+    echo "       Ports scheme:                  http"
+    echo "       Ports host:                    80"
+    echo "       Ports container:               $(cat "/home/dokku/ports-$app_name" 2>/dev/null | sed 's/.*://' || echo 5000)"
+    ;;
+
+  ps:rebuild)
+    app_name="$2"
+    log "Rebuilding $app_name... done"
+    ;;
+
+  ps:set)
+    app_name="$2"
+    property="$3"
+    value="$4"
+    log "Setting ps $property to $value for $app_name... done"
+    ;;
+
+  traefik:labels:add)
+    app_name="$2"
+    key="$3"
+    echo "$key=${4:-}" >> "/home/dokku/traefik-labels-$app_name"
+    log "Adding traefik label $key to $app_name... done"
+    ;;
+
+  traefik:labels:remove)
+    app_name="$2"
+    key="$3"
+    if [ -f "/home/dokku/traefik-labels-$app_name" ]; then
+      grep -v "^$(echo "$key" | sed 's/[.[\*^$]/\\&/g')=" "/home/dokku/traefik-labels-$app_name" > "/home/dokku/traefik-labels-$app_name.tmp" || true
+      mv "/home/dokku/traefik-labels-$app_name.tmp" "/home/dokku/traefik-labels-$app_name"
+    fi
+    log "Removing traefik label $key from $app_name... done"
+    ;;
+
+  traefik:show-config)
+    app_name="$2"
+    cat "/home/dokku/traefik-labels-$app_name" 2>/dev/null || true
     ;;
 
   storage:mount)

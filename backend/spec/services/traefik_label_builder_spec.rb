@@ -66,12 +66,12 @@ RSpec.describe TraefikLabelBuilder do
     expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("3000")
   end
 
-  it "uses domain target_port default of 80 when no manifest port and no detected_port" do
+  it "falls back to the Dokku default port when nothing is declared or detected" do
     service = create(:service, detected_port: nil)
     domain = create(:domain, service: service)
 
     labels = described_class.new(service, domain).build_labels
 
-    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("80")
+    expect(labels["traefik.http.services.#{service.dokku_app_name}-web.loadbalancer.server.port"]).to eq("5000")
   end
 end

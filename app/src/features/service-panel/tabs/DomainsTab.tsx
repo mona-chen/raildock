@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Globe, Trash2, ShieldCheck, ShieldAlert, ShieldQuestion, Info, Copy, Check, ExternalLink, AlertTriangle, ChevronDown } from 'lucide-react'
-import { useAddDomain, useRemoveDomain, useGenerateDomain } from '@/hooks/useServices'
+import { Globe, Trash2, ShieldCheck, ShieldAlert, ShieldQuestion, Info, Copy, Check, ExternalLink, AlertTriangle, ChevronDown, Pencil, Loader2 } from 'lucide-react'
+import { useAddDomain, useRemoveDomain, useGenerateDomain, useUpdateDomain } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import type { Service, Domain } from '@/types'
@@ -117,13 +117,48 @@ function SslAlert({ domain }: { domain: Domain }) {
 
 function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; onRemove: () => void }) {
   const { copy, copiedKey } = useCopy(1500)
+  const updateDomain = useUpdateDomain()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [hostnameInput, setHostnameInput] = useState(domain.hostname)
+  const [targetPortInput, setTargetPortInput] = useState(domain.targetPort ? String(domain.targetPort) : '')
   const scheme = domain.ssl ? 'https' : 'http'
   const url = `${scheme}://${domain.hostname}`
-  const targetPort = domain.targetPort || svc.detectedPort || svc.port || 80
-  const isRoutingMismatch = Boolean(
-    svc.detectedPort && domain.targetPort && domain.targetPort !== svc.detectedPort
+  const appPort = svc.detectedPort || svc.port || 5000
+  // `resolvedTargetPort` is the authoritative value from the API; fall back for
+  // older payloads that predate it.
+  const resolvedPort = domain.resolvedTargetPort ?? domain.targetPort ?? appPort
+  const overridesAppPort = Boolean(
+    domain.targetPort && svc.detectedPort && domain.targetPort !== svc.detectedPort
   )
+  const normalized = useMemo(() => normalizeHostnameInput(hostnameInput), [hostnameInput])
+
+  const startEditing = () => {
+    setHostnameInput(domain.hostname)
+    setTargetPortInput(domain.targetPort ? String(domain.targetPort) : '')
+    setEditing(true)
+  }
+
+  const saveEdit = () => {
+    if (!domain.id || !normalized.hostname || normalized.error || updateDomain.isPending) return
+
+    const changes: { hostname?: string; targetPort?: number | null } = {}
+    if (normalized.hostname !== domain.hostname) changes.hostname = normalized.hostname
+
+    const typed = targetPortInput.trim() ? parseInt(targetPortInput, 10) : null
+    const nextTarget = typed && Number.isFinite(typed) ? typed : null
+    if (nextTarget !== (domain.targetPort ?? null)) changes.targetPort = nextTarget
+
+    if (Object.keys(changes).length === 0) {
+      setEditing(false)
+      return
+    }
+
+    updateDomain.mutate(
+      { id: svc.id, domainId: domain.id, ...changes },
+      { onSuccess: () => setEditing(false) }
+    )
+  }
 
   return (
     <div className="space-y-0">
@@ -148,16 +183,32 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] text-white/50">→ container port {targetPort}</span>
-            {isRoutingMismatch && (
-              <span className="text-[10px] text-amber-400/80 flex items-center gap-1" title="Domain target port differs from the app's detected port. Redeploy to align them.">
-                <AlertTriangle size={10} /> mismatch
+            <span className="text-[11px] text-white/50">→ container port {resolvedPort}</span>
+            {overridesAppPort && (
+              <span
+                className="text-[10px] text-amber-400/80 flex items-center gap-1"
+                title={`Overrides the app's detected port (${svc.detectedPort}). Routing breaks until the app listens on ${domain.targetPort}.`}
+              >
+                <AlertTriangle size={10} /> overrides app port {svc.detectedPort}
+              </span>
+            )}
+            {!domain.targetPort && (
+              <span className="text-[10px] text-white/50" title="Follows the app's port — no per-domain override">
+                follows app
               </span>
             )}
           </div>
         </div>
         <SslBadge domain={domain} />
         <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={editing ? () => setEditing(false) : startEditing}
+            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/60 transition-colors"
+            title={editing ? 'Cancel edit' : 'Edit domain'}
+            aria-label={`Edit domain ${domain.hostname}`}
+          >
+            <Pencil size={12} />
+          </button>
           <button
             onClick={() => copy(url, domain.hostname)}
             className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/60 transition-colors"
@@ -184,6 +235,58 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
           </button>
         </div>
       </div>
+      {editing && (
+        <div className="mt-2 p-3 bg-[#1a1a1e] border border-[#8b5cf6]/25 rounded-xl space-y-3">
+          <div className="space-y-1">
+            <label htmlFor={`domain-hostname-${domain.id}`} className="text-[11px] text-white/50 block">Hostname</label>
+            <input
+              id={`domain-hostname-${domain.id}`}
+              value={hostnameInput}
+              onChange={(e) => setHostnameInput(e.target.value)}
+              placeholder="example.com or *.example.com"
+              className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/40"
+            />
+            {normalized.error && (
+              <div className="text-[11px] text-red-400 flex items-center gap-1">
+                <AlertTriangle size={11} />
+                {normalized.error}
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label htmlFor={`domain-port-${domain.id}`} className="text-[11px] text-white/50 block">Target container port</label>
+            <div className="flex items-center gap-2">
+              <input
+                id={`domain-port-${domain.id}`}
+                type="number"
+                value={targetPortInput}
+                onChange={(e) => setTargetPortInput(e.target.value)}
+                placeholder={String(appPort)}
+                className="w-28 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/40"
+              />
+              <span className="text-[11px] text-white/50">
+                Leave blank to follow the app&apos;s port ({appPort})
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={saveEdit}
+              disabled={!normalized.hostname || Boolean(normalized.error) || updateDomain.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+            >
+              {updateDomain.isPending && <Loader2 size={11} className="animate-spin" />}
+              {updateDomain.isPending ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 text-white/50 rounded-lg text-[12px] hover:text-white/70 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       <SslAlert domain={domain} />
       <ConfirmDialog
         open={confirmOpen}
@@ -217,7 +320,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
   )
 
   const normalized = useMemo(() => normalizeHostnameInput(input), [input])
-  const detectedOrDefault = svc.detectedPort || svc.port || 80
+  const detectedOrDefault = svc.detectedPort || svc.port || 5000
 
   const handleAdd = () => {
     if (!normalized.hostname || normalized.error || addDomain.isPending) return
@@ -333,7 +436,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
                 className="w-28 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
               />
               <span className="text-[11px] text-white/50">
-                Leave blank to use {detectedOrDefault === 80 ? 'the detected port' : detectedOrDefault}
+                Leave blank to follow the app&apos;s port ({detectedOrDefault})
               </span>
             </div>
           </div>

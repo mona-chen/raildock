@@ -332,8 +332,28 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/env-vars`, { method: 'PUT', body: JSON.stringify({ vars }) })
   },
 
-  addDomain: async (id: string, hostname: string, port: number, targetPort?: number): Promise<void> => {
-    await fetchJson(`/api/services/${id}/domains`, { method: 'POST', body: JSON.stringify({ hostname, port, target_port: targetPort }) })
+  // targetPort undefined = follow the app's port (the server leaves it blank).
+  addDomain: async (
+    id: string,
+    data: { hostname: string; port: number; targetPort?: number },
+  ): Promise<Domain> => {
+    const body: Record<string, unknown> = { hostname: data.hostname, port: data.port }
+    if (data.targetPort !== undefined) body.target_port = data.targetPort
+    return fetchJson(`/api/services/${id}/domains`, { method: 'POST', body: JSON.stringify(body) })
+  },
+
+  // Edits an existing domain. `targetPort: null` clears the override so the
+  // domain follows the app again; omitting a field leaves it unchanged.
+  updateDomain: async (
+    domainId: string,
+    data: { hostname?: string; port?: number; targetPort?: number | null; ssl?: boolean },
+  ): Promise<Domain> => {
+    const body: Record<string, unknown> = {}
+    if (data.hostname !== undefined) body.hostname = data.hostname
+    if (data.port !== undefined) body.port = data.port
+    if (data.ssl !== undefined) body.ssl = data.ssl
+    if (data.targetPort !== undefined) body.target_port = data.targetPort
+    return fetchJson(`/api/domains/${domainId}`, { method: 'PATCH', body: JSON.stringify(body) })
   },
 
   removeDomain: async (id: string, hostname: string): Promise<void> => {
