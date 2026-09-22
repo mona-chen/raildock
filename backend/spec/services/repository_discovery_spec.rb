@@ -135,6 +135,51 @@ RSpec.describe RepositoryDiscovery do
     expect(client).not_to have_received(:contents).with(repository, path: ".env", ref: commit_sha)
   end
 
+  it "discovers a plain static site from a bare index.html at the repository root" do
+    stub_tree("index.html", "styles.css")
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.map { |service| service["category"] }).to eq([ "app" ])
+    expect(result.services.first).to include(
+      "name" => "storefront",
+      "plain_static" => true
+    )
+    expect(result.services.first).not_to have_key("publish_directory")
+    expect(result.services.first["builder"]).to be_nil
+    expect(result.evidence.first[:decision]).to include("no build step")
+  end
+
+  it "keeps plain_static in the canonical manifest but drops env_keys" do
+    stub_tree("index.html")
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    manifest = JSON.generate(result.canonical_manifest)
+    expect(manifest).to include("plain_static")
+    expect(manifest).not_to include("env_keys")
+  end
+
+  it "does not treat a root index.html next to a Dockerfile as plain static" do
+    stub_tree("index.html", "Dockerfile")
+    stub_content("Dockerfile", "FROM nginx:alpine\n")
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.first["builder"]).to eq("dockerfile")
+    expect(result.services.first).not_to have_key("plain_static")
+  end
+
+  it "does not discover a nested index.html as a plain static service" do
+    stub_tree("public/index.html", "package.json")
+    stub_content("package.json", JSON.generate(name: "storefront"))
+
+    result = described_class.new(git_source: git_source, repository: repository, client: client).call
+
+    expect(result.services.map { |service| service["name"] }).to eq([ "storefront" ])
+    expect(result.services.first).not_to have_key("plain_static")
+  end
+
   def stub_tree(*paths)
     entries = paths.map { |path| OpenStruct.new(type: "blob", path: path) }
     allow(client).to receive(:tree).with(repository, commit_sha, recursive: true).and_return(

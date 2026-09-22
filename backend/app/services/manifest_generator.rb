@@ -65,6 +65,8 @@ class ManifestGenerator
       h[:publish_directory] = static_site["publishDirectory"]
       h[:spa_fallback] = static_site["spaFallback"] unless static_site["spaFallback"].nil?
       h[:node_version] = static_site["nodeVersion"] if static_site["nodeVersion"].present?
+    elsif ActiveModel::Type::Boolean.new.cast(static_site["plainStatic"])
+      h[:plain_static] = true
     end
     h[:exposed] = svc.exposed unless svc.exposed.nil?
     h[:port] = svc.port if svc.port.present?
@@ -224,6 +226,7 @@ class ManifestGenerator
       lines << "start_command = #{quote(svc[:start_command])}" if svc[:start_command]
       lines << "root_directory = #{quote(svc[:root_directory])}" if svc[:root_directory]
       lines << "publish_directory = #{quote(svc[:publish_directory])}" if svc[:publish_directory]
+      lines << "plain_static = #{svc[:plain_static]}" unless svc[:plain_static].nil?
       lines << "spa_fallback = #{svc[:spa_fallback]}" unless svc[:spa_fallback].nil?
       lines << "node_version = #{quote(svc[:node_version])}" if svc[:node_version]
       lines << "exposed = #{svc[:exposed]}" unless svc[:exposed].nil?

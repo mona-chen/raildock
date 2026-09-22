@@ -186,7 +186,7 @@ class ManifestSchema
       errors << "#{prefix}: '#{key}' must be a string" if svc.key?(key) && !svc[key].nil? && !svc[key].is_a?(String)
     end
 
-    %w[spa_fallback spaFallback].each do |key|
+    %w[spa_fallback spaFallback plain_static plainStatic].each do |key|
       errors << "#{prefix}: '#{key}' must be a boolean" if svc.key?(key) && !svc[key].nil? && ![ true, false ].include?(svc[key])
     end
 

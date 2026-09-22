@@ -24,7 +24,7 @@ class ManifestSerializer
   # Emitted in this order, straight onto the [[services]] table.
   SCALAR_KEYS = %i[
     name category subtype builder framework dockerfile_path version docker_image
-    start_command root_directory publish_directory spa_fallback node_version
+    start_command root_directory publish_directory plain_static spa_fallback node_version
     exposed port maintenance restart_policy restart_max_retries auto_deploy
     source_revision
   ].freeze

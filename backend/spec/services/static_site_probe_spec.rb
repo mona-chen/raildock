@@ -109,4 +109,41 @@ RSpec.describe StaticSiteProbe do
     stub_tree("package.json", truncated: true)
     expect(probe.detect).to be_nil
   end
+
+  it "detects a bare index.html as a plain static site" do
+    stub_tree("index.html", "styles.css")
+
+    result = probe.detect
+
+    expect(result.plain_static).to be(true)
+    expect(result.framework).to eq("staticfile")
+    expect(result.publish_directory).to be_nil
+    expect(result.config).to eq("spaFallback" => false, "plainStatic" => true)
+  end
+
+  it "still prefers package.json over a root index.html" do
+    stub_tree("package.json", "index.html")
+    stub_content("package.json", package_json)
+
+    result = probe.detect
+
+    expect(result.framework).to eq("vite")
+    expect(result.plain_static).to be_nil
+  end
+
+  it "leaves a repo with an index.html and a Procfile alone" do
+    stub_tree("index.html", "Procfile")
+    stub_content("Procfile", "web: node server.js\n")
+
+    expect(probe.detect).to be_nil
+  end
+
+  it "detects a plain static site scoped to its own root directory" do
+    stub_tree("public/index.html", "package.json")
+    stub_content("package.json", package_json)
+
+    result = probe.detect(root_directory: "public")
+
+    expect(result.plain_static).to be(true)
+  end
 end

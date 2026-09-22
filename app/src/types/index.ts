@@ -157,13 +157,15 @@ export interface Service {
 }
 
 // Static/SPA frontends that build to a folder of files. A non-blank
-// publishDirectory marks the service as a static site; RailDock then builds
+// publishDirectory marks the service as a static build; RailDock then builds
 // with a static-capable builder and serves the bundle instead of running the
-// app's start script.
+// app's start script. plainStatic marks a site with no build step at all
+// (bare index.html), served by the builder's Staticfile provider.
 export interface StaticSiteSettings {
   publishDirectory?: string
   spaFallback?: boolean
   nodeVersion?: string
+  plainStatic?: boolean
 }
 
 export interface ProcessType {
@@ -576,6 +578,8 @@ export interface RepositoryImportService {
   rootDirectory?: string
   /** Publish directory when the discovery decided this is a static site. */
   publishDirectory?: string
+  /** No-build static site (bare index.html), served by the Staticfile provider. */
+  plainStatic?: boolean
   /** Variable names documented in the repo's example .env files. */
   envKeys?: string[]
   scripts?: { build?: string; predeploy?: string; postdeploy?: string }

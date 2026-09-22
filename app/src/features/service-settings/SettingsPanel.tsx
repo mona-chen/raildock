@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback, useContext, createContext } from 'react'
-import { Trash2, Loader2, Globe, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, Folder, ExternalLink, Search, SlidersHorizontal, Rocket } from 'lucide-react'
+import { Trash2, Loader2, Globe, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, ExternalLink, Search, SlidersHorizontal, Rocket } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GitSource, Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
@@ -15,12 +15,37 @@ import { cn, confirmationFieldTone } from '@/lib/utils'
 
 const tabs = [
   { key: 'general', label: 'General', icon: SlidersHorizontal },
+  { key: 'source', label: 'Source', icon: GitBranch },
   { key: 'deploy', label: 'Deploy', icon: Rocket },
-  { key: 'network', label: 'Networking', icon: Globe },
+  // Named "Routing" rather than "Networking": the panel already has a
+  // Networking tab (domains and volumes), and two different things sharing one
+  // label made the settings sidebar ambiguous to read — and to click.
+  { key: 'network', label: 'Routing', icon: Globe },
   { key: 'resources', label: 'Resources', icon: Cpu },
   { key: 'advanced', label: 'Advanced', icon: Wrench },
   { key: 'danger', label: 'Danger Zone', icon: AlertTriangle },
 ] as const
+
+// Row titles per section, so the sidebar search can find a setting rather than
+// only a section name. Searching "port" has to reach Container Port (General)
+// and Port Mappings (Routing); previously it matched nothing at all because
+// only the six section labels were searched. Keep in sync with the rows.
+const SETTINGS_INDEX: Record<string, string[]> = {
+  general: ['Display Name', 'Container Port'],
+  source: [
+    'Git Repository', 'Deploy Branch', 'Root Directory', 'Docker Image',
+    'Start Command', 'Builder', 'Static Site', 'Publish directory',
+    'Node version', 'Auto-deploy', 'Deploy Webhook',
+  ],
+  deploy: [
+    'Restart Policy', 'Max Retries', 'Health Checks', 'Zero-downtime policy',
+    'Wait', 'Timeout', 'Attempts', 'Drain window', 'Maintenance Mode', 'App Lock', 'Security',
+  ],
+  network: ['Proxy', 'Proxy Type', 'Port Mappings', "SSL / Let's Encrypt", 'Email', 'External Networks'],
+  resources: ['CPU', 'Memory', 'Swap', 'NVIDIA GPU', 'Reservations'],
+  advanced: ['Docker Options', 'Cron Jobs'],
+  danger: ['Destroy Service'],
+}
 
 function ManifestBanner({ svc }: { svc: Service }) {
   const navigate = useNavigate()
@@ -93,7 +118,11 @@ export function SettingsPanel({ svc }: { svc: Service }) {
   const effectiveSvc = draft.svc
 
   const query = filter.trim().toLowerCase()
-  const visibleTabs = tabs.filter((t) => t.label.toLowerCase().includes(query))
+  const rowsFor = (key: string) =>
+    query ? (SETTINGS_INDEX[key] ?? []).filter((row) => row.toLowerCase().includes(query)) : []
+  const visibleTabs = query
+    ? tabs.filter((t) => t.label.toLowerCase().includes(query) || rowsFor(t.key).length > 0)
+    : tabs
 
   return (
     <SettingsDraftContext.Provider value={draft}>
@@ -112,19 +141,37 @@ export function SettingsPanel({ svc }: { svc: Service }) {
             </div>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
-            {visibleTabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                aria-current={tab === t.key ? 'page' : undefined}
-                className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
-                  tab === t.key ? 'bg-white/[0.06] text-white/85' : 'text-white/55 hover:text-white/70 hover:bg-white/[0.03]'
-                }`}
-              >
-                <t.icon size={13} className={tab === t.key ? 'text-rail-purple' : ''} />
-                {t.label}
-              </button>
-            ))}
+            {visibleTabs.map((t) => {
+              const matchedRows = rowsFor(t.key)
+              const danger = t.key === 'danger'
+              return (
+                <div key={t.key} className={danger ? 'mt-2 border-t border-white/[0.06] pt-2' : ''}>
+                  <button
+                    onClick={() => setTab(t.key)}
+                    aria-current={tab === t.key ? 'page' : undefined}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center gap-2 ${
+                      tab === t.key
+                        ? danger
+                          ? 'bg-red-500/10 text-red-300'
+                          : 'bg-white/[0.06] text-white/85'
+                        : danger
+                          ? 'text-red-400/70 hover:text-red-300 hover:bg-red-500/[0.07]'
+                          : 'text-white/55 hover:text-white/70 hover:bg-white/[0.03]'
+                    }`}
+                  >
+                    <t.icon size={13} className={tab === t.key ? (danger ? 'text-red-400' : 'text-rail-purple') : ''} />
+                    {t.label}
+                  </button>
+                  {matchedRows.length > 0 && (
+                    <ul className="mb-1 ml-[26px] mt-0.5 space-y-0.5">
+                      {matchedRows.map((row) => (
+                        <li key={row} className="truncate text-[11px] text-[#6b6b7b]">{row}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
             {visibleTabs.length === 0 && (
               <p className="px-3 py-2 text-[11px] text-[#6b6b7b]">No settings match “{filter}”.</p>
             )}
@@ -133,13 +180,18 @@ export function SettingsPanel({ svc }: { svc: Service }) {
         <div className="flex-1 min-w-0 flex flex-col">
           <SettingsSyncBar draft={draft} />
           <div className="flex-1 overflow-y-auto p-5">
-            <ManifestBanner svc={effectiveSvc} />
-            {tab === 'general' && <GeneralSettings svc={effectiveSvc} />}
-            {tab === 'deploy' && <DeploySettings svc={effectiveSvc} />}
-            {tab === 'network' && <NetworkSettings svc={effectiveSvc} />}
-            {tab === 'resources' && <ResourceSettings svc={effectiveSvc} />}
-            {tab === 'advanced' && <AdvancedSettings svc={effectiveSvc} />}
-            {tab === 'danger' && <DangerZone svc={effectiveSvc} />}
+            {/* Cap the reading width: an unconstrained pane on a wide monitor
+                stretches label and control far apart. */}
+            <div className="mx-auto w-full max-w-3xl">
+              <ManifestBanner svc={effectiveSvc} />
+              {tab === 'general' && <GeneralSettings svc={effectiveSvc} />}
+              {tab === 'source' && <SourceSettings svc={effectiveSvc} />}
+              {tab === 'deploy' && <DeploySettings svc={effectiveSvc} />}
+              {tab === 'network' && <NetworkSettings svc={effectiveSvc} />}
+              {tab === 'resources' && <ResourceSettings svc={effectiveSvc} />}
+              {tab === 'advanced' && <AdvancedSettings svc={effectiveSvc} />}
+              {tab === 'danger' && <DangerZone svc={effectiveSvc} />}
+            </div>
           </div>
         </div>
       </div>
@@ -332,19 +384,20 @@ function findGitSourceForRepo(sources: GitSource[] | undefined, repo?: string): 
 
 // ── General Settings ───────────────────────────────────────
 function GeneralSettings({ svc }: { svc: Service }) {
-  const { setConfigPath, setField } = useConfigUpdater()
+  const { setField } = useConfigUpdater()
   const isApp = svc.type === 'app'
 
   return (
-    <div className="space-y-5">
+    <SettingsGroup>
       <SettingCard title="Display Name" description="Renames the service in RailDock. The underlying Dokku app name does not change.">
-        <TextField label="Name" value={svc.name} placeholder="my-app" onChange={(v) => setField('name', v)} />
+        <TextField label="Name" hideLabel value={svc.name} placeholder="my-app" onChange={(v) => setField('name', v)} />
       </SettingCard>
 
       {isApp && (
-        <SettingCard title="Container Port" description="The port your app listens on inside the container. Leave blank to auto-detect (defaults to 5000). Set this when your app uses a fixed port like 3000.">
+        <SettingCard title="Container Port" description="Port your app listens on inside the container. Leave blank to auto-detect it.">
           <TextField
             label="Port"
+            hideLabel
             type="number"
             value={svc.port?.toString() ?? ''}
             placeholder="3000"
@@ -352,21 +405,31 @@ function GeneralSettings({ svc }: { svc: Service }) {
           />
         </SettingCard>
       )}
+    </SettingsGroup>
+  )
+}
 
-      {isApp && (
+// ── Source Settings ────────────────────────────────────────
+// Repository, build and deploy-trigger settings used to sit in General, which
+// left that one section holding 15 of the tab's controls across three unrelated
+// topics: identity, source, and deploy behaviour.
+function SourceSettings({ svc }: { svc: Service }) {
+  const { setConfigPath, setField } = useConfigUpdater()
+  const isApp = svc.type === 'app'
+
+  return (
+    <SettingsGroup>
+      {isApp ? (
         <>
-          <div>
-            <SectionTitle>Source</SectionTitle>
-            <SourceSection svc={svc} setField={setField} />
-          </div>
+          <SourceSection svc={svc} setField={setField} />
 
-          <SettingCard title="Builder" description="How your app is built">
+          <SettingCard wide title="Builder" description="How RailDock builds the image for this app.">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {(['railpack', 'nixpacks', 'dockerfile', 'herokuish', 'pack'] as const).map((b) => (
                 <label
                   key={b}
                   className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    svc.builder === b ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5' : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.12]'
+                    svc.builder === b ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5' : 'border-white/[0.06] bg-black/25 hover:border-white/[0.12]'
                   }`}
                 >
                   <input
@@ -383,35 +446,59 @@ function GeneralSettings({ svc }: { svc: Service }) {
           </SettingCard>
 
           <SettingCard
+            wide
             title="Static Site"
-            description="For frontends that build to a folder of files (React, Vue, Angular, Astro). RailDock builds with Railpack/Nixpacks and serves the bundle with Caddy on the app's port. A start command overrides this."
+            description="Serve static files instead of running a start script. A plain static site has no build step at all."
           >
-            <TextField
-              label="Publish directory"
-              value={svc.staticSite?.publishDirectory || ''}
-              placeholder="dist"
-              onChange={(v) => setConfigPath('staticSite.publishDirectory', v)}
-            />
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] text-white/70">Single-page app fallback</div>
-                <div className="text-[11px] text-white/50">Serve index.html for unmatched client-side routes</div>
+            <div className={svc.staticSite?.plainStatic ? 'pb-4' : 'border-b border-white/[0.06] pb-4'}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[13px] text-white/70">Plain static site</div>
+                  <div className="text-[11px] text-white/50">No build step — HTML/CSS/JS in the repo is served as-is</div>
+                </div>
+                <AccessibleToggle
+                  checked={!!svc.staticSite?.plainStatic}
+                  onChange={(v) => {
+                    setConfigPath('staticSite.plainStatic', v)
+                    if (v) {
+                      setConfigPath('staticSite.publishDirectory', null)
+                      setConfigPath('staticSite.nodeVersion', null)
+                    }
+                  }}
+                  label="Plain static site"
+                />
               </div>
-              <AccessibleToggle
-                checked={svc.staticSite?.spaFallback ?? true}
-                onChange={(v) => setConfigPath('staticSite.spaFallback', v)}
-                label="SPA fallback"
-              />
             </div>
-            <TextField
-              label="Node version"
-              value={svc.staticSite?.nodeVersion || ''}
-              placeholder="22"
-              onChange={(v) => setConfigPath('staticSite.nodeVersion', v)}
-            />
+            {!svc.staticSite?.plainStatic && (
+              <>
+                <TextField
+                  label="Publish directory"
+                  value={svc.staticSite?.publishDirectory || ''}
+                  placeholder="dist"
+                  onChange={(v) => setConfigPath('staticSite.publishDirectory', v)}
+                />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[13px] text-white/70">Single-page app fallback</div>
+                    <div className="text-[11px] text-white/50">Serve index.html for unmatched client-side routes</div>
+                  </div>
+                  <AccessibleToggle
+                    checked={svc.staticSite?.spaFallback ?? true}
+                    onChange={(v) => setConfigPath('staticSite.spaFallback', v)}
+                    label="SPA fallback"
+                  />
+                </div>
+                <TextField
+                  label="Node version"
+                  value={svc.staticSite?.nodeVersion || ''}
+                  placeholder="22"
+                  onChange={(v) => setConfigPath('staticSite.nodeVersion', v)}
+                />
+              </>
+            )}
           </SettingCard>
 
-          <SettingCard title="Deploy Options">
+          <SettingCard wide title="Deploy Options">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-[13px] text-white/70">Auto-deploy</div>
@@ -433,15 +520,13 @@ function GeneralSettings({ svc }: { svc: Service }) {
             )}
           </SettingCard>
         </>
-      )}
-
-      {!isApp && (
-        <SettingCard title="Source">
+      ) : (
+        <SettingCard wide title="Source" description="Image and version this service runs.">
           <TextField label="Docker Image" value={svc.dockerImage || ''} placeholder="postgres:15" onChange={(v) => setField('dockerImage', v)} />
           <TextField label="Version" value={svc.version || ''} onChange={(v) => setField('version', v)} />
         </SettingCard>
       )}
-    </div>
+    </SettingsGroup>
   )
 }
 
@@ -450,61 +535,65 @@ function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyo
   const source = useMemo(() => findGitSourceForRepo(sources, svc.gitRepo), [sources, svc.gitRepo])
   const repoFullName = parseRepoFullName(svc.gitRepo) || svc.gitRepo || ''
 
-  return (
-    <div className="space-y-4">
-      {svc.gitRepo ? (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-                <Github size={18} className="text-white/70" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-white/80 truncate">{repoFullName}</div>
-                <a
-                  href={svc.gitRepo}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-white/50 hover:text-[#8b5cf6] flex items-center gap-1"
-                >
-                  View repository <ExternalLink size={10} />
-                </a>
-              </div>
+  if (svc.gitRepo) {
+    return (
+      <>
+        <SettingCard wide title="Git Repository">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-md bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+              <Github size={15} className="text-white/70" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[12px] font-medium text-white/80 truncate">{repoFullName}</div>
+              <a
+                href={svc.gitRepo}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-white/45 hover:text-[#8b5cf6] inline-flex items-center gap-1"
+              >
+                View repository <ExternalLink size={10} />
+              </a>
             </div>
             <button
               onClick={() => setField('gitRepo', '')}
-              className="px-3 py-1.5 text-[12px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-lg transition-all border border-white/[0.08] flex-shrink-0"
+              className="px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-md border border-white/[0.08] transition-colors flex-shrink-0"
             >
               Disconnect
             </button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/[0.06]">
-            <BranchField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} onChange={(v) => setField('branch', v)} />
-            <DirectoryField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} directory={svc.rootDirectory || '.'} onChange={(v) => setField('rootDirectory', v)} />
-          </div>
-        </div>
-      ) : (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4 space-y-3">
-          <TextField
-            label="Git Repository"
-            value={svc.gitRepo || ''}
-            placeholder="https://github.com/user/repo"
-            onChange={(v) => setField('gitRepo', v)}
-          />
-          <div className="text-[11px] text-white/50">Connect a GitHub repository to enable branch and directory selectors.</div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingCard title="Docker Image" description="Override the deployed image (optional)">
-          <TextField label="Image" value={svc.dockerImage || ''} placeholder="nginx:alpine" onChange={(v) => setField('dockerImage', v)} />
         </SettingCard>
-        <SettingCard title="Start Command" description="Override the container start command (optional)">
-          <TextField label="Command" value={svc.startCommand || ''} placeholder="bundle exec puma" onChange={(v) => setField('startCommand', v)} />
+
+        <SettingCard title="Deploy Branch" description="Changes pushed to this branch deploy automatically.">
+          <BranchField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} onChange={(v) => setField('branch', v)} />
         </SettingCard>
-      </div>
-    </div>
+
+        <SettingCard title="Root Directory" description="Where the app code lives inside the repository.">
+          <DirectoryField repoFullName={repoFullName} sourceId={source?.id} branch={svc.branch || 'main'} directory={svc.rootDirectory || '.'} onChange={(v) => setField('rootDirectory', v)} />
+        </SettingCard>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <SettingCard title="Git Repository" description="Connect a GitHub repository to enable branch and directory selectors.">
+        <TextField
+          label="Repository URL"
+          hideLabel
+          value={svc.gitRepo || ''}
+          placeholder="https://github.com/user/repo"
+          onChange={(v) => setField('gitRepo', v)}
+        />
+      </SettingCard>
+
+      <SettingCard title="Docker Image" description="Override the deployed image (optional).">
+        <TextField label="Image" hideLabel value={svc.dockerImage || ''} placeholder="nginx:alpine" onChange={(v) => setField('dockerImage', v)} />
+      </SettingCard>
+
+      <SettingCard title="Start Command" description="Override the container start command (optional).">
+        <TextField label="Command" hideLabel value={svc.startCommand || ''} placeholder="bundle exec puma" onChange={(v) => setField('startCommand', v)} />
+      </SettingCard>
+    </>
   )
 }
 
@@ -515,14 +604,9 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1.5">
-        <GitBranch size={13} className="text-white/50" />
-        <span className="text-[12px] text-white/60">Deploy Branch</span>
-      </div>
-      <div className="text-[11px] text-white/35 mb-2">Changes pushed to this branch will deploy automatically.</div>
       {canSelect ? (
         <Select value={branch} onValueChange={onChange}>
-          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
             <SelectValue placeholder="Select branch" />
           </SelectTrigger>
           <SelectContent>
@@ -537,7 +621,7 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
             type="text"
             value={branch}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
             placeholder="main"
           />
           {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
@@ -555,14 +639,9 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1.5">
-        <Folder size={13} className="text-white/50" />
-        <span className="text-[12px] text-white/60">Root Directory</span>
-      </div>
-      <div className="text-[11px] text-white/35 mb-2">Where your app code lives inside the repository.</div>
       {canSelect ? (
         <Select value={directory || '.'} onValueChange={onChange}>
-          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
             <SelectValue placeholder="Select directory" />
           </SelectTrigger>
           <SelectContent className="max-h-[240px]">
@@ -577,7 +656,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
             type="text"
             value={directory}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
             placeholder="./"
           />
           {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
@@ -602,10 +681,8 @@ function DeploySettings({ svc }: { svc: Service }) {
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>Deploy</SectionTitle>
-
-      <SettingCard title="Restart Policy">
+    <SettingsGroup>
+      <SettingCard title="Restart Policy" description="What Docker does when the container exits.">
         <Select value={svc.restartPolicy} onValueChange={(v) => setField('restartPolicy', v)}>
           <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
             <SelectValue placeholder="Select restart policy" />
@@ -617,14 +694,15 @@ function DeploySettings({ svc }: { svc: Service }) {
             <SelectItem value="never">Never</SelectItem>
           </SelectContent>
         </Select>
-        <div className="mt-2">
-          <TextField label="Max Retries" type="number" value={String(svc.restartMaxRetries)} onChange={(v) => setField('restartMaxRetries', parseInt(v) || 0)} />
-        </div>
       </SettingCard>
 
-      <SettingCard title="Health Checks">
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <div><div className="text-[13px] text-white/70">Zero-downtime policy</div><div className="mt-0.5 text-[11px] leading-4 text-white/35">Keep the old container serving until the replacement is ready and connections drain.</div></div>
+      <SettingCard title="Max Retries" description="Restart attempts before Docker gives up.">
+        <TextField label="Max Retries" hideLabel type="number" value={String(svc.restartMaxRetries)} onChange={(v) => setField('restartMaxRetries', parseInt(v) || 0)} />
+      </SettingCard>
+
+      <SettingCard wide title="Health Checks" description="Keep the old container serving until its replacement is ready and connections drain.">
+        <div className="flex items-start justify-between gap-4">
+          <div className="text-[12px] text-white/60">Zero-downtime policy</div>
           <Select value={checks.mode} onValueChange={(v) => { setConfigPath('checks.mode', v); setConfigPath('checks.enabled', v === 'enabled') }}>
             <SelectTrigger className="rounded border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-none focus:border-[#8b5cf6]/40">
               <SelectValue placeholder="Select check mode" />
@@ -647,18 +725,12 @@ function DeploySettings({ svc }: { svc: Service }) {
         )}
       </SettingCard>
 
-      <SettingCard title="Maintenance Mode">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[13px] text-white/70">Maintenance Mode</div>
-            <div className="text-[11px] text-white/50">Serve a maintenance page for all requests</div>
-          </div>
-          <AccessibleToggle checked={svc.maintenanceMode} onChange={(v) => setField('maintenanceMode', v)} label="Maintenance mode" />
-        </div>
+      <SettingCard title="Maintenance Mode" description="Serve a maintenance page for all requests.">
+        <AccessibleToggle checked={svc.maintenanceMode} onChange={(v) => setField('maintenanceMode', v)} label="Maintenance mode" />
       </SettingCard>
 
       <SecuritySettings svc={svc} />
-    </div>
+    </SettingsGroup>
   )
 }
 
@@ -707,40 +779,35 @@ function NetworkSettings({ svc }: { svc: Service }) {
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>Networking</SectionTitle>
-
-      <SettingCard title="Proxy">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-[13px] text-white/70">Enabled</div>
-          <AccessibleToggle checked={proxy.enabled} onChange={(v) => setConfigPath('proxy.enabled', v)} label="Proxy enabled" />
-        </div>
-        {proxy.enabled && (
-          <>
-            <div className="mb-3">
-              <div className="text-[11px] text-white/50 mb-1">Proxy Type</div>
-              <Select value={proxy.proxyType} onValueChange={(v) => setConfigPath('proxy.proxyType', v)}>
-                <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
-                  <SelectValue placeholder="Select proxy type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="traefik">Traefik</SelectItem>
-                  <SelectItem value="nginx">Nginx</SelectItem>
-                  <SelectItem value="caddy">Caddy</SelectItem>
-                  <SelectItem value="haproxy">HAProxy</SelectItem>
-                  <SelectItem value="openresty">OpenResty</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </>
-        )}
+    <SettingsGroup>
+      <SettingCard title="Proxy" description="Route public traffic to this service.">
+        <AccessibleToggle checked={proxy.enabled} onChange={(v) => setConfigPath('proxy.enabled', v)} label="Proxy enabled" />
       </SettingCard>
 
-      <SettingCard title="Port Mappings">
+      {proxy.enabled && (
+        <>
+          <SettingCard title="Proxy Type" description="Which proxy Dokku configures for this app.">
+            <Select value={proxy.proxyType} onValueChange={(v) => setConfigPath('proxy.proxyType', v)}>
+              <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
+                <SelectValue placeholder="Select proxy type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="traefik">Traefik</SelectItem>
+                <SelectItem value="nginx">Nginx</SelectItem>
+                <SelectItem value="caddy">Caddy</SelectItem>
+                <SelectItem value="haproxy">HAProxy</SelectItem>
+                <SelectItem value="openresty">OpenResty</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingCard>
+        </>
+      )}
+
+      <SettingCard wide title="Port Mappings" description="Publish container ports on the host.">
         {proxy.portMappings.length > 0 ? (
           <div className="space-y-2 mb-3">
             {proxy.portMappings.map((pm, i) => (
-              <div key={i} className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2">
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2">
                 <Select value={pm.scheme} onValueChange={(v) => updatePort(i, { scheme: v })}>
                   <SelectTrigger className="bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70">
                     <SelectValue placeholder="scheme" />
@@ -783,30 +850,27 @@ function NetworkSettings({ svc }: { svc: Service }) {
         </button>
       </SettingCard>
 
-      <SettingCard title="SSL / Let's Encrypt">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-[13px] text-white/70">Auto-generate Certificates</div>
+      <SettingCard wide title="SSL / Let's Encrypt" description="Issue and renew TLS certificates automatically.">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[12px] text-white/60">Auto-generate certificates</div>
           <AccessibleToggle checked={letsencrypt.enabled} onChange={(v) => setConfigPath('letsencrypt.enabled', v)} label="Let's Encrypt" />
         </div>
         {letsencrypt.enabled && (
-          <div className="space-y-3">
+          <>
             <TextField label="Email" value={letsencrypt.email} onChange={(v) => setConfigPath('letsencrypt.email', v)} />
-            <div className="flex items-center justify-between">
-              <div className="text-[12px] text-white/60">Staging Mode</div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[12px] text-white/60">Staging mode</div>
               <AccessibleToggle checked={letsencrypt.staging} onChange={(v) => setConfigPath('letsencrypt.staging', v)} label="Staging" />
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div className="text-[12px] text-white/60">Auto-renew</div>
               <AccessibleToggle checked={letsencrypt.autoRenew} onChange={(v) => setConfigPath('letsencrypt.autoRenew', v)} label="Auto-renew" />
             </div>
-          </div>
+          </>
         )}
       </SettingCard>
 
-      <SettingCard title="External Networks">
-        <div className="text-[12px] text-white/50 mb-3">
-          Connect this service to Docker networks from other projects or stacks. The service will be reachable by container name on these networks.
-        </div>
+      <SettingCard wide title="External Networks" description="Connect this service to Docker networks from other projects or stacks. It becomes reachable by container name on them.">
         {connectableNetworks.length > 0 ? (
           <div className="space-y-1.5">
             {connectableNetworks.map((net) => {
@@ -814,7 +878,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
               return (
                 <label
                   key={net.name}
-                  className="flex items-center gap-2.5 p-2 rounded-lg bg-[#1a1a1e] border border-white/[0.06] cursor-pointer hover:border-white/[0.12] transition-colors"
+                  className="flex items-center gap-2.5 p-2 rounded-lg bg-black/25 border border-white/[0.06] cursor-pointer hover:border-white/[0.12] transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -850,7 +914,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
           </div>
         )}
       </SettingCard>
-    </div>
+    </SettingsGroup>
   )
 }
 
@@ -877,24 +941,22 @@ function ResourceSettings({ svc }: { svc: Service }) {
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>Resources</SectionTitle>
-
+    <SettingsGroup>
       {svc.processTypes && svc.processTypes.length > 0 ? (
         svc.processTypes.map((pt) => {
           const limit = limits.find((r) => r.processType === pt.name) || { processType: pt.name }
           const reserve = reservations.find((r) => r.processType === pt.name) || { processType: pt.name }
           return (
-            <SettingCard key={pt.name} title={`Process: ${pt.name}`}>
-              <div className="space-y-4">
-                <div className="text-[11px] text-white/50 uppercase tracking-wide">Limits</div>
+            <SettingCard key={pt.name} wide title={`Process: ${pt.name}`}>
+              <div className="space-y-3">
+                <div className="text-[11px] font-medium text-white/45">Limits</div>
                 <div className="grid grid-cols-2 gap-2">
                   <ResourceInput label="CPU" value={(limit as unknown as Record<string, string>).cpu || ''} onChange={(v) => updateLimit(pt.name, 'cpu', v)} />
                   <ResourceInput label="Memory" value={(limit as unknown as Record<string, string>).memory || ''} onChange={(v) => updateLimit(pt.name, 'memory', v)} />
                   <ResourceInput label="Swap" value={(limit as unknown as Record<string, string>).memorySwap || ''} onChange={(v) => updateLimit(pt.name, 'memorySwap', v)} />
                   <ResourceInput label="NVIDIA GPU" value={String((limit as unknown as Record<string, unknown>).nvidiaGpu || '')} onChange={(v) => updateLimit(pt.name, 'nvidiaGpu', v)} />
                 </div>
-                <div className="text-[11px] text-white/50 uppercase tracking-wide">Reservations</div>
+                <div className="text-[11px] font-medium text-white/45">Reservations</div>
                 <div className="grid grid-cols-2 gap-2">
                   <ResourceInput label="CPU" value={(reserve as unknown as Record<string, string>).cpu || ''} onChange={(v) => updateReservation(pt.name, 'cpu', v)} />
                   <ResourceInput label="Memory" value={(reserve as unknown as Record<string, string>).memory || ''} onChange={(v) => updateReservation(pt.name, 'memory', v)} />
@@ -905,11 +967,11 @@ function ResourceSettings({ svc }: { svc: Service }) {
           )
         })
       ) : (
-        <SettingCard title="Resources">
+        <SettingCard wide title="Resources">
           <div className="text-[12px] text-white/50">No process types configured. Deploy this service to detect process types.</div>
         </SettingCard>
       )}
-    </div>
+    </SettingsGroup>
   )
 }
 
@@ -948,14 +1010,12 @@ function AdvancedSettings({ svc }: { svc: Service }) {
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>Advanced</SectionTitle>
-
-      <SettingCard title="Docker Options">
+    <SettingsGroup>
+      <SettingCard wide title="Docker Options" description="Extra flags passed to Docker for this app.">
         {options.length > 0 ? (
           <div className="space-y-2 mb-3">
             {options.map((opt, i) => (
-              <div key={i} className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5 group">
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2.5 group">
                 <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/50 rounded uppercase">{opt.phase}</span>
                 <span className="text-[12px] text-white/60 font-mono flex-1 truncate">{opt.option}</span>
                 <button onClick={() => removeOption(i)} className="p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -992,11 +1052,11 @@ function AdvancedSettings({ svc }: { svc: Service }) {
         </div>
       </SettingCard>
 
-      <SettingCard title="Cron Jobs">
+      <SettingCard wide title="Cron Jobs" description="Scheduled commands run inside the app container.">
         {jobs.length > 0 ? (
           <div className="space-y-2 mb-3">
             {jobs.map((job, i) => (
-              <div key={i} className="flex items-center gap-2 bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-2.5 group">
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2.5 group">
                 <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded font-mono">{job.schedule}</span>
                 <span className="text-[12px] text-white/60 font-mono flex-1 truncate">{job.command}</span>
                 <button onClick={() => removeJob(i)} className="p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1029,7 +1089,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
           </button>
         </div>
       </SettingCard>
-    </div>
+    </SettingsGroup>
   )
 }
 
@@ -1078,8 +1138,7 @@ function DangerZone({ svc }: { svc: Service }) {
 
   return (
     <>
-      <div className="space-y-4">
-        <SectionTitle className="text-red-400">Danger Zone</SectionTitle>
+      <div>
         <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1202,12 +1261,8 @@ function SecuritySettings({ svc }: { svc: Service }) {
   }
 
   return (
-    <SettingCard title="Security">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-[13px] text-white/70">App Lock</div>
-          <div className="text-[11px] text-white/50 mt-0.5">Prevent deployments when locked. Use during maintenance or migrations.</div>
-        </div>
+    <SettingCard title="App Lock" description="Block deployments and rebuilds. Use during maintenance or migrations.">
+      <div className="flex items-center justify-between gap-3">
         <button
           onClick={toggleLock}
           disabled={loading}
@@ -1219,34 +1274,55 @@ function SecuritySettings({ svc }: { svc: Service }) {
           {isLocked ? 'Locked' : 'Unlocked'}
         </button>
       </div>
-      {isLocked && <div className="mt-3 text-[11px] text-amber-400/60 bg-amber-500/5 rounded-lg p-2">App is locked. Deployments and rebuilds are blocked.</div>}
+      {isLocked && <div className="text-[11px] text-amber-400/60">Deployments are blocked while the app is locked.</div>}
     </SettingCard>
   )
 }
 
 // ── Reusable UI Primitives ─────────────────────────────────
-function SectionTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`text-[13px] font-medium text-white/70 mb-2 ${className}`}>{children}</div>
+// One row per setting: label and hint on the left, the control on the right.
+// Rows do not draw their own card — SettingsGroup owns the only border, and
+// `divide-y` draws the hairline between rows. `wide` is for rows whose control
+// needs the full width (lists, grids, repeatable fields).
+function SettingCard({ title, description, wide = false, children }: { title?: string; description?: string; wide?: boolean; children: React.ReactNode }) {
+  const heading = Boolean(title || description)
+  if (!heading) {
+    return <div className="px-4 py-3.5">{children}</div>
+  }
+  return (
+    <div className={wide ? 'px-4 py-3.5' : 'flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-8'}>
+      <div className={wide ? '' : 'min-w-0 sm:max-w-[52%]'}>
+        {title && <div className="text-[13px] font-medium text-white/85">{title}</div>}
+        {description && <div className="mt-0.5 text-[11px] leading-snug text-white/40">{description}</div>}
+      </div>
+      <div className={cn('flex min-w-0 flex-col gap-2.5', wide ? 'mt-3' : 'sm:w-[300px] sm:flex-shrink-0')}>{children}</div>
+    </div>
+  )
 }
 
-function SettingCard({ title, description, children }: { title?: string; description?: string; children: React.ReactNode }) {
+// Rows share a single bordered container with hairline dividers between them,
+// rather than each setting drawing its own card. Cards are for distinct things
+// (a danger zone, a group of rows); a card per setting reads as noise.
+function SettingsGroup({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-4 space-y-3">
-      {title && <div className="text-[13px] font-medium text-white/70">{title}</div>}
-      {description && <div className="text-[11px] text-white/50">{description}</div>}
+    <div className="divide-y divide-white/[0.055] overflow-hidden rounded-lg border border-white/[0.06] bg-[#17171b]">
       {children}
     </div>
   )
 }
 
-function TextField({ label, value, placeholder, type = 'text', onChange }: { label: string; value: string; placeholder?: string; type?: string; onChange: (v: string) => void }) {
+// `hideLabel` is for the few cards whose title already names the control, so it
+// is not labelled twice ("Container Port" then "Port"). The label stays on the
+// input itself for assistive tech.
+function TextField({ label, value, placeholder, type = 'text', hideLabel = false, onChange }: { label: string; value: string; placeholder?: string; type?: string; hideLabel?: boolean; onChange: (v: string) => void }) {
   return (
     <div>
-      <div className="text-[11px] text-white/50 mb-1">{label}</div>
+      {!hideLabel && <div className="text-[11px] text-white/50 mb-1">{label}</div>}
       <input
         type={type}
         value={value}
         placeholder={placeholder}
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
       />
@@ -1276,6 +1352,7 @@ function ResourceInput({ label, value, onChange }: { label: string; value: strin
         type="text"
         value={value}
         placeholder="—"
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
         className="w-full mt-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
       />

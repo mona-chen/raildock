@@ -22,3 +22,18 @@ export function confirmationFieldTone(value: string, isValid: boolean) {
     ? 'border-emerald-500/40 focus:border-emerald-500/50'
     : 'border-red-500/40 focus:border-red-500/50'
 }
+
+/**
+ * Render a host metric as GB.
+ *
+ * The API stores `disk_*` and `memory_*` in MB, so the raw number must be
+ * scaled before it is labelled GB — printing `18400/60000 GB` overstates the
+ * host by three orders of magnitude. Values are rounded to one decimal (or to
+ * whole GB once they are large enough that the fraction is noise).
+ */
+export function formatMbAsGb(mb: number) {
+  if (!Number.isFinite(mb) || mb <= 0) return '0'
+
+  const gb = mb / 1024
+  return String(gb >= 100 ? Math.round(gb) : Math.round(gb * 10) / 10)
+}

@@ -40,6 +40,19 @@ class StaticSiteConfigurator
     RAILPACK_SPA_OUTPUT_DIR
   ].freeze
 
+  # A plain static site (no build step) is served by each builder's own
+  # Staticfile provider — RAILPACK_SPA_OUTPUT_DIR/NIXPACKS_SPA_OUT_DIR are SPA
+  # build-output directories and must not be set for it. The process command is
+  # still required: Dokku's build stages clear the image CMD the same way.
+  #
+  # Railpack serves from /Caddyfile (see SERVE_COMMANDS).
+  #
+  # Nixpacks' Staticfile provider serves with NGINX from a generated config at
+  # /app/nginx.conf. This mirrors its StartPhase: rewrite the hardcoded
+  # 0.0.0.0:80 listen to $PORT (Dokku always injects one), then run nginx
+  # in the foreground (`daemon off` is baked into the generated config).
+  NIXPACKS_PLAIN_SERVE_COMMAND = '[[ -z "${PORT}" ]] && echo "Environment variable PORT not found. Using PORT 80" || sed -i "s/0.0.0.0:80/${PORT}/g" /app/nginx.conf; nginx -c /app/nginx.conf'
+
   # Railpack writes its Caddyfile to the image root; nixpacks copies generated
   # assets into /assets. RailDock's builder-detected port is exported as
   # Dokku's PORT, and both Caddyfiles listen on `{$PORT}`. The paths double as
@@ -67,7 +80,15 @@ class StaticSiteConfigurator
     return false if service.docker_image.present?
     return false if service.start_command.present?
 
-    publish_directory.present?
+    plain_static? || publish_directory.present?
+  end
+
+  # A plain static site serves files without a build step (Railpack/nixpacks
+  # Staticfile providers). Expressing it is a flag, not a publish directory,
+  # because the served files live at the root and setting the SPA output-dir
+  # vars would be wrong for it.
+  def plain_static?
+    ActiveModel::Type::Boolean.new.cast(static_config["plainStatic"])
   end
 
   def publish_directory
@@ -116,6 +137,10 @@ class StaticSiteConfigurator
   def build_env(builder)
     return {} unless static?
     return {} unless STATIC_BUILDERS.include?(builder)
+    # The Staticfile providers auto-detect the served root (index.html /
+    # public/, ...). The SPA vars point at a build output directory and would
+    # be meaningless here.
+    return {} if plain_static?
 
     case builder
     when "railpack"
@@ -135,6 +160,11 @@ class StaticSiteConfigurator
 
   def serve_command(builder)
     return nil unless static?
+
+    # Nixpacks' Staticfile provider has no Caddyfile — it serves plain files
+    # with NGINX. Railpack serves both SPA and plain static builds from
+    # /Caddyfile, so the standard command applies.
+    return NIXPACKS_PLAIN_SERVE_COMMAND if plain_static? && builder == "nixpacks"
 
     SERVE_COMMANDS[builder]
   end

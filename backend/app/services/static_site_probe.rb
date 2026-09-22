@@ -22,9 +22,10 @@ class StaticSiteProbe
   DECLARATIVE_NAMES = %w[Dockerfile Procfile].freeze
 
   # Everything the probe needs from one directory: what the repo declares about
-  # its processes, its package manifest, and the framework config files that can
-  # move the publish directory.
-  RELEVANT_NAMES = (%w[package.json] + DECLARATIVE_NAMES + StaticSiteDetector::CONFIG_FILES).freeze
+  # its processes, its package manifest, the framework config files that can
+  # move the publish directory, and the bare marker that makes a no-build repo
+  # a plain static site.
+  RELEVANT_NAMES = (%w[package.json index.html] + DECLARATIVE_NAMES + StaticSiteDetector::CONFIG_FILES).freeze
 
   def initialize(client:, repository:, ref:)
     @client = client
@@ -40,12 +41,18 @@ class StaticSiteProbe
     return nil if paths.any? { |path| DECLARATIVE_NAMES.include?(File.basename(path)) }
 
     package_path = paths.find { |path| File.basename(path) == "package.json" }
-    return nil unless package_path
+    if package_path.present?
+      package_json = parse_json(file_content(package_path))
+      return nil unless package_json
 
-    package_json = parse_json(file_content(package_path))
-    return nil unless package_json
+      return StaticSiteDetector.detect(package_json: package_json, files: framework_config_files(paths))
+    end
 
-    StaticSiteDetector.detect(package_json: package_json, files: framework_config_files(paths))
+    # No package manifest: the only way this is a static site is as a plain,
+    # no-build bundle the Staticfile providers serve directly.
+    return StaticSiteDetector.detect_plain_static(index_html: true) if paths.any? { |path| File.basename(path) == "index.html" }
+
+    nil
   rescue Octokit::Error => e
     Rails.logger.warn "StaticSiteProbe: could not read #{@repository}@#{@ref}: #{e.message}"
     nil

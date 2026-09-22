@@ -11,6 +11,11 @@ require "json"
 # frameworks whose default build is a server (SvelteKit, Nuxt, Astro with an
 # adapter, Next without `output: "export"`) are left alone.
 class StaticSiteDetector
+  # The framework label for a repository with no build step at all: a `index.html`
+  # (or public/) directory that Railpack's and nixpacks' Staticfile providers serve
+  # as-is. Distinct from those providers' SPA paths, which build a bundle first.
+  PLAIN_STATIC_FRAMEWORK = "staticfile"
+
   # `start` scripts that are development servers, not a production process.
   # Their presence must not disqualify a framework (a CRA app always has one).
   DEFAULT_START_COMMANDS = [
@@ -42,20 +47,37 @@ class StaticSiteDetector
     svelte.config.js gatsby-config.js gatsby-config.ts
   ].freeze
 
-  Result = Data.define(:framework, :publish_directory, :spa_fallback, :node_version) do
+  Result = Data.define(:framework, :publish_directory, :spa_fallback, :node_version, :plain_static) do
     # The shape service.config["staticSite"] uses, so a detection result can be
     # handed straight to StaticSiteConfigurator.
     def config
       {
         "publishDirectory" => publish_directory,
         "spaFallback" => spa_fallback,
-        "nodeVersion" => node_version
+        "nodeVersion" => node_version,
+        "plainStatic" => plain_static
       }.compact
     end
   end
 
   def self.detect(package_json:, files: {})
     new(package_json: package_json, files: files).detect
+  end
+
+  # A plain static site has no build step: Railpack's and nixpacks' Staticfile
+  # providers detect `index.html` at the app root and serve the files with Caddy
+  # or NGINX. There is no publish directory — the served files already live at
+  # the root — so the marker is a flag, not a path.
+  def self.detect_plain_static(index_html:, spa_fallback: false)
+    return nil unless index_html
+
+    Result.new(
+      framework: PLAIN_STATIC_FRAMEWORK,
+      publish_directory: nil,
+      spa_fallback: spa_fallback,
+      node_version: nil,
+      plain_static: true
+    )
   end
 
   def initialize(package_json:, files: {})
@@ -74,7 +96,8 @@ class StaticSiteDetector
       framework: framework,
       publish_directory: directory,
       spa_fallback: true,
-      node_version: detected_node_version
+      node_version: detected_node_version,
+      plain_static: nil
     )
   end
 

@@ -2,6 +2,7 @@ import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container, Databas
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
+import { formatMbAsGb } from '@/lib/utils'
 import { useServers, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
 import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
@@ -205,7 +206,7 @@ export default function ServerPage() {
                         <HardDrive size={12} className="text-rail-blue" />
                         <span className="text-[10px] text-[#6b6b7b]">Disk</span>
                       </div>
-                      <div className="text-sm font-bold text-white">{srv.diskUsage.used}/{srv.diskUsage.total} GB</div>
+                      <div className="text-sm font-bold text-white">{formatMbAsGb(srv.diskUsage.used)}/{formatMbAsGb(srv.diskUsage.total)} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
                         <div className="h-full bg-rail-blue rounded-full" style={{ width: `${(srv.diskUsage.used / srv.diskUsage.total) * 100}%` }} />
                       </div>
@@ -215,7 +216,7 @@ export default function ServerPage() {
                         <Activity size={12} className="text-rail-purple" />
                         <span className="text-[10px] text-[#6b6b7b]">Memory</span>
                       </div>
-                      <div className="text-sm font-bold text-white">{srv.memoryUsage.used}/{srv.memoryUsage.total} GB</div>
+                      <div className="text-sm font-bold text-white">{formatMbAsGb(srv.memoryUsage.used)}/{formatMbAsGb(srv.memoryUsage.total)} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
                         <div className="h-full bg-rail-purple rounded-full" style={{ width: `${(srv.memoryUsage.used / srv.memoryUsage.total) * 100}%` }} />
                       </div>

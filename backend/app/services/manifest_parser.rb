@@ -589,6 +589,7 @@ class ManifestParser
       start_command: svc_hash["start_command"] || svc_hash[:start_command],
       publish_directory: value_for(svc_hash, "publish_directory") || value_for(svc_hash, "publishDirectory"),
       spa_fallback: spa_fallback_value_for(svc_hash),
+      plain_static: boolean_value_for(svc_hash, "plain_static", "plainStatic"),
       node_version: value_for(svc_hash, "node_version") || value_for(svc_hash, "nodeVersion"),
       exposed: value_for(svc_hash, "exposed"),
       port: svc_hash["port"] || svc_hash[:port],
@@ -620,6 +621,17 @@ class ManifestParser
   # explicit false into nil. Look for each spelling in turn.
   def spa_fallback_value_for(hash)
     %w[spa_fallback spaFallback].each do |key|
+      return hash[key] if hash.key?(key)
+
+      symbol = key.to_sym
+      return hash[symbol] if hash.key?(symbol)
+    end
+    nil
+  end
+
+  # The boolean aliases of the plain-static flag, looked up the same way.
+  def boolean_value_for(hash, *keys)
+    keys.each do |key|
       return hash[key] if hash.key?(key)
 
       symbol = key.to_sym

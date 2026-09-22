@@ -111,6 +111,24 @@ RSpec.describe ManifestGenerator do
         expect(web[:node_version]).to eq("22")
       end
 
+      it 'round-trips a plain static site and omits publish settings' do
+        @web.update!(config: @web.config.merge(
+          "staticSite" => { "plainStatic" => true }
+        ))
+
+        toml = described_class.new(project).generate(format: :toml)
+        expect(toml).to include('plain_static = true')
+        expect(toml).not_to include('publish_directory')
+
+        web = ManifestParser.parse(toml, filename: "raildock.toml").find_service("web")
+        expect(web[:plain_static]).to be(true)
+        expect(web[:publish_directory]).to be_nil
+
+        json = described_class.new(project).generate(format: :json)
+        parsed = JSON.parse(json).fetch("services").find { |s| s["name"] == "web" }
+        expect(parsed["plain_static"]).to be(true)
+      end
+
       it 'renders shared and runtime variables as manifest expressions' do
         project.update!(shared_vars: [ { key: "API_KEY", value: "super-secret" } ])
         @web.environment_variables.create!(key: "API_KEY", value: "super-secret")

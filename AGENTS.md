@@ -276,6 +276,15 @@ version the target servers run before assuming a behavior.
   to the removed Node 18. An explicit `start_command` or a `dockerfile` builder
   passes through untouched. `StaticSiteDetector` records this automatically when
   importing a recognized Vite/CRA/Angular/Astro/Gatsby/Next-export repo.
+  A **plain static site** (no build step) is a bare `index.html` at the service
+  root and is marked `config["staticSite"]["plainStatic"]` / manifest
+  `plain_static`, never a `publish_directory` — the files already live at the
+  root, and the SPA output-dir vars must not be set for it. `RepositoryDiscovery`
+  only treats a root-level `index.html` as plain static (a nested one is usually
+  an app's assets), `StaticSiteProbe` detects it at deploy time, the nixpacks
+  Staticfile provider is served with NGINX (`NIXPACKS_PLAIN_SERVE_COMMAND`) while
+  railpack uses its Caddyfile, and `ServiceBlueprint`/`ServiceCopier` copy the
+  flag through `config` like any other static setting.
 - **Reconcile, do not track.** Apply the desired state and diff it against what
   is actually on the host (`docker-options:report`, `ports:report`), removing
   anything stale. Never rely only on the labels RailDock *thinks* it wrote —

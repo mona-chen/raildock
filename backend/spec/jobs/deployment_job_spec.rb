@@ -567,7 +567,8 @@ RSpec.describe DeploymentJob, type: :job do
           framework: "vite",
           publish_directory: "dist",
           spa_fallback: true,
-          node_version: nil
+          node_version: nil,
+          plain_static: nil
         )
       end
 

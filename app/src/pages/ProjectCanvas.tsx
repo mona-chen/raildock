@@ -654,9 +654,12 @@ export default function ProjectCanvas() {
                         Nothing in {activeEnvironmentName} yet
                       </h3>
                       <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
-                        This project&apos;s {allServices.length} service
-                        {allServices.length === 1 ? '' : 's'} live in another environment. Add a
-                        service here to run it in {activeEnvironmentName}.
+                        This project&apos;s{' '}
+                        {allServices.length === 1
+                          ? 'service lives'
+                          : `${allServices.length} services live`}{' '}
+                        in another environment. Add a service here to run it in{' '}
+                        {activeEnvironmentName}.
                       </p>
                     </>
                   ) : (

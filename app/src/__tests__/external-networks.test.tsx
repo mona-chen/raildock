@@ -132,7 +132,7 @@ describe('External Networks in NetworkSettings', () => {
     setupNetworks()
     renderWithClient(<SettingsPanel svc={mockService()} />)
 
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     expect(screen.getByText('External Networks')).toBeInTheDocument()
     expect(screen.getByText(/Connect this service to Docker networks/)).toBeInTheDocument()
@@ -147,7 +147,7 @@ describe('External Networks in NetworkSettings', () => {
     vi.mocked(useNetworks).mockReturnValue({ data: [], isLoading: false } as any)
 
     renderWithClient(<SettingsPanel svc={mockService()} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     expect(screen.getByText('No server assigned to this project.')).toBeInTheDocument()
   })
@@ -155,7 +155,7 @@ describe('External Networks in NetworkSettings', () => {
   it('shows empty state when no connectable networks', () => {
     setupNetworks({ networks: [] })
     renderWithClient(<SettingsPanel svc={mockService()} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     expect(screen.getByText('No connectable networks found on this server.')).toBeInTheDocument()
   })
@@ -169,7 +169,7 @@ describe('External Networks in NetworkSettings', () => {
     })
 
     renderWithClient(<SettingsPanel svc={mockService()} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     expect(screen.getByText('matrix-postgres')).toBeInTheDocument()
     expect(screen.getByText('proxy_web')).toBeInTheDocument()
@@ -185,7 +185,7 @@ describe('External Networks in NetworkSettings', () => {
     })
 
     renderWithClient(<SettingsPanel svc={mockService()} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     expect(screen.getByText('matrix-postgres')).toBeInTheDocument()
     expect(screen.queryByText('host')).not.toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('External Networks in NetworkSettings', () => {
     })
 
     renderWithClient(<SettingsPanel svc={mockService()} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     const checkbox = screen.getByRole('checkbox', { name: /matrix-postgres/i })
     expect(checkbox).not.toBeChecked()
@@ -224,7 +224,7 @@ describe('External Networks in NetworkSettings', () => {
 
     const service = mockService({ externalNetworks: ['matrix-postgres'] })
     renderWithClient(<SettingsPanel svc={service} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     const checkbox = screen.getByRole('checkbox', { name: /matrix-postgres/i })
     expect(checkbox).toBeChecked()
@@ -250,7 +250,7 @@ describe('External Networks in NetworkSettings', () => {
 
     const service = mockService({ externalNetworks: ['matrix-postgres'] })
     renderWithClient(<SettingsPanel svc={service} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     const matches = screen.getAllByText('matrix-postgres')
     expect(matches.length).toBeGreaterThanOrEqual(2)
@@ -267,7 +267,7 @@ describe('External Networks in NetworkSettings', () => {
 
     const service = mockService({ externalNetworks: ['matrix-postgres', 'proxy_web'] })
     renderWithClient(<SettingsPanel svc={service} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     const removeButtons = screen.getAllByRole('button')
     const pillRemoveBtn = removeButtons.find((btn) => {
@@ -297,7 +297,7 @@ describe('External Networks in NetworkSettings', () => {
 
     const service = mockService({ externalNetworks: ['matrix-postgres'] })
     renderWithClient(<SettingsPanel svc={service} />)
-    fireEvent.click(screen.getByText('Networking'))
+    fireEvent.click(screen.getByText('Routing'))
 
     const proxyCheckbox = screen.getByRole('checkbox', { name: /proxy_web/i })
     fireEvent.click(proxyCheckbox)

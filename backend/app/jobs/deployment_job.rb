@@ -66,8 +66,13 @@ class DeploymentJob < ApplicationJob
     detected_static_site = detect_static_site(service, deployment)
     static_site = StaticSiteConfigurator.new(service, detected_config: detected_static_site&.config)
     if detected_static_site
-      note = "-----> Detected a static #{detected_static_site.framework} build " \
-             "(publish directory: #{detected_static_site.publish_directory})\n"
+      note = if detected_static_site.plain_static
+               "-----> Detected a plain static site " \
+               "(no build step, served from #{detected_static_site.publish_directory || 'the service root'})\n"
+      else
+               "-----> Detected a static #{detected_static_site.framework} build " \
+               "(publish directory: #{detected_static_site.publish_directory})\n"
+      end
       deploy_output += note
       safely_broadcast_deployment(service, {
         deployment_id: deployment.id,

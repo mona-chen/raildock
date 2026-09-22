@@ -119,4 +119,25 @@ RSpec.describe ManifestSerializer do
       described_class.dump({ services: [], links: [] }, format: "railway.toml")
     }.to raise_error(ManifestSerializer::UnsupportedFormat)
   end
+
+  it "round-trips a plain static site" do
+    toml = <<~TOML
+      [[services]]
+      name = "landing"
+      category = "app"
+      subtype = "web"
+      plain_static = true
+    TOML
+
+    desired = ManifestParser.parse(toml, filename: "raildock.toml")
+    dumped = described_class.dump(
+      { services: desired.services, links: desired.links },
+      format: "raildock.toml"
+    )
+    reparsed = ManifestParser.parse(dumped, filename: "raildock.toml")
+
+    expect(reparsed.services.first[:plain_static]).to be(true)
+    expect(reparsed.services.first[:publish_directory]).to be_nil
+    expect(dumped).to include("plain_static = true")
+  end
 end

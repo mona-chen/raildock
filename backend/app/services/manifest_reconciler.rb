@@ -1277,12 +1277,17 @@ class ManifestReconciler
   end
 
   def static_site_config_from(svc)
-    directory = svc[:publish_directory].to_s.strip
-    return nil if directory.blank?
+    config = {}
 
-    static_site = { "publishDirectory" => directory }
-    static_site["spaFallback"] = svc[:spa_fallback] unless svc[:spa_fallback].nil?
-    static_site["nodeVersion"] = svc[:node_version] if svc[:node_version].present?
-    static_site
+    directory = svc[:publish_directory].to_s.strip
+    if directory.present?
+      config["publishDirectory"] = directory
+      config["spaFallback"] = svc[:spa_fallback] unless svc[:spa_fallback].nil?
+      config["nodeVersion"] = svc[:node_version] if svc[:node_version].present?
+    end
+
+    config["plainStatic"] = true if ActiveModel::Type::Boolean.new.cast(svc[:plain_static])
+
+    config.presence
   end
 end

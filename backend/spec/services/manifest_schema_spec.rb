@@ -99,7 +99,27 @@ RSpec.describe ManifestSchema do
         expect(result.success?).to be false
         expect(result.errors).to include(a_string_matching(/spa_fallback.*boolean/))
       end
+
+      it 'rejects a non-boolean plain_static' do
+        result = described_class.validate(
+          "services" => [ { "name" => "web", "category" => "app", "subtype" => "web", "plain_static" => "yes" } ]
+        )
+
+        expect(result.success?).to be false
+        expect(result.errors).to include(a_string_matching(/plain_static.*boolean/))
+      end
     end
+
+    context 'plain static site settings' do
+      it 'accepts a boolean plain_static' do
+        result = described_class.validate(
+          "services" => [
+            { "name" => "web", "category" => "app", "subtype" => "web", "plain_static" => true }
+          ]
+        )
+
+        expect(result.success?).to be true
+      end
 
     context 'nil static site settings' do
       # RepositoryDiscovery serializes a normalized service hash to JSON, which

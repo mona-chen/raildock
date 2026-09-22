@@ -150,4 +150,31 @@ RSpec.describe StaticSiteDetector do
 
     expect(result.node_version).to eq("20")
   end
+
+  describe ".detect_plain_static" do
+    it "marks a bare index.html as a no-build static site" do
+      result = described_class.detect_plain_static(index_html: true)
+
+      expect(result.framework).to eq("staticfile")
+      expect(result.plain_static).to be(true)
+      expect(result.publish_directory).to be_nil
+      expect(result.config).to eq("spaFallback" => false, "plainStatic" => true)
+    end
+
+    it "returns nil without an index.html" do
+      expect(described_class.detect_plain_static(index_html: false)).to be_nil
+    end
+
+    it "does not leak plainStatic into framework-based results" do
+      result = detect(
+        {
+          "scripts" => { "build" => "vite build" },
+          "devDependencies" => { "vite" => "^6.0.0" }
+        }
+      )
+
+      expect(result.plain_static).to be_nil
+      expect(result.config).not_to have_key("plainStatic")
+    end
+  end
 end

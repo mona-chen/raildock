@@ -136,6 +136,46 @@ RSpec.describe StaticSiteConfigurator do
     end
   end
 
+  describe "plain static sites" do
+    let(:plain_config) { { "staticSite" => { "plainStatic" => true } } }
+
+    it "treats the plainStatic flag as static" do
+      configurator = described_class.new(service_with(config: plain_config))
+      expect(configurator).to be_static
+      expect(configurator.publish_directory).to be_nil
+    end
+
+    it "is not static when plainStatic is false and there is no publish directory" do
+      configurator = described_class.new(service_with(config: { "staticSite" => { "plainStatic" => false } }))
+      expect(configurator).not_to be_static
+    end
+
+    it "emits no SPA build-output env vars" do
+      configurator = described_class.new(service_with(config: plain_config))
+      expect(configurator.build_env("railpack")).to eq({})
+      expect(configurator.build_env("nixpacks")).to eq({})
+    end
+
+    it "uses Caddy for railpack and the nixpacks NGINX command" do
+      configurator = described_class.new(service_with(config: plain_config))
+
+      expect(configurator.serve_command("railpack")).to eq("caddy run --config /Caddyfile --adapter caddyfile")
+      expect(configurator.serve_command("nixpacks")).to eq(described_class::NIXPACKS_PLAIN_SERVE_COMMAND)
+    end
+
+    it "still honours an explicit start command" do
+      configurator = described_class.new(
+        service_with(config: plain_config, start_command: "node server.js")
+      )
+      expect(configurator).not_to be_static
+    end
+
+    it "picks a static builder for a plain static site" do
+      configurator = described_class.new(service_with(config: plain_config, builder: "herokuish"))
+      expect(configurator.resolve_builder(available: ->(_slug) { true })).to eq("railpack")
+    end
+  end
+
   describe "deploy-time detection" do
     let(:detected) { { "publishDirectory" => "dist", "spaFallback" => true } }
 

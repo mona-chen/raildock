@@ -1198,7 +1198,7 @@ module Api
         letsencrypt: [ :enabled, :email, :staging, :autoRenew ],
         git: [ :deployBranch, :keepGitDir, :revEnvVar ],
         traefik: [ :labels, :properties ],
-        staticSite: [ :publishDirectory, :spaFallback, :nodeVersion ]
+        staticSite: [ :publishDirectory, :spaFallback, :nodeVersion, :plainStatic ]
       ]
     end
 

@@ -4,7 +4,7 @@ require "json"
 
 class RepositoryDiscovery
   MANIFEST_NAMES = %w[raildock.toml raildock.json railway.toml railway.json app.json].freeze
-  CONVENTIONAL_NAMES = %w[Dockerfile Procfile package.json Gemfile].freeze
+  CONVENTIONAL_NAMES = %w[Dockerfile Procfile package.json Gemfile index.html].freeze
   # Framework config files the static-site detector reads to resolve the
   # publish directory (e.g. a Vite `outDir` or an Angular `outputPath`).
   DETECTION_NAMES = StaticSiteDetector::CONFIG_FILES
@@ -180,7 +180,14 @@ class RepositoryDiscovery
         dockerfile = root_paths.find { |path| File.basename(path) == "Dockerfile" }
         package = root_paths.find { |path| File.basename(path) == "package.json" }
         gemfile = root_paths.find { |path| File.basename(path) == "Gemfile" }
-        next unless dockerfile || package || gemfile
+        # Only the repository root can be a plain static site: a bare `index.html`
+        # sitting in a subdirectory is usually an app's static assets (a Rails
+        # `public/`), not a deployable service, and the deploy-time probe stays
+        # compatible because it is scoped to a service's own root directory.
+        plain_static_root = root.nil? &&
+          root_paths.any? { |path| File.basename(path) == "index.html" } &&
+          dockerfile.nil? && package.nil? && gemfile.nil?
+        next unless dockerfile || package || gemfile || plain_static_root
 
         builder = dockerfile ? "dockerfile" : nil
         subtype = "web"
@@ -191,6 +198,8 @@ class RepositoryDiscovery
         declares_process = root_paths.any? { |path| File.basename(path) == "Procfile" }
         static_site = if package && dockerfile.nil? && !declares_process
           detect_static_site(package, root_paths, commit_sha)
+        elsif plain_static_root && !declares_process
+          StaticSiteDetector.detect_plain_static(index_html: true)
         end
         services << {
           "name" => name.parameterize,
@@ -202,6 +211,7 @@ class RepositoryDiscovery
           "publish_directory" => static_site&.publish_directory,
           "spa_fallback" => static_site&.spa_fallback,
           "node_version" => static_site&.node_version,
+          "plain_static" => static_site&.plain_static,
           "source_revision" => commit_sha,
           "env_keys" => env_keys_for(root_paths, commit_sha),
           "env" => {}, "domains" => [], "storage" => [],
@@ -211,13 +221,15 @@ class RepositoryDiscovery
         decision =
           if dockerfile
             "Dockerfile build"
+          elsif static_site&.plain_static
+            "Static plain HTML build (no build step, served from the repository root)"
           elsif static_site
             "Static #{static_site.framework} build (publish directory: #{static_site.publish_directory})"
           else
             "Automatic runtime build"
           end
         evidence << {
-          path: dockerfile || package || gemfile,
+          path: dockerfile || package || gemfile || "index.html",
           format: "convention",
           decision: decision,
           confidence: dockerfile ? "high" : "medium"

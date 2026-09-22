@@ -164,6 +164,7 @@ class ManifestDrift
       assign(service, :publish_directory, static["publishDirectory"])
       assign(service, :spa_fallback, static["spaFallback"])
       assign(service, :node_version, static["nodeVersion"])
+      assign(service, :plain_static, static["plainStatic"] ? true : nil)
     when :scripts
       assign(service, :scripts, normalized_scripts(change.old_value))
     when :git_repo, :branch
