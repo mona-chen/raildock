@@ -283,7 +283,9 @@ version the target servers run before assuming a behavior.
   only treats a root-level `index.html` as plain static (a nested one is usually
   an app's assets), `StaticSiteProbe` detects it at deploy time, the nixpacks
   Staticfile provider is served with NGINX (`NIXPACKS_PLAIN_SERVE_COMMAND`) while
-  railpack uses its Caddyfile, and `ServiceBlueprint`/`ServiceCopier` copy the
+  railpack's Staticfile provider is served from the Caddyfile it writes next to
+  the app files (`caddy run --config /app/Caddyfile ...`) — distinct from its
+  SPA providers' `/Caddyfile` — and `ServiceBlueprint`/`ServiceCopier` copy the
   flag through `config` like any other static setting.
 - **Reconcile, do not track.** Apply the desired state and diff it against what
   is actually on the host (`docker-options:report`, `ports:report`), removing

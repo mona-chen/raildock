@@ -156,10 +156,10 @@ RSpec.describe StaticSiteConfigurator do
       expect(configurator.build_env("nixpacks")).to eq({})
     end
 
-    it "uses Caddy for railpack and the nixpacks NGINX command" do
+    it "uses the app-root Caddyfile for railpack and the nixpacks NGINX command" do
       configurator = described_class.new(service_with(config: plain_config))
 
-      expect(configurator.serve_command("railpack")).to eq("caddy run --config /Caddyfile --adapter caddyfile")
+      expect(configurator.serve_command("railpack")).to eq(described_class::RAILPACK_PLAIN_SERVE_COMMAND)
       expect(configurator.serve_command("nixpacks")).to eq(described_class::NIXPACKS_PLAIN_SERVE_COMMAND)
     end
 

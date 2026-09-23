@@ -511,6 +511,24 @@ RSpec.describe DeploymentJob, type: :job do
         expect(deployment.reload.status).to eq("succeeded")
       end
 
+      it "serves a plain static site from railpack's app-root Caddyfile" do
+        service.update!(config: { "staticSite" => { "plainStatic" => true } })
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:builder_set).with(service.dokku_app_name, "railpack")
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /app/Caddyfile --adapter caddyfile"
+        )
+        expect(engine).to have_received(:config_replace_all) do |_app, env|
+          expect(env).not_to include("RAILPACK_SPA_OUTPUT_DIR")
+          expect(env).not_to include("NIXPACKS_SPA_OUT_DIR")
+        end
+        expect(deployment.reload.status).to eq("succeeded")
+      end
+
       it "falls back to nixpacks with a supported Node version" do
         allow(host_engine).to receive(:builder_available?).and_return(false)
         allow(host_engine).to receive(:builder_available?).with("nixpacks").and_return(true)
@@ -630,6 +648,7 @@ RSpec.describe DeploymentJob, type: :job do
 
       before do
         allow(engine).to receive(:escape) { |value| value }
+        allow(engine).to receive(:run).with(/^run .* cat \/app\/Caddyfile$/).and_return({ success: false, output: "No such file or directory" })
         allow(engine).to receive(:run).with(/^run .* cat \/Caddyfile$/).and_return({ success: true, output: caddyfile })
         allow(engine).to receive(:run).with(/^run .* cat \/assets\/Caddyfile$/).and_return({ success: false, output: "No such file or directory" })
       end
@@ -662,6 +681,30 @@ RSpec.describe DeploymentJob, type: :job do
         expect(service.reload.publish_directory).to eq("dist")
         expect(deployment.reload.status).to eq("succeeded")
         expect(deployment.reload.deploy_log).to include("recovering it from the image", "caddy run --config /Caddyfile")
+      end
+
+      it "recovers a plain static site from its app-root Caddyfile without saving a publish directory" do
+        plain_caddyfile = <<~CADDY
+          :{$PORT:80} {
+          \troot * .
+          \tfile_server
+          }
+        CADDY
+        allow(engine).to receive(:run).with(/^run .* cat \/app\/Caddyfile$/).and_return({ success: true, output: plain_caddyfile })
+        allow(engine).to receive(:run).with(/^run .* cat \/Caddyfile$/).and_return({ success: false, output: "No such file or directory" })
+        stub_build_outcomes(first_success: false)
+
+        DeploymentJob.perform_now(service.id, deployment.id)
+
+        expect(engine).to have_received(:ps_set).with(
+          service.dokku_app_name,
+          "dockerfile-start-cmd",
+          "caddy run --config /app/Caddyfile --adapter caddyfile"
+        )
+        expect(engine).to have_received(:run_streaming).twice
+        expect(service.reload.publish_directory).to be_nil
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(deployment.reload.deploy_log).to include("recovering it from the image", "caddy run --config /app/Caddyfile")
       end
 
       it "fails with an actionable message when the image carries no serve command" do

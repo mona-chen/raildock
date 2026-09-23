@@ -45,7 +45,10 @@ class StaticSiteConfigurator
   # build-output directories and must not be set for it. The process command is
   # still required: Dokku's build stages clear the image CMD the same way.
   #
-  # Railpack serves from /Caddyfile (see SERVE_COMMANDS).
+  # Railpack's Staticfile provider writes its Caddyfile next to the app files it
+  # serves (its own generated start command references `Caddyfile` relatively
+  # from the image's WORKDIR /app), so the absolute /app/Caddyfile is the stable
+  # spelling for Docker's scheduler.
   #
   # Nixpacks' Staticfile provider serves with NGINX from a generated config at
   # /app/nginx.conf. This mirrors its StartPhase: rewrite the hardcoded
@@ -53,19 +56,27 @@ class StaticSiteConfigurator
   # in the foreground (`daemon off` is baked into the generated config).
   NIXPACKS_PLAIN_SERVE_COMMAND = '[[ -z "${PORT}" ]] && echo "Environment variable PORT not found. Using PORT 80" || sed -i "s/0.0.0.0:80/${PORT}/g" /app/nginx.conf; nginx -c /app/nginx.conf'
 
-  # Railpack writes its Caddyfile to the image root; nixpacks copies generated
-  # assets into /assets. RailDock's builder-detected port is exported as
-  # Dokku's PORT, and both Caddyfiles listen on `{$PORT}`. The paths double as
-  # the fingerprint of a static image, which is how a failed deploy recovers the
-  # command the builder meant to run (see DeploymentJob).
-  CADDY_CONFIG_PATHS = {
-    "railpack" => "/Caddyfile",
-    "nixpacks" => "/assets/Caddyfile"
+  RAILPACK_PLAIN_SERVE_COMMAND = "caddy run --config /app/Caddyfile --adapter caddyfile"
+
+  # Railpack's node SPA providers write their Caddyfile to the image root and
+  # nixpacks copies generated assets into /assets. RailDock's builder-detected
+  # port is exported as Dokku's PORT, and both Caddyfiles listen on `{$PORT}`.
+  SERVE_COMMANDS = {
+    "railpack" => "caddy run --config /Caddyfile --adapter caddyfile",
+    "nixpacks" => "caddy run --config /assets/Caddyfile --adapter caddyfile"
   }.freeze
 
-  SERVE_COMMANDS = CADDY_CONFIG_PATHS.transform_values do |path|
-    "caddy run --config #{path} --adapter caddyfile"
-  end.freeze
+  # Ordered fingerprints of a static image, probed when a deploy reaches an
+  # image with no start command: the Caddyfile path to `cat` in the built image
+  # and the serve command that matches how that builder placed it. Railpack's
+  # plain Staticfile provider writes /app/Caddyfile; its SPA providers write
+  # /Caddyfile and nixpacks writes /assets/Caddyfile. Only an SPA Caddyfile
+  # roots at /app/<dir> and therefore encodes a publish directory.
+  STATIC_IMAGE_FINGERPRINTS = [
+    { builder: "railpack", path: "/app/Caddyfile", command: RAILPACK_PLAIN_SERVE_COMMAND, publish_directory: false },
+    { builder: "railpack", path: "/Caddyfile", command: SERVE_COMMANDS["railpack"], publish_directory: true },
+    { builder: "nixpacks", path: "/assets/Caddyfile", command: SERVE_COMMANDS["nixpacks"], publish_directory: true }
+  ].freeze
 
   # `detected_config` is the deploy-time detection (StaticSiteProbe) for services
   # that never had static settings saved. Explicit service config wins key by
@@ -162,9 +173,12 @@ class StaticSiteConfigurator
     return nil unless static?
 
     # Nixpacks' Staticfile provider has no Caddyfile — it serves plain files
-    # with NGINX. Railpack serves both SPA and plain static builds from
-    # /Caddyfile, so the standard command applies.
+    # with NGINX. Railpack's Staticfile provider writes its Caddyfile next to
+    # the app files at /app/Caddyfile (its own generated start command resolves
+    # `Caddyfile` relatively from WORKDIR /app), unlike its SPA providers which
+    # write an absolute /Caddyfile.
     return NIXPACKS_PLAIN_SERVE_COMMAND if plain_static? && builder == "nixpacks"
+    return RAILPACK_PLAIN_SERVE_COMMAND if plain_static? && builder == "railpack"
 
     SERVE_COMMANDS[builder]
   end

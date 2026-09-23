@@ -766,22 +766,23 @@ class DeploymentJob < ApplicationJob
   # otherwise nil. Read through `dokku run` so the image name stays Dokku's
   # business (a registry plugin can rename it).
   def static_image_serve_command(engine, app_name)
-    StaticSiteConfigurator::CADDY_CONFIG_PATHS.each do |builder, path|
-      result = engine.run("run #{engine.escape(app_name)} cat #{engine.escape(path)}")
+    StaticSiteConfigurator::STATIC_IMAGE_FINGERPRINTS.each do |fingerprint|
+      result = engine.run("run #{engine.escape(app_name)} cat #{engine.escape(fingerprint[:path])}")
       next unless result[:success]
 
-      return [ StaticSiteConfigurator::SERVE_COMMANDS[builder], publish_directory_from_caddyfile(result[:output]) ]
+      publish_directory = fingerprint[:publish_directory] ? publish_directory_from_caddyfile(result[:output]) : nil
+      return [ fingerprint[:command], publish_directory ]
     end
     nil
   end
 
-  # The generated Caddyfiles serve `root * /app/<publish directory>`, so what
-  # RailDock stores is the part after the container's app root.
+  # The generated SPA Caddyfiles serve `root * /app/<publish directory>`, so what
+  # RailDock stores is the part after the container's app root. A plain-static
+  # Caddyfile roots at `.` or a relative directory, which is neither a build
+  # output nor something to persist.
   def publish_directory_from_caddyfile(content)
-    match = content.to_s.match(/^\s*root\s+\*\s+(\S+)\s*$/)
-    return nil unless match
-
-    match[1].sub(%r{\A/app/}, "")
+    match = content.to_s.match(/^\s*root\s+\*\s+\/app\/(\S+)\s*$/)
+    match && match[1]
   end
 
   def persist_detected_publish_directory(service, publish_directory)
