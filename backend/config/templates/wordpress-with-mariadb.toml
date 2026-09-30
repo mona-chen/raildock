@@ -56,12 +56,20 @@ source = { type = "docker" }
     # a php.ini file in the Docker entrypoint config directory:
     #   storage mount host="wordpress-php" container="/usr/local/etc/php/conf.d"
     # then create a php.ini in the volume from the container's first start.
-    WORDPRESS_CONFIG_EXTRA = 'define("DISALLOW_FILE_EDIT", true); define("DISALLOW_FILE_MODS", true); define("FS_METHOD", "direct"); if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"])) { $_SERVER["HTTPS"]="on"; } ini_set("display_errors", "0"); error_reporting(0);'
+    WORDPRESS_CONFIG_EXTRA = 'define("DISALLOW_FILE_EDIT", true); define("FS_METHOD", "direct"); if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"])) { $_SERVER["HTTPS"]="on"; } ini_set("display_errors", "0"); error_reporting(0);'
 
     # Persist plugins, themes, uploads, so image tag upgrades don't wipe them.
     [[services.storage]]
       host = "wordpress-content"
       container = "/var/www/html/wp-content"
+
+    # Apache worker limits — prevent OOM kills under load.
+    [[services.storage]]
+      host = "wordpress-apache-limit"
+      container = "/etc/apache2/conf-available/limit.conf"
+    [[services.storage]]
+      host = "wordpress-apache-limit"
+      container = "/etc/apache2/conf-enabled/limit.conf"
 
   [services.checks]
     enabled = true
@@ -70,8 +78,8 @@ source = { type = "docker" }
     path = "/wp-login.php"
 
   [services.resources]
-    memory = "5120m"
-    cpus = "2.0"
+    memory = "6144m"
+    cpus = "3.0"
 
 [[services]]
 name = "mariadb"
