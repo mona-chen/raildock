@@ -260,6 +260,10 @@ class ManifestGenerator
           lines << "  [[services.storage]]"
           lines << "  host = #{quote(mount[:host])}"
           lines << "  container = #{quote(mount[:container])}"
+          # Emit kind whenever it is not the default, otherwise a bind mount
+          # round-trips as a volume and fails host_path_matches_kind on the
+          # next apply. "volume" is the parser default so it stays implicit.
+          lines << "  kind = #{quote(mount[:kind])}" if mount[:kind].present? && mount[:kind] != "volume"
         end
       end
 

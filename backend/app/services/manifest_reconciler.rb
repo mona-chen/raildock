@@ -296,7 +296,7 @@ class ManifestReconciler
         auto_deploy: svc.auto_deploy,
         env: svc.environment_variables.reject(&:is_dokku_internal).map { |ev| [ ev.key, ev.value ] }.to_h,
         domains: svc.domains.map(&:hostname),
-        storage: svc.storage_mounts.map { |sm| { host: sm.host_path, container: sm.container_path } },
+        storage: svc.storage_mounts.map { |sm| canonical_storage_mount(sm) },
         proxy: svc.config&.dig("proxy") || {},
         scaling: svc.process_types.map { |pt| [ pt.name, pt.quantity ] }.to_h,
         limits: svc.config&.dig("resourceLimits") || {},
@@ -1004,23 +1004,72 @@ class ManifestReconciler
     { success: true }
   end
 
-  def apply_storage_change(engine, service, change)
-    desired = change.new_value || []
-    actual = change.old_value || []
+  # Canonical form of a storage mount, used for every comparison.
+  #
+  # A mount's identity is the (host, container) pair; `kind` is normalised
+  # so it can never be the thing that makes two equivalent mounts look
+  # different. Manifest entries omit `kind` frequently, and ManifestParser
+  # defaults an absent kind to "volume" even when the host path is
+  # absolute — which is a bind mount. Comparing those raw hashes made
+  # `storage` permanently report as modified, and made the set-difference
+  # in apply_storage_change match nothing, so every apply both mounted and
+  # then unmounted every mount.
+  #
+  # Inference mirrors StorageMount#normalize_kind: a blank or unknown kind
+  # becomes "bind" for an absolute host path and "volume" otherwise.
+  def canonical_storage_mount(mount)
+    hash = mount.respond_to?(:attributes) ? mount.attributes : mount
+
+    host      = (hash[:host] || hash["host"]).to_s
+    container = (hash[:container] || hash["container"]).to_s
+    kind      = (hash[:kind] || hash["kind"] || hash[:type] || hash["type"]).to_s.downcase
+
+    kind = host.start_with?("/") ? "bind" : "volume" if kind.blank? || !StorageMount.kinds.key?(kind)
+
+    { host: host, container: container, kind: kind }
+  end
+
+def apply_storage_change(engine, service, change)
+    desired = Array(change.new_value).map { |m| canonical_storage_mount(m) }
+    actual  = Array(change.old_value).map { |m| canonical_storage_mount(m) }
+
+    failures = []
 
     (desired - actual).each do |mount|
       host_path = mount[:host].presence || auto_storage_host_path(service.dokku_app_name, mount)
-      engine.storage_mount(service.dokku_app_name, host_path, mount[:container])
-      service.storage_mounts.find_or_initialize_by(host_path: host_path, container_path: mount[:container]).update!(kind: mount[:kind] || "volume")
+
+      result = engine.storage_mount(service.dokku_app_name, host_path, mount[:container])
+      unless result[:success]
+        failures << "mount #{mount[:container]}: #{result[:output]}"
+        next
+      end
+
+      begin
+        service.storage_mounts
+               .find_or_initialize_by(host_path: host_path, container_path: mount[:container])
+               .update!(kind: mount[:kind])
+      rescue ActiveRecord::RecordInvalid => e
+        # One malformed mount must not abort the whole apply.
+        failures << "record #{mount[:container]}: #{e.record.errors.full_messages.join(', ')}"
+      end
     end
 
     (actual - desired).each do |mount|
-      engine.run("storage:unmount #{engine.escape(service.dokku_app_name)} #{engine.escape(mount[:container])}")
+      # storage_unmount builds `storage:unmount <app> <entry> --container-dir <path>`.
+      # The previous inline command put the container path in the entry-name
+      # position, so it never matched an attachment and the failure was discarded.
+      result = engine.storage_unmount(service.dokku_app_name, mount[:host], container_path: mount[:container])
+      unless result[:success]
+        failures << "unmount #{mount[:container]}: #{result[:output]}"
+        next
+      end
+
       service.storage_mounts.find_by(host_path: mount[:host], container_path: mount[:container])&.destroy!
     end
 
     sync_storage_env_vars!(engine, service)
-    { success: true }
+
+    { success: failures.empty?, output: failures.join("\n") }
   end
 
   def apply_proxy_change(engine, service, change)
