@@ -418,6 +418,34 @@ class DeploymentJob < ApplicationJob
       result = recovered if recovered
     end
 
+    # The image now exists, so infer its runtime identity rather than asking the
+    # user for Unix IDs. Recover only empty, root-owned, service-managed storage.
+    if !result[:success] && deploy_output.match?(/PermissionError|Permission denied|Operation not permitted|EACCES/i)
+      repaired = ManagedStoragePermissions.new(service, engine: engine, host_engine: host_engine).repair
+      if repaired.any?
+        note = "-----> Prepared new storage for the application; retrying deployment (#{repaired.join(', ')})\n"
+        deploy_output << note
+        deployment.append_log_chunk!(note)
+        safely_broadcast_deployment(service, {
+          deployment_id: deployment.id, status: deployment.status, log_chunk: note,
+          sequence: deployment.event_sequence, started_at: deployment.started_at&.iso8601
+        })
+        return if abort_if_cancelled(deployment)
+        result = engine.run_streaming(
+          "ps:rebuild #{engine.escape(service.dokku_app_name)}",
+          cancelled: -> { deployment.reload.cancelled? }
+        ) do |chunk|
+          redacted_chunk = deployment.append_log_chunk!(chunk)
+          deploy_output << redacted_chunk
+          safely_broadcast_deployment(service, {
+            deployment_id: deployment.id, status: "building", log_chunk: redacted_chunk,
+            sequence: deployment.event_sequence, started_at: deployment.started_at&.iso8601
+          })
+        end
+        return if result[:cancelled] || abort_if_cancelled(deployment)
+      end
+    end
+
     unless result[:success]
       if result[:error].present? && !deploy_output.include?(result[:error])
         deploy_output += "\n\n--- #{LogRedactor.redact(result[:error])} ---"

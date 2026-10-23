@@ -352,3 +352,12 @@ version the target servers run before assuming a behavior.
 - Run tests before committing.
 - Update this file if you change install, release, backup, or credentials flow.
 - Do not commit `.env`, `master.key`, or `credentials.yml.enc`.
+
+
+- **Empty managed storage adapts to non-root images.** If a Docker-local deploy
+  fails with a permission error, `ManagedStoragePermissions` resolves the built
+  image's numeric UID/GID with an isolated `id` invocation, checks registered
+  service-owned storage, and initializes only empty root-owned directories before
+  one cached rebuild. It never recursively changes data, handles arbitrary bind
+  mounts, or takes over custom/shared volumes. Keep the filesystem guards and
+  one-retry boundary; ownership of populated storage requires deliberate migration.

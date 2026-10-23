@@ -98,6 +98,48 @@ RSpec.describe DeploymentJob, type: :job do
   end
 
   describe "#perform" do
+    context "when new managed storage blocks a non-root app" do
+      let(:permissions) { instance_double(ManagedStoragePermissions, repair: ["/data"]) }
+
+      before do
+        allow(ManagedStoragePermissions).to receive(:new).with(service, engine: engine, host_engine: host_engine).and_return(permissions)
+        allow(engine).to receive(:escape) { |value| value }
+        attempts = 0
+        allow(engine).to receive(:run_streaming) do |_command, cancelled: nil, &block|
+          attempts += 1
+          output = attempts == 1 ? "PermissionError: Operation not permitted: '/data'" : "storage recovered"
+          block&.call(output)
+          {success: attempts > 1, output: output, cancelled: false}
+        end
+      end
+
+      it "prepares managed storage and retries the deployment once" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(permissions).to have_received(:repair).once
+        expect(engine).to have_received(:run_streaming).twice
+        expect(deployment.reload.status).to eq("succeeded")
+        expect(deployment.deploy_log).to include("Prepared new storage", "storage recovered")
+      end
+
+      it "keeps the original failure when no storage can be safely repaired" do
+        allow(permissions).to receive(:repair).and_return([])
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(engine).to have_received(:run_streaming).once
+        expect(deployment.reload.status).to eq("failed")
+      end
+
+      it "does not retry a second permission failure" do
+        allow(engine).to receive(:run_streaming) do |_command, cancelled: nil, &block|
+          block&.call("Permission denied")
+          {success: false, output: "Permission denied", cancelled: false}
+        end
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(permissions).to have_received(:repair).once
+        expect(engine).to have_received(:run_streaming).twice
+        expect(deployment.reload.status).to eq("failed")
+      end
+    end
+
     context "happy path" do
       it "marks deployment as succeeded, service as running, and broadcasts status" do
         expect {
