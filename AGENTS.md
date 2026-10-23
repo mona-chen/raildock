@@ -357,7 +357,8 @@ version the target servers run before assuming a behavior.
 - **Empty managed storage adapts to non-root images.** If a Docker-local deploy
   fails with a permission error, `ManagedStoragePermissions` resolves the built
   image's numeric UID/GID with an isolated `id` invocation, checks registered
-  service-owned storage, and initializes only empty root-owned directories before
-  one cached rebuild. It never recursively changes data, handles arbitrary bind
+  service-owned named storage or dedicated legacy binds under Dokku’s managed storage
+  root, and initializes only empty root-owned directories before
+  one cached rebuild. It never recursively changes data, handles arbitrary host
   mounts, or takes over custom/shared volumes. Keep the filesystem guards and
   one-retry boundary; ownership of populated storage requires deliberate migration.

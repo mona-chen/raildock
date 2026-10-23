@@ -2,7 +2,7 @@ require "json"
 require "shellwords"
 
 # Recover newly attached, empty managed storage for non-root Docker images.
-# Never recursively chown data, change bind mounts, or take over shared volumes.
+# Never recursively chown data, change arbitrary host folders, or take over shared volumes.
 class ManagedStoragePermissions
   attr_reader :messages
 
@@ -13,9 +13,9 @@ class ManagedStoragePermissions
 
   def repair
     mounts = @service.storage_mounts.select do |mount|
-      mount.kind_volume? && mount.host_path == StorageMount.volume_name_for(@service.dokku_app_name, mount.container_path)
+      (mount.kind_volume? && mount.host_path == StorageMount.volume_name_for(@service.dokku_app_name, mount.container_path)) || managed_bind?(mount)
     end
-    return skipped("No automatically managed named storage found; custom and bind mounts were left unchanged.") if mounts.empty?
+    return skipped("No eligible managed storage found; arbitrary host folders and custom/shared volumes were left unchanged.") if mounts.empty?
 
     image = "dokku/#{@service.dokku_app_name}:latest"
     inspect = @host.run("docker image inspect --format '{{.Id}}' #{quote(image)}")
@@ -61,7 +61,19 @@ class ManagedStoragePermissions
     []
   end
 
+  def managed_bind?(mount)
+    return false unless mount.kind_bind? && mount.host_path.match?(%r{\A/var/lib/dokku/data/storage/[^/]+(?:/[^/]+)*\z})
+    path = mount.host_path
+    return false unless File.expand_path(path) == path
+    # A legacy UI-managed mount can be a host directory. Do not reassign a
+    # directory (or its parent/child) registered to another service.
+    StorageMount.where.not(service_id: @service.id).pluck(:host_path).none? do |other|
+      other == path || other.start_with?(path + "/") || path.start_with?(other + "/")
+    end
+  end
+
   def storage_path(mount)
+    return mount.host_path if managed_bind?(mount)
     entry = @engine.run("storage:info #{quote(mount.host_path)} --format json")
     if entry[:success]
       data = parse_json(entry[:output])

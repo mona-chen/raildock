@@ -3,8 +3,8 @@ require "tmpdir"
 require "open3"
 
 RSpec.describe ManagedStoragePermissions do
-  let(:mount) { instance_double(StorageMount, kind_volume?: true, host_path: "demo-data", container_path: "/data") }
-  let(:service) { instance_double(Service, dokku_app_name: "demo", storage_mounts: [ mount ]) }
+  let(:mount) { instance_double(StorageMount, kind_volume?: true, kind_bind?: false, host_path: "demo-data", container_path: "/data") }
+  let(:service) { instance_double(Service, id: 42, dokku_app_name: "demo", storage_mounts: [ mount ]) }
   let(:engine) { instance_double(DokkuEngine) }
   let(:host) { instance_double(HostEngine) }
   let(:image) { "sha256:" + "a" * 64 }
@@ -60,6 +60,27 @@ RSpec.describe ManagedStoragePermissions do
     allow(mount).to receive(:kind_volume?).and_return(false)
     expect(host).not_to receive(:run)
     expect(engine).not_to receive(:run)
+    expect(repair).to eq([])
+  end
+
+  it "supports dedicated legacy bind storage under Dokku's managed storage root" do
+    allow(mount).to receive_messages(kind_volume?: false, kind_bind?: true, host_path: "/var/lib/dokku/data/storage/demo-data")
+    expect(engine).not_to receive(:run)
+    expect(host).to receive(:run).with(a_string_starting_with("set -eu")).and_return(success: true, output: "")
+    expect(repair).to eq(["/data"])
+  end
+
+  it "does not change a managed bind directory shared with another service" do
+    allow(mount).to receive_messages(kind_volume?: false, kind_bind?: true, host_path: "/var/lib/dokku/data/storage/shared-data")
+    other = create(:service)
+    create(:storage_mount, service: other, kind: "bind", host_path: mount.host_path)
+    expect(host).not_to receive(:run)
+    expect(repair).to eq([])
+  end
+
+  it "does not normalize traversal into a managed bind directory" do
+    allow(mount).to receive_messages(kind_volume?: false, kind_bind?: true, host_path: "/var/lib/dokku/data/storage/../other")
+    expect(host).not_to receive(:run)
     expect(repair).to eq([])
   end
 
