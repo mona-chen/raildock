@@ -99,7 +99,7 @@ RSpec.describe DeploymentJob, type: :job do
 
   describe "#perform" do
     context "when new managed storage blocks a non-root app" do
-      let(:permissions) { instance_double(ManagedStoragePermissions, repair: ["/data"]) }
+      let(:permissions) { instance_double(ManagedStoragePermissions, repair: ["/data"], messages: ["/data: initialized empty storage for the application."]) }
 
       before do
         allow(ManagedStoragePermissions).to receive(:new).with(service, engine: engine, host_engine: host_engine).and_return(permissions)

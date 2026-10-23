@@ -421,7 +421,17 @@ class DeploymentJob < ApplicationJob
     # The image now exists, so infer its runtime identity rather than asking the
     # user for Unix IDs. Recover only empty, root-owned, service-managed storage.
     if !result[:success] && deploy_output.match?(/PermissionError|Permission denied|Operation not permitted|EACCES/i)
-      repaired = ManagedStoragePermissions.new(service, engine: engine, host_engine: host_engine).repair
+      recovery = ManagedStoragePermissions.new(service, engine: engine, host_engine: host_engine)
+      repaired = recovery.repair
+      recovery.messages.each do |message|
+        note = "-----> Storage recovery: #{message}\n"
+        deploy_output << note
+        deployment.append_log_chunk!(note)
+        safely_broadcast_deployment(service, {
+          deployment_id: deployment.id, status: deployment.status, log_chunk: note,
+          sequence: deployment.event_sequence, started_at: deployment.started_at&.iso8601
+        })
+      end
       if repaired.any?
         note = "-----> Prepared new storage for the application; retrying deployment (#{repaired.join(', ')})\n"
         deploy_output << note
