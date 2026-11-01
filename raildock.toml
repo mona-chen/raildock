@@ -187,33 +187,6 @@ domains = ["tween.im"]
 enabled = true
 type = "traefik"
 
-# ── tween-web (Flutter web client) ───────────────────────────
-
-[[services]]
-name = "tween-web"
-category = "app"
-subtype = "web"
-source = { type = "git", repo = "https://github.com/Tween-IM/tween-app.git", branch = "main" }
-builder = "dockerfile"
-dockerfile_path = "deploy/web/Dockerfile"
-port = 80
-
-domains = ["app.tween.im"]
-
-[services.scaling]
-web = 1
-
-[services.proxy]
-enabled = true
-type = "traefik"
-
-# nginx serves /healthz and falls back to index.html for go_router paths.
-[services.checks]
-enabled = true
-path = "/healthz"
-wait = 10
-timeout = 30
-
 # ── Service Links ─────────────────────────────────────────────
 # Links auto-inject connection strings (DATABASE_URL, REDIS_URL)
 # and enable Docker DNS resolution between services.
