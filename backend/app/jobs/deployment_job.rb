@@ -1,6 +1,6 @@
 class DeploymentJob < ApplicationJob
   include DokkuEnvBatchable
-  queue_as :default
+  queue_as :deployments
 
   # Deployments created by these triggers come from git pushes — the only
   # moments where re-syncing state from the repo's manifest makes sense.

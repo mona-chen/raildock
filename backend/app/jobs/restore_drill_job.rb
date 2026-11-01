@@ -1,7 +1,7 @@
 require "open3"
 
 class RestoreDrillJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   def perform(drill_id)
     drill = RestoreDrill.find(drill_id)

@@ -1,7 +1,12 @@
 class RunDueBackupsJob < ApplicationJob
-  queue_as :default
+  include BackupQueueAware
+  queue_as :backups
 
   def perform
+    # Do not add more work while the backups queue is already draining; the next
+    # tick picks up anything still due once it has caught up.
+    return if backups_backlogged?
+
     # Paused schedules keep their next-run bookkeeping but are not executed.
     BackupSchedule.due.find_each do |schedule|
       backup = create_backup(schedule)

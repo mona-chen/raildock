@@ -211,6 +211,39 @@ RSpec.describe ManifestReconciler do
       destroying = described_class.new(project, desired).diff
       expect(destroying).to include(have_attributes(field: :service, change_type: :removed, service_name: "old-worker"))
     end
+
+    it "limits changes to the selected services" do
+      create(:service, project: project, name: "web", managed_by: :manifest)
+      create(:service, project: project, name: "worker", managed_by: :manifest)
+      desired = desired_state(
+        services: [
+          app_definition(name: "web", repo: "https://github.com/acme/web.git"),
+          app_definition(name: "worker", repo: "https://github.com/acme/worker.git")
+        ]
+      )
+
+      changes = described_class.new(project, desired, only: [ "web" ]).diff
+
+      expect(changes.map(&:service_name)).to include("web")
+      expect(changes.map(&:service_name)).not_to include("worker")
+    end
+
+    it "does not treat an unselected service as a removal" do
+      create(:service, project: project, name: "web", managed_by: :manifest)
+      create(:service, project: project, name: "worker", managed_by: :manifest)
+      desired = desired_state(
+        services: [
+          app_definition(name: "web", repo: "https://github.com/acme/web.git"),
+          app_definition(name: "worker", repo: "https://github.com/acme/worker.git")
+        ]
+      )
+
+      reconciler = described_class.new(project, desired, only: [ "web" ])
+      changes = reconciler.diff
+
+      expect(changes).not_to include(have_attributes(field: :service, change_type: :removed, service_name: "worker"))
+      expect(reconciler.removal_plan).to be_empty
+    end
   end
 
   describe "#removal_plan" do

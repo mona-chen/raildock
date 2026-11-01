@@ -8,7 +8,7 @@
 # `status`/`last_verified_at`/`last_error` fields the recovery UI and
 # DataSafetyReport already read.
 class VerifyBackupDestinationsJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   # Re-verify anything older than this. Backups run far more often than this,
   # so the schedule (not this window) is what keeps a fresh destination proven.

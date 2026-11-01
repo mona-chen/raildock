@@ -1,5 +1,5 @@
 class RunRecoveryDrillsJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   def perform
     Service.find_each do |service|

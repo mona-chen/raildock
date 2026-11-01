@@ -1171,11 +1171,20 @@ export const repositoryImportsApi = {
     projectId: string,
     snapshotToken: string,
     builderOverrides: Record<string, string> = {},
-    options: { confirmRemovals?: boolean; removalConfirmationToken?: string; forceDestroyData?: boolean } = {},
+    options: {
+      confirmRemovals?: boolean
+      removalConfirmationToken?: string
+      forceDestroyData?: boolean
+      /** Detected services to deploy. Omit to deploy every service in the manifest. */
+      services?: string[]
+    } = {},
   ): Promise<{
     status: string
     serviceCount: number
     commitSha: string
+    /** Services this apply will reconcile, including auto-added dependencies. */
+    services?: string[] | null
+    expandedServices?: string[]
     removals: ManifestRemoval[]
     removalsConfirmed: boolean
     /**
@@ -1190,6 +1199,7 @@ export const repositoryImportsApi = {
       body: JSON.stringify({
         snapshot_token: snapshotToken,
         builder_overrides: builderOverrides,
+        services: options.services,
         confirm_removals: options.confirmRemovals ?? false,
         removal_confirmation_token: options.removalConfirmationToken,
         force_destroy_data: options.forceDestroyData ?? false,

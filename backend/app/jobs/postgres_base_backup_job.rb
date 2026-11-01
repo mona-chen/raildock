@@ -1,5 +1,5 @@
 class PostgresBaseBackupJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   def perform(config_id)
     config = PostgresPitrConfig.find(config_id)

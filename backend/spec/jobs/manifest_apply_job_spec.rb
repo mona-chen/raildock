@@ -11,14 +11,26 @@ RSpec.describe ManifestApplyJob, type: :job do
     )
   end
 
-  def apply(content: manifest, result: { success: true, results: [] })
+  def apply(content: manifest, result: { success: true, results: [] }, options: {})
     reconciler = instance_double(ManifestReconciler, diff: nil, apply!: result)
     allow(ManifestReconciler).to receive(:new).and_return(reconciler)
     allow(DokkuEngine).to receive(:new).and_return(instance_double(DokkuEngine, with_session: nil).tap { |engine| allow(engine).to receive(:with_session).and_yield })
     allow(HostEngine).to receive(:new).and_return(instance_double(HostEngine).tap { |engine| allow(engine).to receive(:with_session).and_yield })
     allow(RealtimeBroadcaster).to receive(:project)
 
-    described_class.perform_now(project.id, content)
+    described_class.perform_now(project.id, content, options)
+  end
+
+  it "scopes the apply to the selected services" do
+    apply(options: { service_names: [ "web" ] })
+
+    expect(ManifestReconciler).to have_received(:new).with(project, anything, only: [ "web" ])
+  end
+
+  it "refuses a selection that names services the manifest does not declare" do
+    apply(options: { service_names: [ "worker" ] })
+
+    expect(ManifestReconciler).not_to have_received(:new)
   end
 
   it "records a clean apply when the manifest matches what was applied" do

@@ -2,6 +2,8 @@ module Api
   class RepositoryImportsController < BaseController
     include Authorizable
 
+    class InvalidServiceSelection < StandardError; end
+
     before_action :set_project
 
     def preview
@@ -47,6 +49,8 @@ module Api
 
       ManifestParser.parse(manifest_content, filename: manifest_format, source: :repository)
 
+      service_names, expanded_services = service_selection(parsed)
+
       # Importing a repository must never delete unrelated services. Services
       # that exist today but are missing from the imported manifest are kept
       # unless the user confirmed that exact list for this commit.
@@ -55,21 +59,28 @@ module Api
 
       adopted = adopt_manifest!(manifest_content, manifest_format, removals: removals, confirmed: confirmed)
 
+      options = { allow_removals: confirmed, force_destroy_data: force_destroy_data? }
+      options[:service_names] = service_names if service_names
+
       job = ManifestApplyJob.perform_later(
         @project.id,
         manifest_content,
-        { allow_removals: confirmed, force_destroy_data: force_destroy_data? }
+        options
       )
 
       render json: {
         status: "queued",
         job_id: job.job_id,
         commit_sha: payload.fetch("commit_sha"),
-        service_count: parsed.fetch("services").length,
+        service_count: service_names ? service_names.length : parsed.fetch("services").length,
+        services: service_names,
+        expanded_services: expanded_services,
         removals: removals,
         removals_confirmed: confirmed,
         manifest_adopted: adopted
       }, status: :accepted
+    rescue InvalidServiceSelection => error
+      render json: { error: error.message }, status: :unprocessable_entity
     rescue ActiveSupport::MessageVerifier::InvalidSignature, KeyError, JSON::ParserError
       render json: { error: "This repository review is invalid or expired. Scan the repository again." }, status: :unprocessable_entity
     end
@@ -153,6 +164,45 @@ module Api
 
       def force_destroy_data?
         ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false
+      end
+
+      # A repository import may deploy only the detected services the user
+      # picked. Anything left unselected is untouched — never a removal — and
+      # dependencies that do not exist yet are pulled into the selection so a
+      # selected app can actually boot.
+      def service_selection(manifest)
+        return [ nil, [] ] unless params.key?(:services)
+
+        requested = Array(params[:services]).map { |name| name.to_s.strip }.reject(&:blank?).uniq
+        raise InvalidServiceSelection, "Select at least one service to deploy" if requested.empty?
+
+        declared = manifest.fetch("services", []).index_by { |service| service.fetch("name").to_s }
+        unknown = requested - declared.keys
+        raise InvalidServiceSelection, "Unknown services: #{unknown.join(', ')}" if unknown.any?
+
+        existing = @project.services.where(name: declared.keys).pluck(:name).to_set
+        expanded = requested.dup
+        queue = requested.dup
+        until queue.empty?
+          name = queue.shift
+          dependencies_for(manifest, name).each do |dependency|
+            next unless declared.key?(dependency)
+            next if expanded.include?(dependency)
+            next if existing.include?(dependency) # already owned by the project; leave it alone
+
+            expanded << dependency
+            queue << dependency
+          end
+        end
+
+        [ expanded, expanded - requested ]
+      end
+
+      def dependencies_for(manifest, name)
+        service = manifest.fetch("services", []).find { |candidate| candidate.fetch("name").to_s == name }
+        depends_on = Array(service&.dig("depends_on")).map(&:to_s)
+        linked = Array(manifest["links"]).select { |link| link["from"].to_s == name }.map { |link| link["to"].to_s }
+        (depends_on + linked).uniq
       end
 
       def set_project

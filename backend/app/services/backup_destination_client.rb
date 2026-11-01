@@ -83,6 +83,13 @@ class BackupDestinationClient
       end
     end
     key
+  rescue => error
+    # A destination that cannot accept a write is not usable: record it so the
+    # recovery UI and DataSafetyReport show the outage instead of the last
+    # successful verification, and so PITR's retry backoff has something to act
+    # on.
+    record_failure(error)
+    raise
   end
 
   def with_uploader

@@ -107,6 +107,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
   const [isApplying, setIsApplying] = useState(false)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [builderOverrides, setBuilderOverrides] = useState<Record<string, string>>({})
+  const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set())
   const [removeExisting, setRemoveExisting] = useState(false)
   const [destroyWithoutSnapshot, setDestroyWithoutSnapshot] = useState(false)
   const queryClient = useQueryClient()
@@ -182,7 +183,13 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
     if (!gitSourceId || !gitRepo) return
     setIsScanning(true)
     try {
-      setDiscovery(await api.repositoryImports.preview(projectId, { gitSourceId, repository: gitRepo, branch: gitBranch }))
+      const preview = await api.repositoryImports.preview(projectId, { gitSourceId, repository: gitRepo, branch: gitBranch })
+      setDiscovery(preview)
+      // Every detected service is selected by default, so the one-click flow
+      // keeps deploying exactly what it used to.
+      setSelectedServices(new Set(preview.services.map((service) => service.name)))
+      setRemoveExisting(false)
+      setDestroyWithoutSnapshot(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not inspect this repository')
     } finally {
@@ -191,10 +198,16 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
   }
 
   const handleApplyDiscovery = async () => {
-    if (!discovery) return
+    if (!discovery || selectedServices.size === 0) return
     setIsApplying(true)
     try {
+      const services = discovery.services
+        .filter((service) => selectedServices.has(service.name))
+        .map((service) => service.name)
       const result = await api.repositoryImports.apply(projectId, discovery.snapshotToken, builderOverrides, {
+        // Send no selection when everything is deployed, so the default path
+        // stays exactly the same as a plain repository import.
+        services: services.length < discovery.services.length ? services : undefined,
         confirmRemovals: removeExisting,
         removalConfirmationToken: removeExisting ? discovery.removalToken : undefined,
         forceDestroyData: removeExisting && destroyWithoutSnapshot,
@@ -202,6 +215,9 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'manifest'] })
       toast.success(`Deploying ${result.serviceCount} ${result.serviceCount === 1 ? 'service' : 'services'}`)
+      if (result.expandedServices?.length) {
+        toast.info(`Also included ${result.expandedServices.join(', ')} because the selected services depend on ${result.expandedServices.length === 1 ? 'it' : 'them'}.`)
+      }
       if (result.removals?.length && !result.removalsConfirmed) {
         toast.warning(
           `Kept ${result.removals.length} existing service${result.removals.length === 1 ? '' : 's'} that this repository does not declare: ${result.removals
@@ -318,6 +334,22 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
     if (discovery) {
       const databases = discovery.services.filter((service) => service.category === 'database').length
       const applications = discovery.services.length - databases
+      const selectedCount = discovery.services.filter((service) => selectedServices.has(service.name)).length
+      const allSelected = selectedCount === discovery.services.length
+      const deployTarget = selectedCount === 1
+        ? discovery.services.find((service) => selectedServices.has(service.name))!.name
+        : `${selectedCount} services`
+      const toggleAllServices = () => {
+        setSelectedServices(allSelected ? new Set() : new Set(discovery.services.map((service) => service.name)))
+      }
+      const toggleService = (serviceName: string) => {
+        setSelectedServices((current) => {
+          const next = new Set(current)
+          if (next.has(serviceName)) next.delete(serviceName)
+          else next.add(serviceName)
+          return next
+        })
+      }
 
       if (discovery.services.length === 0) {
         return (
@@ -355,10 +387,37 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
           <div className="space-y-4">
             <button onClick={() => setDiscovery(null)} className="flex items-center gap-1 text-[12px] text-white/50 hover:text-white/70"><ChevronLeft size={14} /> Choose another repository</button>
             <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-4">
-              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><Sparkles size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. You can review the technical decisions below if you want to.</p></div></div>
+              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><Sparkles size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. Choose which services to deploy, or leave them all selected.</p></div></div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-white/40">{selectedCount} of {discovery.services.length} selected</span>
+              <button type="button" onClick={toggleAllServices} className="text-[11px] text-[#8b5cf6] hover:underline">
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </button>
             </div>
             <div className="divide-y divide-white/[0.05] border-y border-white/[0.06]">
-              {discovery.services.map((service) => <div key={service.name} className="flex items-center gap-3 py-3"><ServiceIcon subtype={service.subtype} size={17} /><div className="min-w-0 flex-1"><div className="truncate text-[12px] font-medium text-white/70">{service.name}</div><div className="mt-0.5 text-[10px] text-white/25">{service.category === 'database' ? 'Database' : service.rootDirectory ? `From ${service.rootDirectory}` : 'From repository root'}{service.publishDirectory ? ` · publishes ${service.publishDirectory}` : ''}</div></div><span className="rounded bg-white/[0.05] px-2 py-1 text-[9px] capitalize text-white/35">{service.category}</span></div>)}
+              {discovery.services.map((service) => {
+                const selected = selectedServices.has(service.name)
+                return (
+                  <label key={service.name} className="flex cursor-pointer items-center gap-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleService(service.name)}
+                      className="size-3.5 shrink-0 accent-[#8b5cf6]"
+                      aria-label={`Deploy ${service.name}`}
+                    />
+                    <div className={`flex min-w-0 flex-1 items-center gap-3 transition-opacity ${selected ? '' : 'opacity-40'}`}>
+                      <ServiceIcon subtype={service.subtype} size={17} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12px] font-medium text-white/70">{service.name}</div>
+                        <div className="mt-0.5 text-[10px] text-white/25">{service.category === 'database' ? 'Database' : service.rootDirectory ? `From ${service.rootDirectory}` : 'From repository root'}{service.publishDirectory ? ` · publishes ${service.publishDirectory}` : ''}</div>
+                      </div>
+                      <span className="rounded bg-white/[0.05] px-2 py-1 text-[9px] capitalize text-white/35">{service.category}</span>
+                    </div>
+                  </label>
+                )
+              })}
             </div>
             {(discovery.conflicts.length > 0 || discovery.warnings.length > 0) && <div className="rounded-lg border border-amber-400/15 bg-amber-400/[0.035] p-3 text-[11px] text-amber-200/60"><div className="flex gap-2"><AlertTriangle size={14} className="shrink-0 text-amber-300" /><span>{discovery.conflicts[0] || `${discovery.warnings.length} compatibility note${discovery.warnings.length === 1 ? '' : 's'} found`}</span></div></div>}
             <button type="button" onClick={() => setShowTechnicalDetails((value) => !value)} className="flex w-full items-center justify-between text-[11px] text-white/35 hover:text-white/60"><span>How RailDock decided</span><ChevronDown size={13} className={showTechnicalDetails ? 'rotate-180' : ''} /></button>
@@ -440,7 +499,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                 </div>
               </div>
             )}
-            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : `Deploy ${discovery.services.length === 1 ? discovery.services[0].name : 'all services'}`}</button>
+            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0 || selectedCount === 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : selectedCount === 0 ? 'Select a service to deploy' : allSelected && discovery.services.length > 1 ? 'Deploy all services' : `Deploy ${deployTarget}`}</button>
           </div>
         </ModalShell>
       )

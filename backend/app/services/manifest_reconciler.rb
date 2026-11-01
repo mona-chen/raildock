@@ -35,12 +35,24 @@ class ManifestReconciler
     end
   end
 
-  def initialize(project, desired_state)
+  # only: optional set of service names to reconcile. nil means every service
+  # in the manifest. Removals are still detected against the *full* manifest,
+  # so a partial import can never make an unselected service look disposable.
+  def initialize(project, desired_state, only: nil)
     @project = project
     @desired = desired_state
+    @only = only.nil? ? nil : Array(only).map(&:to_s).to_set
     @actual = build_actual_state
     @changes = []
     @diff_computed = false
+  end
+
+  # Services this reconciler is allowed to create, update, link, or deploy.
+  def selected_service_names
+    names = @desired.service_names
+    return names unless @only
+
+    names.select { |name| @only.include?(name.to_s) }
   end
 
   # Compute the full diff between desired and actual state.
@@ -50,12 +62,15 @@ class ManifestReconciler
   def diff(preserve_removed_services: false)
     @changes = []
 
-    # Services to create, update, or destroy
-    desired_names = @desired.service_names.to_set
+    # Services to create or update are limited to the selection, but removal
+    # candidates must still come from the whole manifest: deselecting a
+    # service during a repository import is not a request to delete it.
+    selected_names = selected_service_names.to_set
+    declared_names = @desired.service_names.to_set
     actual_names = @actual.keys.to_set
 
     # Services to create
-    (desired_names - actual_names).each do |name|
+    (selected_names - actual_names).each do |name|
       svc = @desired.find_service(name)
       @changes << Change.new(
         service_name: name,
@@ -67,7 +82,7 @@ class ManifestReconciler
     end
 
     # Services to destroy
-    (actual_names - desired_names).each do |name|
+    (actual_names - declared_names).each do |name|
       svc = @actual[name]
       next if svc[:managed_by] == "ui" # Don't destroy UI-managed services
       if preserve_removed_services
@@ -84,12 +99,12 @@ class ManifestReconciler
     end
 
     # Services to update
-    (desired_names & actual_names).each do |name|
+    (selected_names & actual_names).each do |name|
       diff_service(name, @desired.find_service(name), @actual[name])
     end
 
     # Links diff
-    diff_links
+    diff_links(selected_names)
 
     @diff_computed = true
     @changes
@@ -148,8 +163,9 @@ class ManifestReconciler
       results << apply_link_change(engine, change)
     end
 
+    selected_names = selected_service_names.to_set
     never_deployed_apps = @project.services
-      .where(name: @desired.services.select { |service| service[:category] == "app" }.map { |service| service[:name] })
+      .where(name: @desired.services.select { |service| service[:category] == "app" && selected_names.include?(service[:name].to_s) }.map { |service| service[:name] })
       .where.not(id: Deployment.succeeded.select(:service_id))
       .pluck(:id)
     deploy_service_ids.merge(never_deployed_apps)
@@ -265,7 +281,7 @@ class ManifestReconciler
 
   def adopt_explicit_services!
     @project.services
-      .where(name: @desired.service_names, managed_by: %w[ui hybrid])
+      .where(name: selected_service_names, managed_by: %w[ui hybrid])
       .update_all(managed_by: "manifest", updated_at: Time.current)
   end
 
@@ -364,11 +380,15 @@ class ManifestReconciler
     end
   end
 
-  def diff_links
-    desired_links = @desired.links.map { |l| [ l[:from], l[:to] ] }.to_set
+  def diff_links(selected_names = nil)
+    desired_links = @desired.links
+      .select { |l| selected_names.nil? || selected_names.include?(l[:from].to_s) }
+      .map { |l| [ l[:from], l[:to] ] }.to_set
     actual_links = Set.new
 
     @project.services.includes(:linked_services).find_each do |svc|
+      next if selected_names && !selected_names.include?(svc.name)
+
       svc.linked_services.each do |linked|
         actual_links << [ svc.name, linked.name ]
       end

@@ -1,5 +1,5 @@
 class DeploymentSequenceJob < ApplicationJob
-  queue_as :default
+  queue_as :deployments
 
   limits_concurrency to: 1, key: ->(entries) {
     ids = entries.map { |entry| entry["deployment_id"] || entry[:deployment_id] }.sort

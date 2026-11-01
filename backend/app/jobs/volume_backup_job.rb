@@ -1,5 +1,5 @@
 class VolumeBackupJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   def perform(backup_id, storage_mount_id)
     backup = Backup.find(backup_id)

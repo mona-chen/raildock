@@ -146,6 +146,16 @@ When changing code that touches Rails credentials, ensure fresh installs still w
   schedule can be paused (`enabled = false`) without losing its next-run bookkeeping; the job uses
   the `BackupSchedule.due` scope so paused schedules are skipped. Retention defaults follow the
   cadence (daily 7, weekly 4, monthly 6) and the cap is 90.
+- Backup and deployment work run on **separate Solid Queue workers** (`config/queue.yml`):
+  deployments on `deployments`, lightweight housekeeping on `default`, and every data-safety job
+  (backups, PITR, restore drills, destination verification) on `backups`. A backup upload wedged on
+  a dead destination can then stall nothing but its own queue — a shared single worker with three
+  threads let a pile of stalled backup jobs starve deployments entirely.
+- Recurring jobs coalesce instead of piling up (`BackupQueueAware`): `RunDueBackupsJob` and
+  `RunPostgresPitrJob` stop adding work while the `backups` queue is deeper than `BACKLOG_LIMIT`, and
+  the PITR job never enqueues a second archive/base job for a config whose previous child is still
+  waiting or running. `PostgresPitrConfig#due_for_retry?` backs a failed config off for
+  `RETRY_BACKOFF` (15 min) rather than retrying it on every scheduler tick.
 - `PATCH /api/services/:id/backup_schedules/:schedule_id` edits frequency, retention, `enabled` and
   destinations. Destination ids are only rewritten when the request includes the key, so toggling a
   schedule can never silently drop its destinations.
@@ -352,7 +362,6 @@ version the target servers run before assuming a behavior.
 - Run tests before committing.
 - Update this file if you change install, release, backup, or credentials flow.
 - Do not commit `.env`, `master.key`, or `credentials.yml.enc`.
-
 
 - **Empty managed storage adapts to non-root images.** If a Docker-local deploy
   fails with a permission error, `ManagedStoragePermissions` resolves the built

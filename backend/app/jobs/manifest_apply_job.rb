@@ -10,10 +10,14 @@ class ManifestApplyJob < ApplicationJob
   #   allow_removals:     opt-in to destroying services that the manifest omits.
   #                       Only set after the user confirmed the exact list.
   #   force_destroy_data: proceed without a verified pre-destroy snapshot.
+  #   service_names:      optional subset of the manifest's services to apply.
+  #                       Used when a repository import only deploys the
+  #                       services the user selected.
   def perform(project_id, content = nil, options = {})
     options = (options || {}).symbolize_keys
     allow_removals = ActiveModel::Type::Boolean.new.cast(options[:allow_removals]) || false
     force_destroy_data = ActiveModel::Type::Boolean.new.cast(options[:force_destroy_data]) || false
+    service_names = options.key?(:service_names) ? Array(options[:service_names]).map(&:to_s).uniq : nil
 
     project = Project.find_by(id: project_id)
     unless project
@@ -29,6 +33,15 @@ class ManifestApplyJob < ApplicationJob
     end
 
     desired = ManifestParser.parse(content, filename: format)
+
+    if service_names
+      unknown = service_names - desired.service_names.map(&:to_s)
+      if service_names.empty? || unknown.any?
+        message = service_names.empty? ? "No services selected to deploy" : "Unknown services selected: #{unknown.join(', ')}"
+        broadcast(project_id, "failed", message)
+        return
+      end
+    end
 
     schema_content = desired.repaired_content || content
     parsed = JSON.parse(schema_content) rescue (TomlRB.parse(schema_content) rescue nil)
@@ -46,7 +59,7 @@ class ManifestApplyJob < ApplicationJob
       end
     end
 
-    reconciler = ManifestReconciler.new(project, desired)
+    reconciler = ManifestReconciler.new(project, desired, only: service_names)
     reconciler.diff
 
     server = project.server

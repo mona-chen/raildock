@@ -1,5 +1,5 @@
 class BackupJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   def perform(backup_id, schedule_id: nil)
     backup = Backup.find(backup_id)

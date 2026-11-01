@@ -183,4 +183,114 @@ RSpec.describe "Repository imports", type: :request do
       expect(JSON.parse(response.body)["removals_confirmed"]).to be(false)
     end
   end
+
+  describe "deploying a subset of the detected services" do
+    def discovered_app(name, depends_on: [])
+      {
+        "name" => name, "category" => "app", "subtype" => "web", "builder" => "dockerfile",
+        "source" => { "type" => "git", "repo" => "https://github.com/acme/storefront.git", "branch" => "main" },
+        "env" => {}, "domains" => [], "storage" => [], "proxy" => { "enabled" => true }, "checks" => {},
+        "depends_on" => depends_on
+      }
+    end
+
+    let(:result) do
+      RepositoryDiscovery::Result.new(
+        repository: "acme/storefront",
+        branch: "main",
+        commit_sha: "b" * 40,
+        services: [ discovered_app("web"), discovered_app("worker", depends_on: [ "web" ]) ],
+        links: [], warnings: [], conflicts: [], evidence: [],
+        original_format: "raildock.json", original_content: nil
+      )
+    end
+
+    def preview!
+      post "/api/projects/#{project.id}/repository-import/preview",
+        params: { git_source_id: git_source.id, repository: "acme/storefront", branch: "main" },
+        headers: auth_headers(user), as: :json
+      JSON.parse(response.body)
+    end
+
+    it "queues only the selected services" do
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token"), services: [ "web" ] },
+          headers: auth_headers(user), as: :json
+      }.to have_enqueued_job(ManifestApplyJob).with(project.id, anything, hash_including(service_names: [ "web" ]))
+
+      expect(response).to have_http_status(:accepted)
+      body = JSON.parse(response.body)
+      expect(body["service_count"]).to eq(1)
+      expect(body["services"]).to eq([ "web" ])
+      expect(body["expanded_services"]).to eq([])
+    end
+
+    it "keeps the previous deploy-everything behavior without a selection" do
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token") },
+          headers: auth_headers(user), as: :json
+      }.to have_enqueued_job(ManifestApplyJob).with(project.id, anything, hash_excluding(:service_names))
+
+      expect(JSON.parse(response.body)["service_count"]).to eq(2)
+    end
+
+    it "pulls in dependencies that do not exist yet" do
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token"), services: [ "worker" ] },
+          headers: auth_headers(user), as: :json
+      }.to have_enqueued_job(ManifestApplyJob).with(project.id, anything, hash_including(service_names: [ "worker", "web" ]))
+
+      body = JSON.parse(response.body)
+      expect(body["service_count"]).to eq(2)
+      expect(body["expanded_services"]).to eq([ "web" ])
+    end
+
+    it "leaves an existing dependency untouched" do
+      create(:service, project: project, name: "web", managed_by: :manifest)
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token"), services: [ "worker" ] },
+          headers: auth_headers(user), as: :json
+      }.to have_enqueued_job(ManifestApplyJob).with(project.id, anything, hash_including(service_names: [ "worker" ]))
+
+      expect(JSON.parse(response.body)["expanded_services"]).to eq([])
+    end
+
+    it "rejects an empty selection" do
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token"), services: [] },
+          headers: auth_headers(user), as: :json
+      }.not_to have_enqueued_job(ManifestApplyJob)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to include("at least one service")
+    end
+
+    it "rejects a service the snapshot does not contain" do
+      preview = preview!
+
+      expect {
+        post "/api/projects/#{project.id}/repository-import/apply",
+          params: { snapshot_token: preview.fetch("snapshot_token"), services: [ "backend" ] },
+          headers: auth_headers(user), as: :json
+      }.not_to have_enqueued_job(ManifestApplyJob)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to include("backend")
+    end
+  end
 end

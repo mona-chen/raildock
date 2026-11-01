@@ -1,5 +1,5 @@
 class PostgresWalArchiveJob < ApplicationJob
-  queue_as :default
+  queue_as :backups
 
   WAL_NAME = /\A[0-9A-F]{24}(?:\.[0-9A-F]{8}\.backup)?\z/
 
