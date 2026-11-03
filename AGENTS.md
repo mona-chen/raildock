@@ -371,3 +371,13 @@ version the target servers run before assuming a behavior.
   one cached rebuild. It never recursively changes data, handles arbitrary host
   mounts, or takes over custom/shared volumes. Keep the filesystem guards and
   one-retry boundary; ownership of populated storage requires deliberate migration.
+
+- **Git object-store permission recovery is scoped and single-retry.** On the exact
+  `insufficient permission for adding an object to repository database` sync error,
+  `GitRepositoryPermissions` verifies the app's canonical bare repository under the
+  system dokku account's home, takes Dokku's standard deploy advisory lock, and fixes
+  only root-owned/unwritable object-directory metadata. It refuses symlinks, alternates,
+  mounted object directories, unexpected owners, and nonstandard/unverifiable paths.
+  Object files remain immutable: never chown/chmod Git object files, refs, hooks,
+  application data, or entire host trees. Failed/refused repairs are logged without
+  retry; a verified repair permits exactly one sync retry and emits an activity event.

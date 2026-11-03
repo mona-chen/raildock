@@ -339,17 +339,31 @@ class DeploymentJob < ApplicationJob
       else
         # Git deploy: git:sync only fetches code; ps:rebuild does the actual build
         # Run git:sync first (non-streaming, usually short)
-        sync_result = engine.run("git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}")
-        if sync_result[:output].present?
-          redacted_sync = deployment.append_log_chunk!(sync_result[:output])
+        sync_command = "git:sync #{service.dokku_app_name} #{git_repo} #{git_ref}"
+        sync_result = engine.run(sync_command)
+        log_sync = ->(output) do
+          next if output.blank?
+          redacted_sync = deployment.append_log_chunk!(output)
           deploy_output += redacted_sync
           safely_broadcast_deployment(service, {
-            deployment_id: deployment.id,
-            status: "building",
-            log_chunk: redacted_sync,
-            sequence: deployment.event_sequence,
-            started_at: deployment.started_at.iso8601
+            deployment_id: deployment.id, status: "building", log_chunk: redacted_sync,
+            sequence: deployment.event_sequence, started_at: deployment.started_at.iso8601
           })
+        end
+        log_sync.call(sync_result[:output])
+
+        if !sync_result[:success] && GitRepositoryPermissions.permission_error?(sync_result[:output])
+          return if abort_if_cancelled(deployment)
+          recovery = GitRepositoryPermissions.new(service, host_engine: host_engine)
+          repaired = recovery.repair
+          recovery.messages.each { |message| log_sync.call("-----> #{message}\n") }
+          if repaired
+            ActivityEvent.create!(project: project, action: "warning", message: "Repaired Git object-directory permissions for #{service.name}; retrying Git sync once.")
+            return if abort_if_cancelled(deployment)
+            log_sync.call("-----> Retrying Git sync once after object-directory permission recovery\n")
+            sync_result = engine.run(sync_command)
+            log_sync.call(sync_result[:output])
+          end
         end
 
         if !sync_result[:success]

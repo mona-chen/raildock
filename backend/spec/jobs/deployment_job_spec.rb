@@ -299,6 +299,51 @@ RSpec.describe DeploymentJob, type: :job do
       end
     end
 
+    context "when Git object directory permissions drift" do
+      let(:permission_error) { "insufficient permission for adding an object to repository database ./objects" }
+      let(:sync_command) { "git:sync #{service.dokku_app_name} #{service.git_repo} feature" }
+      let(:recovery) { instance_double(GitRepositoryPermissions, repair: true, messages: ["Verified object directory permission repair"]) }
+
+      before do
+        allow(GitRepositoryPermissions).to receive(:new).with(service, host_engine: host_engine).and_return(recovery)
+        allow(engine).to receive(:run).with(sync_command).and_return({ success: false, output: permission_error }, { success: true, output: "synced" })
+      end
+
+      it "records the repair, retries the same ref once and continues the deployment" do
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(engine).to have_received(:run).with(sync_command).twice
+        expect(deployment.reload.status).to eq("success")
+        expect(deployment.deploy_log).to include("Verified object directory permission repair", "Retrying Git sync once")
+        expect(ActivityEvent.where(action: "warning").pluck(:message).join).to include("Repaired Git object-directory permissions")
+      end
+
+      it "fails without rebuilding or looping when the retry still fails" do
+        allow(engine).to receive(:run).with(sync_command).and_return(success: false, output: permission_error)
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(engine).to have_received(:run).with(sync_command).twice
+        expect(recovery).to have_received(:repair).once
+        expect(engine).not_to have_received(:run_streaming)
+        expect(deployment.reload.status).to eq("failed")
+      end
+
+      it "does not retry or record a repair when host validation refuses it" do
+        allow(recovery).to receive(:repair).and_return(false)
+        allow(recovery).to receive(:messages).and_return(["Git permission recovery skipped: unsafe repository"])
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(engine).to have_received(:run).with(sync_command).once
+        expect(deployment.reload.status).to eq("failed")
+        expect(deployment.deploy_log).to include("unsafe repository")
+        expect(ActivityEvent.where(action: "warning").pluck(:message).join).not_to include("Repaired Git object-directory permissions")
+      end
+
+      it "never invokes privileged repair for GitHub authentication failures" do
+        allow(engine).to receive(:run).with(sync_command).and_return(success: false, output: "Permission denied (publickey)")
+        DeploymentJob.perform_now(service.id, deployment.id)
+        expect(recovery).not_to have_received(:repair)
+        expect(engine).to have_received(:run).with(sync_command).once
+      end
+    end
+
     context "when the service uses a GitHub App repository" do
       let!(:owner) { create(:user) }
       let!(:project) { create(:project, server: server, user: owner) }
