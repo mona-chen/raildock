@@ -42,47 +42,53 @@ module Authorizable
   private
 
   def authorize_project!(project, action: :read)
-    return true if project.nil?
+    if project.nil?
+      if current_organization
+        membership = current_user.organization_memberships.find_by!(organization_id: current_organization.id)
+        raise ApplicationController::AuthorizationDenied unless PERMISSIONS.fetch(:project).fetch(action, []).include?(membership.role.to_sym)
+      end
+      return true
+    end
 
     if project.organization_id.nil?
       return true if project.user_id == current_user.id
       return true if project.user_id.nil? && current_user.admin?
 
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
 
     membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
     unless membership
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
 
     allowed_roles = PERMISSIONS.dig(:project, action) || []
     unless allowed_roles.include?(membership.role.to_sym)
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
   end
 
   def authorize_service!(service, action: :read)
-    return true if service.nil?
+    raise ApplicationController::AuthorizationDenied if service.nil?
 
     project = service.project
-    return true if project.nil?
+    raise ApplicationController::AuthorizationDenied if project.nil?
 
     if project.organization_id.nil?
       return true if project.user_id == current_user.id
       return true if project.user_id.nil? && current_user.admin?
 
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
 
     membership = current_user.organization_memberships.find_by(organization_id: project.organization_id)
     unless membership
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
 
     allowed_roles = PERMISSIONS.dig(:service, action) || PERMISSIONS.dig(:project, action) || []
     unless allowed_roles.include?(membership.role.to_sym)
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
   end
 
@@ -91,12 +97,12 @@ module Authorizable
 
     membership = current_user.organization_memberships.find_by(organization_id: organization.id)
     unless membership
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
 
     allowed_roles = PERMISSIONS.dig(:organization, action) || []
     unless allowed_roles.include?(membership.role.to_sym)
-      render json: { error: "Forbidden" }, status: :forbidden and return
+      raise ApplicationController::AuthorizationDenied
     end
   end
 
@@ -106,16 +112,16 @@ module Authorizable
     if current_organization
       membership = current_user.organization_memberships.find_by(organization_id: current_organization.id)
       unless membership
-        render json: { error: "Forbidden" }, status: :forbidden and return
+        raise ApplicationController::AuthorizationDenied
       end
 
       allowed_roles = PERMISSIONS.dig(:server, action) || []
       unless allowed_roles.include?(membership.role.to_sym)
-        render json: { error: "Forbidden" }, status: :forbidden and return
+        raise ApplicationController::AuthorizationDenied
       end
     else
       # Personal servers are only accessible by their owner; create requires an organization.
-      render json: { error: "Forbidden" }, status: :forbidden and return if action == :create
+      raise ApplicationController::AuthorizationDenied if action == :create
     end
   end
 

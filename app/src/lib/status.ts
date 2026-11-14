@@ -13,7 +13,7 @@ export interface StatusMeta {
 }
 
 const STATUS_META: Record<string, StatusMeta> = {
-  running: { label: 'Online', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
+  running: { label: 'Running', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
   succeeded: { label: 'Succeeded', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
   building: { label: 'Building', color: '#eab308', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/20' },
   deploying: { label: 'Deploying', color: '#8b5cf6', badge: 'bg-[#8b5cf6]/15 text-[#c4b5fd] border-[#8b5cf6]/25' },

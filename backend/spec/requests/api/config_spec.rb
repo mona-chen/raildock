@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::ConfigController", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
 
   describe "GET /api/config" do
     it "returns github_app config when authenticated" do

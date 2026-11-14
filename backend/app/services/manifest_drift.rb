@@ -200,7 +200,7 @@ class ManifestDrift
   end
 
   def service_report(name, service_changes)
-    service = @project.services.find_by(name: name)
+    service = @project.services.where(environment: @project.default_environment).find_by(name: name)
     only_in_manifest = service_changes.any? { |change| change.field == :service && change.change_type == :added }
 
     {
@@ -214,7 +214,7 @@ class ManifestDrift
   end
 
   def missing_from_manifest_report(name)
-    service = @project.services.find_by(name: name)
+    service = @project.services.where(environment: @project.default_environment).find_by(name: name)
     {
       name: name,
       managed_by: service&.managed_by,

@@ -12,6 +12,9 @@ module Api
     end
 
     def create
+      if params[:role] == "owner" && !current_membership.owner?
+        raise ApplicationController::AuthorizationDenied
+      end
       email = params[:email].to_s.downcase.strip
       user = User.find_by("LOWER(email) = ?", email)
 
@@ -103,6 +106,7 @@ module Api
 
     def set_organization
       @organization = Organization.find(params[:organization_id])
+      authorize_organization_access!(@organization)
     end
 
     def set_membership
@@ -143,6 +147,8 @@ module Api
 
       OrganizationMailer.invitation_email(invitation).deliver_later
       true
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error("[Invitation] Failed to enqueue email to #{invitation.email}: #{e.message}")
       false

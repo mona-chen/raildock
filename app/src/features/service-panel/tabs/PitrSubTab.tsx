@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { DatabaseBackup, Loader2, ShieldCheck, ShieldX, Clock, AlertCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useRecovery, useConfigurePitr } from '@/hooks/useServices'
+import { useRecovery, useConfigurePitr, useBackups, useRunRestoreDrill } from '@/hooks/useServices'
 import type { Service, BackupDestination } from '@/types'
 
 function formatDate(value?: string) {
@@ -12,6 +12,13 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
   const { data: recovery, isLoading } = useRecovery(serviceId)
   const configurePitr = useConfigurePitr()
   const [selectedDestination, setSelectedDestination] = useState('')
+  const [targetTime, setTargetTime] = useState('')
+  const { data: backups = [] } = useBackups(serviceId)
+  const runDrill = useRunRestoreDrill()
+  const target = targetTime ? new Date(targetTime) : null
+  const base = backups.filter((backup) => backup.backupKind === 'pitr_base' && backup.status === 'completed' && (!target || new Date(backup.createdAt) < target))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+  const lastVerified = recovery?.drills?.find((drill) => drill.status === 'succeeded' && backups.some((backup) => backup.id === drill.backupId && backup.backupKind === 'pitr_base'))
 
   const destinations = recovery?.destinations || []
   const pitr = recovery?.pitr
@@ -36,7 +43,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
           <DatabaseBackup size={15} className="text-[#8b5cf6]" />
           PostgreSQL point-in-time recovery
         </div>
-        <p className="mt-1 text-[12px] text-white/35">Daily physical base backups plus continuous WAL archiving let you restore to any moment.</p>
+        <p className="mt-1 text-[12px] text-white/35">Store physical base backups and WAL archives off-site. Verify recovery in an isolated PostgreSQL instance before relying on a recovery target.</p>
       </div>
 
       {pitr?.enabled ? (
@@ -45,7 +52,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
             <div>
               <div className="flex items-center gap-2 text-[13px] font-medium text-emerald-400">
                 <ShieldCheck size={14} />
-                Active
+                {pitr.status === 'active' ? 'Archiving enabled' : 'Archiving needs attention'}
               </div>
               <div className="mt-1 text-[11px] text-white/35">
                 Retention: {pitr.retentionDays} day{pitr.retentionDays === 1 ? '' : 's'}
@@ -126,6 +133,19 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
             </div>
           )}
         </div>
+      )}
+      {pitr?.enabled && (
+        <section className="mt-4 rounded-lg border border-white/[0.07] p-4" aria-label="Verify PostgreSQL recovery">
+          <h3 className="text-[13px] font-medium text-white/80">Verify an isolated recovery</h3>
+          <p className="mt-1 text-[12px] text-white/50">Starts a private database, replays archived WAL, verifies a query, and removes the temporary resources. Your live database is unchanged.</p>
+          <label className="mt-3 block text-[12px] text-white/60">Recovery target (your local time, optional)
+            <input type="datetime-local" value={targetTime} onChange={(event) => setTargetTime(event.target.value)} className="mt-1 block rounded border border-white/10 bg-black/20 p-2 text-white/80" />
+          </label>
+          <button type="button" disabled={!base || runDrill.isPending || (target !== null && (!Number.isFinite(target.getTime()) || target > new Date()))} onClick={() => { if (base) runDrill.mutate({ id: serviceId, backupId: base.id, targetTime: target?.toISOString() }) }} className="mt-3 rounded bg-violet-500/20 px-3 py-2 text-[12px] text-violet-200 disabled:opacity-40">{runDrill.isPending ? 'Queueing verification…' : 'Verify recovery'}</button>
+          {!base && <p className="mt-2 text-[12px] text-amber-300">No completed base backup is available before this target.</p>}
+          <p className="mt-3 text-[12px] text-white/50">Last verified physical recovery: {formatDate(lastVerified?.completedAt)}</p>
+          {recovery?.drills?.slice(0, 3).map((drill) => <div key={drill.id} className="mt-2 text-[12px] text-white/60">{drill.status}: {drill.log || 'Waiting for a backup worker'}</div>)}
+        </section>
       )}
     </div>
   )

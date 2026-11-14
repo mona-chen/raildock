@@ -1,5 +1,6 @@
 module Api
   class DeployKeysController < BaseController
+    include Authorizable
     def index
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
@@ -23,7 +24,7 @@ module Api
 
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
-        authorize_organization_access!(org)
+        authorize_organization!(org, action: :settings)
         key.organization = org
       else
         key.user = current_user
@@ -40,7 +41,7 @@ module Api
       key = DeployKey.find(params[:id])
 
       if key.organization
-        authorize_organization_access!(key.organization)
+        authorize_organization!(key.organization, action: :settings)
       elsif key.user && key.user != current_user
         return render json: { error: "Forbidden" }, status: :forbidden
       end

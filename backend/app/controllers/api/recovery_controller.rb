@@ -4,6 +4,9 @@ module Api
 
     before_action :set_service
 
+    around_action :serialize_service_write
+
+
     def show
       render json: {
         destinations: reachable_destinations,
@@ -40,6 +43,8 @@ module Api
       destination = @service.project.server.backup_destinations.create!(destination_params)
       BackupDestinationClient.new(destination).verify!
       render json: destination.as_json.merge("recovery_key" => destination.encryption_key), status: :created
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => error
       render json: { error: "Destination verification failed: #{error.message}" }, status: :unprocessable_entity
     end
@@ -49,6 +54,8 @@ module Api
       destination = destination_scope.find(params[:destination_id])
       BackupDestinationClient.new(destination).verify!
       render json: destination.reload
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => error
       render json: { error: "Destination verification failed: #{error.message}" }, status: :unprocessable_entity
     end
@@ -96,12 +103,27 @@ module Api
     def create_drill
       authorize_service!(@service, action: :update)
       backup = @service.backups.find(params[:backup_id])
-      drill = backup.restore_drills.create!
+      target = begin
+        Time.iso8601(params[:target_time]) if params[:target_time].present?
+      rescue ArgumentError
+        return render json: { error: "Recovery target must be an ISO-8601 timestamp" }, status: :unprocessable_entity
+      end
+      if target && (!backup.backup_kind_pitr_base? || target <= backup.created_at || target > Time.current)
+        return render json: { error: "Choose a recovery target after the physical base backup and before now" }, status: :unprocessable_entity
+      end
+      drill = backup.restore_drills.create!(target_time: target)
       RestoreDrillJob.perform_later(drill.id)
       render json: drill, status: :accepted
     end
 
     private
+
+    def serialize_service_write
+      return yield if request.get? || !@service
+
+      ServiceOperationLock.with(@service) { yield }
+    end
+
       def set_service
         @service = Service.find(params[:service_id])
         authorize_service!(@service)

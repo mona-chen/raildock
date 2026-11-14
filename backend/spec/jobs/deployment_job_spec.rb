@@ -99,7 +99,7 @@ RSpec.describe DeploymentJob, type: :job do
 
   describe "#perform" do
     context "when new managed storage blocks a non-root app" do
-      let(:permissions) { instance_double(ManagedStoragePermissions, repair: ["/data"], messages: ["/data: initialized empty storage for the application."]) }
+      let(:permissions) { instance_double(ManagedStoragePermissions, repair: [ "/data" ], messages: [ "/data: initialized empty storage for the application." ]) }
 
       before do
         allow(ManagedStoragePermissions).to receive(:new).with(service, engine: engine, host_engine: host_engine).and_return(permissions)
@@ -109,7 +109,7 @@ RSpec.describe DeploymentJob, type: :job do
           attempts += 1
           output = attempts == 1 ? "PermissionError: Operation not permitted: '/data'" : "storage recovered"
           block&.call(output)
-          {success: attempts > 1, output: output, cancelled: false}
+          { success: attempts > 1, output: output, cancelled: false }
         end
       end
 
@@ -131,7 +131,7 @@ RSpec.describe DeploymentJob, type: :job do
       it "does not retry a second permission failure" do
         allow(engine).to receive(:run_streaming) do |_command, cancelled: nil, &block|
           block&.call("Permission denied")
-          {success: false, output: "Permission denied", cancelled: false}
+          { success: false, output: "Permission denied", cancelled: false }
         end
         DeploymentJob.perform_now(service.id, deployment.id)
         expect(permissions).to have_received(:repair).once
@@ -302,7 +302,7 @@ RSpec.describe DeploymentJob, type: :job do
     context "when Git object directory permissions drift" do
       let(:permission_error) { "insufficient permission for adding an object to repository database ./objects" }
       let(:sync_command) { "git:sync #{service.dokku_app_name} #{service.git_repo} feature" }
-      let(:recovery) { instance_double(GitRepositoryPermissions, repair: true, messages: ["Verified object directory permission repair"]) }
+      let(:recovery) { instance_double(GitRepositoryPermissions, repair: true, messages: [ "Verified object directory permission repair" ]) }
 
       before do
         allow(GitRepositoryPermissions).to receive(:new).with(service, host_engine: host_engine).and_return(recovery)
@@ -312,7 +312,7 @@ RSpec.describe DeploymentJob, type: :job do
       it "records the repair, retries the same ref once and continues the deployment" do
         DeploymentJob.perform_now(service.id, deployment.id)
         expect(engine).to have_received(:run).with(sync_command).twice
-        expect(deployment.reload.status).to eq("success")
+        expect(deployment.reload.status).to eq("succeeded")
         expect(deployment.deploy_log).to include("Verified object directory permission repair", "Retrying Git sync once")
         expect(ActivityEvent.where(action: "warning").pluck(:message).join).to include("Repaired Git object-directory permissions")
       end
@@ -328,7 +328,7 @@ RSpec.describe DeploymentJob, type: :job do
 
       it "does not retry or record a repair when host validation refuses it" do
         allow(recovery).to receive(:repair).and_return(false)
-        allow(recovery).to receive(:messages).and_return(["Git permission recovery skipped: unsafe repository"])
+        allow(recovery).to receive(:messages).and_return([ "Git permission recovery skipped: unsafe repository" ])
         DeploymentJob.perform_now(service.id, deployment.id)
         expect(engine).to have_received(:run).with(sync_command).once
         expect(deployment.reload.status).to eq("failed")

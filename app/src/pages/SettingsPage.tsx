@@ -27,6 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import WorkspaceHeader from '@/features/shared/WorkspaceHeader'
 import ConfigSchemaForm from '@/components/ConfigSchemaForm'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
 import MembersTab from '@/features/settings/MembersTab'
@@ -62,7 +63,8 @@ const TAB_GROUPS = [
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = searchParams.get('tab') || 'integrations'
+  const requestedTab = searchParams.get('tab') || 'members'
+  const activeTab = TAB_GROUPS.some((group) => group.tabs.some((tab) => tab.key === requestedTab)) ? requestedTab : 'members'
   const { data: modules = [], isLoading: modulesLoading } = useModules()
   const { user } = useAuthStore()
   const isAdmin = user?.admin === true
@@ -78,34 +80,26 @@ export default function SettingsPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <header className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] flex items-center gap-3">
-        <Settings size={18} className="text-rail-purple" />
-        <div>
-          <h1 className="text-base font-semibold text-white">Settings</h1>
-          <p className="text-[11px] text-[#8a8a99] mt-0.5">
-            {activeGroup?.label === 'Instance' ? 'This RailDock instance' : 'Your organization workspace'}
-          </p>
-        </div>
-      </header>
+      <WorkspaceHeader title="Settings" description={activeGroup?.label === 'Instance' ? 'Manage the RailDock instance that powers your workspace.' : 'Your team, connections, and recovery preferences.'} />
 
-      <div className="flex-1 flex min-h-0">
-        <aside className="w-[224px] flex-shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+        <aside className="hidden md:flex w-[224px] flex-shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
           <div className="p-3">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b]" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9292a3]" />
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter settings…"
                 aria-label="Filter settings"
-                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-8 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#6b6b7b] focus:outline-none focus:border-rail-purple/40"
+                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-8 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#9292a3] focus:outline-none focus:border-rail-purple/40"
               />
             </div>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-3">
             {groups.map((group) => (
               <div key={group.label} className="mb-1">
-                <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#6b6b7b]">{group.label}</div>
+                <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#9292a3]">{group.label}</div>
                 {group.tabs.map((tab) => {
                   const isActive = activeTab === tab.key
                   return (
@@ -126,12 +120,13 @@ export default function SettingsPage() {
               </div>
             ))}
             {groups.length === 0 && (
-              <p className="px-2 py-4 text-[11px] text-[#6b6b7b]">No settings match “{filter}”.</p>
+              <p className="px-2 py-4 text-[11px] text-[#9292a3]">No settings match “{filter}”.</p>
             )}
           </nav>
         </aside>
 
-        <div className="flex-1 min-w-0 overflow-y-auto p-6">
+        <div className="border-b border-white/[0.08] p-3 md:hidden"><Select value={activeTab} onValueChange={(tab) => setSearchParams({ tab })}><SelectTrigger aria-label="Settings section"><SelectValue /></SelectTrigger><SelectContent>{TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => <SelectItem key={tab.key} value={tab.key}>{group.label} · {tab.label}</SelectItem>))}</SelectContent></Select></div>
+        <div className="flex-1 min-w-0 overflow-y-auto p-5 sm:p-8">
           {activeTab === 'integrations' && (
             <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
           )}
@@ -158,7 +153,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Plugins & Integrations</h2>
-          <p className="text-[11px] text-[#6b6b7b] mt-0.5">
+          <p className="text-[11px] text-[#9292a3] mt-0.5">
             Enable, install, and configure plugins that extend RailDock capabilities.
           </p>
         </div>
@@ -178,7 +173,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#6b6b7b]">Loading plugins...</div>
+        <div className="text-[11px] text-[#9292a3]">Loading plugins...</div>
       ) : (
         <div className="space-y-3">
           {modules.map((mod) => (
@@ -191,7 +186,7 @@ function PluginManager({ modules, isLoading, isAdmin }: { modules: Module[]; isL
           ))}
           {modules.length === 0 && (
             <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-              <Puzzle size={24} className="text-[#6b6b7b] mx-auto mb-2" />
+              <Puzzle size={24} className="text-[#9292a3] mx-auto mb-2" />
               <p className="text-sm text-[#A0A0B0]">No plugins loaded</p>
             </div>
           )}
@@ -237,7 +232,7 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
             {mod.status.replace('_', ' ')}
           </span>
         </div>
-        <div className="text-[10px] text-[#6b6b7b] mt-0.5 truncate">{mod.description}</div>
+        <div className="text-[10px] text-[#9292a3] mt-0.5 truncate">{mod.description}</div>
         <div className="flex flex-wrap gap-1 mt-2">
           {mod.serviceSubtypes.map((s) => (
             <span key={s.subtype} className="text-[9px] px-1.5 py-0.5 bg-[rgba(139,92,246,0.08)] text-rail-purple rounded capitalize">
@@ -286,7 +281,7 @@ function PluginCard({ mod, isAdmin, onConfigure }: { mod: Module; isAdmin: boole
             size="sm"
             onClick={() => setUninstallOpen(true)}
             disabled={uninstall.isPending}
-            className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+            className="text-[11px] text-[#9292a3] hover:text-red-400 h-7"
             aria-label={`Uninstall ${mod.name}`}
           >
             <Trash2 size={13} />
@@ -334,7 +329,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
     <form onSubmit={handleSubmit}>
       <DialogHeader>
         <DialogTitle className="text-sm">Install Plugin</DialogTitle>
-        <DialogDescription className="text-[11px] text-[#6b6b7b]">
+        <DialogDescription className="text-[11px] text-[#9292a3]">
           Install a plugin from a remote manifest URL (YAML or JSON).
         </DialogDescription>
       </DialogHeader>
@@ -359,7 +354,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://example.com/raildock-plugin.yml"
-            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#6b6b7b]"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#9292a3]"
           />
         </div>
         <div>
@@ -369,7 +364,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
             value={sourceRef}
             onChange={(e) => setSourceRef(e.target.value)}
             placeholder="main"
-            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#6b6b7b]"
+            className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white placeholder:text-[#9292a3]"
           />
         </div>
       </div>
@@ -401,14 +396,14 @@ function PluginConfigDialog({
       <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
         <DialogHeader>
           <DialogTitle className="text-sm">{plugin ? `${plugin.name} Settings` : 'Plugin Settings'}</DialogTitle>
-          <DialogDescription className="text-[11px] text-[#6b6b7b]">
+          <DialogDescription className="text-[11px] text-[#9292a3]">
             Configure this plugin before enabling it.
           </DialogDescription>
         </DialogHeader>
         {plugin && (
           <div className="py-2">
             {isLoading ? (
-              <div className="text-[11px] text-[#6b6b7b]">Loading settings...</div>
+              <div className="text-[11px] text-[#9292a3]">Loading settings...</div>
             ) : (
               <ConfigSchemaForm
                 key={plugin.slug}
@@ -490,12 +485,12 @@ function UpdatesTab() {
   return (
     <div className="max-w-3xl space-y-5">
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+        <div className="text-[10px] text-[#9292a3] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
           <ArrowUpCircle size={12} className="text-rail-purple" /> Version & Updates
         </div>
 
         {isLoading ? (
-          <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
+          <div className="text-[11px] text-[#9292a3]">Loading...</div>
         ) : isError ? (
           <div className="text-[11px] text-red-400">Failed to load update info</div>
         ) : updateInfo ? (
@@ -503,10 +498,10 @@ function UpdatesTab() {
             {/* Current version + last checked */}
             <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
               <div>
-                <div className="text-[11px] text-[#6b6b7b]">Current Version</div>
+                <div className="text-[11px] text-[#9292a3]">Current Version</div>
                 <div className="text-sm text-white font-mono mt-0.5">{updateInfo.currentVersion}</div>
               </div>
-              <div className="text-[10px] text-[#6b6b7b] text-right">
+              <div className="text-[10px] text-[#9292a3] text-right">
                 Last checked: <span className="text-white/60">{formatDate(updateInfo.checkedAt)}</span>
               </div>
             </div>
@@ -545,7 +540,7 @@ function UpdatesTab() {
               <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
                 <div className="text-sm text-[#A0A0B0]">You're up to date</div>
                 {updateInfo.latestVersion && (
-                  <div className="text-[11px] text-[#6b6b7b] mt-0.5">
+                  <div className="text-[11px] text-[#9292a3] mt-0.5">
                     Latest available: <span className="font-mono text-white/60">{updateInfo.latestVersion}</span>
                   </div>
                 )}
@@ -594,13 +589,13 @@ function UpdatesTab() {
 
       {/* Auto-update settings */}
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
+        <div className="text-[10px] text-[#9292a3] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
           <RefreshCw size={12} className="text-rail-purple" /> Auto-Update
         </div>
         <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg gap-4">
           <div className="min-w-0">
             <div className="text-sm text-white">Automatic Updates</div>
-            <div className="text-[11px] text-[#6b6b7b] mt-0.5">
+            <div className="text-[11px] text-[#9292a3] mt-0.5">
               When enabled, RailDock checks for updates every 6 hours and applies them automatically.
             </div>
           </div>
@@ -651,7 +646,7 @@ function DeployKeysTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Deploy Keys</h2>
-          <p className="text-[11px] text-[#6b6b7b] mt-0.5">SSH keys for cloning private repositories</p>
+          <p className="text-[11px] text-[#9292a3] mt-0.5">SSH keys for cloning private repositories</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -663,7 +658,7 @@ function DeployKeysTab() {
           <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
             <DialogHeader>
               <DialogTitle className="text-sm">Create Deploy Key</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#6b6b7b]">
+              <DialogDescription className="text-[11px] text-[#9292a3]">
                 Generates a new ED25519 SSH key pair. The private key is stored encrypted.
               </DialogDescription>
             </DialogHeader>
@@ -690,12 +685,12 @@ function DeployKeysTab() {
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
+        <div className="text-[11px] text-[#9292a3]">Loading...</div>
       ) : keys.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Key size={24} className="text-[#6b6b7b] mx-auto mb-2" />
+          <Key size={24} className="text-[#9292a3] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No deploy keys yet</p>
-          <p className="text-[11px] text-[#6b6b7b] mt-1">Create one to deploy from private Git repos via SSH.</p>
+          <p className="text-[11px] text-[#9292a3] mt-1">Create one to deploy from private Git repos via SSH.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -713,13 +708,13 @@ function DeployKeysTab() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setRemoveTarget({ id: key.id, name: key.name })}
-                  className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+                  className="text-[11px] text-[#9292a3] hover:text-red-400 h-7"
                   aria-label={`Delete deploy key ${key.name}`}
                 >
                   <Trash2 size={13} />
                 </Button>
               </div>
-              <div className="text-[10px] text-[#6b6b7b]">Fingerprint: {key.fingerprint}</div>
+              <div className="text-[10px] text-[#9292a3]">Fingerprint: {key.fingerprint}</div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1 truncate">
                   {key.publicKey}
@@ -786,7 +781,7 @@ function OrganizationsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-medium text-white">Organizations</h2>
-          <p className="text-[11px] text-[#6b6b7b] mt-0.5">Manage teams and shared resources</p>
+          <p className="text-[11px] text-[#9292a3] mt-0.5">Manage teams and shared resources</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -798,7 +793,7 @@ function OrganizationsTab() {
           <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
             <DialogHeader>
               <DialogTitle className="text-sm">Create Organization</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#6b6b7b]">
+              <DialogDescription className="text-[11px] text-[#9292a3]">
                 Organizations let you share projects and git sources with your team.
               </DialogDescription>
             </DialogHeader>
@@ -836,12 +831,12 @@ function OrganizationsTab() {
       </div>
 
       {isLoading ? (
-        <div className="text-[11px] text-[#6b6b7b]">Loading...</div>
+        <div className="text-[11px] text-[#9292a3]">Loading...</div>
       ) : organizations.length === 0 ? (
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Building2 size={24} className="text-[#6b6b7b] mx-auto mb-2" />
+          <Building2 size={24} className="text-[#9292a3] mx-auto mb-2" />
           <p className="text-sm text-[#A0A0B0]">No organizations yet</p>
-          <p className="text-[11px] text-[#6b6b7b] mt-1">Create one to share projects with your team.</p>
+          <p className="text-[11px] text-[#9292a3] mt-1">Create one to share projects with your team.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -860,7 +855,7 @@ function OrganizationsTab() {
                 </div>
                 <div>
                   <div className="text-sm text-white font-medium">{org.name}</div>
-                  <div className="text-[10px] text-[#6b6b7b] flex items-center gap-2">
+                  <div className="text-[10px] text-[#9292a3] flex items-center gap-2">
                     <span>@{org.slug}</span>
                     <span className="flex items-center gap-1">
                       <Users size={10} />
@@ -886,7 +881,7 @@ function OrganizationsTab() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setRemoveTarget(org)}
-                  className="text-[11px] text-[#6b6b7b] hover:text-red-400 h-7"
+                  className="text-[11px] text-[#9292a3] hover:text-red-400 h-7"
                   aria-label={`Delete organization ${org.name}`}
                 >
                   <Trash2 size={13} />

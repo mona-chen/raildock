@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Service recovery", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:server) { create(:server) }
   let(:service) { create(:service, :database, project: create(:project, server: server), subtype: "postgres") }
   let(:headers) { auth_headers(user) }

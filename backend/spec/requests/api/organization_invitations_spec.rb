@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::InvitationsController", type: :request do
-  let(:inviter) { create(:user) }
+  let(:inviter) { create(:user, :admin) }
   let(:org) { create(:organization, owner: inviter) }
   let!(:membership) { create(:organization_membership, user: inviter, organization: org, role: :owner) }
   let(:invitee_email) { "teammate@example.com" }
@@ -35,7 +35,7 @@ RSpec.describe "Api::InvitationsController", type: :request do
     end
 
     it "rejects invitations for non-admins" do
-      member = create(:user)
+      member = create(:user, :admin)
       create(:organization_membership, user: member, organization: org, role: :member)
 
       post "/api/organizations/#{org.id}/invitations",

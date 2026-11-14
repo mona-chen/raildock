@@ -36,6 +36,13 @@ export function getCable() {
   return consumer
 }
 
+/** Release authenticated sockets when the workspace/session boundary unmounts. */
+export function disconnectCable() {
+  consumer?.disconnect()
+  consumer = null
+  consumerToken = null
+}
+
 /** Disconnect and clear the cached consumer so the next call creates a fresh one */
 export function reconnectCable() {
   if (consumer) {

@@ -22,7 +22,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 export default function TemplateGallery({ onUseAsManifest, projectId }: TemplateGalleryProps) {
-  const { data: templates = [] } = useTemplates()
+  const { data: templates = [], isLoading, isError, refetch } = useTemplates()
   const deployTemplate = useDeployTemplate()
   const [deployingId, setDeployingId] = useState<string | null>(null)
 
@@ -128,11 +128,12 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
       {templates.length === 0 && (
         <div className="text-center py-6">
           <GitBranch size={24} className="text-white/20 mx-auto mb-2" />
-          <div className="text-[13px] text-white/50">No templates loaded</div>
+          <div className="text-[13px] text-white/50">{isLoading ? 'Loading templates…' : isError ? 'Templates could not be loaded' : 'The template catalog is not configured yet'}</div>
           <div className="text-[11px] text-white/25 mt-1">
-            Templates are loaded from disk on boot.
-            Set RAILDOCK_TEMPLATES_REPO for community templates.
+            You can add services from Git or a Docker image now. An administrator can configure the community template repository and restart RailDock to enable the catalog.
           </div>
+          <button type="button" onClick={() => void refetch()} disabled={isLoading} className="mt-3 rounded-md bg-white/[0.06] px-3 py-2 text-[12px] text-white/70 disabled:opacity-40">Retry loading templates</button>
+          <a href="https://github.com/mona-chen/raildock/blob/main/docs/operations.md#templates" target="_blank" rel="noreferrer" className="ml-3 text-[12px] text-violet-300">Catalog setup</a>
         </div>
       )}
     </div>

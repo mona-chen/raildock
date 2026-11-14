@@ -60,6 +60,8 @@ module Api
       else
         redirect_to frontend_redirect_url(github_app: "error", message: git_source.errors.full_messages.join(", ")), allow_other_host: true
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "GitHub App callback failed: #{e.message}"
       redirect_to frontend_redirect_url(github_app: "error", message: "Failed to verify GitHub installation"), allow_other_host: true
@@ -92,6 +94,8 @@ module Api
       # Delete from GitHub (404 = already uninstalled, which is fine)
       begin
         GithubAppService.delete_installation(installation_id)
+      rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+        raise
       rescue => e
         if e.message.include?("404")
           Rails.logger.info "GitHub App installation #{installation_id} already removed from GitHub"
@@ -104,6 +108,8 @@ module Api
       git_source.destroy!
 
       render json: { success: true, message: "GitHub App uninstalled successfully" }
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "GitHub App destroy_installation failed: #{e.message}"
       render json: { error: "Failed to uninstall GitHub App" }, status: :internal_server_error
@@ -164,6 +170,8 @@ module Api
           callback_url: github_callback_url
         )
       }
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "GitHub App finish_setup failed: #{e.message}"
       render json: { error: "Failed to complete GitHub App setup" }, status: :internal_server_error

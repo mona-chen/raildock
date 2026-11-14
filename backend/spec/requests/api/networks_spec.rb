@@ -52,7 +52,7 @@ RSpec.describe "Networks API", type: :request do
     end
 
     it "does not expose another user's server inventory" do
-      other_server = create(:server, user: create(:user))
+      other_server = create(:server, user: create(:user, :admin))
 
       get "/api/servers/#{other_server.id}/networks", headers: auth_headers
 

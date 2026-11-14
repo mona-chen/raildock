@@ -1,7 +1,7 @@
 class PostgresWalArchiveJob < ApplicationJob
   queue_as :backups
 
-  WAL_NAME = /\A[0-9A-F]{24}(?:\.[0-9A-F]{8}\.backup)?\z/
+  WAL_NAME = /\A(?:[0-9A-F]{24}(?:\.[0-9A-F]{8}\.backup)?|[0-9A-F]{8}\.history)\z/
 
   def perform(config_id)
     config = PostgresPitrConfig.find(config_id)
@@ -32,7 +32,7 @@ class PostgresWalArchiveJob < ApplicationJob
       result = host.run_to_file(command, path)
       raise result[:output].presence || "Could not read WAL segment #{wal_name}" unless result[:success]
 
-      BackupArtifactStore.new.persist!(backup, path, storage_name: "pitr/#{service.id}/wal/#{wal_name}.enc")
+      BackupArtifactStore.new.persist!(backup, path, destination_ids: [ config.backup_destination_id.to_s ], storage_name: "pitr/#{service.id}/wal/#{wal_name}.enc")
       deletion = host.run("docker exec #{Shellwords.escape(container)} rm -f #{PostgresPitrConfigurator::ARCHIVE_DIRECTORY}/#{wal_name}")
       raise deletion[:output].presence || "WAL uploaded but local cleanup failed" unless deletion[:success]
       config.update!(last_wal_archived_at: Time.current)

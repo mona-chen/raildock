@@ -4,6 +4,9 @@ module Api
 
     rescue_from ActiveRecord::RecordNotFound, with: :not_found
     rescue_from ActiveRecord::RecordInvalid, with: :unprocessable
+    rescue_from ServiceOperationLock::Busy do |error|
+      render json: { error: error.message, code: "resource_busy" }, status: :conflict
+    end
 
     private
 

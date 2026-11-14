@@ -5,13 +5,15 @@ set -e
 # idempotent for derived images and bind-mounted deployments.
 mkdir -p /var/log/supervisor /var/log/nginx /tmp/nginx /tmp/pids
 
-# The Rails credentials file must be created during install (see install.sh).
-# If it is missing here, fail fast with a clear message.
-if [ -n "$RAILS_MASTER_KEY" ] && [ ! -f /rails/config/credentials.yml.enc ]; then
-  echo "ERROR: /rails/config/credentials.yml.enc is missing."
-  echo "Run install.sh to generate it, or create it with:"
-  echo "  EDITOR=true RAILS_MASTER_KEY=<key> bin/rails credentials:edit"
-  exit 1
+# Each installation owns its credentials. Never rely on a credentials file
+# baked into the image, and honor an explicitly supplied master key.
+if [ ! -f /rails/config/credentials.yml.enc ]; then
+  if [ -z "${RAILS_MASTER_KEY:-}" ] && [ ! -s /rails/config/master.key ]; then
+    umask 077
+    ruby -rsecurerandom -e 'puts SecureRandom.hex(16)' > /rails/config/master.key
+  fi
+  echo "==> Creating installation credentials..."
+  EDITOR=true bundle exec rails credentials:edit
 fi
 
 parse_database_url() {
@@ -116,16 +118,9 @@ if [ -n "$DATABASE_URL" ]; then
   else
     echo "==> Database is ready — running migrations..."
     cd /rails
-    bundle exec rails db:prepare 2>&1 | tee /tmp/db_prepare.log
-    if [ ${PIPESTATUS[0]} -ne 0 ]; then
-      if grep -qi "column .* already exists\|relation .* already exists\|column .* does not exist" /tmp/db_prepare.log; then
-        echo "   db:prepare hit non-fatal duplicate — recording pending versions"
-        bundle exec rails runner 'ActiveRecord::Base.connection.migration_context.pending_migrations.each { |m| ActiveRecord::SchemaMigration.create!(version: m.version.to_s) }' 2>/dev/null || true
-      else
-        echo "   db:prepare failed with real errors — check logs"
-        cat /tmp/db_prepare.log
-      fi
-    fi
+    # A failed migration must fail startup, never mark unexecuted migrations
+    # as applied. The next start can safely retry the real migration.
+    bundle exec rails db:prepare
     ensure_database_exists "$QUEUE_DATABASE_URL"
     ensure_database_exists "$CACHE_DATABASE_URL"
     ensure_database_exists "$CABLE_DATABASE_URL"

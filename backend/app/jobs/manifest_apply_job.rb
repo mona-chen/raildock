@@ -5,6 +5,7 @@
 # Groups changes by severity and applies in batches.
 class ManifestApplyJob < ApplicationJob
   queue_as :default
+  retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
 
   # options:
   #   allow_removals:     opt-in to destroying services that the manifest omits.
@@ -78,6 +79,7 @@ class ManifestApplyJob < ApplicationJob
           engine,
           host_engine: host_engine,
           allow_removals: allow_removals,
+          manifest_digest: RemovalConfirmation.digest_for(content),
           force_destroy_data: force_destroy_data
         )
       end
@@ -86,11 +88,12 @@ class ManifestApplyJob < ApplicationJob
     report_withheld_removals(project, project_id, result)
 
     if result[:success]
-      project.update!(
-        manifest_last_applied_at: Time.current,
-        manifest_drift_detected: drift_after_apply?(project, content, result)
-      )
-      broadcast(project_id, "completed", "All manifest changes applied successfully")
+      if result[:operation_id]
+        broadcast(project_id, "deploying", "Waiting for deployments before removing services", details: result[:pending_removals])
+      else
+        project.update!(manifest_last_applied_at: Time.current, manifest_drift_detected: drift_after_apply?(project, content, result))
+        broadcast(project_id, "completed", "All manifest changes applied successfully")
+      end
     else
       failed = result[:results]&.select { |r| !r[:success] } || []
       error_details = failed.map { |f| f[:error] }.compact.join("; ")
@@ -102,6 +105,8 @@ class ManifestApplyJob < ApplicationJob
       )
       broadcast(project_id, "failed", "Some changes failed", details: failed.map { |f| f[:error] })
     end
+  rescue ServiceOperationLock::Busy
+    raise
   rescue => e
     Rails.logger.error "ManifestApplyJob failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
     ActivityEvent.create!(

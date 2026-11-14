@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe "Storage Mounts API", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:organization) { create(:organization, owner: user) }
   let!(:membership) { create(:organization_membership, user: user, organization: organization, role: :owner) }
   let(:server) { create(:server, organization: organization) }

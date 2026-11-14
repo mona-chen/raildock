@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe DeploymentsChannel, type: :channel do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:server) { create(:server) }
   let(:project) { create(:project, server: server) }
   let(:service) { create(:service, project: project) }

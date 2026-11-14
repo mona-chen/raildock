@@ -48,9 +48,6 @@ class RunPostgresPitrJob < ApplicationJob
     # stalled (or the schedule was paused) would otherwise be deleted in full,
     # leaving the datastore with no recovery points at all.
     def prune(config)
-      scope = config.service.backups.completed
-        .where(backup_kind: %w[pitr_base wal])
-        .where(created_at: ...config.retention_days.days.ago)
-      BackupRetention.prune(scope, keep: 1)
+      PostgresPitrRetention.new(config).prune!
     end
 end

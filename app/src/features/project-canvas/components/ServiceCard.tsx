@@ -1,3 +1,4 @@
+import { formatDistanceToNowStrict } from 'date-fns'
 import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import { Box, HardDrive, Link2, Unlink, X, Lock, Wrench } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
@@ -9,15 +10,17 @@ interface ServiceCardProps {
   position: { x: number; y: number }
   isSelected: boolean
   onMouseDown: (e: React.MouseEvent) => void
+  onActivate?: () => void
   otherServices?: Service[]
   onLink?: (targetId: string) => void
   onUnlink?: (targetId: string) => void
 }
 
-function ServiceCard({ service, position, isSelected, onMouseDown, otherServices, onLink, onUnlink }: ServiceCardProps) {
+function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, otherServices, onLink, onUnlink }: ServiceCardProps) {
   const color = getServiceColor(service.subtype, service.framework, service.dockerImage)
-  const isDb = service.type === 'database'
   const status = statusMeta(service.status)
+  const deployedAt = service.lastDeployed ? new Date(service.lastDeployed) : null
+  const deploymentAge = deployedAt && Number.isFinite(deployedAt.getTime()) ? formatDistanceToNowStrict(deployedAt, { addSuffix: true }) : null
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -61,22 +64,16 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
       aria-label={`${service.name} ${service.type} — ${service.status}`}
       tabIndex={0}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          // Programmatically create a mouse event at the card center to open the panel
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-          const syntheticEvent = new MouseEvent('mousedown', {
-            bubbles: true,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-          })
-          e.currentTarget.dispatchEvent(syntheticEvent)
+          onActivate?.()
         }
       }}
     >
       <div
-        className={`bg-[#16161a] border rounded-xl overflow-hidden transition-all ${
-          isSelected ? 'border-[#8b5cf6]/50 shadow-xl shadow-[#8b5cf6]/5' : 'border-white/[0.06]'
+        className={`bg-[#19191f] border rounded-xl overflow-hidden transition-all hover:border-violet-400/40 shadow-lg shadow-black/10 ${
+          isSelected ? 'border-[#8b5cf6]/50 shadow-xl shadow-[#8b5cf6]/5' : 'border-white/[0.1]'
         }`}
       >
         <div className="p-4">
@@ -98,6 +95,8 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
                   onClick={(e) => { e.stopPropagation(); showLinkMenu ? setShowLinkMenu(false) : openMenu() }}
                   className="p-1 rounded hover:bg-white/[0.08] text-white/50 hover:text-white/60 transition-colors"
                   title="Link services"
+                  aria-label={`Manage links for ${service.name}`}
+                  aria-expanded={showLinkMenu}
                   type="button"
                 >
                   <Link2 size={14} />
@@ -155,7 +154,8 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
               style={{ backgroundColor: status.color }}
             />
             <span className="text-[12px] text-white/60">
-              {status.label}
+              {service.status === 'running' ? 'Running' : status.label}
+              {deploymentAge && <span className="ml-2 truncate text-[10px] text-[#9393a5]" title={deployedAt?.toISOString()}>Deployed {deploymentAge}</span>}
             </span>
             {(service as Service & { locked?: boolean }).locked && (
               <span title="App locked"><Lock size={11} className="text-amber-400/60" /></span>
@@ -163,11 +163,11 @@ function ServiceCard({ service, position, isSelected, onMouseDown, otherServices
           </div>
         </div>
       </div>
-      {isDb && (
+      {service.storageMounts?.length > 0 && (
         <div className="mt-1.5 ml-3 mr-3">
           <div className="flex items-center gap-2 px-3 py-2 bg-[#16161a]/70 border border-white/[0.04] rounded-lg">
-            <HardDrive size={11} className="text-white/25" />
-            <span className="text-[11px] text-white/35 font-mono">{service.name}-volume</span>
+            <HardDrive size={11} className="text-[#9393a5]" />
+            <span className="text-[11px] text-[#9393a5] font-mono">{service.storageMounts.length === 1 ? service.storageMounts[0].containerPath : `${service.storageMounts.length} volumes`}</span>
           </div>
         </div>
       )}

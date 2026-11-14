@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Repository imports", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:project) { create(:project, user: user) }
   let(:git_source) do
     create(

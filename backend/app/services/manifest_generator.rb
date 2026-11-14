@@ -26,7 +26,7 @@ class ManifestGenerator
   # drift merge can adopt live values field by field instead of guessing at the
   # mapping from database columns to manifest keys.
   def service_state(service_name)
-    service = @project.services
+    service = @project.services.where(environment: @project.default_environment)
       .includes(:environment_variables, :domains, :storage_mounts, :process_types, :outgoing_links)
       .find_by(name: service_name)
     service && service_to_hash(service)
@@ -35,11 +35,11 @@ class ManifestGenerator
   private
 
   def build_desired_state
-    services = @project.services.includes(
+    services = @project.services.where(environment: @project.default_environment).includes(
       :environment_variables, :domains, :storage_mounts, :process_types, :outgoing_links
     ).map { |svc| service_to_hash(svc) }
 
-    links = @project.services.includes(:linked_services).flat_map do |svc|
+    links = @project.services.where(environment: @project.default_environment).includes(:linked_services).flat_map do |svc|
       svc.linked_services.map do |target|
         { from: svc.name, to: target.name }
       end

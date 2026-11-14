@@ -1,4 +1,9 @@
 class ApplicationController < ActionController::API
+  class AuthorizationDenied < StandardError; end
+
+  rescue_from AuthorizationDenied do
+    render json: { error: "Forbidden" }, status: :forbidden
+  end
   private
 
   def user_payload_with_orgs(user)

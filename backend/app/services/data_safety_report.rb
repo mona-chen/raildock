@@ -51,7 +51,9 @@ class DataSafetyReport
     def servers
       @servers ||= begin
         scope = Server.all
-        scope = scope.where(organization_id: @organization.id) if @organization
+        if @organization
+          scope = scope.where(organization_id: @organization.id).or(scope.where(id: @organization.projects.select(:server_id)))
+        end
         scope = scope.where(id: @server.id) if @server
         scope.includes(:backup_destinations).to_a
       end
@@ -60,7 +62,7 @@ class DataSafetyReport
     def services
       @services ||= begin
         scope = Service.all
-        scope = scope.where(project_id: Project.where(server_id: servers.map(&:id)).select(:id)) unless @organization.nil? && @server.nil?
+        scope = scope.where(project_id: @organization.projects.select(:id)) if @organization
         scope = scope.where(project_id: Project.where(server_id: @server.id).select(:id)) if @server
         scope.includes(:storage_mounts, project: :server).to_a
       end
@@ -93,7 +95,8 @@ class DataSafetyReport
       services.filter_map do |service|
         mounts = DestructionSnapshot.persistent_mounts(service)
         next if mounts.empty?
-        next if service.backups.completed.backup_kind_volume.any? { |backup| backup.remote_verified? }
+        protected_mount_ids = service.backups.completed.backup_kind_volume.select(&:remote_verified?).map { |backup| backup.metadata["storage_mount_id"].to_s }
+        next if mounts.all? { |mount| protected_mount_ids.include?(mount.id.to_s) }
 
         Finding.new(
           severity: "critical",
@@ -112,7 +115,7 @@ class DataSafetyReport
 
       servers.each do |server|
         destinations = server.backup_destinations.to_a
-        organization_ids = BackupDestination.reachable_organization_ids(server)
+        organization_ids = @organization ? [ @organization.id ] : BackupDestination.reachable_organization_ids(server)
         if organization_ids.any?
           destinations += BackupDestination.where(organization_id: organization_ids).to_a
         end

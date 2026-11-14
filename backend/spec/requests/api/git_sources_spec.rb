@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::GitSourcesController", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let!(:git_source) { create(:git_source, user: user) }
 
   describe "GET /api/git-sources" do
@@ -23,7 +23,7 @@ RSpec.describe "Api::GitSourcesController", type: :request do
       end
 
       it "does not return other users' git sources" do
-        other_user = create(:user)
+        other_user = create(:user, :admin)
         create(:git_source, user: other_user)
 
         get "/api/git-sources", headers: auth_headers(user)

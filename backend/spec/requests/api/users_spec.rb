@@ -12,7 +12,7 @@ RSpec.describe "Api::UsersController", type: :request do
     end
 
     context "when users exist" do
-      before { create(:user) }
+      before { create(:user, :admin) }
 
       it "returns required: false" do
         get "/api/setup"
@@ -70,7 +70,7 @@ RSpec.describe "Api::UsersController", type: :request do
     end
 
     context "when a user already exists" do
-      before { create(:user) }
+      before { create(:user, :admin) }
 
       it "returns 422" do
         post "/api/users", params: {

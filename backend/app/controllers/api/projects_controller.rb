@@ -1,6 +1,7 @@
 module Api
   class ProjectsController < BaseController
     include Authorizable
+    around_action :serialize_project_operation, only: [ :destroy, :stop_all ]
 
     def index
       authorize_project!(nil, action: :read) # Check user has org access
@@ -102,7 +103,7 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
-      services = project.services.where.not(service_type: "database").to_a
+      services = bulk_services(project).where(service_type: "app").to_a
       sorted = topo_sort_by_depends_on(services)
       results = []
       deployments_by_service = {}
@@ -143,7 +144,7 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
-      deployments = Deployment.cancellable.joins(:service).where(services: { project_id: project.id }).to_a
+      deployments = Deployment.cancellable.where(service_id: bulk_services(project).select(:id)).to_a
       cancelled = deployments.count { |deployment| deployment.cancel!(message: "Cancelled from project actions") }
 
       render json: { cancelled: cancelled }
@@ -153,7 +154,7 @@ module Api
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: :update)
 
-      services = project.services.to_a
+      services = bulk_services(project).to_a
       sorted = topo_sort_by_depends_on(services)
       queued = []
 
@@ -179,7 +180,7 @@ module Api
 
       results = { success: [], failed: [] }
 
-      project.services.each do |service|
+      bulk_services(project).each do |service|
         with_dokku_engine(service) do |engine|
           result = engine.ps_stop(service.dokku_app_name)
           if result[:success]
@@ -200,6 +201,18 @@ module Api
     end
 
     private
+
+    # Absence means the default environment, never every environment.
+    def serialize_project_operation
+      project = scoped_projects.find(params[:id])
+      authorize_project!(project, action: action_name == "destroy" ? :delete : :update)
+      ServiceOperationLock.with_project(project, exclusive: true) { yield }
+    end
+
+    def bulk_services(project)
+      environment = params[:environment_id].present? ? project.environments.find(params[:environment_id]) : project.default_environment
+      project.services.where(environment: environment)
+    end
 
     def topo_sort_by_depends_on(services)
       svc_map = services.map { |s| [ s.name, s ] }.to_h

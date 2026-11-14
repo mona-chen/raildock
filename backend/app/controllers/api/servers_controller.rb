@@ -118,6 +118,8 @@ module Api
         # via the root user. Best-effort — falls back to defaults.
         host_info = begin
           HostEngine.new(@server).host_info
+        rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+          raise
         rescue => e
           Rails.logger.warn "Server validate: host info unavailable for #{@server.host}: #{e.message}"
           { os: "Unknown", uptime: "unknown" }

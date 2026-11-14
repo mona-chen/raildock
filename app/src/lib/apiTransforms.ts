@@ -38,6 +38,7 @@ import type {
   Environment,
   BackupDestination,
   RecoveryOverview,
+  Backup,
 } from '@/types'
 
 /**
@@ -53,6 +54,14 @@ export function normalizeBackupDestination(data: unknown): BackupDestination {
   return camel as unknown as BackupDestination
 }
 
+export function normalizeBackup(data: unknown): Backup {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  for (const key of ['id', 'serviceId', 'backupDestinationId']) {
+    if (camel[key] != null) camel[key] = String(camel[key])
+  }
+  return camel as unknown as Backup
+}
+
 export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {
   const camel = camelizeKeys(data) as Record<string, unknown>
 
@@ -60,6 +69,18 @@ export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {
     camel.destinations = camel.destinations.map(normalizeBackupDestination)
   }
 
+  if (Array.isArray(camel.drills)) {
+    camel.drills = camel.drills.map((drill) => {
+      const normalized = drill as Record<string, unknown>
+      return { ...normalized, id: String(normalized.id), backupId: String(normalized.backupId) }
+    })
+  }
+  if (camel.pitr) {
+    const pitr = camel.pitr as Record<string, unknown>
+    for (const key of ['id', 'serviceId', 'backupDestinationId']) {
+      if (pitr[key] != null) pitr[key] = String(pitr[key])
+    }
+  }
   const preferences = camel.backupPreferences as Record<string, unknown> | undefined
   if (preferences) {
     const keys = [ 'organizationDestinationIds', 'serviceDestinationIds', 'defaultDestinationIds' ]

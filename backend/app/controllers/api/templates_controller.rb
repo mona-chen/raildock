@@ -16,6 +16,7 @@ module Api
       project = scoped_projects.find_by(id: params[:project_id])
       return render json: { error: "Project not found" }, status: :not_found unless project
 
+      authorize_project!(project, action: :create)
       created, deployments = deploy_template_services(template, project)
 
       if project.server&.ssh_key.present?

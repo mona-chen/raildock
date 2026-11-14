@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe DataSafetyReport do
   let(:organization) { create(:organization) }
   let(:server) { create(:server, organization: organization) }
-  let(:project) { create(:project, server: server) }
+  let(:project) { create(:project, server: server, organization: organization) }
 
   def findings
     described_class.new.call[:findings]

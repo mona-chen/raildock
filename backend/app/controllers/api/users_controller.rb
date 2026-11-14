@@ -71,6 +71,8 @@ module Api
 
         host_info = begin
           HostEngine.new(server).host_info
+        rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+          raise
         rescue => e
           Rails.logger.warn "Setup: host info unavailable for #{server.host}: #{e.message}"
           { os: "Unknown", uptime: "unknown" }
@@ -87,6 +89,8 @@ module Api
       else
         server.update!(status: :error)
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "[Setup] Failed to auto-configure local Dokku server: #{e.message}"
     end

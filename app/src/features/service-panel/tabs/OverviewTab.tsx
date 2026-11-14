@@ -1,12 +1,11 @@
-import { GitBranch, Settings2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { GitBranch, Settings2, ArrowUpRight, Globe } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import {
   useScaleProcess,
   useContainerStatus,
 } from '@/hooks/useServices'
 import type { Service } from '@/types'
-import { statusMeta } from '@/lib/status'
-import StatusBadge from '@/features/shared/StatusBadge'
 import ConnectionsCard from './ConnectionsCard'
 
 export default function OverviewTab({
@@ -14,70 +13,32 @@ export default function OverviewTab({
   serviceId,
   lastUpdate,
   isConnected,
+  onNavigate,
 }: {
   svc: Service
   serviceId: string
   lastUpdate: { message: string; status: string } | null
   isConnected: boolean
+  onNavigate?: (tab: string) => void
 }) {
   const scaleProcess = useScaleProcess()
   const { data: containerStatus } = useContainerStatus(serviceId)
 
   return (
     <div className="p-5 space-y-5">
-      {/* Status Card */}
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: svc.status === 'running' ? '#22c55e15' : '#6b6b7b15' }}
-            >
-              <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={20} />
-            </div>
-            <div>
-              <div className="text-[14px] font-medium text-white/80">{svc.name}</div>
-              <div className="text-[12px] text-white/50">
-                {svc.subtype} · {statusMeta(svc.status).label}
-              </div>
-            </div>
-          </div>
-          <StatusBadge status={svc.status} />
-        </div>
-
-      </div>
-
-      {/* Service Details */}
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-        <div className="text-[13px] font-medium text-white/70 mb-3">Service Details</div>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { l: 'Type', v: svc.subtype },
-            { l: 'Version', v: svc.version || 'latest' },
-            { l: 'Name', v: svc.name },
-            { l: 'Status', v: svc.status },
-            { l: 'Internal Hostname', v: svc.internalHostname },
-            { l: 'Dokku Name', v: svc.name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() },
-          ]
-            .filter((f) => f.v)
-            .map((f) => (
-              <div key={f.l} className="bg-black/20 rounded-lg p-2.5">
-                <div className="text-[11px] text-white/50">{f.l}</div>
-                <div className="text-[12px] text-white/70 font-mono mt-0.5 break-all">{f.v}</div>
-              </div>
-            ))}
-        </div>
-      </div>
+      {svc.status === 'error' && <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-l-2 border-red-400 bg-red-400/[0.04] px-4 py-3"><p className="text-[13px] text-red-200">Service error. Check the logs for details.</p>{onNavigate && <button type="button" onClick={() => onNavigate('logs')} className="text-xs text-red-200 underline underline-offset-4">View logs</button>}</div>}
+      {(svc.status === 'building' || svc.status === 'deploying') && onNavigate && <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] pb-4 text-[13px] text-[#a0a0b0]"><span>{svc.status === 'building' ? 'Build in progress' : 'Deployment in progress'}</span><button type="button" onClick={() => onNavigate('deploy')} className="text-violet-300">View deployment</button></div>}
+      {svc.type === 'app' && <div className="border-b border-white/[0.08] pb-5"><div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-white/85"><Globe size={15} className="text-violet-300" />Public access</div>{svc.domains.length > 0 ? <div className="space-y-2">{svc.domains.map((domain) => <a key={domain.hostname} href={`${domain.ssl ? 'https' : 'http'}://${domain.hostname}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-xs text-violet-200 hover:bg-violet-400/10"><span className="truncate">{domain.hostname}</span><ArrowUpRight size={14} className="shrink-0" /></a>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-[#a0a0b0]">No public domain configured.</p>{onNavigate && <button type="button" onClick={() => onNavigate('networking')} className="text-xs font-medium text-violet-300 hover:text-violet-200">Configure a domain <span aria-hidden="true">→</span></button>}</div>}</div>}
 
       {/* Source Info */}
       {(svc.gitRepo || svc.dockerImage || svc.builder) && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4 space-y-2">
+        <div className="border-b border-white/[0.08] pb-5 space-y-2">
           <div className="text-[13px] font-medium text-white/70 mb-2">Source</div>
           {svc.gitRepo && (
             <div className="flex items-center gap-2 text-[12px]">
               <GitBranch size={13} className="text-white/50" />
               <span className="text-white/50">{svc.gitRepo}</span>
-              <span className="text-white/20">on</span>
+              <span className="text-[#9292a3]">on</span>
               <span className="text-white/50 font-mono">{svc.branch || 'main'}</span>
             </div>
           )}
@@ -97,6 +58,11 @@ export default function OverviewTab({
           )}
         </div>
       )}
+
+      <details className="group border-b border-white/[0.08] pb-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-medium text-white/75 [&::-webkit-details-marker]:hidden">Runtime details<span className="text-xs font-normal text-[#a0a0b0] group-open:hidden">Show</span><span className="hidden text-xs font-normal text-[#a0a0b0] group-open:inline">Hide</span></summary>
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">{[{ label: 'Service type', value: svc.subtype }, { label: 'Version', value: svc.version }, { label: 'Internal hostname', value: svc.internalHostname }, { label: 'Last deployed', value: svc.lastDeployed && Number.isFinite(new Date(svc.lastDeployed).getTime()) ? formatDistanceToNow(new Date(svc.lastDeployed), { addSuffix: true }) : undefined }].filter((field) => field.value).map((field) => <div key={field.label}><dt className="text-[11px] text-[#a0a0b0]">{field.label}</dt><dd className="mt-1 break-all font-mono text-xs text-white/85">{field.value}</dd></div>)}</dl>
+      </details>
 
       {/* Processes */}
       {svc.processTypes && svc.processTypes.length > 0 && (
@@ -120,6 +86,8 @@ export default function OverviewTab({
                   </span>
                   <div className="flex items-center border border-white/[0.1] rounded-lg overflow-hidden">
                     <button
+                      disabled={scaleProcess.isPending}
+                      aria-label={`Decrease ${pt.name} replicas`}
                       onClick={() =>
                         scaleProcess.mutate({
                           id: svc.id,
@@ -135,6 +103,8 @@ export default function OverviewTab({
                       {pt.quantity}
                     </span>
                     <button
+                      disabled={scaleProcess.isPending}
+                      aria-label={`Increase ${pt.name} replicas`}
                       onClick={() =>
                         scaleProcess.mutate({
                           id: svc.id,
@@ -155,7 +125,7 @@ export default function OverviewTab({
       )}
 
       {/* Container Status */}
-      {containerStatus && (
+      {containerStatus?.status && (
         <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="text-[12px] text-white/60">Container Status</div>

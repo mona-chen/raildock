@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::GithubAppsController", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
 
   describe "GET /api/github-apps/callback" do
     it "redirects with error without installation_id" do
@@ -183,7 +183,7 @@ RSpec.describe "Api::GithubAppsController", type: :request do
     end
 
     it "does not deploy services outside the installation owner scope" do
-      other_project = create(:project, user: create(:user), server: nil)
+      other_project = create(:project, user: create(:user, :admin), server: nil)
       create(:service, project: other_project, git_repo: "acme/app", branch: "main", auto_deploy: true)
 
       payload = {

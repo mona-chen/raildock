@@ -3,6 +3,7 @@ module Authenticatable
 
   included do
     before_action :authenticate_user!
+    before_action :validate_organization_context!
   end
 
   private
@@ -32,17 +33,24 @@ module Authenticatable
     @current_user
   end
 
+  def validate_organization_context!
+    current_organization if current_user
+  end
+
   def current_organization
-    @current_organization ||= begin
-      org_id = request.headers["X-Organization-ID"] || params[:organization_id]
-      Organization.find_by(id: org_id) if org_id
+    return @current_organization if defined?(@current_organization)
+
+    org_id = request.headers["X-Organization-ID"].presence || params[:organization_id].presence
+    @current_organization = if org_id
+      current_user.organizations.find_by(id: org_id).tap do |organization|
+        raise ApplicationController::AuthorizationDenied unless organization
+      end
     end
   end
 
   def authorize_organization_access!(organization)
-    return true if organization.nil?
-    return true if current_user.organizations.include?(organization)
-    render json: { error: "Forbidden" }, status: :forbidden
-    nil
+    raise ApplicationController::AuthorizationDenied unless organization && current_user.organizations.exists?(id: organization.id)
+
+    true
   end
 end

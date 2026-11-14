@@ -199,7 +199,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "adopts orphaned projects into the personal org" do
-      legacy = create(:user)
+      legacy = create(:user, :admin)
       project = create(:project, user: legacy, organization: nil)
 
       expect(project.reload.organization_id).to be_nil
@@ -212,7 +212,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "adopts orphaned deploy keys into the personal org" do
-      legacy = create(:user)
+      legacy = create(:user, :admin)
       deploy_key = create(:deploy_key, user: legacy, organization: nil)
 
       expect(deploy_key.reload.organization_id).to be_nil
@@ -225,7 +225,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
   end
 
   describe "member management edge cases" do
-    let(:owner) { create(:user) }
+    let(:owner) { create(:user, :admin) }
     let(:org) { create(:organization, owner: owner) }
     let(:owner_headers) { auth_headers(owner) }
 
@@ -241,7 +241,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "owner can promote a member to owner" do
-      member = create(:user)
+      member = create(:user, :admin)
       create(:organization_membership, user: member, organization: org, role: :member)
 
       patch "/api/organizations/#{org.id}/members/#{member.id}",
@@ -252,8 +252,8 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "non-owner cannot promote to owner" do
-      alice = create(:user)
-      bob = create(:user)
+      alice = create(:user, :admin)
+      bob = create(:user, :admin)
       create(:organization_membership, user: alice, organization: org, role: :member)
       create(:organization_membership, user: bob, organization: org, role: :member)
 
@@ -264,7 +264,7 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "member can leave (remove themselves)" do
-      member = create(:user)
+      member = create(:user, :admin)
       create(:organization_membership, user: member, organization: org, role: :member)
       member_headers = auth_headers(member)
 
@@ -274,8 +274,8 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "admin can remove a member" do
-      admin = create(:user)
-      member = create(:user)
+      admin = create(:user, :admin)
+      member = create(:user, :admin)
       create(:organization_membership, user: admin, organization: org, role: :admin)
       create(:organization_membership, user: member, organization: org, role: :member)
 
@@ -298,14 +298,14 @@ RSpec.describe "Organization members end-to-end flow", type: :request do
     end
 
     it "forbids non-member from viewing members" do
-      stranger = create(:user)
+      stranger = create(:user, :admin)
       get "/api/organizations/#{org.id}/members", headers: auth_headers(stranger)
       expect(response).to have_http_status(:forbidden)
     end
   end
 
   describe "invitation edge cases" do
-    let(:owner) { create(:user) }
+    let(:owner) { create(:user, :admin) }
     let(:org) { create(:organization, owner: owner) }
     let(:headers) { auth_headers(owner) }
 

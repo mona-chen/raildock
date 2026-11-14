@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Folder, Server, Settings, LogOut, User, Activity, ChevronDown, Building2,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, Search,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -115,7 +115,7 @@ export default function IconRail() {
           >
             <span className="relative w-8 h-8 rounded-full bg-[rgba(139,92,246,0.12)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center text-[10px] font-bold text-rail-purple flex-shrink-0">
               {orgInitial}
-              <ChevronDown size={10} className="absolute -bottom-0.5 -right-0.5 text-[#6b6b7b] bg-[#0B0B0D] rounded-full" />
+              <ChevronDown size={10} className="absolute -bottom-0.5 -right-0.5 text-[#9292a3] bg-[#0B0B0D] rounded-full" />
             </span>
             <span className={`${collapsed ? 'hidden' : 'hidden md:flex'} flex-col items-start leading-tight min-w-0`}>
               <span className="text-[12px] font-medium text-white/80 truncate max-w-[128px]">
@@ -126,7 +126,7 @@ export default function IconRail() {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="start" className="w-56 bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
-          <DropdownMenuLabel className="text-[#6b6b7b] text-[10px] uppercase tracking-wider">Workspace</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-[#9292a3] text-[10px] uppercase tracking-wider">Workspace</DropdownMenuLabel>
           <DropdownMenuItem
             className={`cursor-pointer text-sm ${!currentOrganizationId ? 'bg-[rgba(139,92,246,0.12)] text-rail-purple' : 'text-[#A0A0B0] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'}`}
             onClick={() => setCurrentOrganizationId(null)}
@@ -157,9 +157,10 @@ export default function IconRail() {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))} title="Search and commands (⌘K)" aria-label="Search and commands" className={`mb-4 flex h-9 items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.025] text-[#a0a0b0] hover:bg-white/[0.06] ${row}`}><Search size={16} /><span className={`${label} text-xs`}>Search & commands</span><kbd className={`${label} ml-auto mr-1 text-[10px] text-[#878795]`}>⌘K</kbd></button>
       <nav className="flex-1 flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => {
-          const isActive = location.pathname.startsWith(item.path)
+          const isActive = location.pathname.startsWith(item.path) || (item.label === 'Projects' && onCanvas)
           return (
             <Link
               key={item.path}
@@ -167,7 +168,7 @@ export default function IconRail() {
               title={item.label}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative h-9 rounded-lg flex items-center gap-3 transition-all ${row} ${isActive ? 'bg-[rgba(139,92,246,0.12)] text-rail-purple' : 'text-[#6b6b7b] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)]'}`}
+              className={`relative h-9 rounded-lg flex items-center gap-3 transition-all ${row} ${isActive ? 'bg-[rgba(139,92,246,0.12)] text-rail-purple' : 'text-[#9292a3] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)]'}`}
             >
               <item.icon size={17} className="flex-shrink-0" />
               <span className={`${label} text-[12.5px] font-medium`}>{item.label}</span>
@@ -184,7 +185,7 @@ export default function IconRail() {
           title={collapsed ? 'Expand sidebar (⌘B)' : 'Collapse sidebar (⌘B)'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-pressed={collapsed}
-          className={`h-9 rounded-lg flex items-center gap-3 text-[#6b6b7b] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)] transition-all ${row}`}
+          className={`h-9 rounded-lg flex items-center gap-3 text-[#9292a3] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)] transition-all ${row}`}
         >
           {collapsed ? <PanelLeftOpen size={16} className="flex-shrink-0" /> : <PanelLeftClose size={16} className="flex-shrink-0" />}
           <span className={`${label} text-[12.5px] font-medium`}>Collapse</span>
@@ -201,7 +202,7 @@ export default function IconRail() {
           onClick={handleLogout}
           title="Sign out"
           aria-label="Sign out"
-          className={`h-9 rounded-lg flex items-center gap-3 text-[#6b6b7b] hover:text-red-400 hover:bg-red-500/10 transition-all ${row}`}
+          className={`h-9 rounded-lg flex items-center gap-3 text-[#9292a3] hover:text-red-400 hover:bg-red-500/10 transition-all ${row}`}
         >
           <LogOut size={15} className="flex-shrink-0" />
           <span className={`${label} text-[12.5px] font-medium`}>Sign out</span>

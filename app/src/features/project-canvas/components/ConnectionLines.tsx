@@ -9,9 +9,10 @@ interface Connection {
 
 interface ConnectionLinesProps {
   connections: Connection[]
+  activeServiceId?: string | null
 }
 
-function ConnectionLines({ connections }: ConnectionLinesProps) {
+function ConnectionLines({ connections, activeServiceId }: ConnectionLinesProps) {
   const [hovered, setHovered] = useState<string | null>(null)
 
   if (connections.length === 0) return null
@@ -24,8 +25,14 @@ function ConnectionLines({ connections }: ConnectionLinesProps) {
       {connections.map((conn) => {
         const key = `${conn.fromId}-${conn.toId}`
         const isHovered = hovered === key
-        const mx = conn.from.x + 110 + (conn.to.x - conn.from.x) / 2
-        const pathD = `M ${conn.from.x + 110} ${conn.from.y + 30} L ${mx} ${conn.from.y + 30} L ${mx} ${conn.to.y + 30} L ${conn.to.x + 110} ${conn.to.y + 30}`
+        const related = !activeServiceId || conn.fromId === activeServiceId || conn.toId === activeServiceId
+        const rightward = conn.to.x >= conn.from.x
+        const startX = conn.from.x + (rightward ? 240 : 0)
+        const endX = conn.to.x + (rightward ? 0 : 240)
+        const startY = conn.from.y + 52
+        const endY = conn.to.y + 52
+        const bend = Math.max(60, Math.abs(endX - startX) * 0.5) * (rightward ? 1 : -1)
+        const pathD = `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`
 
         return (
           <g
@@ -45,14 +52,14 @@ function ConnectionLines({ connections }: ConnectionLinesProps) {
             <path
               d={pathD}
               fill="none"
-              stroke={isHovered ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.22)'}
+              stroke={isHovered || (activeServiceId && related) ? '#a78bfa' : related ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.08)'}
               strokeWidth={isHovered ? 2 : 1.5}
-              strokeDasharray="6 4"
+              strokeDasharray={related ? undefined : '4 5'}
               style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
             />
             <circle
-              cx={conn.to.x + 110}
-              cy={conn.to.y + 30}
+              cx={endX}
+              cy={endY}
               r={isHovered ? 5 : 3.5}
               fill={isHovered ? 'rgba(139,92,246,0.7)' : 'rgba(255,255,255,0.25)'}
               style={{ transition: 'all 0.2s' }}

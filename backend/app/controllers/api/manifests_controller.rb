@@ -142,7 +142,8 @@ module Api
         last_synced_at: @project.manifest_last_synced_at,
         last_applied_at: @project.manifest_last_applied_at,
         format: @project.manifest_format,
-        has_manifest: @project.manifest_content.present?
+        has_manifest: @project.manifest_content.present?,
+        operation: @project.manifest_operations.where("created_at >= ?", @project.manifest_last_applied_at || Time.at(0)).order(id: :desc).first
       }
     end
 

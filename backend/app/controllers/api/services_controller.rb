@@ -19,6 +19,9 @@ module Api
       :generate_domain
     ]
 
+    around_action :serialize_service_creation, only: :create
+    around_action :serialize_service_mutation, only: [ :update, :destroy, :start, :stop, :restart, :rebuild, :scale, :run, :restore, :restore_backup, :link, :unlink, :repair_env ]
+
     def index
       project = scoped_projects.find(params[:project_id])
       authorize_project!(project)
@@ -104,17 +107,18 @@ module Api
 
       @service.update!(service_params)
 
-      with_dokku_engine(@service) do |engine|
-        ServiceSettingsSync.new(@service, engine).sync_config_changes!
+      unless (service_params.keys.map(&:to_s) - %w[canvas_x canvas_y]).empty?
+        with_dokku_engine(@service) do |engine|
+          ServiceSettingsSync.new(@service, engine).sync_config_changes!
 
-        # Connect to external networks immediately if they changed and
-        # the container is already running.
-        if networks_changed && @service.running?
-          ProjectNetworkManager.new(@service.project, engine)
-            .connect_to_external_networks(@service)
+          # Connect to external networks immediately if they changed and
+          # the container is already running.
+          if networks_changed && @service.running?
+            ProjectNetworkManager.new(@service.project, engine)
+              .connect_to_external_networks(@service)
+          end
         end
       end
-
       render json: @service
     end
 
@@ -273,7 +277,7 @@ module Api
     end
 
     def start
-      authorize_service!(@service, action: :update)
+      authorize_service!(@service, action: :start)
 
       with_dokku_engine(@service) do |engine|
         result = engine.ps_start(@service.dokku_app_name)
@@ -296,7 +300,7 @@ module Api
     end
 
     def stop
-      authorize_service!(@service, action: :update)
+      authorize_service!(@service, action: :stop)
 
       with_dokku_engine(@service) do |engine|
         result = engine.ps_stop(@service.dokku_app_name)
@@ -319,7 +323,7 @@ module Api
     end
 
     def restart
-      authorize_service!(@service, action: :update)
+      authorize_service!(@service, action: :restart)
 
       if @service.project&.server&.ssh_key.blank?
         return render json: { error: "No server configured" }, status: :unprocessable_entity
@@ -364,7 +368,7 @@ module Api
     end
 
     def scale
-      authorize_service!(@service, action: :update)
+      authorize_service!(@service, action: :scale)
 
       process_name = params[:process_name] || params[:processName]
       quantity = params[:quantity]
@@ -417,6 +421,7 @@ module Api
     end
 
     def link
+      authorize_service!(@service, action: :update)
       target = Service.find(params[:target_id])
       authorize_service!(target, action: :read)
 
@@ -471,6 +476,7 @@ module Api
     end
 
     def unlink
+      authorize_service!(@service, action: :update)
       target = Service.find(params[:target_id])
       authorize_service!(target, action: :read)
 
@@ -963,12 +969,26 @@ module Api
       return render json: { error: "Failed to generate domain: #{result.output}" }, status: :unprocessable_entity if result.failure?
 
       render json: domain, status: :created
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "generate_domain failed for #{@service.dokku_app_name}: #{e.message}"
       render json: { error: "Failed to generate domain: #{e.message}" }, status: :unprocessable_entity
     end
 
     private
+
+    def serialize_service_creation
+      project = scoped_projects.find(params[:project_id])
+      authorize_project!(project, action: :create)
+      ServiceOperationLock.with_project(project) { yield }
+    end
+
+    def serialize_service_mutation
+      return yield unless @service
+
+      ServiceOperationLock.with(@service) { yield }
+    end
 
     def set_and_authorize_service!
       @service = Service.find(params[:id] || params[:service_id])
@@ -1052,6 +1072,8 @@ module Api
           ev.save!
         end
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "Failed to sync Dokku env vars for #{service.dokku_app_name}: #{e.message}"
     end
@@ -1060,6 +1082,8 @@ module Api
     # We identify them by the dokku-link source and the connection URL pattern.
     def remove_linked_env_vars(service, target_db)
       service.environment_variables.where(is_dokku_internal: true, source: "dokku-link").destroy_all
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "Failed to remove linked env vars for #{service.dokku_app_name}: #{e.message}"
     end
@@ -1106,6 +1130,8 @@ module Api
       if linked_service.service_type_database?
         fetch_and_sync_dsn_credentials(engine, app_service, linked_service)
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "Failed to sync linked env vars for #{app_service.dokku_app_name}: #{e.message}"
     end

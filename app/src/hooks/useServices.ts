@@ -403,7 +403,7 @@ export function useConfigurePitr() {
 export function useRunRestoreDrill() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, backupId }: { id: string; backupId: string }) => api.services.runRestoreDrill(id, backupId),
+    mutationFn: ({ id, backupId, targetTime }: { id: string; backupId: string; targetTime?: string }) => api.services.runRestoreDrill(id, backupId, targetTime),
     onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Isolated restore drill queued') },
     onError: (err) => toast.error(`Drill failed: ${err.message}`),
   })

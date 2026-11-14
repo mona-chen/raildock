@@ -1,10 +1,11 @@
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Keyboard, AlertTriangle, X } from 'lucide-react'
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import {
-  Box, Activity, Settings, Rocket, Plus, Search, FileCode,
+  Box, Activity, Settings, Plus, Search, FileCode,
 } from 'lucide-react'
 import { useServices, useLinkService, useUnlinkService, useDeployService } from '@/hooks/useServices'
 import { useProject } from '@/hooks/useProjects'
@@ -429,7 +430,11 @@ export default function ProjectCanvas() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const target = e.target as HTMLElement | null
+      if (e.defaultPrevented || target?.isContentEditable || target?.closest('input, textarea, select, [role="dialog"], [data-service-panel], [role="menu"], [role="combobox"]')) return
+      if (showAdd || showHelp || document.querySelector('[data-state="open"][role="dialog"], [data-state="open"][role="menu"]')) return
+      // The selected service owns its own shortcuts; typing G then D must not deploy.
+      if (activeServiceId) return
       if (e.key === 'Escape') {
         setActiveService(null)
         setShowAdd(false)
@@ -439,14 +444,7 @@ export default function ProjectCanvas() {
         e.preventDefault()
         setShowHelp((v) => !v)
       }
-      if (e.key === 'd' || e.key === 'D') {
-        if (activeServiceId) {
-          setShowAdd(false)
-          setShowHelp(false)
-          deployService.mutate(activeServiceId)
-        }
-      }
-      if (e.key === 'n' || e.key === 'N' || e.key === '+') {
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'n' || e.key === 'N' || e.key === '+')) {
         setShowAdd(true)
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -473,14 +471,14 @@ export default function ProjectCanvas() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeServiceId, setActiveService, setPan, pan, zoom, deployService])
+  }, [activeServiceId, setActiveService, setPan, pan, zoom, showAdd, showHelp, setZoom, resetView])
 
   // View routing
   const pathParts = location.pathname.split('/')
   const view = pathParts[4] || 'services'
 
   const sidebarItems = [
-    { key: 'services', label: 'Services', icon: Box },
+    { key: 'services', label: 'Architecture', icon: Box },
     { key: 'activity', label: 'Activity', icon: Activity },
     { key: 'manifest', label: 'Manifest', icon: FileCode },
     { key: 'settings', label: 'Settings', icon: Settings },
@@ -519,6 +517,8 @@ export default function ProjectCanvas() {
         projectEnvironment={project?.environment || 'production'}
         environments={environments}
         activeEnvironmentId={activeEnvironmentId}
+          serviceCount={services.length}
+          appCount={services.filter((service) => service.type === 'app').length}
         onSelectEnvironment={setActiveEnvironment}
         connectionState={projectRealtime.connectionState}
         views={sidebarItems}
@@ -586,7 +586,7 @@ export default function ProjectCanvas() {
                 transformOrigin: '0 0',
               }}
             >
-              <ConnectionLines connections={connections} />
+              <ConnectionLines activeServiceId={activeServiceId} connections={connections} />
 
               {visibleServices.map((s) => (
                 <ServiceCard
@@ -595,6 +595,7 @@ export default function ProjectCanvas() {
                   position={positions[s.id] || { x: 100, y: 100 }}
                   isSelected={activeServiceId === s.id}
                   onMouseDown={(e) => handleNodeMouseDown(e, s.id)}
+                  onActivate={() => setActiveService(s.id)}
                   otherServices={services}
                   onLink={(targetId) => {
                     // Always store links as app -> database so unlink and linked-by work consistently
@@ -625,10 +626,10 @@ export default function ProjectCanvas() {
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center p-8">
                   <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                    <Search size={28} className="text-white/20" />
+                    <Search size={28} className="text-[#9292a3]" />
                   </div>
                   <h3 className="text-base font-semibold text-white/70 mb-1">No services match</h3>
-                  <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
+                  <p className="text-xs text-[#9292a3] max-w-xs mx-auto mb-5">
                     Try adjusting your filter or search query.
                   </p>
                   <button
@@ -645,15 +646,12 @@ export default function ProjectCanvas() {
             {services.length === 0 && !isLoading && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-[rgba(139,92,246,0.08)] border border-[rgba(139,92,246,0.12)] flex items-center justify-center mx-auto mb-4">
-                    <Rocket size={28} className="text-rail-purple" />
-                  </div>
                   {allServices.length > 0 ? (
                     <>
                       <h3 className="text-base font-semibold text-white mb-1">
                         Nothing in {activeEnvironmentName} yet
                       </h3>
-                      <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
+                      <p className="text-xs text-[#9292a3] max-w-xs mx-auto mb-5">
                         This project&apos;s{' '}
                         {allServices.length === 1
                           ? 'service lives'
@@ -664,9 +662,9 @@ export default function ProjectCanvas() {
                     </>
                   ) : (
                     <>
-                      <h3 className="text-base font-semibold text-white mb-1">This project is empty</h3>
-                      <p className="text-xs text-[#6b6b7b] max-w-xs mx-auto mb-5">
-                        Projects contain apps, databases, and services. Add your first service to start deploying.
+                      <h3 className="text-base font-semibold text-white mb-1">No services yet</h3>
+                      <p className="text-xs text-[#9292a3] max-w-xs mx-auto mb-5">
+                        Deploy a repository, run a container, or add a database.
                       </p>
                     </>
                   )}
@@ -680,9 +678,11 @@ export default function ProjectCanvas() {
               </div>
             )}
 
-            <CanvasFilterBar onAddService={() => setShowAdd(true)} />
+            <CanvasFilterBar services={services} onAddService={() => setShowAdd(true)} />
 
             <CanvasControls
+              zoom={zoom}
+              onHelp={() => setShowHelp(true)}
               onZoomIn={() => setZoom(zoom + 0.15)}
               onZoomOut={() => setZoom(zoom - 0.15)}
               onLayout={handleLayout}
@@ -692,6 +692,7 @@ export default function ProjectCanvas() {
             {/* Service Panel */}
             {activeServiceId && (
               <ServicePanel
+                key={activeServiceId}
                 serviceId={activeServiceId}
                 onClose={() => setActiveService(null)}
               />
@@ -700,7 +701,12 @@ export default function ProjectCanvas() {
         )}
 
         {view === 'activity' && <ActivityPage />}
-        {view === 'manifest' && <ManifestEditorPage />}
+        {view === 'manifest' && (activeEnvironmentId === environments.find((environment) => environment.isDefault)?.id ? <ManifestEditorPage /> : (
+          <div className="p-8 text-sm text-white/60">
+            <p>The project manifest manages the default environment. Switch to it to review and apply changes.</p>
+            <button type="button" className="mt-4 rounded bg-violet-500/20 px-3 py-2 text-violet-200" onClick={() => { const environment = environments.find((item) => item.isDefault); if (environment) setActiveEnvironment(environment.id) }}>Open default environment</button>
+          </div>
+        ))}
         {view === 'settings' && <ProjectSettingsView />}
       </div>
 
@@ -712,29 +718,20 @@ export default function ProjectCanvas() {
         />
       )}
 
-      {showHelp && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center" onClick={() => setShowHelp(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Keyboard size={16} className="text-rail-purple" /> Keyboard Shortcuts
-              </h3>
-              <button type="button" onClick={() => setShowHelp(false)} className="text-white/50 hover:text-white/60" aria-label="Close help">
-                <span className="text-lg">×</span>
-              </button>
-            </div>
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogTitle className="flex items-center gap-2"><Keyboard size={18} className="text-violet-300" /> Keyboard shortcuts</DialogTitle>
+          <DialogDescription>Move around your architecture without breaking your flow.</DialogDescription>
             <div className="space-y-2">
               {[
                 { key: 'N / +', desc: 'Add new service' },
-                { key: 'D', desc: 'Deploy selected service' },
                 { key: '?', desc: 'Toggle this help' },
                 { key: 'Esc', desc: 'Close panel / modal' },
-                { key: 'Delete', desc: 'Close service panel' },
                 { key: '↑ ↓ ← →', desc: 'Pan canvas' },
-                { key: 'Scroll', desc: 'Zoom in/out' },
+                { key: 'Scroll', desc: 'Pan canvas' },
                 { key: 'Drag', desc: 'Move service card' },
                 { key: 'Click', desc: 'Open service panel' },
-                { key: 'Middle-click drag', desc: 'Pan canvas' },
+                { key: 'Pinch / Ctrl + scroll', desc: 'Zoom canvas' },
                 { key: '⌘ + / ⌘ -', desc: 'Zoom in/out' },
                 { key: '⌘ 0', desc: 'Reset view' },
                 { key: '⌘ K', desc: 'Command palette' },
@@ -745,9 +742,8 @@ export default function ProjectCanvas() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

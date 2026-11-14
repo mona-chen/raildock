@@ -6,6 +6,7 @@ import { useProvisionServer } from '@/hooks/useServers'
 import { useServerSetupLogs } from '@/hooks/useServerSetupLogs'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Step = 'bootstrap' | 'connect'
@@ -174,15 +175,15 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
-      <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[520px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="block sm:max-w-[560px]">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-rail-purple/10 flex items-center justify-center">
             <Server size={18} className="text-rail-purple" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white">Add Server</h3>
-            <p className="text-[11px] text-[#8a8a99]">Connect a remote host to RailDock</p>
+            <DialogTitle>Connect a server</DialogTitle>
+            <DialogDescription className="mt-1">Connect a Linux host to run your services.</DialogDescription>
           </div>
         </div>
 
@@ -218,7 +219,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 </SelectContent>
               </Select>
               {proxyMode === 'external' && (
-                <p className="text-[10px] text-[#6b6b7b] mt-1.5">
+                <p className="text-[10px] text-[#9292a3] mt-1.5">
                   Use this when the host already runs Traefik or another reverse proxy on port 80/443. The bootstrap will skip nginx and set Dokku proxy to none.
                 </p>
               )}
@@ -251,7 +252,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     style={{ whiteSpace: 'nowrap' }}
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
                   />
-                  <p className="text-[10px] text-[#6b6b7b] mt-1">
+                  <p className="text-[10px] text-[#9292a3] mt-1">
                     Add this to <code className="text-[#8a8a99]">~/.ssh/authorized_keys</code> for the admin user and the deployment user (e.g. <code className="text-[#8a8a99]">/home/dokku/.ssh/authorized_keys</code>).
                   </p>
                 </div>
@@ -277,7 +278,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     style={{ whiteSpace: 'nowrap' }}
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
                   />
-                  <p className="text-[10px] text-[#6b6b7b] mt-1">
+                  <p className="text-[10px] text-[#9292a3] mt-1">
                     Run this one-liner as <strong>root</strong> to install Docker/Dokku and authorize the key automatically.
                   </p>
                 </div>
@@ -327,7 +328,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
                   placeholder="root"
                 />
-                <p className="text-[10px] text-[#6b6b7b] mt-1">Must have passwordless sudo or root access.</p>
+                <p className="text-[10px] text-[#9292a3] mt-1">Must have passwordless sudo or root access.</p>
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label htmlFor="ssh-user" className="text-[11px] text-[#8a8a99] block mb-1.5">Deployment User</label>
@@ -362,7 +363,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
                     placeholder="proxy"
                   />
-                  <p className="text-[10px] text-[#6b6b7b] mt-1">
+                  <p className="text-[10px] text-[#9292a3] mt-1">
                     The Docker network your existing Traefik container is attached to. RailDock applies process-scoped labels so routing works without touching your Traefik.
                   </p>
                 </div>
@@ -386,7 +387,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
                   placeholder="example.com"
                 />
-                <p className="text-[10px] text-[#6b6b7b] mt-1">
+                <p className="text-[10px] text-[#9292a3] mt-1">
                   {baseDomain === 'sslip.io' ? 'Auto-assigns app-name.{server-ip}.sslip.io (HTTP only)' : 'Auto-assigns subdomains like app-name.example.com'}
                 </p>
               </div>
@@ -414,7 +415,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   </span>
                 </div>
                 <div className="p-3 bg-[#161618] max-h-48 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
-                  {provisionLogs.length === 0 && !provisionError && <div className="text-[#6b6b7b]">Waiting for logs...</div>}
+                  {provisionLogs.length === 0 && !provisionError && <div className="text-[#9292a3]">Waiting for logs...</div>}
                   {provisionLogs.map((log, i) => (
                     <div key={i} className={log.stream === 'stderr' ? 'text-rail-red' : ''}>{log.line}</div>
                   ))}
@@ -462,12 +463,12 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 className="flex-1 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isBusy && <Loader2 size={12} className="animate-spin" />}
-                {isBusy ? 'Connecting...' : 'Validate Server'}
+                {isBusy ? 'Connecting…' : 'Connect server'}
               </button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

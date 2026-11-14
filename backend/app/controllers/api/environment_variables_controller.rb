@@ -4,6 +4,9 @@ module Api
     include DokkuEnvBatchable
     before_action :set_and_authorize_service!
 
+    around_action :serialize_service_write
+
+
     def create
       # Upsert: update existing env var or create new one
       ev = @service.environment_variables.find_or_initialize_by(key: env_var_params[:key])
@@ -68,9 +71,16 @@ module Api
 
     private
 
+    def serialize_service_write
+      return yield if request.get? || !@service
+
+      ServiceOperationLock.with(@service) { yield }
+    end
+
+
     def set_and_authorize_service!
       @service = Service.find(params[:service_id])
-      authorize_service!(@service)
+      authorize_service!(@service, action: request.get? ? :read : :update)
     end
 
     def env_var_params

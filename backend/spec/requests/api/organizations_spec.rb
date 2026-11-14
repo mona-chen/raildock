@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe "Api::OrganizationsController", type: :request do
-  let(:user) { create(:user) }
-  let(:other_user) { create(:user) }
+  let(:user) { create(:user, :admin) }
+  let(:other_user) { create(:user, :admin) }
 
   describe "GET /api/organizations" do
     it "returns 401 when unauthenticated" do

@@ -1,4 +1,4 @@
-import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container, Database } from 'lucide-react'
+import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container, Database, Search } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import ErrorState from '@/features/shared/ErrorState'
 import EmptyState from '@/features/shared/EmptyState'
+import WorkspaceHeader from '@/features/shared/WorkspaceHeader'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
 
 export default function ServerPage() {
@@ -24,6 +25,8 @@ export default function ServerPage() {
   const organization = useAuthStore((s) => s.currentOrganization())
   const canCreateServer = organization?.role === 'owner'
 
+  const [search, setSearch] = useState('')
+  const filteredServers = servers.filter((server) => `${server.name} ${server.host}`.toLowerCase().includes(search.trim().toLowerCase()))
   const [showAdd, setShowAdd] = useState(false)
   const [settingsServer, setSettingsServer] = useState<ServerRecord | null>(null)
   const [importServer, setImportServer] = useState<ServerRecord | null>(null)
@@ -78,23 +81,20 @@ export default function ServerPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Server size={18} className="text-rail-purple" />
-          <h1 className="text-base font-semibold text-white">Servers</h1>
-        </div>
+      <WorkspaceHeader title="Servers" description="Manage the hosts your services run on.">
         {canCreateServer && (
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-xs font-medium hover:bg-rail-purple/25 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 btn-primary"
           >
-            <Plus size={14} /> Add Server
+            <Plus size={14} /> Connect server
           </button>
         )}
-      </div>
+      </WorkspaceHeader>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl space-y-4">
+        <div className="mx-auto max-w-5xl space-y-5">
+          {servers.length > 0 && <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3 text-xs text-[#a0a0b0]"><span className="h-2 w-2 rounded-full bg-emerald-400" />{servers.filter((server) => server.status === 'connected').length} of {servers.length} connected</div><label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2"><Search size={14} className="text-[#a0a0b0]" /><input aria-label="Search servers" placeholder="Find a server…" value={search} onChange={(event) => setSearch(event.target.value)} className="w-44 bg-transparent text-xs outline-none" /></label></div>}
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-5 space-y-4">
@@ -126,22 +126,22 @@ export default function ServerPage() {
               onRetry={() => refetch()}
             />
           ) : (
-            servers.map((srv) => (
+            filteredServers.map((srv) => (
               <div key={srv.id} className="relative group">
                 <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.08)] flex items-center justify-center">
                         <Server size={20} className="text-rail-purple" />
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-white">{srv.name}</div>
-                        <div className="text-[10px] text-[#6b6b7b]">{srv.host} · {srv.os}</div>
+                        <div className="text-[10px] text-[#9292a3]">{srv.host} · {srv.os}</div>
                         {srv.baseDomain && (
                           <div className="text-[10px] text-rail-purple mt-0.5">*.{srv.baseDomain}</div>
                         )}
                         {srv.publicIp && (
-                          <div className="text-[10px] text-[#6b6b7b] mt-0.5">IP {srv.publicIp}</div>
+                          <div className="text-[10px] text-[#9292a3] mt-0.5">IP {srv.publicIp}</div>
                         )}
                       </div>
                     </div>
@@ -181,22 +181,22 @@ export default function ServerPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.projectIds.length}</div>
-                      <div className="text-[10px] text-[#6b6b7b]">Projects</div>
+                      <div className="text-[10px] text-[#9292a3]">Projects</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.dokkuVersion}</div>
-                      <div className="text-[10px] text-[#6b6b7b]">Dokku</div>
+                      <div className="text-[10px] text-[#9292a3]">Dokku</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white">{srv.dockerVersion}</div>
-                      <div className="text-[10px] text-[#6b6b7b]">Docker</div>
+                      <div className="text-[10px] text-[#9292a3]">Docker</div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
                       <div className="text-lg font-bold text-white capitalize">{srv.defaultProxy}</div>
-                      <div className="text-[10px] text-[#6b6b7b]">Proxy</div>
+                      <div className="text-[10px] text-[#9292a3]">Proxy</div>
                     </div>
                   </div>
 
@@ -204,21 +204,21 @@ export default function ServerPage() {
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <HardDrive size={12} className="text-rail-blue" />
-                        <span className="text-[10px] text-[#6b6b7b]">Disk</span>
+                        <span className="text-[10px] text-[#9292a3]">Disk</span>
                       </div>
                       <div className="text-sm font-bold text-white">{formatMbAsGb(srv.diskUsage.used)}/{formatMbAsGb(srv.diskUsage.total)} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-rail-blue rounded-full" style={{ width: `${(srv.diskUsage.used / srv.diskUsage.total) * 100}%` }} />
+                        <div className="h-full bg-rail-blue rounded-full" style={{ width: `${srv.diskUsage.total > 0 ? Math.min(100, Math.max(0, (srv.diskUsage.used / srv.diskUsage.total) * 100)) : 0}%` }} />
                       </div>
                     </div>
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Activity size={12} className="text-rail-purple" />
-                        <span className="text-[10px] text-[#6b6b7b]">Memory</span>
+                        <span className="text-[10px] text-[#9292a3]">Memory</span>
                       </div>
                       <div className="text-sm font-bold text-white">{formatMbAsGb(srv.memoryUsage.used)}/{formatMbAsGb(srv.memoryUsage.total)} GB</div>
                       <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-rail-purple rounded-full" style={{ width: `${(srv.memoryUsage.used / srv.memoryUsage.total) * 100}%` }} />
+                        <div className="h-full bg-rail-purple rounded-full" style={{ width: `${srv.memoryUsage.total > 0 ? Math.min(100, Math.max(0, (srv.memoryUsage.used / srv.memoryUsage.total) * 100)) : 0}%` }} />
                       </div>
                     </div>
                   </div>
@@ -226,7 +226,7 @@ export default function ServerPage() {
 
                 <button
                   onClick={() => setRemoveTarget(srv)}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
                   title="Remove server"
                   aria-label={`Remove server ${srv.name}`}
                 >
@@ -236,6 +236,7 @@ export default function ServerPage() {
             ))
           )}
 
+          {servers.length > 0 && filteredServers.length === 0 && <EmptyState icon={Search} title="No matching servers" description="Try a server name or host address." action={<button type="button" onClick={() => setSearch('')} className="btn-secondary">Clear search</button>} />}
           {servers.length === 0 && !isLoading && !isError && (
             <EmptyState
               icon={Server}

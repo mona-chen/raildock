@@ -17,6 +17,7 @@ import {
   useStopAllServices,
 } from '@/hooks/useProjects'
 import { realtimeStateLabel, type RealtimeState } from '@/hooks/useRealtimeState'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import type { Environment } from '@/types'
 
 interface CanvasToolbarProps {
@@ -25,6 +26,8 @@ interface CanvasToolbarProps {
   projectEnvironment: string
   environments?: Environment[]
   activeEnvironmentId?: string
+  serviceCount?: number
+  appCount?: number
   onSelectEnvironment?: (environmentId: string) => void
   connectionState: RealtimeState
   views?: { key: string; label: string; icon: LucideIcon }[]
@@ -38,6 +41,8 @@ export default function CanvasToolbar({
   projectEnvironment,
   environments = [],
   activeEnvironmentId,
+  serviceCount = 0,
+  appCount = 0,
   onSelectEnvironment,
   connectionState,
   views = [],
@@ -46,6 +51,17 @@ export default function CanvasToolbar({
 }: CanvasToolbarProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'deploy' | 'restart' | 'stop' | 'cancel' | null>(null)
+  const environmentName = environments.find((environment) => environment.id === activeEnvironmentId)?.name ?? projectEnvironment
+  const actionLabels = { deploy: 'Deploy apps', restart: 'Restart services', stop: 'Stop services', cancel: 'Cancel deployments' }
+  const confirmAction = () => {
+    const input = { projectId, environmentId: activeEnvironmentId }
+    if (pendingAction === 'deploy') deployAll.mutate(input)
+    if (pendingAction === 'restart') restartAll.mutate(input)
+    if (pendingAction === 'stop') stopAll.mutate(input)
+    if (pendingAction === 'cancel') cancelDeployments.mutate(input)
+    setPendingAction(null)
+  }
 
   const deployAll = useDeployAllServices()
   const cancelDeployments = useCancelProjectDeployments()
@@ -55,8 +71,9 @@ export default function CanvasToolbar({
   const isLoading = deployAll.isPending || cancelDeployments.isPending || restartAll.isPending || stopAll.isPending
 
   return (
-    <div className="h-11 border-b border-white/[0.06] flex items-center justify-between gap-3 px-3 flex-shrink-0 z-40 overflow-x-auto">
-      <div className="flex items-center gap-2 flex-shrink-0">
+    <>
+    <div className="min-h-14 border-b border-white/[0.08] bg-[#111115] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2 flex-shrink-0 z-40">
+      <div className="flex max-w-full items-center gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => navigate('/dashboard/projects')}
@@ -67,7 +84,7 @@ export default function CanvasToolbar({
         </button>
         <div className="w-px h-4 bg-white/[0.08]" />
         <ProjectNavigator projectId={projectId} projectName={projectName} />
-        <span className="text-white/25">/</span>
+        <span className="text-[#a0a0b0]">/</span>
         <EnvironmentSwitcher
           projectId={projectId}
           environments={environments}
@@ -75,13 +92,13 @@ export default function CanvasToolbar({
           fallbackName={projectEnvironment}
           onSelect={(environmentId) => onSelectEnvironment?.(environmentId)}
         />
-        <div className="flex items-center gap-1.5 text-[10px] text-white/50" title="Project state synchronization">
+        <div className="flex items-center gap-1.5 text-[10px] text-white/50" title="Dashboard connection; application health is shown on each service">
           <span className={`h-1.5 w-1.5 rounded-full ${connectionState === 'live' ? 'bg-emerald-400' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
-          {realtimeStateLabel(connectionState)}
+          {connectionState === 'live' ? 'Connected' : realtimeStateLabel(connectionState)}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex max-w-full items-center gap-3 overflow-x-auto">
         {views.length > 0 && (
           <>
             <nav className="flex items-center gap-0.5" aria-label="Project views">
@@ -110,15 +127,13 @@ export default function CanvasToolbar({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              disabled={isLoading}
+              disabled={isLoading || !activeEnvironmentId}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-white/60 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg transition-all disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Rocket size={12} />
-              )}
-              Actions
+              ) : null}
+              {environmentName} actions
               <ChevronDown size={11} className="text-white/50" />
             </button>
           </DropdownMenuTrigger>
@@ -127,21 +142,21 @@ export default function CanvasToolbar({
             className="bg-[#1a1a1e] border-white/[0.08] text-white/80 min-w-[180px]"
           >
             <DropdownMenuItem
-              onClick={() => { deployAll.mutate(projectId); setOpen(false) }}
+              onClick={() => { setPendingAction('deploy'); setOpen(false) }}
               className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
             >
               <Rocket size={13} className="text-[#8b5cf6]" />
               Deploy All Apps
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => { restartAll.mutate(projectId); setOpen(false) }}
+              onClick={() => { setPendingAction('restart'); setOpen(false) }}
               className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
             >
               <RotateCcw size={13} className="text-white/50" />
               Restart All
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => { cancelDeployments.mutate(projectId); setOpen(false) }}
+              onClick={() => { setPendingAction('cancel'); setOpen(false) }}
               className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
             >
               <Ban size={13} className="text-amber-400" />
@@ -149,7 +164,7 @@ export default function CanvasToolbar({
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem
-              onClick={() => { stopAll.mutate(projectId); setOpen(false) }}
+              onClick={() => { setPendingAction('stop'); setOpen(false) }}
               className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
             >
               <Square size={13} className="text-red-400" />
@@ -160,5 +175,15 @@ export default function CanvasToolbar({
 
       </div>
     </div>
+    <ConfirmDialog
+      open={pendingAction !== null}
+      onOpenChange={(open) => { if (!open) setPendingAction(null) }}
+      onConfirm={confirmAction}
+      title={pendingAction ? `${actionLabels[pendingAction]} in ${environmentName}?` : ''}
+      description={`This affects ${pendingAction === 'deploy' ? appCount : serviceCount} ${pendingAction === 'deploy' ? 'apps' : 'services'} in ${projectName} / ${environmentName}. Other environments are unchanged.`}
+      confirmLabel={pendingAction ? actionLabels[pendingAction] : 'Confirm'}
+      destructive={pendingAction === 'stop'}
+    />
+    </>
   )
 }

@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Organization backup destinations", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:organization) { create(:organization, owner: user) }
   let(:headers) { auth_headers(user).merge("X-Organization-ID" => organization.id.to_s) }
 
@@ -65,7 +65,7 @@ RSpec.describe "Organization backup destinations", type: :request do
   end
 
   it "forbids non-members from listing destinations" do
-    other_user = create(:user)
+    other_user = create(:user, :admin)
     other_headers = auth_headers(other_user)
 
     get "/api/organizations/#{organization.id}/backup-destinations", headers: other_headers
@@ -74,7 +74,7 @@ RSpec.describe "Organization backup destinations", type: :request do
   end
 
   it "forbids regular members from creating destinations" do
-    member = create(:user)
+    member = create(:user, :admin)
     create(:organization_membership, user: member, organization: organization, role: :member)
     member_headers = auth_headers(member).merge("X-Organization-ID" => organization.id.to_s)
 
@@ -119,7 +119,7 @@ RSpec.describe "Organization backup destinations", type: :request do
     end
 
     it "forbids regular members from changing the default" do
-      member = create(:user)
+      member = create(:user, :admin)
       create(:organization_membership, user: member, organization: organization, role: :member)
       member_headers = auth_headers(member).merge("X-Organization-ID" => organization.id.to_s)
 

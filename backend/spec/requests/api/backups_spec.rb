@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Service backups", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:server) { create(:server) }
   let(:project) { create(:project, server: server) }
   let(:service) { create(:service, :database, project: project, subtype: "postgres") }

@@ -3,6 +3,9 @@ module Api
     include Authorizable
     before_action :set_and_authorize_service!
 
+    around_action :serialize_service_write
+
+
     def create
       attrs = mount_params.to_h
       attrs[:host_path] = attrs[:host_path].to_s.strip.presence
@@ -45,9 +48,16 @@ module Api
 
     private
 
+    def serialize_service_write
+      return yield if request.get? || !@service
+
+      ServiceOperationLock.with(@service) { yield }
+    end
+
+
     def set_and_authorize_service!
       @service = Service.find(params[:service_id])
-      authorize_service!(@service)
+      authorize_service!(@service, action: request.get? ? :read : :update)
     end
 
     def mount_params

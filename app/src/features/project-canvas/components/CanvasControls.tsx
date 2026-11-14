@@ -1,86 +1,25 @@
-import { Plus, Minus, LayoutGrid, Undo2, Redo2, Layers, Maximize2 } from 'lucide-react'
+import { Plus, Minus, LayoutGrid, Maximize2, CircleHelp } from 'lucide-react'
 
 interface CanvasControlsProps {
   onZoomIn: () => void
   onZoomOut: () => void
   onLayout: () => void
   onFit?: () => void
-  canUndo?: boolean
-  canRedo?: boolean
+  zoom?: number
+  onHelp?: () => void
 }
 
-export default function CanvasControls({
-  onZoomIn,
-  onZoomOut,
-  onLayout,
-  onFit,
-  canUndo = false,
-  canRedo = false,
-}: CanvasControlsProps) {
+export default function CanvasControls({ onZoomIn, onZoomOut, onLayout, onFit, zoom = 1, onHelp }: CanvasControlsProps) {
+  const control = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#a0a0b0] hover:bg-white/[0.07] hover:text-white disabled:opacity-30 transition-colors'
   return (
-    <div className="absolute bottom-4 left-4 flex flex-col gap-1.5 z-30" onMouseDown={(e) => e.stopPropagation()}>
-      <button
-        onClick={onLayout}
-        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
-        title="Auto layout"
-        aria-label="Auto layout services"
-      >
-        <LayoutGrid size={14} />
-      </button>
-
-      <div className="flex flex-col gap-0.5">
-        <button
-          onClick={onZoomIn}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
-          title="Zoom in"
-          aria-label="Zoom in"
-        >
-          <Plus size={14} />
-        </button>
-        <button
-          onClick={onZoomOut}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
-          title="Zoom out"
-          aria-label="Zoom out"
-        >
-          <Minus size={14} />
-        </button>
-        <button
-          onClick={onFit}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
-          title="Fit to view"
-          aria-label="Fit canvas to view"
-        >
-          <Maximize2 size={14} />
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-0.5">
-        <button
-          disabled={!canUndo}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
-          title="Undo"
-          aria-label="Undo last action"
-        >
-          <Undo2 size={14} />
-        </button>
-        <button
-          disabled={!canRedo}
-          className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none disabled:opacity-30"
-          title="Redo"
-          aria-label="Redo last action"
-        >
-          <Redo2 size={14} />
-        </button>
-      </div>
-
-      <button
-        className="w-8 h-8 rounded-lg bg-[#1a1a1e] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white/70 hover:border-white/[0.15] transition-all motion-reduce:transition-none"
-        title="Layers"
-        aria-label="Toggle layers"
-      >
-        <Layers size={14} />
-      </button>
+    <div className="absolute bottom-5 left-5 z-30 flex max-w-[calc(100%-2.5rem)] items-center gap-1 rounded-xl border border-white/[0.1] bg-[#18181e]/95 p-1 shadow-xl backdrop-blur-md" onMouseDown={(event) => event.stopPropagation()}>
+      <button type="button" onClick={onZoomOut} disabled={zoom <= 0.3} className={control} title="Zoom out" aria-label="Zoom out"><Minus size={16} /></button>
+      <span className="w-10 text-center font-mono text-[11px] text-[#b7b7c5]" aria-live="polite">{Math.round(zoom * 100)}%</span>
+      <button type="button" onClick={onZoomIn} disabled={zoom >= 2} className={control} title="Zoom in" aria-label="Zoom in"><Plus size={16} /></button>
+      <span className="mx-1 h-4 w-px bg-white/10" />
+      <button type="button" onClick={onFit} className={control} title="Fit to view" aria-label="Fit canvas to view"><Maximize2 size={16} /></button>
+      <button type="button" onClick={onLayout} className={control} title="Arrange services" aria-label="Auto layout services"><LayoutGrid size={16} /></button>
+      {onHelp && <><span className="mx-1 h-4 w-px bg-white/10" /><button type="button" onClick={onHelp} className={control} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><CircleHelp size={16} /></button></>}
     </div>
   )
 }

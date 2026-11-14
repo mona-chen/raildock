@@ -229,7 +229,7 @@ export interface Backup {
   status: 'completed' | 'failed' | 'pending' | 'running'
   filePath?: string
   metadata?: Record<string, string>
-  backupKind?: 'database' | 'volume' | 'pitrBase' | 'wal'
+  backupKind?: 'database' | 'volume' | 'pitr_base' | 'wal'
   encrypted?: boolean
   backupDestinationId?: string
 }
@@ -273,6 +273,7 @@ export interface PostgresPitrConfig {
 }
 
 export interface RestoreDrill {
+  targetTime?: string
   id: string
   backupId: string
   status: 'pending' | 'running' | 'succeeded' | 'failed'

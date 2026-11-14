@@ -52,7 +52,7 @@ class Backup < ApplicationRecord
   end
 
   def remote_copy_available?
-    backup_copies.completed.exists? || storage_key.present?
+    backup_copies.completed.where.not(backup_destination_id: nil).exists? || (backup_destination_id.present? && storage_key.present?)
   end
 
   def integrity_valid?

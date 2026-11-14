@@ -118,7 +118,13 @@ class ManifestReconciler
   #                       must never delete it by accident.
   # force_destroy_data:   proceed even when no verified snapshot could be
   #                       taken. Only for deliberate, acknowledged data loss.
-  def apply!(engine = nil, host_engine: nil, deploy_exclusions: [], allow_removals: false, force_destroy_data: false)
+  def apply!(engine = nil, host_engine: nil, deploy_exclusions: [], allow_removals: false, force_destroy_data: false, manifest_digest: nil)
+    ServiceOperationLock.with_project(@project, exclusive: true) do
+      apply_locked!(engine, host_engine: host_engine, deploy_exclusions: deploy_exclusions, allow_removals: allow_removals, force_destroy_data: force_destroy_data, manifest_digest: manifest_digest)
+    end
+  end
+
+  def apply_locked!(engine = nil, host_engine: nil, deploy_exclusions: [], allow_removals: false, force_destroy_data: false, manifest_digest: nil)
     raise "No changes computed. Call diff first." unless @diff_computed
 
     engine ||= build_engine
@@ -164,18 +170,19 @@ class ManifestReconciler
     end
 
     selected_names = selected_service_names.to_set
-    never_deployed_apps = @project.services
+    never_deployed_apps = services_scope
       .where(name: @desired.services.select { |service| service[:category] == "app" && selected_names.include?(service[:name].to_s) }.map { |service| service[:name] })
       .where.not(id: Deployment.succeeded.select(:service_id))
       .pluck(:id)
     deploy_service_ids.merge(never_deployed_apps)
     deploy_service_ids.subtract(deploy_exclusions)
 
+    deployments_by_service = {}
+
     # Deploy only after every synchronous preparation phase has succeeded.
     # This ensures new apps cannot boot before links, credentials, and runtime
     # values are available.
     if results.all? { |result| result[:success] }
-      deployments_by_service = {}
       ordered_services_for_deploy(deploy_service_ids).each do |service|
         result = prepare_service_deployment(engine, service)
         results << result
@@ -183,12 +190,22 @@ class ManifestReconciler
       end
 
       if results.all? { |result| result[:success] } && deployments_by_service.any?
+        pending_removals = @changes.select { |change| change.change_type == :removed && change.field == :service }
+        if allow_removals && pending_removals.any?
+          @operation = @project.manifest_operations.create!(
+            deployment_ids: deployments_by_service.values.map(&:id),
+            manifest_digest: manifest_digest,
+            removals: pending_removals.map { |change| { id: change.old_value[:id], dokku_app_name: change.old_value[:dokku_app_name] } },
+            force_destroy_data: force_destroy_data
+          )
+          @project.update!(manifest_drift_detected: true)
+        end
         DeploymentSequenceJob.perform_later(deployment_sequence_entries(deployments_by_service))
       elsif deployments_by_service.any?
         fail_prepared_deployments(deployments_by_service.values, "Manifest deployment preparation failed")
       end
     else
-      @project.services.where(id: deploy_service_ids.to_a).update_all(status: "error", updated_at: Time.current)
+      services_scope.where(id: deploy_service_ids.to_a).update_all(status: "error", updated_at: Time.current)
     end
 
     # Phase 6: Destroy services.
@@ -199,19 +216,25 @@ class ManifestReconciler
     #
     # A failed create/link/deploy must never cascade into deleting anything, and
     # a manifest that merely omits a service must never be enough to remove it.
-    removals = apply_removals(
+    removals = if @operation
+      { results: [], skipped: [], blocked: [] }
+    else
+      apply_removals(
       engine,
       prior_results: results,
       allow_removals: allow_removals,
       force_destroy_data: force_destroy_data
     )
+    end
     results.concat(removals[:results])
 
     {
       success: results.all? { |r| r[:success] },
       results: results,
       skipped_removals: removals[:skipped],
-      blocked_removals: removals[:blocked]
+      blocked_removals: removals[:blocked],
+      operation_id: @operation&.id,
+      pending_removals: @operation ? @changes.select { |change| change.change_type == :removed && change.field == :service }.map(&:service_name) : []
     }
   end
 
@@ -220,7 +243,7 @@ class ManifestReconciler
   def removal_plan
     @changes.select { |c| c.change_type == :removed && c.field == :service }.map do |change|
       svc = change.old_value
-      service = @project.services.find_by(name: svc[:name])
+      service = services_scope.find_by(name: svc[:name])
 
       {
         service_name: svc[:name],
@@ -277,21 +300,40 @@ class ManifestReconciler
     sorted + changes.reject { |c| sorted.include?(c) }
   end
 
+  def finish_confirmed_removals!(engine, identities, force_destroy_data: false)
+    identities.map do |identity|
+      identity = identity.with_indifferent_access
+      service = services_scope.find_by(id: identity[:id])
+      next { success: true } unless service
+      unless service.dokku_app_name == identity[:dokku_app_name]
+        next { success: false, error: "Service identity changed; refusing removal of #{service.name}" }
+      end
+      actual = @actual.fetch(service.name)
+      change = Change.new(service_name: service.name, field: :service, change_type: :removed, old_value: actual, new_value: nil)
+      ServiceOperationLock.with(service) { apply_destroy_service(engine, change, force_destroy_data: force_destroy_data) }
+    end
+  end
+
   private
 
   def adopt_explicit_services!
-    @project.services
+    services_scope
       .where(name: selected_service_names, managed_by: %w[ui hybrid])
       .update_all(managed_by: "manifest", updated_at: Time.current)
   end
 
   # ── Build actual state from DB ──────────────────────────────
 
+  def services_scope
+    @project.services.where(environment: @project.default_environment)
+  end
+
   def build_actual_state
     state = {}
-    @project.services.includes(:environment_variables, :domains, :storage_mounts, :process_types, :outgoing_links).find_each do |svc|
+    services_scope.includes(:environment_variables, :domains, :storage_mounts, :process_types, :outgoing_links).find_each do |svc|
       state[svc.name] = {
         id: svc.id,
+        dokku_app_name: svc.dokku_app_name,
         name: svc.name,
         category: svc.service_type,
         subtype: svc.subtype,
@@ -371,7 +413,7 @@ class ManifestReconciler
   end
 
   def resolved_env_for(service_name, env)
-    service = @project.services.find_by(name: service_name)
+    service = services_scope.find_by(name: service_name)
     return env unless service && env.is_a?(Hash)
 
     linked_services = service.linked_services.to_a
@@ -386,7 +428,7 @@ class ManifestReconciler
       .map { |l| [ l[:from], l[:to] ] }.to_set
     actual_links = Set.new
 
-    @project.services.includes(:linked_services).find_each do |svc|
+    services_scope.includes(:linked_services).find_each do |svc|
       next if selected_names && !selected_names.include?(svc.name)
 
       svc.linked_services.each do |linked|
@@ -407,7 +449,7 @@ class ManifestReconciler
 
     # Links to remove (only for manifest-managed services)
     (actual_links - desired_links).each do |from, to|
-      from_svc = @project.services.find_by(name: from)
+      from_svc = services_scope.find_by(name: from)
       next unless from_svc&.managed_by_manifest?
 
       @changes << Change.new(
@@ -513,7 +555,7 @@ class ManifestReconciler
         "stopped"
       end
 
-      service = @project.services.create!(
+      service = services_scope.create!(
         name: svc[:name],
         service_type: svc[:category],
         subtype: svc[:subtype],
@@ -681,7 +723,7 @@ class ManifestReconciler
   def apply_destroy_service(engine, change, force_destroy_data: false)
     svc = change.old_value
     app_name = Service.dokku_app_name_for(@project.name, svc[:name])
-    db_svc = @project.services.find_by(name: svc[:name])
+    db_svc = services_scope.find_by(name: svc[:name])
 
     snapshot = capture_pre_destroy_snapshot(db_svc, svc, force_destroy_data: force_destroy_data)
 
@@ -748,7 +790,7 @@ class ManifestReconciler
   end
 
   def apply_reload_change(engine, change)
-    service = @project.services.find_by(name: change.service_name)
+    service = services_scope.find_by(name: change.service_name)
     return { success: false, error: "Service not found" } unless service
 
     case change.field
@@ -772,7 +814,7 @@ class ManifestReconciler
   end
 
   def apply_restart_change(engine, change)
-    service = @project.services.find_by(name: change.service_name)
+    service = services_scope.find_by(name: change.service_name)
     return { success: false, error: "Service not found" } unless service
 
     case change.field
@@ -803,7 +845,7 @@ class ManifestReconciler
   end
 
   def apply_redeploy_change(engine, change)
-    service = @project.services.find_by(name: change.service_name)
+    service = services_scope.find_by(name: change.service_name)
     return { success: false, error: "Service not found" } unless service
 
     # Update DB record
@@ -817,8 +859,8 @@ class ManifestReconciler
   end
 
   def apply_link_change(engine, change)
-    from_svc = @project.services.find_by(name: change.new_value&.dig(:from) || change.old_value&.dig(:from))
-    to_svc = @project.services.find_by(name: change.new_value&.dig(:to) || change.old_value&.dig(:to))
+    from_svc = services_scope.find_by(name: change.new_value&.dig(:from) || change.old_value&.dig(:from))
+    to_svc = services_scope.find_by(name: change.new_value&.dig(:to) || change.old_value&.dig(:to))
     return { success: false, error: "Service not found" } unless from_svc && to_svc
 
     if change.change_type == :added
@@ -1259,7 +1301,7 @@ def apply_storage_change(engine, service, change)
   end
 
   def ordered_services_for_deploy(service_ids)
-    services = @project.services.where(id: service_ids.to_a).to_a
+    services = services_scope.where(id: service_ids.to_a).to_a
     changes = services.map do |service|
       Change.new(
         service_name: service.name,
@@ -1275,7 +1317,7 @@ def apply_storage_change(engine, service, change)
   end
 
   def deployment_sequence_entries(deployments_by_service)
-    services = @project.services.where(id: deployments_by_service.keys).index_by(&:name)
+    services = services_scope.where(id: deployments_by_service.keys).index_by(&:name)
 
     ordered_services_for_deploy(deployments_by_service.keys).map do |service|
       dependencies = desired_dependencies(service.name).filter_map do |name|

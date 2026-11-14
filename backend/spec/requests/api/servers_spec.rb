@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::ServersController", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let!(:server) { create(:server) }
   let(:organization) { server.organization }
   let!(:membership) { create(:organization_membership, user: user, organization: organization, role: :owner) }

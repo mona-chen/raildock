@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe "Activity Events API", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:server) { create(:server) }
   let(:project) { create(:project, server: server, user: user) }
   let(:service) { create(:service, project: project) }

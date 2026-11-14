@@ -67,7 +67,7 @@ RSpec.describe ManagedStoragePermissions do
     allow(mount).to receive_messages(kind_volume?: false, kind_bind?: true, host_path: "/var/lib/dokku/data/storage/demo-data")
     expect(engine).not_to receive(:run)
     expect(host).to receive(:run).with(a_string_starting_with("set -eu")).and_return(success: true, output: "")
-    expect(repair).to eq(["/data"])
+    expect(repair).to eq([ "/data" ])
   end
 
   it "does not change a managed bind directory shared with another service" do

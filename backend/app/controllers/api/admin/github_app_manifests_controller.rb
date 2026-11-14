@@ -66,6 +66,8 @@ module Api
         store_credentials(credentials)
 
         redirect_to frontend_redirect_url(github_app_manifest: "success"), allow_other_host: true
+      rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+        raise
       rescue => e
         Rails.logger.error "GitHub App Manifest callback failed: #{e.message}"
         redirect_to frontend_redirect_url(github_app_manifest: "error", message: "Internal error"), allow_other_host: true
@@ -99,6 +101,8 @@ module Api
           success: true,
           message: "GitHub App disconnected from RailDock. Delete the registration separately in GitHub settings."
         }
+      rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+        raise
       rescue => e
         Rails.logger.error "GitHub App destroy_app failed: #{e.message}"
         render json: { error: "Failed to disconnect GitHub App" }, status: :internal_server_error

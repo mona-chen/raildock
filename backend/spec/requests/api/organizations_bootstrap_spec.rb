@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Organization server bootstrap", type: :request do
-  let(:owner) { create(:user) }
+  let(:owner) { create(:user, :admin) }
   let(:organization) { create(:organization, owner: owner) }
   let(:headers) { auth_headers(owner).merge("X-Organization-ID" => organization.id.to_s) }
 
@@ -21,7 +21,7 @@ RSpec.describe "Organization server bootstrap", type: :request do
     end
 
     it "forbids members" do
-      member = create(:user)
+      member = create(:user, :admin)
       create(:organization_membership, user: member, organization: organization, role: :member)
       member_headers = auth_headers(member).merge("X-Organization-ID" => organization.id.to_s)
 

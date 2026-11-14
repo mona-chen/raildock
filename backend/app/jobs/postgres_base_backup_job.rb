@@ -18,7 +18,7 @@ class PostgresBaseBackupJob < ApplicationJob
     result = HostEngine.new(service.project.server).run_to_file(command, path)
     raise result[:output].presence || "PostgreSQL base backup failed" unless result[:success]
 
-    BackupArtifactStore.new.persist!(backup, path, storage_name: "pitr/#{service.id}/base/#{Time.current.utc.strftime('%Y%m%d%H%M%S')}.tar.gz.enc")
+    BackupArtifactStore.new.persist!(backup, path, destination_ids: [ config.backup_destination_id.to_s ], storage_name: "pitr/#{service.id}/base/#{Time.current.utc.strftime('%Y%m%d%H%M%S')}.tar.gz.enc")
     config.update!(last_base_backup_at: Time.current, status: "active", last_error: nil)
   rescue => error
     backup&.update!(status: "failed", metadata: (backup.metadata || {}).merge("error" => error.message))

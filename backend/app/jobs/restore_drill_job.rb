@@ -13,13 +13,13 @@ class RestoreDrillJob < ApplicationJob
       case backup.backup_kind
       when "database" then drill_database!(backup, path, resource_name)
       when "volume" then drill_volume!(backup, path, resource_name)
-      when "pitr_base" then drill_archive!(path)
+      when "pitr_base" then PostgresPhysicalRecovery.new(backup, resource_name, target_time: drill.target_time).call(path)
       else raise "Restore drills are not supported for #{backup.backup_kind} artifacts"
       end
     end
 
     drill.update!(status: "succeeded", checksum_verified: true, completed_at: Time.current,
-      log: "Checksum verified and isolated restore completed successfully")
+      log: drill.target_time ? "Checksum verified; isolated PostgreSQL recovered to #{drill.target_time.iso8601}" : "Checksum verified and isolated restore completed successfully")
   rescue => error
     drill&.update!(status: "failed", completed_at: Time.current, log: error.message)
     raise
@@ -42,7 +42,7 @@ class RestoreDrillJob < ApplicationJob
       healthy = HostEngine.new(service.project.server).run("docker exec #{Shellwords.escape(container)} pg_isready -U postgres")
       raise healthy[:output].presence || "Isolated PostgreSQL did not become ready" unless healthy[:success]
     ensure
-      engine&.postgres_destroy(resource_name)
+      engine&.datastore_destroy(drill_service) if created && created[:success]
     end
 
     def drill_volume!(backup, path, resource_name)
@@ -54,10 +54,5 @@ class RestoreDrillJob < ApplicationJob
       raise verified[:output].presence || "Could not read isolated restored volume" unless verified[:success]
     ensure
       host&.run("docker volume rm -f #{Shellwords.escape(resource_name)}")
-    end
-
-    def drill_archive!(path)
-      _output, error, status = Open3.capture3("tar", "-tzf", path)
-      raise error.presence || "Physical base backup archive is invalid" unless status.success?
     end
 end

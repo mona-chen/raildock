@@ -159,6 +159,11 @@ export default function ManifestEditorPage() {
 
   return (
     <div className="h-full flex flex-col">
+      {status?.operation && ['waiting', 'finalizing', 'failed'].includes(status.operation.status) && (
+        <div role="status" className="border-b border-amber-400/20 bg-amber-400/5 px-4 py-3 text-[12px] text-amber-200">
+          {status.operation.status === 'failed' ? `Manifest operation blocked: ${status.operation.error}` : 'Deployment verification is in progress. Confirmed removals will run only after all required deployments succeed.'}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">

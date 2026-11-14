@@ -105,9 +105,14 @@ describe('BackupsTab', () => {
     renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
 
     expect(screen.getByRole('tab', { name: /Backups/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: /Snapshots/i })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('tab', { name: /PITR/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByRole('tab', { name: /Snapshots/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Point-in-time recovery/i })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByText('Recovery')).toBeInTheDocument()
+  })
+
+  it('does not offer PostgreSQL recovery for other database engines', () => {
+    renderWithClient(<BackupsTab svc={mockService({ subtype: 'mysql' })} serviceId="svc-1" />)
+    expect(screen.queryByRole('tab', { name: /Point-in-time recovery/i })).not.toBeInTheDocument()
   })
 
   it('switches to Snapshots sub-tab', () => {
@@ -122,9 +127,9 @@ describe('BackupsTab', () => {
   it('switches to PITR sub-tab for postgres', () => {
     renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
 
-    fireEvent.click(screen.getByRole('tab', { name: /PITR/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Point-in-time recovery/i }))
 
-    expect(screen.getByRole('tab', { name: /PITR/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Point-in-time recovery/i })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('PostgreSQL point-in-time recovery')).toBeInTheDocument()
   })
 

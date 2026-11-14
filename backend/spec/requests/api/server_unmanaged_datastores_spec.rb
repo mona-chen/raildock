@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Server unmanaged datastores API", type: :request do
-  let(:owner) { create(:user) }
+  let(:owner) { create(:user, :admin) }
   let(:organization) { create(:organization, owner: owner) }
   let(:server) { create(:server, organization: organization) }
   let(:project) { create(:project, name: "tween", server: server, organization: organization) }

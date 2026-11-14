@@ -8,7 +8,6 @@ import {
   Folder,
   Box,
   Rocket,
-  Sparkles,
   X,
 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
@@ -116,9 +115,8 @@ export default function OnboardingChecklist() {
   if (dismissed || allCompleted) return null
 
   return (
-    <div className="mb-6 overflow-hidden rounded-xl border border-[rgba(139,92,246,0.12)] bg-gradient-to-br from-[rgba(139,92,246,0.06)] to-[rgba(139,92,246,0.02)]">
+    <div className="mb-6 overflow-hidden rounded-xl border border-[rgba(139,92,246,0.12)] bg-white/[0.02]">
       <div className="flex items-center gap-3 px-4 py-2.5">
-        <Sparkles size={14} className="shrink-0 text-rail-purple" />
         <button
           type="button"
           onClick={() => setExpandedOverride(!expanded)}
@@ -132,13 +130,13 @@ export default function OnboardingChecklist() {
               style={{ width: `${(completedCount / STEPS.length) * 100}%` }}
             />
           </span>
-          <span className="truncate text-[11px] text-[#6B6B78]">
+          <span className="truncate text-[11px] text-[#9292a3]">
             {completedCount} of {STEPS.length}
             {nextStep ? ` · next: ${nextStep.label.toLowerCase()}` : ''}
           </span>
           <ChevronRight
             size={13}
-            className={`shrink-0 text-[#6b6b7b] transition-transform ${expanded ? 'rotate-90' : ''}`}
+            className={`shrink-0 text-[#9292a3] transition-transform ${expanded ? 'rotate-90' : ''}`}
           />
         </button>
         {nextStep && (
@@ -155,7 +153,7 @@ export default function OnboardingChecklist() {
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss getting started"
-          className="shrink-0 rounded p-1 text-[#6b6b7b] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
+          className="shrink-0 rounded p-1 text-[#9292a3] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
         >
           <X size={13} />
         </button>
@@ -181,17 +179,17 @@ export default function OnboardingChecklist() {
                   {isDone ? (
                     <CheckCircle2 size={15} className="shrink-0 text-rail-green" />
                   ) : (
-                    <Circle size={15} className={`shrink-0 ${isNext ? 'text-rail-purple' : 'text-[#6b6b7b]'}`} />
+                    <Circle size={15} className={`shrink-0 ${isNext ? 'text-rail-purple' : 'text-[#9292a3]'}`} />
                   )}
                   <span
                     className={`flex-1 truncate text-[12px] ${isDone ? 'text-[#A0A0B0] line-through' : 'text-white/85'}`}
                   >
                     {step.label}
                   </span>
-                  <span className="hidden truncate text-[10px] text-[#6B6B78] sm:block">
+                  <span className="hidden truncate text-[10px] text-[#9292a3] sm:block">
                     {step.description}
                   </span>
-                  <step.icon size={12} className="shrink-0 text-[#6B6B78]" />
+                  <step.icon size={12} className="shrink-0 text-[#9292a3]" />
                 </Link>
               </li>
             )

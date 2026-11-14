@@ -6,7 +6,13 @@
 class RestartJob < ApplicationJob
   queue_as :default
 
+  retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
+
   def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
+    ServiceOperationLock.with(Service.find(service_id)) { perform_locked(service_id, idempotency_key: idempotency_key, kind: kind, triggered_by: triggered_by) }
+  end
+
+  def perform_locked(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
     service = Service.find(service_id)
     project = service.project
     server = project.server

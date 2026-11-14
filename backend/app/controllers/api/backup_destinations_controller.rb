@@ -35,6 +35,8 @@ module Api
       BackupDestinationClient.new(destination).verify! if destination.valid?
       destination.save!
       render json: destination.as_json.merge("recovery_key" => destination.encryption_key), status: :created
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => error
       destination&.status = "failed"
       destination&.save(validate: false) if destination&.persisted?
@@ -46,6 +48,8 @@ module Api
       BackupDestinationClient.new(@destination).verify! if @destination.valid?
       @destination.save!
       render json: @destination
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => error
       @destination.update_columns(status: "failed")
       render json: { error: "Destination verification failed: #{error.message}" }, status: :unprocessable_entity
@@ -64,6 +68,8 @@ module Api
     def verify
       BackupDestinationClient.new(@destination).verify!
       render json: @destination.reload
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => error
       @destination.update_columns(status: "failed")
       render json: { error: "Destination verification failed: #{error.message}" }, status: :unprocessable_entity

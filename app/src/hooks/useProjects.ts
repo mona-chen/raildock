@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export function useProjects() {
+  const organizationId = useAuthStore((state) => state.currentOrganizationId)
   return useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', 'list', organizationId],
     queryFn: () => api.projects.list(),
   })
 }
@@ -82,8 +84,8 @@ export function useUpdateProjectSharedVars() {
 export function useDeployAllServices() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (projectId: string) => api.projects.deployAll(projectId),
-    onSuccess: (data, projectId) => {
+    mutationFn: ({ projectId, environmentId }: { projectId: string; environmentId?: string }) => api.projects.deployAll(projectId, environmentId),
+    onSuccess: (data, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       toast.success(`Deploying ${data.queued} services`)
     },
@@ -94,8 +96,8 @@ export function useDeployAllServices() {
 export function useCancelProjectDeployments() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (projectId: string) => api.projects.cancelDeployments(projectId),
-    onSuccess: (data, projectId) => {
+    mutationFn: ({ projectId, environmentId }: { projectId: string; environmentId?: string }) => api.projects.cancelDeployments(projectId, environmentId),
+    onSuccess: (data, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       queryClient.invalidateQueries({ queryKey: ['deployments'] })
       toast.success(data.cancelled > 0 ? `Cancelled ${data.cancelled} deployments` : 'No active deployments')
@@ -107,8 +109,8 @@ export function useCancelProjectDeployments() {
 export function useRestartAllServices() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (projectId: string) => api.projects.restartAll(projectId),
-    onSuccess: (data, projectId) => {
+    mutationFn: ({ projectId, environmentId }: { projectId: string; environmentId?: string }) => api.projects.restartAll(projectId, environmentId),
+    onSuccess: (data, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       const queued = data.queued || data.services?.length || 0
       toast.success(`Restart queued for ${queued} services`)
@@ -120,8 +122,8 @@ export function useRestartAllServices() {
 export function useStopAllServices() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (projectId: string) => api.projects.stopAll(projectId),
-    onSuccess: (data, projectId) => {
+    mutationFn: ({ projectId, environmentId }: { projectId: string; environmentId?: string }) => api.projects.stopAll(projectId, environmentId),
+    onSuccess: (data, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'services'] })
       const failed = data.failed?.length || 0
       if (failed > 0) {

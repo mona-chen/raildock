@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::Admin::DataSafetyController", type: :request do
-  let(:admin) { create(:user) }
+  let(:admin) { create(:user, :admin) }
   let(:user) { create(:user, admin: false) }
 
   it "reports data-loss risks to admins" do

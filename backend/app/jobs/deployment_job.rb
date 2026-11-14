@@ -8,7 +8,13 @@ class DeploymentJob < ApplicationJob
 
   limits_concurrency to: 1, key: ->(service_id, deployment_id) { "deploy:#{service_id}" }
 
+  retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
+
   def perform(service_id, deployment_id)
+    ServiceOperationLock.with(Service.find(service_id)) { perform_locked(service_id, deployment_id) }
+  end
+
+  def perform_locked(service_id, deployment_id)
     service = Service.find(service_id)
     project = service.project
     server = project.server

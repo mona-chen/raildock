@@ -1,5 +1,6 @@
 module Api
   class GitSourcesController < BaseController
+    include Authorizable
     def index
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
@@ -20,7 +21,7 @@ module Api
       # Assign owner: organization if specified, otherwise current user
       if params[:organization_id]
         org = Organization.find(params[:organization_id])
-        authorize_organization_access!(org)
+        authorize_organization!(org, action: :settings)
         source.organization = org
       else
         source.user = current_user
@@ -38,7 +39,7 @@ module Api
 
       # Check access: org sources need org membership, personal sources need to be the owner
       if source.organization
-        authorize_organization_access!(source.organization)
+        authorize_organization!(source.organization, action: :settings)
       elsif source.user && source.user != current_user
         return render json: { error: "Forbidden" }, status: :forbidden
       end

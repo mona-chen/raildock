@@ -10,6 +10,10 @@
 #     schedule: at 5am every day
 
 production:
+  finalize_manifest_operations:
+    class: FinalizeManifestOperationsJob
+    schedule: every minute
+
   run_due_backups:
     class: RunDueBackupsJob
     schedule: every minute

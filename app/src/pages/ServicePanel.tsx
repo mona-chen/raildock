@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Box, X, Play, Square, RotateCw, Rocket, Wrench, Terminal } from 'lucide-react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { Box, X, Play, Square, RotateCw, Wrench, Terminal, MoreHorizontal, Maximize2, Minimize2 } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import {
   useService,
@@ -24,6 +24,8 @@ import StorageTab from '@/features/service-panel/tabs/StorageTab'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import StatusBadge from '@/features/shared/StatusBadge'
 
 interface ServicePanelProps {
@@ -34,6 +36,14 @@ interface ServicePanelProps {
 export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) {
   const { data: svc, isLoading, isError, error, refetch } = useService(serviceId)
   const [tab, setTab] = useState('overview')
+  const [expanded, setExpanded] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'stop' | 'restart' | 'rebuild' | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    panelRef.current?.focus({ preventScroll: true })
+    return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }) }
+  }, [serviceId, isLoading])
   const deployService = useDeployService()
   const startService = useStartService()
   const stopService = useStopService()
@@ -83,7 +93,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     const onKeyDown = (event: KeyboardEvent) => {
       // An open dialog or popover owns the keyboard first — otherwise
       // dismissing a confirm would also tear down the panel behind it.
-      if (document.querySelector('[data-state="open"]')) return
+      if (document.querySelector('[role="dialog"][data-state="open"], [role="menu"][data-state="open"]')) return
 
       const target = event.target as HTMLElement | null
       const typing = Boolean(
@@ -237,12 +247,15 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   return (
     <div
       data-service-panel
+      ref={panelRef}
+      tabIndex={-1}
       role="dialog"
       aria-label={`${svc.name} service`}
-      className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+      className={`absolute right-0 top-0 bottom-0 w-full ${expanded ? '' : 'max-w-[min(960px,85%)] max-sm:max-w-full'} bg-[#131318] border-l border-white/[0.1] flex flex-col z-50 shadow-2xl shadow-black/40 outline-none`}
       onWheel={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <ConfirmDialog open={pendingAction !== null} onOpenChange={(open) => { if (!open) setPendingAction(null) }} title={`${pendingAction === 'stop' ? 'Stop' : pendingAction === 'rebuild' ? 'Rebuild' : 'Restart'} ${svc.name}?`} description={pendingAction === 'stop' ? 'This service will stop serving requests until you start it again. Stored data is retained.' : pendingAction === 'rebuild' ? 'Build the configured source again without the build cache, then deploy it. This may take longer than a normal deploy.' : 'Running processes will restart. Requests may be interrupted briefly.'} confirmLabel={pendingAction === 'stop' ? 'Stop service' : pendingAction === 'rebuild' ? 'Rebuild service' : 'Restart service'} destructive={pendingAction === 'stop'} pending={stopService.isPending || restartService.isPending || rebuildService.isPending} onConfirm={async () => { try { if (pendingAction === 'stop') await stopService.mutateAsync(serviceId); if (pendingAction === 'restart') await restartService.mutateAsync(serviceId); if (pendingAction === 'rebuild') { setTab('deploy'); await rebuildService.mutateAsync(serviceId) } setPendingAction(null) } catch { /* The mutation reports the error; keep the review open for retry. */ } }} />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -262,67 +275,24 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           </div>
           <div className="min-w-0">
             <div className="text-[15px] font-semibold text-white/90 truncate">{svc.name}</div>
-            <div className="text-[11px] text-white/50">
+            <div className="text-[11px] text-[#a0a0b0]">
               {svc.subtype} {svc.version ? `v${svc.version}` : ''}
-              {deploymentRealtime.lastUpdate && <span className="ml-2 text-white/25">· {deploymentRealtime.lastUpdate.message}</span>}
+              {deploymentRealtime.lastUpdate && <span className="ml-2 text-[#9292a3]">· {deploymentRealtime.lastUpdate.message}</span>}
             </div>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {/* Lifecycle actions */}
-          <div className="flex items-center gap-1 mr-2">
-            {!db && (
-              <button
-                onClick={handleDeploy}
-                disabled={deployService.isPending}
-                title="Deploy"
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[11px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
-              >
-                <Rocket size={12} />
-                {deployService.isPending ? '...' : 'Deploy'}
-              </button>
-            )}
-            {svc.status !== 'running' && svc.status !== 'deploying' && (
-              <button
-                onClick={() => startService.mutate(serviceId)}
-                disabled={startService.isPending}
-                title="Start"
-                className="flex items-center gap-1 px-2 py-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-lg text-[11px] hover:bg-[#22c55e]/20 transition-all disabled:opacity-50"
-              >
-                <Play size={12} />
-                {startService.isPending ? '...' : 'Start'}
-              </button>
-            )}
-            {svc.status === 'running' && (
-              <button
-                onClick={() => stopService.mutate(serviceId)}
-                disabled={stopService.isPending}
-                title="Stop"
-                className="flex items-center gap-1 px-2 py-1.5 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-              >
-                <Square size={12} />
-                {stopService.isPending ? '...' : 'Stop'}
-              </button>
-            )}
-            <button
-              onClick={() => restartService.mutate(serviceId)}
-              disabled={restartService.isPending}
-              title="Restart"
-              className="flex items-center gap-1 px-2 py-1.5 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-            >
-              <RotateCw size={12} />
-              {restartService.isPending ? '...' : 'Restart'}
-            </button>
-            <button
-              onClick={() => rebuildService.mutate(serviceId)}
-              disabled={rebuildService.isPending}
-              title="Rebuild"
-              className="flex items-center gap-1 px-2 py-1.5 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/70 transition-all disabled:opacity-50"
-            >
-              <Wrench size={12} />
-              {rebuildService.isPending ? '...' : 'Rebuild'}
-            </button>
-          </div>
+          {!db && <button type="button" onClick={handleDeploy} disabled={deployService.isPending || svc.status === 'building' || svc.status === 'deploying'} className="btn-primary h-8 px-3 text-xs">{deployService.isPending ? 'Queuing…' : svc.status === 'building' || svc.status === 'deploying' ? 'Deploying…' : 'Deploy'}</button>}
+          {svc.status === 'stopped' && <button type="button" onClick={() => startService.mutate(serviceId)} disabled={startService.isPending} className="btn-secondary h-8 px-3 text-xs"><Play size={13} />{startService.isPending ? 'Starting…' : 'Start'}</button>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><button type="button" aria-label="Service actions" className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-[#a0a0b0] hover:bg-white/5"><MoreHorizontal size={17} /></button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem disabled={restartService.isPending || svc.status !== 'running'} onSelect={() => setPendingAction('restart')}><RotateCw size={14} />Restart service</DropdownMenuItem>
+              {!db && <DropdownMenuItem disabled={rebuildService.isPending || svc.status === 'building' || svc.status === 'deploying'} onSelect={() => setPendingAction('rebuild')}><Wrench size={14} />Rebuild without cache</DropdownMenuItem>}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={stopService.isPending || svc.status !== 'running'} onSelect={() => setPendingAction('stop')} className="text-red-300 focus:text-red-200"><Square size={14} />Stop service</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Shell, like Railway: a header action rather than a tab. */}
           <button
             type="button"
@@ -338,6 +308,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             <Terminal size={12} />
             Shell
           </button>
+          <button type="button" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? 'Restore panel width' : 'Expand service panel'} className="hidden h-8 w-8 items-center justify-center rounded-lg text-[#a0a0b0] hover:bg-white/5 sm:flex">{expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
           <StatusBadge status={svc.status} />
           <span className={`h-2 w-2 rounded-full ${deploymentRealtime.connectionState === 'live' ? 'bg-emerald-400' : deploymentRealtime.connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'}`} title={`${realtimeStateLabel(deploymentRealtime.connectionState)} updates`} />
         </div>
@@ -350,6 +321,18 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             key={t.key}
             type="button"
             role="tab"
+            id={`service-tab-${t.key}`}
+            aria-controls="service-tab-content"
+            tabIndex={tab === t.key ? 0 : -1}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+              event.preventDefault()
+              const index = tabs.findIndex((item) => item.key === tab)
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
+              setShowConsole(false)
+              setTab(tabs[next].key)
+              document.getElementById(`service-tab-${tabs[next].key}`)?.focus()
+            }}
             aria-selected={tab === t.key && !showConsole}
             onClick={() => {
               setShowConsole(false)
@@ -367,14 +350,14 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto" data-no-pan>
+      <div id="service-tab-content" role={showConsole ? undefined : 'tabpanel'} aria-labelledby={showConsole ? undefined : `service-tab-${tab}`} className="flex-1 overflow-y-auto" data-no-pan>
         {showConsole ? (
           <InteractiveTerminal serviceId={serviceId} serviceName={svc.name} />
         ) : (
           <>
             {tab === 'overview' && (
               <>
-                <OverviewTab svc={svc} serviceId={serviceId} lastUpdate={deploymentRealtime.lastUpdate} isConnected={deploymentRealtime.isConnected} />
+                <OverviewTab onNavigate={setTab} svc={svc} serviceId={serviceId} lastUpdate={deploymentRealtime.lastUpdate} isConnected={deploymentRealtime.isConnected} />
                 {/* A database's home is its connection details, so they sit
                     with the overview instead of in their own tab. */}
                 {db && (

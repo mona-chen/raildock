@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::DeployKeysController", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :admin) }
   let(:org) { create(:organization, owner: user) }
 
   before do

@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Server Docker imports API", type: :request do
-  let(:owner) { create(:user) }
+  let(:owner) { create(:user, :admin) }
   let(:organization) { create(:organization, owner: owner) }
   let(:server) { create(:server, organization: organization) }
   let(:headers) { auth_headers(owner).merge("X-Organization-ID" => organization.id.to_s) }

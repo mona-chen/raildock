@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_144500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -243,6 +243,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_000002) do
     t.index ["project_id"], name: "index_manifest_changes_on_project_id"
   end
 
+  create_table "manifest_operations", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.jsonb "deployment_ids", default: [], null: false
+    t.text "error"
+    t.boolean "force_destroy_data", default: false, null: false
+    t.string "manifest_digest"
+    t.bigint "project_id", null: false
+    t.jsonb "removals", default: [], null: false
+    t.string "status", default: "waiting", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_manifest_operations_on_project_id"
+    t.index ["status"], name: "index_manifest_operations_on_status"
+  end
+
   create_table "organization_invitations", force: :cascade do |t|
     t.datetime "accepted_at"
     t.datetime "created_at", null: false
@@ -385,6 +400,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_000002) do
     t.text "log"
     t.datetime "started_at"
     t.string "status", default: "pending", null: false
+    t.datetime "target_time"
     t.datetime "updated_at", null: false
     t.index ["backup_id", "created_at"], name: "index_restore_drills_on_backup_id_and_created_at"
     t.index ["backup_id"], name: "index_restore_drills_on_backup_id"
@@ -580,6 +596,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_000002) do
   add_foreign_key "git_sources", "organizations"
   add_foreign_key "git_sources", "users"
   add_foreign_key "manifest_changes", "projects"
+  add_foreign_key "manifest_operations", "projects"
   add_foreign_key "organization_invitations", "organizations"
   add_foreign_key "organization_invitations", "users"
   add_foreign_key "organization_invitations", "users", column: "invited_by_id"

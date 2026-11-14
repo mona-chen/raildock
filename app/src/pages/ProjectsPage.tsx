@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Folder, Plus, Search, Box, Trash2 } from 'lucide-react'
+import { Folder, Plus, Search, Box, Trash2, ArrowUpRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
 
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import ErrorState from '@/features/shared/ErrorState'
@@ -19,6 +20,7 @@ export default function ProjectsPage() {
   const setActiveProject = useCanvasStore((s) => s.setActiveService)
 
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState('newest')
   const [showCreate, setShowCreate] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [newName, setNewName] = useState('')
@@ -27,8 +29,9 @@ export default function ProjectsPage() {
 
   const filtered = projects.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description.toLowerCase().includes(search.toLowerCase())
-  )
+    (p.description || '').toLowerCase().includes(search.toLowerCase())
+  ).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  const serviceCount = projects.reduce((count, project) => count + project.serviceCounts.total, 0)
 
   // The command palette deep-links here with ?new=1 to open the create dialog.
   useEffect(() => {
@@ -46,24 +49,23 @@ export default function ProjectsPage() {
 
   const handleCreate = () => {
     if (!newName.trim()) return
-    createProject.mutate({ name: newName, description: newDesc, environment: newEnv }, {
-      onSuccess: () => {
+    createProject.mutate({ name: newName.trim(), description: newDesc, environment: newEnv }, {
+      onSuccess: (project) => {
         setNewName('')
         setNewDesc('')
         setNewEnv('production')
         setShowCreate(false)
+        handleOpenProject(project.id)
       },
     })
   }
 
   return (
-    <div className="min-h-full p-8">
-      <div className="max-w-5xl mx-auto">
-        <OnboardingChecklist />
-        <div className="flex items-center justify-between mb-8">
+    <div className="h-full overflow-y-auto px-5 py-8 sm:px-8 lg:px-12">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Projects</h1>
-            <p className="text-sm text-[#6b6b7b]">Manage your applications and services</p>
+            <h1 className="text-2xl font-semibold text-white">Projects</h1>
           </div>
           <button
             onClick={() => setShowCreate(true)}
@@ -73,16 +75,22 @@ export default function ProjectsPage() {
           </button>
         </div>
 
-        <div className="flex items-center bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-2.5 gap-3 max-w-md mb-6">
-          <Search size={16} className="text-[#6b6b7b]" />
+        <OnboardingChecklist />
+        {!isLoading && !isError && projects.length > 0 && <div className="mb-8 flex gap-6 border-b border-white/[0.08] pb-5 text-sm text-[#a0a0b0]"><span><strong className="mr-1.5 text-white">{projects.length}</strong> {projects.length === 1 ? 'project' : 'projects'}</span><span><strong className="mr-1.5 text-white">{serviceCount}</strong> {serviceCount === 1 ? 'service' : 'services'}</span></div>}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-full flex-1 items-center bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-2.5 gap-3 max-w-md sm:min-w-0">
+          <Search size={16} className="text-[#9292a3]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search projects..."
+            aria-label="Search projects"
+            placeholder="Find a project…"
             className="bg-transparent text-sm text-white placeholder-[#6b6b7b] outline-none w-full"
           />
         </div>
 
+        <Select value={sort} onValueChange={setSort}><SelectTrigger aria-label="Sort projects" className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="newest">Newest first</SelectItem><SelectItem value="name">Name A–Z</SelectItem></SelectContent></Select>
+        </div>
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -136,16 +144,19 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white mb-1">New Project</h3>
-            <p className="text-xs text-[#6b6b7b] mb-4">Create a new project to organize your services</p>
+      <Dialog open={showCreate} onOpenChange={(open) => { if (!createProject.isPending) setShowCreate(open) }}>
+        <DialogContent className="sm:max-w-[460px]">
+          <form onSubmit={(event) => { event.preventDefault(); handleCreate() }}>
+            <DialogTitle className="mb-2">Create a project</DialogTitle>
+            <DialogDescription className="mb-6">Group related apps and databases in a project.</DialogDescription>
             <div className="space-y-3">
               <div>
                 <label htmlFor="project-name" className="text-[11px] text-[#8a8a99] block mb-1.5">Project Name</label>
                 <input
                   id="project-name"
+                  required
+                  maxLength={100}
+                  autoComplete="off"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
@@ -178,22 +189,24 @@ export default function ProjectsPage() {
             </div>
             <div className="flex gap-2 mt-5">
               <button
+                type="button"
                 onClick={() => setShowCreate(false)}
+                disabled={createProject.isPending}
                 className="flex-1 py-2.5 border border-[rgba(255,255,255,0.08)] text-[#A0A0B0] text-xs rounded-lg hover:bg-[rgba(255,255,255,0.04)]"
               >
                 Cancel
               </button>
               <button
-                onClick={handleCreate}
-                disabled={createProject.isPending}
+                type="submit"
+                disabled={createProject.isPending || !newName.trim()}
                 className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50"
               >
                 {createProject.isPending ? 'Creating...' : 'Create Project'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -212,6 +225,7 @@ function ProjectCard({
   const { total, app: appCount, database: dbCount, cache: cacheCount } = project.serviceCounts
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmName, setConfirmName] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [needsAcknowledgement, setNeedsAcknowledgement] = useState(false)
 
@@ -231,7 +245,8 @@ function ProjectCard({
   }
 
   const handleDelete = async (forceDestroyData = false) => {
-    if (!isConfirmValid) return
+    if (!isConfirmValid || deleting) return
+    setDeleting(true)
     setDeleteError(null)
     try {
       // The backend takes a verified snapshot of every database/volume first and
@@ -243,7 +258,7 @@ function ProjectCard({
       const error = err as Error & { code?: string }
       setDeleteError(error.message)
       if (error.code === 'snapshot_required') setNeedsAcknowledgement(true)
-    }
+    } finally { setDeleting(false) }
   }
 
   const handleClose = () => {
@@ -255,22 +270,20 @@ function ProjectCard({
 
   return (
     <>
-      <div className="relative group">
+      <div className="relative group h-full">
         <button
           onClick={(e) => {
             e.stopPropagation()
             handleOpen()
           }}
-          className="w-full text-left bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] hover:border-[rgba(139,92,246,0.2)] rounded-2xl p-5 transition-all hover:bg-[rgba(255,255,255,0.04)]"
+          className="h-full w-full text-left bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] hover:border-[rgba(139,92,246,0.2)] rounded-xl p-5 min-h-[170px] transition-all hover:bg-[rgba(255,255,255,0.04)]"
         >
           <div className="flex items-start justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.08)] border border-[rgba(139,92,246,0.12)] flex items-center justify-center">
-              <Folder size={18} className="text-rail-purple" />
-            </div>
+            <h3 className="min-w-0 truncate text-base font-semibold text-white group-hover:text-violet-200">{project.name}</h3>
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
+              className={`mr-6 text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
                 project.environment === 'production'
-                  ? 'bg-[rgba(34,197,94,0.08)] text-rail-green'
+                  ? 'bg-white/[0.05] text-[#b7b7c5]'
                   : project.environment === 'staging'
                   ? 'bg-[rgba(59,130,246,0.08)] text-rail-blue'
                   : 'bg-[rgba(255,255,255,0.04)] text-[#A0A0B0]'
@@ -280,18 +293,16 @@ function ProjectCard({
             </span>
           </div>
 
-          <h3 className="text-base font-semibold text-white mb-1 group-hover:text-rail-purple transition-colors">
-            {project.name}
-          </h3>
-          <p className="text-xs text-[#6b6b7b] mb-4 line-clamp-2">{project.description}</p>
+          <p className="text-xs leading-relaxed text-[#9393a5] mb-5 min-h-8 line-clamp-2">{project.description || 'No description.'}</p>
 
-          <div className="flex items-center gap-3 text-[10px] text-[#8a8a99]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#a0a0b0] [&>span]:whitespace-nowrap">
             <span className="flex items-center gap-1">
-              <Box size={10} /> {total} services
+              <Box size={10} /> {total} {total === 1 ? 'service' : 'services'}
             </span>
             {appCount > 0 && <span>{appCount} app{appCount > 1 ? 's' : ''}</span>}
-            {dbCount > 0 && <span>{dbCount} db</span>}
+            {dbCount > 0 && <span>{dbCount} database{dbCount > 1 ? 's' : ''}</span>}
             {cacheCount > 0 && <span>{cacheCount} cache</span>}
+            <ArrowUpRight size={15} className="ml-auto text-violet-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" />
           </div>
         </button>
 
@@ -300,29 +311,22 @@ function ProjectCard({
             e.stopPropagation()
             handleDeleteClick()
           }}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
           title="Delete project"
         >
           <Trash2 size={14} />
         </button>
       </div>
 
-      {showConfirm && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-          onClick={() => setShowConfirm(false)}
-        >
-          <div
-            className="bg-[#18181B] border border-red-500/20 rounded-2xl p-6 w-full max-w-[420px] shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Dialog open={showConfirm} onOpenChange={(open) => { if (!deleting) { if (!open) handleClose(); else setShowConfirm(true) } }}>
+        <DialogContent className="border-red-500/20 sm:max-w-[460px]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
                 <Trash2 size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Delete Project</h3>
-                <p className="text-xs text-[#8a8a99]">This action cannot be undone</p>
+                <DialogTitle>Delete project</DialogTitle>
+                <DialogDescription className="mt-1">Review the resources affected before continuing.</DialogDescription>
               </div>
             </div>
 
@@ -387,15 +391,14 @@ function ProjectCard({
               </button>
               <button
                 onClick={() => handleDelete(needsAcknowledgement)}
-                disabled={!isConfirmValid}
+                disabled={!isConfirmValid || deleting}
                 className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {needsAcknowledgement ? 'Delete Without Snapshot' : 'Delete Project'}
+                {deleting ? 'Deleting…' : needsAcknowledgement ? 'Delete without snapshot' : 'Delete project'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

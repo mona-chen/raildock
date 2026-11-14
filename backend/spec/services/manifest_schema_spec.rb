@@ -120,6 +120,7 @@ RSpec.describe ManifestSchema do
 
         expect(result.success?).to be true
       end
+    end
 
     context 'nil static site settings' do
       # RepositoryDiscovery serializes a normalized service hash to JSON, which

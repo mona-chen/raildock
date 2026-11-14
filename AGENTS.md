@@ -381,3 +381,32 @@ version the target servers run before assuming a behavior.
   Object files remain immutable: never chown/chmod Git object files, refs, hooks,
   application data, or entire host trees. Failed/refused repairs are logged without
   retry; a verified repair permits exactly one sync retry and emits an activity event.
+
+## Operation boundaries
+
+- Organization context is resolved through the authenticated user's memberships;
+  an unknown/foreign `X-Organization-ID` is forbidden, never a personal fallback.
+  Authorization helpers raise `ApplicationController::AuthorizationDenied` so an
+  action cannot persist changes after rendering a denial. Broad operational
+  rescues must re-raise this exception and `ServiceOperationLock::Busy`.
+- Project manifests, generation, and drift comparison operate on the default
+  environment. Never reconcile copied services by name across environments.
+- Bulk deploy/restart/stop/cancel defaults to the project's default environment;
+  `environment_id` selects another environment. Never interpret omission as all.
+- `ManifestOperation` durably binds pending removals to deployment ids, service
+  identities, and the reviewed manifest digest. The finalizer runs only after
+  successful deployments; changed manifests or failed/missing/cancelled
+  deployments block removals. A recurring finalizer handles interrupted workers.
+- `ServiceOperationLock` serializes direct service mutations, deploys, and
+  restarts with a PostgreSQL advisory lock. Busy API operations return 409;
+  workers retry without cancelling dependent deployments.
+- PITR retention preserves complete WAL chains from the base anchoring the
+  retention window, and keeps timeline history. Physical drills must boot an
+  isolated PostgreSQL instance and verify recovery with SQL; listing a tar file
+  is not a successful restore. Drills never publish ports or modify live data.
+- The production entrypoint generates missing installation credentials and fails
+  startup on migration errors. Never mark unexecuted migrations as applied.
+- CI uses Node 24, includes opt-in real PostgreSQL recovery on a disposable Docker
+  host, and gates image publication. Main publishes only the exact commit whose
+  CI succeeded; tagged releases run the reusable CI workflow before publication.
+  `scripts/test-image.sh` checks fresh startup before publishing main images.

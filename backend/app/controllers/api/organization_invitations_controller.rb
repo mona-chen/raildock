@@ -79,6 +79,8 @@ module Api
         "by user=#{current_user.id} role=#{invitation.role} existing=#{existing_user.present?}"
       )
       true
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error("[Invitation] Failed to enqueue mailer: #{e.message}")
       false

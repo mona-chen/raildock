@@ -126,22 +126,22 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0D] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-dvh bg-[#0B0B0D] flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-[420px]">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <Logo className="h-9 w-9" />
           <span className="text-lg font-bold text-white">RailDock</span>
         </div>
 
-        <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-xl p-6">
-          <h1 className="text-base font-semibold text-white mb-1">
-            {isSetup ? 'Create Admin Account' : 'Sign In'}
+        <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-7 sm:p-8">
+          <h1 className="text-xl font-semibold text-white mb-2">
+            {isSetup ? 'Create admin account' : 'Sign in'}
           </h1>
-          <p className="text-xs text-[#6b6b7b] mb-5">
+          <p className="text-xs text-[#9292a3] mb-5">
             {isSetup
-              ? 'Set up your first admin user to get started.'
-              : 'Enter your credentials to access the dashboard.'}
+              ? 'Create the account that will manage your RailDock instance.'
+              : 'Access your RailDock instance.'}
           </p>
 
           {error && (
@@ -154,7 +154,7 @@ export default function AuthPage() {
           <form onSubmit={isSetup ? handleSetup : handleLogin} className="space-y-3">
             {isSetup && (
               <div>
-                <label htmlFor="auth-name" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-name" className="block text-[10px] text-[#9292a3] font-medium mb-1.5">
                   Full Name
                 </label>
                 <input
@@ -171,7 +171,7 @@ export default function AuthPage() {
               </div>
             )}
             <div>
-              <label htmlFor="auth-email" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-email" className="block text-[10px] text-[#9292a3] font-medium mb-1.5">
                 Email
               </label>
               <input
@@ -187,7 +187,7 @@ export default function AuthPage() {
               />
             </div>
             <div>
-              <label htmlFor="auth-password" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
+              <label htmlFor="auth-password" className="block text-[10px] text-[#9292a3] font-medium mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -207,7 +207,7 @@ export default function AuthPage() {
                   type="button"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b] hover:text-[#A0A0B0]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9292a3] hover:text-[#A0A0B0]"
                 >
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -230,7 +230,7 @@ export default function AuthPage() {
                       { label: 'Number', met: /[0-9]/.test(password) },
                       { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
                     ].map((req) => (
-                      <span key={req.label} className={`text-[10px] flex items-center gap-1 ${req.met ? 'text-rail-green' : 'text-[#6b6b7b]'}`}>
+                      <span key={req.label} className={`text-[10px] flex items-center gap-1 ${req.met ? 'text-rail-green' : 'text-[#9292a3]'}`}>
                         {req.met ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
                         {req.label}
                       </span>
@@ -242,7 +242,7 @@ export default function AuthPage() {
 
             {isSetup && (
               <div>
-                <label htmlFor="auth-confirm-password" className="block text-[10px] text-[#6b6b7b] uppercase tracking-wider font-medium mb-1.5">
+                <label htmlFor="auth-confirm-password" className="block text-[10px] text-[#9292a3] font-medium mb-1.5">
                   Confirm Password
                 </label>
                 <input
@@ -287,7 +287,7 @@ export default function AuthPage() {
             <div className="mt-3 text-center">
               <button
                 onClick={() => toast.info('Password reset is not yet configured. Contact your admin.')}
-                className="text-[11px] text-[#6b6b7b] hover:text-[#A0A0B0] transition-colors"
+                className="text-[11px] text-[#9292a3] hover:text-[#A0A0B0] transition-colors"
               >
                 Forgot password?
               </button>
@@ -295,7 +295,7 @@ export default function AuthPage() {
           )}
         </div>
 
-        <p className="text-center text-[10px] text-[#6b6b7b] mt-4">
+        <p className="text-center text-[10px] text-[#9292a3] mt-4">
           {isSetup ? 'Already have an account? ' : 'Need to set up? '}
           {isSetup ? (
             <button onClick={() => navigate('/login')} className="text-rail-purple hover:underline">

@@ -6,6 +6,27 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
+    --background: 240 13% 5%;
+    --foreground: 240 20% 96%;
+    --card: 240 10% 9%;
+    --card-foreground: 240 20% 96%;
+    --popover: 240 10% 11%;
+    --popover-foreground: 240 20% 96%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 8% 16%;
+    --secondary-foreground: 240 15% 90%;
+    --muted: 240 8% 14%;
+    --muted-foreground: 240 8% 65%;
+    --accent: 240 8% 18%;
+    --accent-foreground: 240 20% 96%;
+    --destructive: 0 73% 57%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 7% 19%;
+    --input: 240 7% 23%;
+    --ring: 263 90% 75%;
+    --radius: 0.625rem;
     --bg-primary: #0D0D0F;
     --bg-secondary: #151518;
     --bg-tertiary: #1A1A1F;
@@ -41,6 +62,7 @@
 
   html {
     scroll-behavior: smooth;
+    height: 100%;
   }
 
   body {
@@ -49,6 +71,13 @@
     -moz-osx-font-smoothing: grayscale;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  button, input, textarea, select, a { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), [role="button"] { cursor: pointer; }
+  :focus-visible { outline: 2px solid #b59aff; outline-offset: 3px; }
+  input::placeholder, textarea::placeholder { color: #878795; }
+  button:disabled { cursor: not-allowed; }
+  h1, h2, h3 { letter-spacing: -0.025em; }
 
   ::selection {
     @apply bg-[rgba(139,92,246,0.3)] text-white;
@@ -176,4 +205,10 @@
   background: #1A1A1F !important;
   border: 1px solid rgba(255,255,255,0.06) !important;
   color: #F0F0F5 !important;
+}
+
+/* Motion communicates state; respect users who prefer an immediate response. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }

@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
     branches: [main]
   pull_request:
@@ -8,7 +9,7 @@ on:
 
 env:
   RUBY_VERSION: "3.4"
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   # Opt into Node 24 ahead of the GitHub Actions Node 20 deprecation.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -95,6 +96,9 @@ jobs:
         run: bundle exec rails db:test:prepare
       - name: Run RSpec
         run: bundle exec rspec --format progress
+      - name: Verify physical PostgreSQL recovery
+        if: success()
+        run: RAILDOCK_RECOVERY_INTEGRATION=1 bundle exec rspec spec/integration/postgres_physical_recovery_spec.rb
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

@@ -16,7 +16,7 @@ module Api
 
     def cancel
       @deployment = Deployment.find(params[:id])
-      authorize_service!(@deployment.service)
+      authorize_service!(@deployment.service, action: :deploy)
 
       if @deployment.cancel!
         render json: { success: true, deployment_id: @deployment.id, status: "cancelled" }

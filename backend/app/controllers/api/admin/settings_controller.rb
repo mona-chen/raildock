@@ -36,6 +36,8 @@ module Api
         SmtpMailer.test_email(to: test_email).deliver_now
 
         render json: { success: true, email: test_email }
+      rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+        raise
       rescue => e
         render json: { error: e.message }, status: :unprocessable_entity
       end

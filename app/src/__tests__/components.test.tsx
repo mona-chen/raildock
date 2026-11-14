@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+const { stopService } = vi.hoisted(() => ({ stopService: vi.fn().mockResolvedValue(undefined) }))
+
 vi.mock('@/hooks/useServices', () => ({
   useService: vi.fn(),
   useCreateService: () => ({ mutate: vi.fn(), isPending: false }),
@@ -28,7 +30,7 @@ vi.mock('@/hooks/useServices', () => ({
   useUpdateService: () => ({ mutate: vi.fn() }),
   useDeployService: () => ({ mutate: vi.fn(), isPending: false }),
   useStartService: () => ({ mutate: vi.fn(), isPending: false }),
-  useStopService: () => ({ mutate: vi.fn(), isPending: false }),
+  useStopService: () => ({ mutate: vi.fn(), mutateAsync: stopService, isPending: false }),
   useRestartService: () => ({ mutate: vi.fn(), isPending: false }),
   useRebuildService: () => ({ mutate: vi.fn(), isPending: false }),
   useDeployment: () => ({ data: null, isLoading: false }),
@@ -329,6 +331,25 @@ describe('ServicePanel', () => {
     expect(screen.getByRole('tab', { name: 'Volumes' })).toBeInTheDocument()
   })
 
+  it('reviews the interruption before stopping a running service', async () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Service actions' }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Stop service' }))
+    expect(stopService).not.toHaveBeenCalled()
+    expect(screen.getByText(/will stop serving requests/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop service' }))
+    expect(stopService).toHaveBeenCalledWith('svc-1')
+  })
+
+  it('supports arrow navigation between service sections', () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Overview' }), { key: 'ArrowRight' })
+    expect(screen.getByRole('tab', { name: 'Deployments' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Deployments' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('shows backups and no deploy tab for database service', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({
       data: mockService({ type: 'database', subtype: 'postgres' }),
@@ -364,7 +385,7 @@ describe('AuthPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     const emailInput = screen.getByPlaceholderText('admin@example.com')
     const passwordInput = screen.getByPlaceholderText('••••••••')
 
@@ -382,7 +403,7 @@ describe('AuthPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Create Admin Account')).toBeInTheDocument()
+    expect(screen.getByText('Create admin account')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Admin User')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('admin@example.com')).toBeInTheDocument()
   })
@@ -429,15 +450,15 @@ describe('ServerPage', () => {
 
     render(<ServerPage />)
 
-    fireEvent.click(screen.getByText('Add Server'))
-    expect(screen.getByText('Connect a remote host to RailDock')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /connect server/i })[0])
+    expect(screen.getByText('Connect a Linux host to run your services.')).toBeInTheDocument()
     expect(screen.getByText('Prepare server')).toBeInTheDocument()
     expect(screen.getByText('Manual setup')).toBeInTheDocument()
     expect(screen.getByText('Organization public key')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Continue'))
     expect(screen.getByPlaceholderText('raildock-prod-01')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('192.168.1.100')).toBeInTheDocument()
-    expect(screen.getByText('Validate Server')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Connect server' })).toBeInTheDocument()
   })
 
   it('shows external Traefik settings for a server', () => {
@@ -586,7 +607,7 @@ describe('AddServiceModal', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByText('Database'))
+    fireEvent.click(screen.getByText('Add a database'))
     expect(screen.getByText('Add Database')).toBeInTheDocument()
     expect(screen.getByText('Relational database · v16')).toBeInTheDocument()
   })
@@ -598,13 +619,13 @@ describe('AddServiceModal', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByText('Cache'))
-    expect(screen.getByText('Add Service')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Add a cache'))
+    expect(screen.getByText('Add a supporting service')).toBeInTheDocument()
     expect(screen.getByText('In-memory cache')).toBeInTheDocument()
     expect(screen.getByText('Open source Redis alternative')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Back'))
-    fireEvent.click(screen.getByText('Other Service'))
+    fireEvent.click(screen.getByText('Explore other services'))
     expect(screen.getByText('Message broker')).toBeInTheDocument()
   })
 })

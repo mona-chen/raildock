@@ -6,6 +6,7 @@ RSpec.describe ReconcileStaleDeploymentsJob, type: :job do
 
   before do
     allow(DeploymentsChannel).to receive(:broadcast_to)
+    allow_any_instance_of(HostEngine).to receive(:prune_stale_upcoming_containers).and_return(success: true, removed: 0)
   end
 
   it "fails a deployment that has been pending beyond the queue timeout" do

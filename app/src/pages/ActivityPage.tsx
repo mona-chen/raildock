@@ -1,3 +1,4 @@
+import WorkspaceHeader from '@/features/shared/WorkspaceHeader'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Activity, GitBranch, Database, ArrowUpRight, ArrowDownRight, Settings, Boxes, Filter, Search, AlertTriangle } from 'lucide-react'
@@ -52,20 +53,11 @@ export default function ActivityPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="border-b border-white/[0.06] px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Activity size={18} className="text-rail-purple" />
-          <h1 className="text-base font-semibold text-white">Activity</h1>
-          {isScoped && project && (
-            <span className="text-[11px] text-[#6b6b7b]">{project.name}</span>
-          )}
-          {!isScoped && (
-            <span className="text-[11px] text-[#6b6b7b]">All projects</span>
-          )}
-        </div>
+      <WorkspaceHeader title="Activity" description={isScoped && project ? `What’s happening in ${project.name}.` : 'Deployments, changes, and important events across your workspace.'} />
+      <div className="border-b border-white/[0.08] px-5 pb-4 sm:px-8">
         <div className="mt-4 flex max-w-3xl items-center gap-2">
-          <label className="flex flex-1 items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5 focus-within:border-[#8b5cf6]/50"><Search size={13} className="text-white/20" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" className="w-full bg-transparent text-[12px] text-white/65 placeholder:text-white/20 focus:outline-none" /></label>
-          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5"><Filter size={12} className="text-white/20" /><Select value={action} onValueChange={setAction}><SelectTrigger className="h-auto border-0 bg-transparent p-0 text-[11px] capitalize text-white/50 shadow-none focus:ring-0 [&_svg]:hidden"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all" className="text-[11px]">All actions</SelectItem>{actions.map((value) => <SelectItem key={value} value={value} className="capitalize text-[11px]">{value}</SelectItem>)}</SelectContent></Select></label>
+          <label className="flex flex-1 items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5 focus-within:border-[#8b5cf6]/50"><Search size={13} className="text-[#9292a3]" /><input aria-label="Search activity" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" className="w-full bg-transparent text-[12px] text-white/65 placeholder:text-[#9292a3] focus:outline-none" /></label>
+          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5"><Filter size={12} className="text-[#9292a3]" /><Select value={action} onValueChange={setAction}><SelectTrigger aria-label="Filter activity by action" className="h-auto border-0 bg-transparent p-0 text-[11px] capitalize text-white/50 shadow-none focus:ring-0 [&_svg]:hidden"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all" className="text-[11px]">All actions</SelectItem>{actions.map((value) => <SelectItem key={value} value={value} className="capitalize text-[11px]">{value}</SelectItem>)}</SelectContent></Select></label>
         </div>
       </div>
 
@@ -107,7 +99,7 @@ export default function ActivityPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] text-white/80">{event.message}</div>
-                    <div className="text-[11px] text-[#6b6b7b] mt-0.5">
+                    <div className="text-[11px] text-[#9292a3] mt-0.5">
                       {event.serviceName && event.serviceName !== '-' && (
                         <span className="text-white/50">{event.serviceName}</span>
                       )}

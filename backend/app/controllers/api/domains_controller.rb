@@ -11,6 +11,9 @@ module Api
     # *conflicting* domain is a 409 the UI can act on, and a host that refuses
     # the change rolls the record back so the UI never shows a domain that is
     # not actually routed.
+    around_action :serialize_service_write
+
+
     def create
       hostname = normalize_hostname_param(domain_params[:hostname])
       return render_error("Hostname is required") if hostname.blank?
@@ -80,9 +83,16 @@ module Api
 
     private
 
+    def serialize_service_write
+      return yield if request.get? || !@service
+
+      ServiceOperationLock.with(@service) { yield }
+    end
+
+
     def set_and_authorize_service!
       @service = Service.find(params[:service_id])
-      authorize_service!(@service)
+      authorize_service!(@service, action: :update)
     end
 
     def set_domain_and_authorize!
@@ -175,6 +185,8 @@ module Api
         restored = @service.domains.new(previous.except("id", "created_at", "updated_at"))
         domain_sync.replace(restored, previous_hostname: domain.hostname)
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
     rescue => e
       Rails.logger.error "Failed to revert domain #{action} for #{@service.dokku_app_name}: #{e.message}"
     end

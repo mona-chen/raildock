@@ -12,7 +12,7 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
   return failureCount < 2
 }
 
-export const queryClient = new QueryClient({
+export const createQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30 * 1000,        // Data stays fresh for 30s
@@ -22,7 +22,9 @@ export const queryClient = new QueryClient({
       refetchOnReconnect: true,
     },
     mutations: {
-      retry: 1,
+      retry: false,
     },
   },
 })
+
+export const queryClient = createQueryClient()

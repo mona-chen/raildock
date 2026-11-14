@@ -57,6 +57,7 @@ export default function CommandPalette() {
     requestAnimationFrame(action)
   }, [])
 
+  const environmentId = new URLSearchParams(location.search).get('env')
   const go = (path: string) => run(() => navigate(path))
 
   return (
@@ -86,7 +87,7 @@ export default function CommandPalette() {
           <CommandItem
             value="create service"
             disabled={!projectBasePath}
-            onSelect={() => projectBasePath && go(`${projectBasePath}/services?new=1`)}
+            onSelect={() => projectBasePath && go(`${projectBasePath}/services?${new URLSearchParams({ new: '1', ...(environmentId ? { env: environmentId } : {}) })}`)}
           >
             <Plus />
             New service

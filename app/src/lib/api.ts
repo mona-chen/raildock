@@ -58,6 +58,7 @@ import {
   normalizeGitSource,
   normalizeBackupDestination,
   normalizeRecoveryOverview,
+  normalizeBackup,
 } from './apiTransforms'
 import {
   normalizeEnvironmentSyncPlan,
@@ -170,20 +171,20 @@ export const projectsApi = {
     await fetchJson(`/api/projects/${id}/shared_vars`, { method: 'PATCH', body: wrapBody('project', { vars }) })
   },
 
-  deployAll: async (id: string): Promise<{ queued: number; services: string[] }> => {
-    return fetchJson(`/api/projects/${id}/deploy_all`, { method: 'POST' })
+  deployAll: async (id: string, environmentId?: string): Promise<{ queued: number; services: string[] }> => {
+    return fetchJson(`/api/projects/${id}/deploy_all`, { method: 'POST', body: JSON.stringify({ environment_id: environmentId }) })
   },
 
-  cancelDeployments: async (id: string): Promise<{ cancelled: number }> => {
-    return fetchJson(`/api/projects/${id}/cancel_deployments`, { method: 'POST' })
+  cancelDeployments: async (id: string, environmentId?: string): Promise<{ cancelled: number }> => {
+    return fetchJson(`/api/projects/${id}/cancel_deployments`, { method: 'POST', body: JSON.stringify({ environment_id: environmentId }) })
   },
 
-  restartAll: async (id: string): Promise<{ queued: number; services: string[] }> => {
-    return fetchJson(`/api/projects/${id}/restart_all`, { method: 'POST' })
+  restartAll: async (id: string, environmentId?: string): Promise<{ queued: number; services: string[] }> => {
+    return fetchJson(`/api/projects/${id}/restart_all`, { method: 'POST', body: JSON.stringify({ environment_id: environmentId }) })
   },
 
-  stopAll: async (id: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
-    return fetchJson(`/api/projects/${id}/stop_all`, { method: 'POST' })
+  stopAll: async (id: string, environmentId?: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
+    return fetchJson(`/api/projects/${id}/stop_all`, { method: 'POST', body: JSON.stringify({ environment_id: environmentId }) })
   },
 }
 
@@ -426,11 +427,11 @@ export const servicesApi = {
   },
 
   backups: async (id: string): Promise<Backup[]> => {
-    return fetchJson(`/api/services/${id}/backups`)
+    return (await fetchJson<unknown[]>(`/api/services/${id}/backups`)).map(normalizeBackup)
   },
 
   snapshots: async (id: string): Promise<Backup[]> => {
-    return fetchJson(`/api/services/${id}/snapshots`)
+    return (await fetchJson<unknown[]>(`/api/services/${id}/snapshots`)).map(normalizeBackup)
   },
 
   backupSchedules: async (id: string): Promise<BackupSchedule[]> => {
@@ -520,8 +521,8 @@ export const servicesApi = {
   disablePitr: async (id: string): Promise<PostgresPitrConfig> =>
     fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'DELETE' }),
 
-  runRestoreDrill: async (id: string, backupId: string): Promise<RestoreDrill> =>
-    fetchJson(`/api/services/${id}/recovery/backups/${backupId}/drills`, { method: 'POST' }),
+  runRestoreDrill: async (id: string, backupId: string, targetTime?: string): Promise<RestoreDrill> =>
+    fetchJson(`/api/services/${id}/recovery/backups/${backupId}/drills`, { method: 'POST', body: JSON.stringify({ target_time: targetTime }) }),
 
   downloadBackup: async (id: string, backupId: string): Promise<Blob> => {
     const res = await fetch(`${API_BASE}/api/services/${id}/backups/${backupId}/download`, { headers: getAuthHeaders() })
@@ -1139,6 +1140,7 @@ export const manifestApi = {
     lastAppliedAt: string | null
     format: string | null
     hasManifest: boolean
+    operation?: { id: number; status: 'waiting' | 'finalizing' | 'succeeded' | 'failed'; error?: string | null; completedAt?: string | null } | null
   }> => {
     return fetchJson(`/api/projects/${projectId}/manifest/status`)
   },

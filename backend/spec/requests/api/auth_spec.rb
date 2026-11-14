@@ -42,7 +42,7 @@ RSpec.describe "Api::AuthController", type: :request do
   end
 
   describe "GET /api/me" do
-    let!(:user) { create(:user) }
+    let!(:user) { create(:user, :admin) }
 
     context "when authenticated" do
       it "returns current user info" do

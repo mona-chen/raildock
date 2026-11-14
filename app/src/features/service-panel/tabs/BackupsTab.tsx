@@ -8,16 +8,17 @@ import type { Service } from '@/types'
 const SUB_TABS = [
   { key: 'backups', label: 'Backups', icon: DatabaseBackup },
   { key: 'snapshots', label: 'Snapshots', icon: HardDrive },
-  { key: 'pitr', label: 'PITR', icon: Clock3 },
+  { key: 'pitr', label: 'Point-in-time recovery', icon: Clock3 },
 ]
 
 export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
   const [subTab, setSubTab] = useState('backups')
+  const tabs = SUB_TABS.filter((tab) => tab.key === 'pitr' ? svc.subtype === 'postgres' : tab.key === 'snapshots' ? svc.storageMounts?.length > 0 : true)
 
   return (
     <div className="min-h-full bg-[#111114]">
-      <div className="flex border-b border-white/[0.06] px-5">
-        {SUB_TABS.map((t) => {
+      <div className="flex overflow-x-auto border-b border-white/[0.06] px-5" role="tablist" aria-label="Backup and recovery sections">
+        {tabs.map((t) => {
           const Icon = t.icon
           return (
             <button

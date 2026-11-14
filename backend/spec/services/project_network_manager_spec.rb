@@ -89,7 +89,7 @@ RSpec.describe ProjectNetworkManager do
         allow(host_engine).to receive(:docker_network_inspect).with("matrix-postgres")
           .and_return({ success: true, output: "[]" })
         external = create(:service, project: project, name: "jean", service_type: "app",
-                                     external_networks: ["matrix-postgres"])
+                                     external_networks: [ "matrix-postgres" ])
 
         manager.configure_attach_networks(external)
 
@@ -103,7 +103,7 @@ RSpec.describe ProjectNetworkManager do
         allow(host_engine).to receive(:docker_network_inspect).with("missing-net")
           .and_return({ success: false, output: "not found" })
         external = create(:service, project: project, name: "ghost", service_type: "app",
-                                     external_networks: ["missing-net"])
+                                     external_networks: [ "missing-net" ])
 
         manager.configure_attach_networks(external)
 
@@ -122,7 +122,7 @@ RSpec.describe ProjectNetworkManager do
 
     it "attaches the running container to the proxy and external networks" do
       external = create(:service, project: project, name: "jean", service_type: "app",
-                                  external_networks: ["matrix-postgres"])
+                                  external_networks: [ "matrix-postgres" ])
 
       result = manager.connect_to_post_deploy_networks(external)
 
