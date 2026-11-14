@@ -41,8 +41,13 @@ RSpec.describe MetricsSamplerJob, type: :job do
     expect(metric.block_write).to eq(16_384)
   end
 
-  it "skips services without a docker image" do
+  it "samples Git-deployed apps without a docker image field" do
     service.update!(docker_image: nil)
+    expect { MetricsSamplerJob.perform_now }.to change(ServiceMetric, :count).by(1)
+  end
+
+  it "skips stopped services" do
+    service.update!(status: :stopped)
     expect { MetricsSamplerJob.perform_now }.not_to change(ServiceMetric, :count)
   end
 

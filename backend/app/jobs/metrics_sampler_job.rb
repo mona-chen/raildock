@@ -13,7 +13,7 @@ class MetricsSamplerJob < ApplicationJob
 
       server.projects.each do |project|
         project.services.each do |service|
-          next unless service.docker_image.present?
+          next unless service.running?
 
           sample_service(host_engine, service, now)
         rescue => e

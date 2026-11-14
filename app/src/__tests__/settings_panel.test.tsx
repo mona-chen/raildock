@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SettingsPanel } from '@/features/service-settings/SettingsPanel'
 import type { Service } from '@/types'
 
+const { updateServiceMutate } = vi.hoisted(() => ({ updateServiceMutate: vi.fn() }))
+
 vi.mock('@/hooks/useServices', () => ({
-  useUpdateService: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateService: () => ({ mutate: updateServiceMutate, isPending: false }),
   useUpdateServiceConfig: () => ({ mutate: vi.fn(), isPending: false }),
   useDestroyService: () => ({ mutate: vi.fn() }),
   useService: vi.fn(),
@@ -154,4 +156,14 @@ describe('SettingsPanel search', () => {
 
     expect(screen.getByText(/No settings match/)).toBeInTheDocument()
   })
+})
+
+it('retries the failed settings payload without discarding the edit', async () => {
+  updateServiceMutate.mockImplementationOnce((_data, callbacks) => callbacks.onError(new Error('offline'))).mockImplementationOnce((_data, callbacks) => callbacks.onSuccess())
+  renderWithClient(<SettingsPanel svc={mockService()} />)
+  fireEvent.change(screen.getByDisplayValue('Test Service'), { target: { value: 'Renamed service' } })
+  await waitFor(() => expect(screen.getByText('Couldn’t save changes.')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Save now' }))
+  expect(updateServiceMutate).toHaveBeenCalledTimes(2)
+  expect(updateServiceMutate.mock.calls[1][0]).toEqual(updateServiceMutate.mock.calls[0][0])
 })

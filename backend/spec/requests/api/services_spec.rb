@@ -44,6 +44,14 @@ RSpec.describe "Api::ServicesController", type: :request do
         expect(json["name"]).to eq(service.name)
       end
 
+      it "includes certificate state in embedded domains" do
+        create(:domain, service: service, ssl: true, ssl_status: "failed", ssl_status_message: "Certificate verification failed")
+        get "/api/services/#{service.id}", headers: auth_headers(user)
+        domain = JSON.parse(response.body)["domains"].first
+        expect(domain["ssl_status"]).to eq("failed")
+        expect(domain["ssl_status_message"]).to eq("Certificate verification failed")
+      end
+
       it "returns 404 for non-existent service" do
         get "/api/services/999999", headers: auth_headers(user)
 
@@ -474,6 +482,15 @@ RSpec.describe "Api::ServicesController", type: :request do
   end
 
   describe "GET /api/services/:id/metrics_history" do
+    it "honors short windows instead of silently expanding them to 24 hours" do
+      create(:service_metric, service: service, sampled_at: 2.hours.ago)
+      create(:service_metric, service: service, sampled_at: 30.minutes.ago)
+      get "/api/services/#{service.id}/metrics_history?hours=1", headers: auth_headers(user)
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["window_hours"]).to eq(1)
+      expect(JSON.parse(response.body)["samples"].size).to eq(1)
+    end
+
     it "returns ordered time series samples" do
       create(:service_metric, service: service, cpu: 10, memory: 20, sampled_at: 10.minutes.ago)
       create(:service_metric, service: service, cpu: 15, memory: 25, sampled_at: 5.minutes.ago)

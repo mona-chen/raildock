@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Database, Zap, Cog, Plus, Rocket, ChevronLeft,
-  GitBranch, HelpCircle, FolderOpen, Check, Loader2,
+  Search, GitBranch, HelpCircle, FolderOpen, Check, Loader2,
   Sparkles, AlertTriangle, ChevronDown,
 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
@@ -627,7 +627,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                           placeholder="Search repositories..."
                           className="w-full bg-black/40 border border-white/[0.08] rounded-lg pl-7 pr-3 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
                         />
-                        <svg className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9292a3]" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <Search aria-hidden="true" className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9292a3]" size={16} />
                       </div>
                       {filteredRepos.length === 0 ? (
                         <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">

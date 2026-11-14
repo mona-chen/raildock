@@ -545,7 +545,7 @@ module Api
     # Historical time series from service_metrics. Optional ?hours= window
     # (default 24h, max 168h). Returns chronologically ordered samples.
     def metrics_history
-      hours = [ params[:hours].to_i.clamp(1, 168), 24 ].max
+      hours = params[:hours].present? ? params[:hours].to_i.clamp(1, 168) : 24
       since = hours.hours.ago
 
       samples = @service.service_metrics

@@ -245,7 +245,7 @@ class Service < ApplicationRecord
       methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url, :data_view ],
       include: {
         environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },
-        domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard ], methods: [ :resolved_target_port ] },
+        domains: { only: [ :id, :hostname, :port, :target_port, :ssl, :letsencrypt, :temporary, :wildcard, :ssl_status, :ssl_status_message, :ssl_expires_at, :challenge_type ], methods: [ :resolved_target_port ] },
         storage_mounts: { only: [ :id, :host_path, :container_path, :kind ] },
         process_types: { only: [ :id, :name, :quantity, :running, :command ] },
         backups: { only: [ :id, :status, :size, :created_at ] }

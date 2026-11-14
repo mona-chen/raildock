@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, X, Play, Square, RotateCw, Wrench, Terminal, MoreHorizontal, Maximize2, Minimize2 } from 'lucide-react'
 import { ServiceIcon, getServiceColor } from '@/components/icons/ServiceIcons'
 import {
@@ -35,7 +36,11 @@ interface ServicePanelProps {
 
 export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) {
   const { data: svc, isLoading, isError, error, refetch } = useService(serviceId)
-  const [tab, setTab] = useState('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab') || 'overview'
+  const allowedTabs = ['overview', 'logs', 'variables', 'networking', 'metrics', 'settings', ...(svc?.type !== 'database' ? ['deploy'] : []), ...(svc?.type === 'database' || svc?.storageMounts?.length ? ['backups'] : []), ...(svc?.dataView ? ['data'] : [])]
+  const tab = allowedTabs.includes(requestedTab) ? requestedTab : 'overview'
+  const setTab = useCallback((next: string) => setSearchParams((previous) => { const params = new URLSearchParams(previous); params.set('tab', next); return params }, { replace: true }), [setSearchParams])
   const [expanded, setExpanded] = useState(false)
   const [pendingAction, setPendingAction] = useState<'stop' | 'restart' | 'rebuild' | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -133,7 +138,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       stopWaiting()
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [showConsole, onClose, shortcutTargets])
+  }, [showConsole, onClose, shortcutTargets, setTab])
 
   const handleDeploy = () => {
     setShowConsole(false)

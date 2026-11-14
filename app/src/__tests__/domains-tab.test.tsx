@@ -111,7 +111,7 @@ describe('DomainsTab', () => {
       id: 'svc-1',
       hostname: 'api.example.com',
       port: 443,
-    })
+    }, expect.anything())
   })
 
   it('strips port and path from input', () => {
@@ -128,7 +128,7 @@ describe('DomainsTab', () => {
       id: 'svc-1',
       hostname: 'app.example.com',
       port: 443,
-    })
+    }, expect.anything())
   })
 
   it('shows an error for invalid hostnames', () => {
@@ -154,7 +154,7 @@ describe('DomainsTab', () => {
       id: 'svc-1',
       hostname: 'sub.example.com',
       port: 443,
-    })
+    }, expect.anything())
   })
 
   it('allows overriding target port in advanced mode', () => {
@@ -174,7 +174,7 @@ describe('DomainsTab', () => {
       hostname: 'custom.example.com',
       port: 443,
       targetPort: 8080,
-    })
+    }, expect.anything())
   })
 
   it('renders configured domains with routing info', () => {

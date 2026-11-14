@@ -129,7 +129,7 @@ export default function ProjectCanvas() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       if (id) next.set('service', id)
-      else next.delete('service')
+      else { next.delete('service'); next.delete('tab') }
       return next
     }, { replace: id === null })
   }, [storeSetActiveService, setSearchParams])

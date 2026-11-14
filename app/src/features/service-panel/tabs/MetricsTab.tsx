@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import ErrorState from '@/features/shared/ErrorState'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import {
   Area,
   AreaChart,
@@ -57,7 +58,7 @@ function formatRate(bytesPerSecond: number | null): string {
 // A container's counters reset when it restarts, so a negative delta means the
 // sample straddles a restart and the rate is unknown rather than negative.
 function rate(cur: number | null | undefined, prev: number | null | undefined, dtSeconds: number): number | null {
-  if (cur == null || prev == null || dtSeconds <= 0) return null
+  if (cur == null || prev == null || dtSeconds <= 0 || dtSeconds > 600) return null
   const delta = cur - prev
   return delta < 0 ? null : delta / dtSeconds
 }
@@ -144,9 +145,13 @@ function MetricChart({
 }
 
 export default function MetricsTab({ svc }: { svc: Service }) {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(timer) }, [])
   const [hours, setHours] = useState(1)
-  const { data: live } = useServiceMetrics(svc.id)
-  const { data: history } = useServiceMetricsHistory(svc.id, hours)
+  const liveQuery = useServiceMetrics(svc.id)
+  const { data: live } = liveQuery
+  const historyQuery = useServiceMetricsHistory(svc.id, hours)
+  const { data: history } = historyQuery
   const { data: deployments } = useServiceDeployments(svc.id)
 
   // Docker reports CPU as % of one core; a container capped at N cores can
@@ -155,7 +160,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
   const cpuCores = live?.cpuCores || history?.samples[0]?.cpu_cores || 1
   const cpuNorm = useCallback(
     (v: number | null | undefined) =>
-      v == null ? null : Math.min(Math.round((v / (cpuCores || 1)) * 10) / 10, 100),
+      v == null ? null : Math.round((v / (cpuCores || 1)) * 10) / 10,
     [cpuCores],
   )
 
@@ -167,7 +172,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
       const dtSeconds = previous ? (ts - new Date(previous.at).getTime()) / 1000 : 0
       return {
         ts,
-        cpu: cpuNorm(s.cpu),
+        cpu: s.cpu == null ? null : s.cpu / (s.cpu_cores && s.cpu_cores > 0 ? s.cpu_cores : cpuCores),
         memory: s.memory,
         netIn: rate(s.network_in, previous?.network_in, dtSeconds),
         netOut: rate(s.network_out, previous?.network_out, dtSeconds),
@@ -175,7 +180,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
         diskWrite: rate(s.block_write, previous?.block_write, dtSeconds),
       }
     })
-  }, [history, cpuNorm])
+  }, [history, cpuCores])
 
   const deployMarkers = useMemo(() => {
     if (points.length < 2) return []
@@ -199,6 +204,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
           {WINDOWS.map((w) => (
             <button
               key={w.hours}
+              aria-pressed={hours === w.hours}
               onClick={() => setHours(w.hours)}
               className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
                 hours === w.hours
@@ -212,6 +218,10 @@ export default function MetricsTab({ svc }: { svc: Service }) {
         </div>
       </div>
 
+      <p className="mb-3 text-xs text-[#a0a0b0]">Usage from the primary app container or datastore container. History is sampled every 5 minutes; replicas and worker processes are not aggregated.</p>
+      {liveQuery.isError && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
+      {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 15 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
+      {historyQuery.isError && <ErrorState title="Could not load metric history" message="Retry to fetch samples for the selected window." onRetry={() => historyQuery.refetch()} />}
       {history && history.samples.length > 0 ? (
         <div className="space-y-4">
           <MetricChart
@@ -286,9 +296,9 @@ export default function MetricsTab({ svc }: { svc: Service }) {
             )}
           </div>
         </div>
-      ) : (
+      ) : !historyQuery.isError ? (
         <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
-          <div className="text-white/50 text-[13px] mb-2">No historical data yet</div>
+          <div className="text-white/50 text-[13px] mb-2">{historyQuery.isLoading ? 'Loading metric history…' : 'No samples in this time range'}</div>
           <div className="text-white/50 text-[11px] max-w-xs">
             Metrics are sampled every 5 minutes. Check back shortly to see CPU, memory, network and disk graphs for this service.
           </div>
@@ -299,7 +309,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

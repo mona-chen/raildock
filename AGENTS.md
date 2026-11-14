@@ -410,3 +410,14 @@ version the target servers run before assuming a behavior.
   host, and gates image publication. Main publishes only the exact commit whose
   CI succeeded; tagged releases run the reusable CI workflow before publication.
   `scripts/test-image.sh` checks fresh startup before publishing main images.
+
+## Interface conventions
+
+- Use Lucide for interface controls; keep framework/database brand marks in `ServiceIcons`.
+- Use `IconButton` for icon-only actions: 16px glyph, 2px stroke, minimum 32px target,
+  accessible name and tooltip. Navigation icons may be 18px; service logos may be 20px.
+- Icons identify actions or service types. Avoid decorative rockets, sparkles, uppercase
+  eyebrow headings, promotional status cards, and repeated status copy.
+- Retain user drafts when a request fails. Reset forms only after confirmed success.
+- Monitoring must distinguish loading, missing samples, failed requests and stale data.
+  Primary-container metrics must not be described as aggregated service usage.

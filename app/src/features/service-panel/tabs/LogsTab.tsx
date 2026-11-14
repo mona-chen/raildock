@@ -1,3 +1,4 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import {
   Pause, Play, Search, X, Copy, Check, WrapText, UnfoldVertical,
@@ -32,11 +33,11 @@ const LEVEL_ORDER: LogLevel[] = ['fatal', 'error', 'warn', 'info', 'debug', 'tra
 function detectLevel(message: string): LogLevel {
   const upper = message.toUpperCase()
   if (upper.includes('FATAL') || upper.includes('PANIC')) return 'fatal'
-  if (upper.includes('ERROR') || upper.includes('ERR') || upper.includes('EXCEPTION')) return 'error'
+  if (/\b(ERROR|ERR|EXCEPTION)\b/.test(upper)) return 'error'
   if (upper.includes('WARN') || upper.includes('WARNING')) return 'warn'
   if (upper.includes('DEBUG')) return 'debug'
   if (upper.includes('TRACE')) return 'trace'
-  if (upper.includes('INFO') || upper.includes('LOG')) return 'info'
+  if (/\b(INFO|LOG)\b/.test(upper)) return 'info'
   return 'unknown'
 }
 
@@ -79,7 +80,7 @@ function formatFullLine(line: LogLine & { cleanMessage: string }): string {
 }
 
 export default function LogsTab({ serviceId }: { serviceId: string }) {
-  const { data: historicalLogs } = useServiceLogs(serviceId)
+  const { data: historicalLogs, isLoading, isError, refetch, isFetching } = useServiceLogs(serviceId)
   const { lines: liveLines, connectionState, isConnected, clear } = useWebSocketLogs(serviceId)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hasCleared, setHasCleared] = useState(false)
@@ -293,6 +294,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
 
   const logView = (
     <div className={`flex flex-col h-full bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : ''}`}>
+      {isError && allLines.length > 0 && <div role="status" className="flex items-center justify-between gap-3 border-b border-amber-400/20 px-4 py-2 text-xs text-amber-200">Could not refresh recent logs. Displayed output is retained.<button type="button" onClick={() => refetch()} disabled={isFetching} className="underline underline-offset-4">Retry</button></div>}
       {/* Toolbar */}
       <div className="flex flex-col border-b border-white/[0.06] flex-shrink-0">
         {/* Top row: status + actions */}
@@ -304,7 +306,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             </div>
             {isPaused && (
               <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded-full">
-                Paused
+                Following paused
               </span>
             )}
             <span className="text-[10px] text-white/20">
@@ -328,14 +330,14 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                   {copiedAll ? <Check size={11} /> : <Copy size={11} />}
                   Copy {selectedCount}
                 </button>
-                <button
+                <IconButton
                   type="button"
                   onClick={clearSelection}
                   className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
                   title="Clear selection"
                 >
                   <X size={13} />
-                </button>
+                </IconButton>
                 <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
               </>
             )}
@@ -353,63 +355,63 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                 <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
               </>
             )}
-            <button
+            <IconButton
               type="button"
               onClick={copyAll}
               className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Copy all logs"
             >
               {copiedAll && !selectedRange ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               type="button"
               onClick={() => setIsPaused((p) => !p)}
               className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
-              title={isPaused ? 'Resume' : 'Pause'}
+              title={isPaused ? 'Resume following logs' : 'Pause following logs'}
             >
               {isPaused ? <Play size={13} /> : <Pause size={13} />}
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               type="button"
               onClick={() => setWrapLines((w) => !w)}
               className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
               title="Wrap lines"
             >
               <WrapText size={13} />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               type="button"
               onClick={() => setShowFilters((s) => !s)}
               className={`p-1.5 rounded transition-colors ${showFilters ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
               title="Filters"
             >
               <Filter size={13} />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               type="button"
               onClick={exportLogs}
               className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Export logs"
             >
               <Download size={13} />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               type="button"
               onClick={handleClear}
               className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Clear"
             >
               <X size={13} />
-            </button>
+            </IconButton>
             <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
-            <button
+            <IconButton
               type="button"
               onClick={() => setIsExpanded(true)}
               className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
               title="Expand logs"
             >
               <Maximize2 size={13} />
-            </button>
+            </IconButton>
           </div>
         </div>
 
@@ -556,23 +558,23 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
 
                   {/* Actions (visible on hover) */}
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity">
-                    <button
+                    <IconButton
                       type="button"
                       onClick={(e) => { e.stopPropagation(); copyLine(line) }}
                       className="p-1 rounded hover:bg-white/[0.08] text-white/20 hover:text-white/50"
                       title="Copy line"
                     >
                       {copiedId === line.id ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                    </button>
+                    </IconButton>
                     {hasJson && (
-                      <button
+                      <IconButton
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleExpand(line.id) }}
                         className="p-1 rounded hover:bg-white/[0.08] text-white/20 hover:text-[#8b5cf6]/60"
                         title="Format JSON"
                       >
                         <Terminal size={11} />
-                      </button>
+                      </IconButton>
                     )}
                   </div>
                 </div>
@@ -580,11 +582,12 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-white/20">
-            <Terminal size={32} className="mb-3 opacity-30" />
+          <div role="status" className="flex flex-col items-center justify-center h-full gap-2 px-5 text-center text-[#a0a0b0]">
             <p className="text-sm">
-              {allLines.length === 0 ? 'Waiting for logs...' : 'No logs match your filters'}
+              {allLines.length > 0 ? 'No logs match your filters' : isLoading ? 'Loading logs…' : isError ? 'Could not load logs' : connectionState === 'live' ? 'Connected. No log entries yet.' : 'No log entries available'}
             </p>
+            {allLines.length === 0 && <p className="max-w-sm text-xs">{isError ? 'The log request failed. Retry to fetch recent output.' : connectionState !== 'live' ? 'The live stream is unavailable. Recent logs are fetched every 10 seconds.' : 'New output will appear here as the service writes it.'}</p>}
+            {allLines.length === 0 && connectionState !== 'live' && <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn-secondary text-xs">{isFetching ? 'Fetching…' : 'Fetch logs'}</button>}
             {allLines.length > 0 && (
               <button
                 type="button"

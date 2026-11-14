@@ -1,8 +1,8 @@
+import ProcessScaling from './ProcessScaling'
 import { formatDistanceToNow } from 'date-fns'
 import { GitBranch, Settings2, ArrowUpRight, Globe } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import {
-  useScaleProcess,
   useContainerStatus,
 } from '@/hooks/useServices'
 import type { Service } from '@/types'
@@ -21,7 +21,6 @@ export default function OverviewTab({
   isConnected: boolean
   onNavigate?: (tab: string) => void
 }) {
-  const scaleProcess = useScaleProcess()
   const { data: containerStatus } = useContainerStatus(serviceId)
 
   return (
@@ -69,57 +68,7 @@ export default function OverviewTab({
         <div>
           <h4 className="text-[14px] font-medium text-white/70 mb-3">Processes</h4>
           <div className="space-y-2">
-            {svc.processTypes.map((pt) => (
-              <div
-                key={pt.name}
-                className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3"
-              >
-                <div>
-                  <div className="text-[13px] font-medium text-white/80">{pt.name}</div>
-                  <div className="text-[11px] text-white/50 font-mono mt-0.5">
-                    {pt.command || 'No command'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[12px] text-white/50">
-                    {pt.running}/{pt.quantity} running
-                  </span>
-                  <div className="flex items-center border border-white/[0.1] rounded-lg overflow-hidden">
-                    <button
-                      disabled={scaleProcess.isPending}
-                      aria-label={`Decrease ${pt.name} replicas`}
-                      onClick={() =>
-                        scaleProcess.mutate({
-                          id: svc.id,
-                          processName: pt.name,
-                          quantity: Math.max(0, pt.quantity - 1),
-                        })
-                      }
-                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
-                    >
-                      −
-                    </button>
-                    <span className="px-3 py-1.5 text-[13px] text-white/70 min-w-[40px] text-center border-x border-white/[0.06]">
-                      {pt.quantity}
-                    </span>
-                    <button
-                      disabled={scaleProcess.isPending}
-                      aria-label={`Increase ${pt.name} replicas`}
-                      onClick={() =>
-                        scaleProcess.mutate({
-                          id: svc.id,
-                          processName: pt.name,
-                          quantity: pt.quantity + 1,
-                        })
-                      }
-                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {svc.processTypes.map((process) => <ProcessScaling key={process.name} serviceId={serviceId} process={process} />)}
           </div>
         </div>
       )}

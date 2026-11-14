@@ -1,9 +1,11 @@
+import { IconButton } from '@/components/ui/icon-button'
 import { useState } from 'react'
 import { FileCode, Plus, Check, Copy, Eye, EyeOff, Wrench, Trash2, AlertCircle } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useSetEnvVar, useSetEnvVars, useUnsetEnvVar } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import { toast } from 'sonner'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import type { Service } from '@/types'
 
 function resolveEnvRef(value: string, allServices: Service[]): string {
@@ -21,6 +23,8 @@ function resolveEnvRef(value: string, allServices: Service[]): string {
 
 export default function VariablesTab({ svc }: { svc: Service }) {
   const { data: project } = useProject(svc.projectId)
+  const [deleteKey, setDeleteKey] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState('')
   const [mode, setMode] = useState<'list' | 'raw'>('list')
   const [rawText, setRawText] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
@@ -32,6 +36,18 @@ export default function VariablesTab({ svc }: { svc: Service }) {
   const setEnvVar = useSetEnvVar()
   const setEnvVars = useSetEnvVars()
   const unsetEnvVar = useUnsetEnvVar()
+
+  const saveEdit = (key: string) => {
+    if (setEnvVar.isPending) return
+    setSaveError('')
+    setEnvVar.mutate({ id: svc.id, key, value: editValue }, { onSuccess: () => setEditing(null), onError: () => setSaveError('Could not save the variable. Your edit is retained.') })
+  }
+  const addVariable = () => {
+    if (!newKey.trim() || setEnvVar.isPending) return
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newKey.trim())) { setSaveError('Use letters, numbers, and underscores. Start with a letter or underscore.'); return }
+    setSaveError('')
+    setEnvVar.mutate({ id: svc.id, key: newKey.trim(), value: newVal }, { onSuccess: () => { setNewKey(''); setNewVal('') }, onError: () => setSaveError('Could not add the variable. Your input is retained.') })
+  }
 
   const userVars = svc.envVars.filter((ev) => !ev.isDokkuInternal)
   const dokkuVars = svc.envVars.filter((ev) => ev.isDokkuInternal)
@@ -143,13 +159,14 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             <div className="flex gap-2 mt-1">
               <input
                 type="text"
+                aria-label={`Value for ${ev.key}`}
+                disabled={setEnvVar.isPending}
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    setEnvVar.mutate({ id: svc.id, key: ev.key, value: editValue })
-                    setEditing(null)
+                    saveEdit(ev.key)
                   }
                   if (e.key === 'Escape') setEditing(null)
                 }}
@@ -157,8 +174,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
               />
               <button
                 onClick={() => {
-                  setEnvVar.mutate({ id: svc.id, key: ev.key, value: editValue })
-                  setEditing(null)
+                  saveEdit(ev.key)
                 }}
                 className="px-2 py-1 bg-[#22c55e]/10 text-[#22c55e] rounded text-[11px] hover:bg-[#22c55e]/20"
               >
@@ -177,39 +193,40 @@ export default function VariablesTab({ svc }: { svc: Service }) {
         </div>
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
+          <IconButton
             onClick={() => copy(ev.value, ev.key)}
-            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+            className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
             title="Copy value"
           >
             {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
-          </button>
+          </IconButton>
           {!readonly && (
             <>
-              <button
+              <IconButton
                 onClick={() => toggleReveal(ev.key)}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
                 title={isRevealed ? 'Hide value' : 'Show value'}
               >
                 {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
-              </button>
-              <button
+              </IconButton>
+              <IconButton
                 onClick={() => {
                   setEditing(ev.key)
                   setEditValue(ev.value)
                 }}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/50"
+                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
                 title="Edit"
               >
                 <Wrench size={12} />
-              </button>
-              <button
-                onClick={() => unsetEnvVar.mutate({ id: svc.id, key: ev.key })}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400"
+              </IconButton>
+              <IconButton
+                onClick={() => setDeleteKey(ev.key)}
+                aria-label={`Delete ${ev.key}`}
+                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-red-400"
                 title="Delete"
               >
                 <Trash2 size={12} />
-              </button>
+              </IconButton>
             </>
           )}
         </div>
@@ -219,6 +236,8 @@ export default function VariablesTab({ svc }: { svc: Service }) {
 
   return (
     <div className="p-5 space-y-5">
+      <ConfirmDialog open={deleteKey !== null} onOpenChange={(open) => { if (!open) setDeleteKey(null) }} title={`Delete ${deleteKey ?? 'variable'}?`} description="The variable will be removed from this service. A restart may be required for running processes to pick up the change." confirmLabel="Delete variable" destructive pending={unsetEnvVar.isPending} onConfirm={() => { if (deleteKey) unsetEnvVar.mutate({ id: svc.id, key: deleteKey }, { onSuccess: () => setDeleteKey(null) }) }} />
+      {saveError && <p role="alert" className="mb-4 text-xs text-red-300">{saveError}</p>}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[14px] font-medium text-white/70">Environment Variables</div>
@@ -261,6 +280,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             ignored.
           </p>
           <textarea
+            aria-label="Variables to import"
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
             placeholder={`DATABASE_URL=postgres://...\nREDIS_URL=redis://...\nAPI_KEY=sk-...`}
@@ -295,11 +315,11 @@ export default function VariablesTab({ svc }: { svc: Service }) {
         <>
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[12px] font-medium text-white/50 uppercase tracking-wider">User Defined</div>
+              <div className="text-[12px] font-medium text-white/50 ">User Defined</div>
             </div>
             <div className="space-y-2">
               {userVars.length === 0 ? (
-                <div className="text-[12px] text-white/20 py-4 text-center border border-dashed border-white/[0.06] rounded-xl">
+                <div className="text-[12px] text-[#9292a3] py-4 text-center border border-dashed border-white/[0.06] rounded-xl">
                   No user-defined variables. Add one below or use the Raw Editor.
                 </div>
               ) : (
@@ -310,9 +330,11 @@ export default function VariablesTab({ svc }: { svc: Service }) {
 
           <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
             <div className="text-[13px] font-medium text-white/70 mb-3">Add Variable</div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
+                aria-label="Variable name"
+                disabled={setEnvVar.isPending}
                 placeholder="KEY"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
@@ -321,27 +343,19 @@ export default function VariablesTab({ svc }: { svc: Service }) {
               />
               <input
                 type="text"
+                aria-label="Variable value (can be empty)"
+                disabled={setEnvVar.isPending}
                 placeholder="value or ${{Service.VAR}}"
                 value={newVal}
                 onChange={(e) => setNewVal(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newKey && newVal) {
-                    setEnvVar.mutate({ id: svc.id, key: newKey, value: newVal })
-                    setNewKey('')
-                    setNewVal('')
-                  }
+                  if (e.key === 'Enter') { e.preventDefault(); addVariable() }
                 }}
                 className="flex-[2] bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
               />
               <button
-                onClick={() => {
-                  if (newKey && newVal) {
-                    setEnvVar.mutate({ id: svc.id, key: newKey, value: newVal })
-                    setNewKey('')
-                    setNewVal('')
-                  }
-                }}
-                disabled={!newKey || !newVal}
+                onClick={addVariable}
+                disabled={!newKey.trim() || setEnvVar.isPending}
                 className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-40"
               >
                 Add
@@ -367,13 +381,13 @@ export default function VariablesTab({ svc }: { svc: Service }) {
           {dokkuVars.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[12px] font-medium text-white/50 uppercase tracking-wider">Dokku-Injected</div>
-                <span className="text-[10px] text-white/20">Read-only · managed by Dokku</span>
+                <div className="text-[12px] font-medium text-white/50 ">Dokku-Injected</div>
+                <span className="text-[10px] text-[#9292a3]">Read-only · managed by Dokku</span>
               </div>
               <div className="space-y-2">
                 {dokkuVars.map((ev) => renderVarRow(ev, true))}
               </div>
-              <p className="text-[11px] text-white/20 mt-2">
+              <p className="text-[11px] text-[#9292a3] mt-2">
                 These variables are automatically injected by Dokku when linking datastores. They are removed
                 automatically when you unlink.
               </p>

@@ -205,7 +205,7 @@ function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+  return render(<QueryClientProvider client={queryClient}>{ui.type === MemoryRouter ? ui : <MemoryRouter>{ui}</MemoryRouter>}</QueryClientProvider>)
 }
 
 function mockService(overrides = {}) {
@@ -273,13 +273,19 @@ describe('ServicePanel', () => {
     expect(screen.getByRole('button', { name: 'Shell' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('opens a linked service section directly from the URL', () => {
+    ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
+    renderWithClient(<MemoryRouter initialEntries={['/dashboard/project/1?service=svc-1&tab=logs']}><ServicePanel serviceId="svc-1" onClose={vi.fn()} /></MemoryRouter>)
+    expect(screen.getByRole('tab', { name: 'Logs' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('switches tabs when clicked', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
 
     renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
 
     fireEvent.click(screen.getByText('Logs'))
-    expect(screen.getByText('Waiting for logs...')).toBeInTheDocument()
+    expect(screen.getByText('No log entries available')).toBeInTheDocument()
   })
 
   it('closes on Escape', () => {

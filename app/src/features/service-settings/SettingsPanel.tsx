@@ -126,8 +126,8 @@ export function SettingsPanel({ svc }: { svc: Service }) {
 
   return (
     <SettingsDraftContext.Provider value={draft}>
-      <div className="flex h-full">
-        <div className="w-[190px] border-r border-white/[0.06] bg-[#0f0f13] flex-shrink-0 flex flex-col">
+      <div className="flex h-full flex-col md:flex-row">
+        <div className="hidden md:flex w-[190px] border-r border-white/[0.06] bg-[#0f0f13] flex-shrink-0 flex flex-col">
           <div className="p-3 pb-2">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b]" />
@@ -177,6 +177,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
             )}
           </nav>
         </div>
+        <div className="border-b border-white/[0.08] p-3 md:hidden"><select aria-label="Service settings section" value={tab} onChange={(event) => setTab(event.target.value)} className="input-dark">{tabs.map((item) => <option key={item.key} value={item.key}>{item.label} settings</option>)}</select></div>
         <div className="flex-1 min-w-0 flex flex-col">
           <SettingsSyncBar draft={draft} />
           <div className="flex-1 overflow-y-auto p-5">
@@ -289,10 +290,10 @@ function useSettingsDraft(svc: Service): SettingsDraftState {
       settle()
     }
     if (nextConfig) {
-      updateConfig.mutate({ id: svc.id, config: nextConfig }, { onSuccess: settle, onError: fail })
+      updateConfig.mutate({ id: svc.id, config: nextConfig }, { onSuccess: settle, onError: () => { pendingConfig.current ??= nextConfig; fail() } })
     }
     if (fieldKeys.length) {
-      updateService.mutate({ id: svc.id, data: nextFields }, { onSuccess: settle, onError: fail })
+      updateService.mutate({ id: svc.id, data: nextFields }, { onSuccess: settle, onError: () => { pendingFields.current = { ...nextFields, ...pendingFields.current }; fail() } })
     }
   }, [svc.id, updateConfig, updateService])
 
@@ -315,6 +316,7 @@ function useSettingsDraft(svc: Service): SettingsDraftState {
       cur = cur[keys[i]] as Record<string, unknown>
     }
     cur[keys[keys.length - 1]] = value
+    configRef.current = next
     setConfig(next)
     pendingConfig.current = next
     setIsDirty(true)

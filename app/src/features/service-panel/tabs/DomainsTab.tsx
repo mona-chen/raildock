@@ -69,7 +69,7 @@ function SslBadge({ domain }: { domain: Domain }) {
           className="text-[10px] px-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full flex items-center gap-1"
           title={domain.sslExpiresAt ? `Valid until ${new Date(domain.sslExpiresAt).toLocaleDateString()}` : 'SSL active'}
         >
-          <ShieldCheck size={10} /> SSL
+          <ShieldCheck size={10} /> Certificate
         </span>
       )
     case 'pending':
@@ -78,7 +78,7 @@ function SslBadge({ domain }: { domain: Domain }) {
           className="text-[10px] px-1.5 bg-[#eab308]/10 text-[#eab308] rounded-full flex items-center gap-1"
           title="Certificate provisioning..."
         >
-          <ShieldQuestion size={10} /> SSL
+          <ShieldQuestion size={10} /> Certificate
         </span>
       )
     case 'failed':
@@ -87,7 +87,7 @@ function SslBadge({ domain }: { domain: Domain }) {
           className="text-[10px] px-1.5 bg-[#ef4444]/10 text-[#ef4444] rounded-full flex items-center gap-1"
           title={domain.sslStatusMessage || 'SSL failed'}
         >
-          <ShieldAlert size={10} /> SSL
+          <ShieldAlert size={10} /> Certificate
         </span>
       )
     default:
@@ -336,10 +336,11 @@ export default function DomainsTab({ svc }: { svc: Service }) {
       payload.targetPort = explicitTarget
     }
 
-    addDomain.mutate(payload)
-    setInput('')
-    setTargetPort(String(svc.detectedPort || svc.port || ''))
-    setShowAdvanced(false)
+    addDomain.mutate(payload, { onSuccess: () => {
+      setInput('')
+      setTargetPort(String(svc.detectedPort || svc.port || ''))
+      setShowAdvanced(false)
+    } })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

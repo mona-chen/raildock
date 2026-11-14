@@ -1,7 +1,8 @@
+import ProcessScaling from './ProcessScaling'
+import { IconButton } from '@/components/ui/icon-button'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound, Rocket, RefreshCw, Hammer } from 'lucide-react'
 import {
-  useScaleProcess,
   useRollbackService,
   useServiceDeployments,
   useContainerStatus,
@@ -36,23 +37,31 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hr / 24)}d ago`
 }
 
-function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; liveLog?: string }) {
-  const { data: deployment, isLoading } = useDeployment(deploymentId)
+export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; liveLog?: string }) {
+  const { data: deployment, isLoading, isError, refetch } = useDeployment(deploymentId)
   const logRef = useRef<HTMLDivElement>(null)
-  const [wrapLines, setWrapLines] = useState(false)
+  const [wrapLines, setWrapLines] = useState(true)
+  const [query, setQuery] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [copiedAll, setCopiedAll] = useState(false)
   const [followLogs, setFollowLogs] = useState(true)
 
   const logText = deployment?.deployLog || deployment?.buildLog || liveLog || ''
   const cleanText = useMemo(() => stripAnsi(logText), [logText])
-  const lines = useMemo(() => cleanText.split('\n'), [cleanText])
+  const lines = useMemo(() => cleanText ? cleanText.split('\n') : [], [cleanText])
 
+  const visibleLines = useMemo(() => lines.map((text, index) => ({ text, number: index + 1 })).filter((line) => line.text.toLowerCase().includes(query.trim().toLowerCase())), [lines, query])
   useEffect(() => {
-    if (followLogs && logRef.current) {
+    if (!isExpanded) return
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); setIsExpanded(false) } }
+    window.addEventListener('keydown', close, true)
+    return () => window.removeEventListener('keydown', close, true)
+  }, [isExpanded])
+  useEffect(() => {
+    if (followLogs && !query && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight
     }
-  }, [cleanText, followLogs])
+  }, [cleanText, followLogs, query])
 
   const handleLogScroll = () => {
     if (!logRef.current) return
@@ -87,9 +96,9 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
   }
 
   const logView = (
-    <div className={`flex flex-col bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : 'rounded-xl border border-white/[0.06] overflow-hidden'}`}>
+    <div className={`flex flex-col bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : 'h-[480px] max-h-[65dvh] min-h-64 rounded-lg border border-white/[0.08] overflow-hidden'}`}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Terminal size={12} className="text-white/50" />
@@ -112,47 +121,55 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
               <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
             </>
           )}
-          <button
+          <IconButton
             type="button"
             onClick={handleCopyAll}
             className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
             title="Copy all logs"
           >
             {copiedAll ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
-          </button>
-          <button
+          </IconButton>
+          <IconButton
             type="button"
             onClick={() => setWrapLines((w) => !w)}
             className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
             title="Wrap lines"
+            aria-pressed={wrapLines}
           >
             <WrapText size={13} />
-          </button>
-          <button
+          </IconButton>
+          <IconButton
             type="button"
             onClick={handleExport}
             className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
             title="Export log"
           >
             <Download size={13} />
-          </button>
+          </IconButton>
           <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
-          <button
+          <IconButton
             type="button"
-            onClick={() => setIsExpanded(true)}
+            onClick={() => setIsExpanded((expanded) => !expanded)}
             className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
-            title="Expand logs"
+            title={isExpanded ? 'Restore log viewer' : 'Expand logs'}
           >
             <Maximize2 size={13} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-3 py-2"><input aria-label="Search deployment logs" placeholder="Search output…" value={query} onChange={(event) => setQuery(event.target.value)} className="input-dark max-w-xs text-xs" /><span className="text-xs text-[#a0a0b0]">{query ? `${visibleLines.length} matching ${visibleLines.length === 1 ? 'line' : 'lines'}` : followLogs ? 'Following output' : 'Scroll paused'}</span></div>
+      {isError && <div role="status" className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-amber-200">Could not fetch deployment logs. Displayed output is retained.<button type="button" onClick={() => refetch()} className="underline">Retry</button></div>}
       {/* Log lines */}
       <div
         ref={logRef}
         onScroll={handleLogScroll}
-        className="flex-1 overflow-y-auto font-mono text-[12px] leading-relaxed p-2"
+        role="textbox"
+        aria-readonly="true"
+        aria-multiline="true"
+        aria-label="Deployment output"
+        tabIndex={0}
+        className="min-h-0 flex-1 overflow-auto font-mono text-[12px] leading-5 p-2"
       >
         {!followLogs && (
           <button
@@ -163,14 +180,14 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
             Resume live logs
           </button>
         )}
-        {lines.length > 0 ? (
+        {visibleLines.length > 0 ? (
           <div className="space-y-0.5">
-            {lines.map((line, i) => (
-              <div key={i} className="group flex items-start gap-2 hover:bg-white/[0.03] px-2 py-0.5 rounded">
-                <span className="select-none w-10 text-right shrink-0 text-[11px] text-white/10 pt-0.5">
-                  {String(i + 1).padStart(4, '0')}
+            {visibleLines.map(({ text: line, number }) => (
+              <div key={number} className={`group flex items-start gap-2 px-2 py-0.5 rounded ${/\b(ERROR|FATAL)\b/i.test(line) ? 'bg-red-400/[0.06]' : 'hover:bg-white/[0.03]'}`}>
+                <span className="select-none w-10 text-right shrink-0 text-[11px] text-[#878795] pt-0.5">
+                  {number}
                 </span>
-                <span className={`text-white/60 ${wrapLines ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}`}>
+                <span className={`min-w-0 text-[#c3c3cf] ${wrapLines ? 'whitespace-pre-wrap break-words [overflow-wrap:anywhere]' : 'whitespace-pre'}`}>
                   {line}
                 </span>
               </div>
@@ -179,7 +196,7 @@ function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: string; l
         ) : (
           <div className="flex flex-col items-center justify-center h-32 text-white/20">
             <Terminal size={24} className="mb-2 opacity-30" />
-            <p className="text-xs">No log output captured for this deployment.</p>
+            <p className="text-xs">{query ? 'No lines match your search.' : isError ? 'Deployment logs are unavailable. Retry the request.' : 'No log output captured for this deployment.'}</p>
           </div>
         )}
       </div>
@@ -269,7 +286,6 @@ interface DeployTabProps {
 }
 
 export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) {
-  const scaleProcess = useScaleProcess()
   const rollbackService = useRollbackService()
   const cancelDeployment = useCancelDeployment()
   const deployService = useDeployService()
@@ -428,53 +444,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
         <div>
           <h4 className="text-[14px] font-medium text-white/70 mb-3">Processes</h4>
           <div className="space-y-2">
-            {svc.processTypes.map((pt) => (
-              <div
-                key={pt.name}
-                className="flex items-center justify-between bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3"
-              >
-                <div>
-                  <div className="text-[13px] font-medium text-white/80">{pt.name}</div>
-                  <div className="text-[11px] text-white/50 font-mono mt-0.5">
-                    {pt.command || 'No command'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[12px] text-white/50">
-                    {pt.running}/{pt.quantity} running
-                  </span>
-                  <div className="flex items-center border border-white/[0.1] rounded-lg overflow-hidden">
-                    <button
-                      onClick={() =>
-                        scaleProcess.mutate({
-                          id: svc.id,
-                          processName: pt.name,
-                          quantity: Math.max(0, pt.quantity - 1),
-                        })
-                      }
-                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
-                    >
-                      −
-                    </button>
-                    <span className="px-3 py-1.5 text-[13px] text-white/70 min-w-[40px] text-center border-x border-white/[0.06]">
-                      {pt.quantity}
-                    </span>
-                    <button
-                      onClick={() =>
-                        scaleProcess.mutate({
-                          id: svc.id,
-                          processName: pt.name,
-                          quantity: pt.quantity + 1,
-                        })
-                      }
-                      className="px-2.5 py-1.5 text-white/50 hover:text-white/70 hover:bg-white/[0.06]"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {svc.processTypes.map((process) => <ProcessScaling key={process.name} serviceId={serviceId} process={process} />)}
           </div>
         </div>
       )}
