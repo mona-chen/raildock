@@ -26,7 +26,9 @@ RSpec.describe "Physical PostgreSQL recovery", type: :integration do
         { success: status.success?, output: output + error }
       end
       define_method(:run_with_file) do |command, path|
-        output, error, status = Open3.capture3(command, stdin_data: File.binread(path))
+        # Docker receives gzipped/WAL bytes; keep the pipe binary so Ruby does
+        # not transcode invalid UTF-8 and abort the drill before it starts.
+        output, error, status = Open3.capture3(command, stdin_data: File.binread(path), binmode: true)
         { success: status.success?, output: output + error }
       end
     end
