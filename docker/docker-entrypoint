@@ -118,6 +118,10 @@ if [ -n "$DATABASE_URL" ]; then
   else
     echo "==> Database is ready — running migrations..."
     cd /rails
+    # The primary database may not exist yet on a fresh install. Rails boots the
+    # application for db:prepare, and boot-time hooks query the database, so it
+    # has to exist before the task runs.
+    ensure_database_exists "$DATABASE_URL"
     # A failed migration must fail startup, never mark unexecuted migrations
     # as applied. The next start can safely retry the real migration.
     bundle exec rails db:prepare
