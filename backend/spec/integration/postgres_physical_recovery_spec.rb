@@ -37,7 +37,9 @@ RSpec.describe "Physical PostgreSQL recovery", type: :integration do
 
     Dir.mktmpdir("raildock-recovery-test") do |directory|
       shell.call("docker run -d --name #{source} --network none -e POSTGRES_HOST_AUTH_METHOD=trust postgres:16 postgres -c archive_mode=on -c wal_level=replica -c 'archive_command=cp %p /var/lib/postgresql/data/test_archive/%f'")
-      shell.call("for attempt in $(seq 1 60); do docker exec #{source} pg_isready -U postgres >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1")
+      # initdb starts a temporary server that pg_isready can reach moments before
+      # it shuts down; wait for the real server carrying our archive flags.
+      shell.call("for attempt in $(seq 1 60); do docker exec #{source} psql -U postgres -d postgres -Atqc 'SHOW archive_mode' 2>/dev/null | grep -qx on && exit 0; sleep 1; done; exit 1")
       shell.call("docker exec #{source} sh -c 'mkdir -p /var/lib/postgresql/data/test_archive && chown postgres:postgres /var/lib/postgresql/data/test_archive'")
       shell.call("docker exec #{source} psql -U postgres -c 'CREATE TABLE recovery_marker (id integer); INSERT INTO recovery_marker VALUES (1)'")
       base = service.backups.create!(backup_kind: "pitr_base", status: "completed")
