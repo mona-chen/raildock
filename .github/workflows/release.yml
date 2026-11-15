@@ -98,51 +98,64 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.metadata.outputs.tag }}
+          fetch-depth: 0
+
+      # Curated notes live in docs/release-notes/<tag>.md. When that file is
+      # absent, fall back to GitHub's generated notes — which only list merged
+      # pull requests, so a repo that pushes straight to main would otherwise
+      # publish an empty "What's new" heading.
+      - name: Assemble release body
+        id: body
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+          TAG: ${{ needs.metadata.outputs.tag }}
+          IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -euo pipefail
+          NOTES="docs/release-notes/${TAG}.md"
+          BODY="$RUNNER_TEMP/release-body.md"
+          CURATED=false
+
+          {
+            echo "## RailDock v${VERSION}"
+            echo
+            echo "**Docker image:** \`${IMAGE}:${VERSION}\`"
+            echo
+          } > "$BODY"
+
+          if [ -f "$NOTES" ]; then
+            CURATED=true
+            cat "$NOTES" >> "$BODY"
+            echo >> "$BODY"
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::No curated notes at ${NOTES}; falling back to generated release notes."
+          fi
+
+          sed -e "s|__IMAGE__|${IMAGE}|g" -e "s|__VERSION__|${VERSION}|g" \
+            docs/release-notes/_install.md >> "$BODY"
+
+          if [ "$CURATED" = true ]; then
+            # `edge` moves with every main build, so it can point at this very
+            # release; exclude it or the compare link collapses to zero commits.
+            PREV="$(git describe --tags --abbrev=0 --exclude edge "${TAG}^" 2>/dev/null || true)"
+            if [ -n "$PREV" ]; then
+              echo >> "$BODY"
+              echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${TAG}" >> "$BODY"
+            fi
+          fi
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.metadata.outputs.tag }}
           name: RailDock v${{ needs.metadata.outputs.version }}
-          body: |
-            ## RailDock v${{ needs.metadata.outputs.version }}
-
-            **Docker image:** `ghcr.io/mona-chen/raildock/raildock:${{ needs.metadata.outputs.version }}`
-
-            ### Quick start (one line)
-
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/mona-chen/raildock/main/install.sh | bash
-            ```
-
-            ### Manual setup
-
-            ```bash
-            # Pull the image
-            docker pull ghcr.io/mona-chen/raildock/raildock:${{ needs.metadata.outputs.version }}
-
-            # Run with required env vars
-            docker run -d -p 80:80 \\
-              -e DATABASE_URL="postgres://user:pass@host:5432/raildock" \\
-              -e RAILS_MASTER_KEY="..." \\
-              -e JWT_SECRET_KEY="..." \\
-              ghcr.io/mona-chen/raildock/raildock:${{ needs.metadata.outputs.version }}
-            ```
-
-            Or use docker-compose:
-
-            ```yaml
-            services:
-              raildock:
-                image: ghcr.io/mona-chen/raildock/raildock:${{ needs.metadata.outputs.version }}
-                environment:
-                  DATABASE_URL: "postgres://user:pass@host:5432/raildock"
-                  RAILS_MASTER_KEY: "..."
-                  JWT_SECRET_KEY: "..."
-            ```
-
-            ### What's new
-
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/release-body.md
+          generate_release_notes: ${{ steps.body.outputs.generated }}
           draft: false
           prerelease: ${{ contains(needs.metadata.outputs.tag, '-') }}
         env:

@@ -429,6 +429,13 @@ version the target servers run before assuming a behavior.
 and image publication. Never create a GitHub tag/release per main commit.
 `./scripts/release.sh 0.1.0` creates an intentional versioned release; its
 release page waits for image publication, and image tags omit the `v` prefix.
+Release notes are written by hand in `docs/release-notes/<tag>.md` (for example
+`docs/release-notes/v0.1.0.md`); the release workflow supplies the heading,
+image line, install snippets (`docs/release-notes/_install.md`) and Full
+Changelog link. When that file is missing the workflow falls back to GitHub's
+generated notes, which only list merged pull requests — and this repo pushes
+straight to `main`, so the fallback normally produces an empty "What's new"
+section. Write the notes file before tagging.
 Versioned installations check stable releases; development installations track
 edge. Historical generated releases are cleaned only through an explicit,
 reviewed cleanup plan; preserve real versions, assets, and container images.

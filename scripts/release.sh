@@ -21,6 +21,12 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Commit tracked changes before releasing."
   exit 1
 fi
+if [ ! -f "docs/release-notes/$TAG.md" ]; then
+  echo "Warning: docs/release-notes/$TAG.md is missing."
+  echo "         The release falls back to GitHub's generated notes, which only list"
+  echo "         merged pull requests — usually nothing in this repo, leaving the"
+  echo "         release page with no description of what changed."
+fi
 echo "==> Tagging $TAG..."
 git tag -a "$TAG" -m "Release RailDock $VERSION"
 echo "==> Pushing tag..."
