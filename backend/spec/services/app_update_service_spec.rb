@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe AppUpdateService do
   describe ".last_check_result" do
     it "returns cached update info without crashing when servers use ssh_key_ciphertext" do
-      create(:server, ssh_key_ciphertext: "encrypted-key")
+      create(:server, host: "host.docker.internal", ssh_key_ciphertext: "encrypted-key")
 
       result = described_class.last_check_result
 
@@ -46,6 +46,21 @@ RSpec.describe AppUpdateService do
       expect(SystemSetting.find_by(key: "update_available_version")&.value).to eq("0.2.0")
     end
 
+    it "reads the build version from the rolling edge release" do
+      stub_const("ENV", ENV.to_h.merge("RAILDOCK_VERSION" => "0.1.0-dev.11111111"))
+      releases.unshift({ "tag_name" => "edge", "body" => "<!-- raildock-version: 0.1.0-dev.22222222 -->", "updated_at" => "2026-11-15T00:00:00Z", "prerelease" => true })
+      response = instance_double(Faraday::Response, success?: true, body: releases.to_json)
+      allow(Faraday).to receive(:get).and_return(response)
+      expect(described_class.check_for_updates).to include(latest_version: "0.1.0-dev.22222222", update_available: true)
+    end
+
+    it "does not switch a versioned installation to development builds" do
+      releases.unshift({ "tag_name" => "edge", "body" => "<!-- raildock-version: 0.3.0-dev.22222222 -->", "updated_at" => "2026-11-15T00:00:00Z", "prerelease" => true })
+      response = instance_double(Faraday::Response, success?: true, body: releases.to_json)
+      allow(Faraday).to receive(:get).and_return(response)
+      expect(described_class.check_for_updates).to include(latest_version: "0.2.0", prerelease: false)
+    end
+
     it "passes headers, not query params, to GitHub" do
       described_class.check_for_updates
 
@@ -61,9 +76,9 @@ RSpec.describe AppUpdateService do
     it "uses HostEngine (root) instead of DokkuEngine for ssh_to_local updates" do
       described_class.remove_instance_variable(:@apply_strategy) if described_class.instance_variable_defined?(:@apply_strategy)
 
-      server = create(:server, ssh_key_ciphertext: "encrypted-key")
-      host_engine = instance_double(HostEngine, run: { success: true, output: "ok" })
-      allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
+      server = create(:server, host: "host.docker.internal", ssh_key_ciphertext: "encrypted-key")
+      runner = instance_double(HostUpdateRunner, schedule: { success: true, message: "Scheduled" })
+      allow(HostUpdateRunner).to receive(:new).with(server: server).and_return(runner)
       allow(described_class).to receive(:check_for_updates).and_return(
         { update_available: true, latest_version: "0.2.0" }
       )
@@ -77,7 +92,7 @@ RSpec.describe AppUpdateService do
       result = described_class.apply_update
 
       expect(result[:success]).to be(true)
-      expect(host_engine).to have_received(:run).with(a_string_including("./install.sh update"))
+      expect(runner).to have_received(:schedule).with("0.2.0")
     end
 
     it "returns :manual strategy when inside container without local SSH target" do
@@ -95,10 +110,17 @@ RSpec.describe AppUpdateService do
       expect(strategy).to eq(:manual)
     end
 
+    it "never selects an arbitrary remote managed server as the update host" do
+      create(:server, host: "remote.example.test", ssh_key_ciphertext: "encrypted-key")
+      allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
+      allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
+      expect(described_class.send(:detect_apply_strategy)).to eq(:manual)
+    end
+
     it "prefers :ssh_to_local over :install_sh when inside container with SSH key" do
       described_class.remove_instance_variable(:@apply_strategy) if described_class.instance_variable_defined?(:@apply_strategy)
 
-      create(:server, ssh_key_ciphertext: "encrypted-key")
+      create(:server, host: "host.docker.internal", ssh_key_ciphertext: "encrypted-key")
       allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
       allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
       allow(File).to receive(:read).with("/proc/1/cgroup").and_return("")

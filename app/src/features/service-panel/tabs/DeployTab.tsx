@@ -1,3 +1,4 @@
+import LogText, { stripLogFormatting } from '@/features/shared/LogText'
 import ProcessScaling from './ProcessScaling'
 import { IconButton } from '@/components/ui/icon-button'
 import { useState, useEffect, useRef, useMemo } from 'react'
@@ -20,10 +21,6 @@ import { copyToClipboard } from '@/lib/clipboard'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
 import { statusMeta } from '@/lib/status'
 
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B\[[0-9;]*m/g, '')
-}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -46,8 +43,10 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
   const [copiedAll, setCopiedAll] = useState(false)
   const [followLogs, setFollowLogs] = useState(true)
 
+  const isLiveDeployment = ['pending', 'building', 'deploying'].includes(deployment?.status || '') || (!deployment && Boolean(liveLog))
   const logText = deployment?.deployLog || deployment?.buildLog || liveLog || ''
-  const cleanText = useMemo(() => stripAnsi(logText), [logText])
+  const rawLines = useMemo(() => logText.split('\n'), [logText])
+  const cleanText = useMemo(() => stripLogFormatting(logText), [logText])
   const lines = useMemo(() => cleanText ? cleanText.split('\n') : [], [cleanText])
 
   const visibleLines = useMemo(() => lines.map((text, index) => ({ text, number: index + 1 })).filter((line) => line.text.toLowerCase().includes(query.trim().toLowerCase())), [lines, query])
@@ -158,7 +157,7 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-3 py-2"><input aria-label="Search deployment logs" placeholder="Search output…" value={query} onChange={(event) => setQuery(event.target.value)} className="input-dark max-w-xs text-xs" /><span className="text-xs text-[#a0a0b0]">{query ? `${visibleLines.length} matching ${visibleLines.length === 1 ? 'line' : 'lines'}` : followLogs ? 'Following output' : 'Scroll paused'}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-3 py-2"><input aria-label="Search deployment logs" placeholder="Search output…" value={query} onChange={(event) => setQuery(event.target.value)} className="input-dark max-w-xs text-xs" /><span className="text-xs text-[#a0a0b0]">{query ? `${visibleLines.length} matching ${visibleLines.length === 1 ? 'line' : 'lines'}` : !isLiveDeployment ? 'Saved output' : followLogs ? 'Following output' : 'Following paused'}</span></div>
       {isError && <div role="status" className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-amber-200">Could not fetch deployment logs. Displayed output is retained.<button type="button" onClick={() => refetch()} className="underline">Retry</button></div>}
       {/* Log lines */}
       <div
@@ -177,7 +176,7 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
             onClick={() => setFollowLogs(true)}
             className="sticky left-1/2 top-2 z-10 -translate-x-1/2 rounded-full border border-white/10 bg-[#24242a] px-3 py-1 text-[10px] text-white/60 shadow-lg hover:text-white"
           >
-            Resume live logs
+            {isLiveDeployment ? 'Resume live logs' : 'Jump to end'}
           </button>
         )}
         {visibleLines.length > 0 ? (
@@ -188,7 +187,7 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
                   {number}
                 </span>
                 <span className={`min-w-0 text-[#c3c3cf] ${wrapLines ? 'whitespace-pre-wrap break-words [overflow-wrap:anywhere]' : 'whitespace-pre'}`}>
-                  {line}
+                  <LogText text={rawLines[number - 1] || line} />
                 </span>
               </div>
             ))}

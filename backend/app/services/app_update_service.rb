@@ -7,7 +7,12 @@ class AppUpdateService
 
   class << self
     def current_version
-      ENV["RAILDOCK_VERSION"].presence || "unknown"
+      version = ENV["RAILDOCK_VERSION"].presence || "unknown"
+      return File.read(Rails.root.join("BUILD_VERSION")).strip if Rails.root.join("BUILD_VERSION").readable?
+
+      version
+    rescue Errno::ENOENT
+      version
     end
 
     def check_for_updates
@@ -25,7 +30,10 @@ class AppUpdateService
       releases = JSON.parse(response.body)
       # /releases/latest excludes prereleases; we want them too since main builds
       # are published as prereleases. Pick the most recent non-draft release.
-      published = releases.reject { |r| r["draft"] }
+      published = releases.reject { |r| r["draft"] }.sort_by { |r| r["tag_name"] == "edge" ? r["updated_at"].to_s : (r["published_at"] || r["created_at"]).to_s }.reverse
+      # Versioned installations stay on versioned releases; development builds
+      # track the rolling edge release without creating a release per commit.
+      published = published.reject { |r| r["prerelease"] } if semver?(normalize_version(current_version))
       latest = published.first
 
       if latest.nil?
@@ -35,9 +43,9 @@ class AppUpdateService
       end
 
       latest_tag = latest["tag_name"] || latest["name"] || ""
-      latest_version = latest_tag.delete_prefix("v")
+      latest_version = release_version(latest)
       release_url = latest["html_url"] || ""
-      published_at = latest["published_at"] || latest["created_at"] || ""
+      published_at = latest_tag == "edge" ? latest["updated_at"].to_s : (latest["published_at"] || latest["created_at"] || "")
       is_prerelease = !!latest["prerelease"]
 
       result = {
@@ -51,6 +59,7 @@ class AppUpdateService
         checked_at: Time.current.iso8601
       }
 
+      SystemSetting.set!("update_check_error", "")
       SystemSetting.set!("last_update_check", Time.current.iso8601)
       SystemSetting.set!("update_available_version", latest_version)
       SystemSetting.set!("update_available_url", release_url)
@@ -70,11 +79,13 @@ class AppUpdateService
       available_version = SystemSetting.find_by(key: "update_available_version")&.value
       available_url = SystemSetting.find_by(key: "update_available_url")&.value
       update_available = SystemSetting.find_by(key: "update_available")&.value == "true"
+      update_available &&= available_version != current_version
       published_at = SystemSetting.find_by(key: "latest_update_published_at")&.value
       prerelease = SystemSetting.find_by(key: "latest_update_prerelease")&.value == "true"
 
       {
         current_version: current_version,
+        check_error: SystemSetting.find_by(key: "update_check_error")&.value.presence,
         checked_at: last_check,
         update_available: update_available,
         latest_version: available_version,
@@ -82,7 +93,9 @@ class AppUpdateService
         published_at: published_at,
         prerelease: prerelease,
         can_apply: apply_strategy != :manual,
-        apply_strategy: apply_strategy.to_s
+        apply_strategy: apply_strategy.to_s,
+        operation_status: operation_status&.fetch("status", nil),
+        operation_version: SystemSetting.find_by(key: "update_operation_version")&.value
       }
     end
 
@@ -99,22 +112,40 @@ class AppUpdateService
       return { success: false, error: "Update check failed" } unless result
       return { success: false, error: "No update available" } unless result[:update_available]
 
-      case apply_strategy
-      when :install_sh
-        run_command("./install.sh update")
-      when :docker_compose
-        run_command("docker compose pull -q && docker compose up -d")
-      when :ssh_to_local
-        run_ssh_update
-      else
-        {
-          success: false,
-          error: "Auto-update is not available in this environment. Run on the host: cd #{ENV['RAILDOCK_INSTALL_DIR'].presence || '/opt/raildock'} && ./install.sh update"
-        }
+      target = result[:latest_version]
+      return { success: false, error: "An update is already in progress" } if HostUpdateRunner::ACTIVE.include?(operation_status&.fetch("status", nil))
+
+      strategy = apply_strategy
+      if strategy == :manual
+        return { success: false, error: "No verified local update host is configured. Run ./install.sh update from the installation host." }
       end
+      server = strategy == :ssh_to_local ? local_ssh_target : nil
+      HostUpdateRunner.new(server: server).schedule(target.to_s)
+    end
+
+    def operation_status
+      id = SystemSetting.find_by(key: "update_operation_id")&.value
+      return nil unless id
+
+      server_id = SystemSetting.find_by(key: "update_operation_server_id")&.value
+      server = server_id.present? ? local_ssh_target : nil
+      return { "status" => "unavailable" } if server_id.present? && server&.id.to_s != server_id
+
+      HostUpdateRunner.new(server: server).status(id)
+    rescue StandardError => error
+      Rails.logger.warn("Update status unavailable: #{error.class}")
+      { "status" => "unavailable" }
     end
 
     private
+
+    def release_version(release)
+      if release["tag_name"] == "edge"
+        release["body"].to_s[/<!-- raildock-version: ([0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9a-f]{8,40}) -->/, 1].to_s
+      else
+        release["tag_name"].to_s.delete_prefix("v")
+      end
+    end
 
     def update_available?(latest_version, releases = [])
       current = current_version
@@ -135,7 +166,7 @@ class AppUpdateService
       # chronologically ordered release list. Gem::Version mis-compares these
       # because it interprets the SHA portion as nested pre-release identifiers.
       current_index = releases.find_index do |r|
-        tag = r["tag_name"].to_s.delete_prefix("v")
+        tag = release_version(r)
         tag == current || tag == current_normalized
       end
 
@@ -167,7 +198,7 @@ class AppUpdateService
     #   :ssh_to_local  — we're inside a container but have an SSH key + local server
     #   :manual        — none of the above; user must run the command themselves
     def apply_strategy
-      @apply_strategy ||= detect_apply_strategy
+      detect_apply_strategy
     end
 
     def detect_apply_strategy
@@ -212,43 +243,12 @@ class AppUpdateService
     end
 
     def local_ssh_target_present?
-      Server.where.not(ssh_key_ciphertext: [ nil, "" ]).exists?
+      local_ssh_target.present?
     end
 
-    def run_command(cmd)
-      install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
-      # cmd values are hardcoded at the call sites (./install.sh update,
-      # docker compose pull, etc.) but we escape defensively so Brakeman
-      # can't flag this as a potential command-injection sink.
-      full_cmd = "cd #{Shellwords.escape(install_dir)} && #{Shellwords.escape(cmd)}"
-      Rails.logger.info "Running update: #{full_cmd}"
-      output, status = Open3.capture2e(full_cmd)
-
-      if status.success?
-        SystemSetting.set!("update_available", "false")
-        { success: true, message: "Update triggered. RailDock will restart momentarily." }
-      else
-        Rails.logger.error "Update failed: #{output}"
-        { success: false, error: "Update command failed: #{output.lines.last&.strip&.truncate(200) || 'unknown'}" }
-      end
-    end
-
-    def run_ssh_update
-      server = Server.where.not(ssh_key_ciphertext: [ nil, "" ]).order(:id).first
-      return { success: false, error: "No SSH key configured" } unless server
-
-      install_dir = ENV["RAILDOCK_INSTALL_DIR"].presence || "/opt/raildock"
-      cmd = "cd #{Shellwords.escape(install_dir)} && ./install.sh update 2>&1"
-      # HostEngine runs as root, which is what install.sh needs. DokkuEngine
-      # connects as the restricted dokku user and cannot run arbitrary shell.
-      result = HostEngine.new(server).run(cmd)
-
-      if result[:success]
-        SystemSetting.set!("update_available", "false")
-        { success: true, message: "Update triggered via SSH. RailDock will restart." }
-      else
-        { success: false, error: "SSH update failed: #{result[:output].to_s.lines.last&.strip&.truncate(200) || 'unknown'}" }
-      end
+    def local_ssh_target
+      hosts = ENV["DOKKU_HOST"].present? ? [ ENV["DOKKU_HOST"] ] : %w[host.docker.internal localhost 127.0.0.1 172.17.0.1]
+      Server.where(host: hosts).where.not(ssh_key_ciphertext: [ nil, "" ]).order(:id).first
     end
   end
 end

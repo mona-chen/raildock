@@ -615,6 +615,9 @@ export interface SystemSetting {
 }
 
 export interface AppUpdateInfo {
+  checkError?: string | null
+  operationStatus?: string | null
+  operationVersion?: string | null
   currentVersion: string
   checkedAt: string | null
   updateAvailable: boolean

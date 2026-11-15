@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: raildock-main-release
+  group: raildock-image-publication
   cancel-in-progress: false
 
 env:
@@ -51,17 +51,25 @@ jobs:
 
       - name: Extract metadata
         id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
           SHORT_SHA=${SOURCE_SHA::8}
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          VERSION="0.0.0-main-${SHORT_SHA}"
-          TAG="v${VERSION}"
+          BASE_VERSION=$(tr -d '[:space:]' < VERSION)
+          [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+          TAG="edge"
+          STABLE_COUNT=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft == false and .prerelease == false) | .id' | jq -s 'length')
+          COMPAT_LATEST=""
+          if [ "$STABLE_COUNT" -eq 0 ]; then COMPAT_LATEST="${IMAGE}:latest"; fi
           {
             echo "short_sha=$SHORT_SHA"
             echo "timestamp=$TIMESTAMP"
             echo "version=$VERSION"
             echo "tag=$TAG"
+            echo "compat_latest=$COMPAT_LATEST"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
@@ -71,7 +79,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest
+            ${{ steps.meta.outputs.compat_latest }}
             ${{ env.IMAGE }}:edge
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.short_sha }}
             ${{ env.IMAGE }}:main-${{ steps.meta.outputs.timestamp }}
@@ -93,14 +101,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Move rolling development tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/edge" --silent; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/edge" -f sha="$SOURCE_SHA" -F force=true
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/edge -f sha="$SOURCE_SHA"
+          fi
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           target_commitish: ${{ github.event.workflow_run.head_sha }}
-          name: RailDock ${{ steps.meta.outputs.tag }}
+          name: Development build (edge)
           body: |
-            ## RailDock ${{ steps.meta.outputs.tag }}
+            <!-- raildock-version: ${{ steps.meta.outputs.version }} -->
+            Development build from commit `${{ github.event.workflow_run.head_sha }}`.
+            This rolling prerelease is replaced after successful CI and image publication.
 
             **Docker image:** `ghcr.io/mona-chen/raildock/raildock:${{ steps.meta.outputs.version }}`
 
@@ -115,7 +136,7 @@ jobs:
             - `latest` – most recent main build
             - `edge` – rolling main build
             - `${{ steps.meta.outputs.version }}` – this build
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: true
         env:

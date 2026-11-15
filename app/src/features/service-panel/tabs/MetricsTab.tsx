@@ -87,7 +87,7 @@ function MetricChart({
       <div className="text-[11px] text-white/50 mb-2">{title}</div>
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
               {series.map((s) => (
                 <linearGradient key={s.key} id={`metric-grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -222,6 +222,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
       {liveQuery.isError && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
       {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 15 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
       {historyQuery.isError && <ErrorState title="Could not load metric history" message="Retry to fetch samples for the selected window." onRetry={() => historyQuery.refetch()} />}
+      {history?.samples.length === 1 && <p role="status" className="mb-4 text-xs text-[#a0a0b0]">Only one sample is available in this time range. Choose a longer range or wait for another sample. History is normally sampled every 5 minutes.</p>}
       {history && history.samples.length > 0 ? (
         <div className="space-y-4">
           <MetricChart

@@ -81,3 +81,38 @@ The dependency lockfiles include the patched Rails 8.1.4.1 and SSH stack. The
 frontend uses a scoped `minimatch` override for TypeScript ESLint's parser until
 its upstream dependency range includes the patched major; other consumers keep
 their compatible versions. Recheck this override when updating TypeScript ESLint.
+
+## Development and versioned releases
+
+Main publishes images after CI and updates one rolling `edge` prerelease.
+`VERSION` supplies the development base; images identify the exact build as
+`0.1.0-dev.<sha>`. Immutable image tags remain available for rollback. The
+`latest` image alias follows development until the first stable release, then
+is reserved for stable releases. Prerelease tags never replace a stable image.
+
+Create an intentional release with `./scripts/release.sh 0.1.0`. Versioned
+release pages wait for the image build; deploy image `:0.1.0`, not `:v0.1.0`.
+Versioned installations follow stable releases; development installations
+follow the rolling edge build. Cleaning GitHub metadata does not remove GHCR
+images or change running containers.
+
+## Updating from the dashboard
+
+Dashboard and automatic updates run through a transient `systemd-run` service on
+the installation host. Docker continues to manage the app with its restart
+policy. Configure `DOKKU_HOST` and a matching local SSH server record; the runner
+also verifies the current container id before scheduling a replacement. A remote
+managed server is never selected merely because it has an SSH key.
+
+The host job pulls the selected immutable image, saves a control-database backup,
+checks its archive catalog and SHA-256, recreates only the RailDock service, and
+waits for its health check. An unhealthy image triggers a fallback to the previous
+image id. Database migrations are not automatically reversed: the private backup
+is retained for deliberate recovery. Operation status, output, and backup files
+live under `<install-dir>/data/updates/<operation-id>` (root-only). Inspect the
+transient unit with `systemctl status raildock-update-<operation-id>` or read its
+`output.log` if the dashboard cannot reconnect. The UI reports scheduling rather
+than success until the host verifies the replacement.
+
+Images built before this updater change require one CLI update to install the
+new runner. No host update is executed merely by changing the repository code.

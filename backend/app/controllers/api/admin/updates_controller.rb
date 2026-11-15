@@ -17,7 +17,7 @@ module Api
         result = AppUpdateService.check_for_updates
 
         if result
-          render json: result.merge(
+          render json: AppUpdateService.last_check_result.merge(result).merge(
             auto_update_enabled: AppUpdateService.auto_update_enabled?
           )
         else
@@ -32,7 +32,7 @@ module Api
         result = AppUpdateService.apply_update
 
         if result[:success]
-          render json: result
+          render json: result, status: :accepted
         else
           render json: { error: result[:error] }, status: :unprocessable_entity
         end

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
@@ -420,15 +420,23 @@ function PluginConfigDialog({
   )
 }
 
-function UpdatesTab() {
+export function UpdatesTab() {
   const queryClient = useQueryClient()
   const [applying, setApplying] = useState(false)
 
   const { data: updateInfo, isLoading, isError } = useQuery<AppUpdateInfo>({
     queryKey: ['app-update'],
     queryFn: () => updateApi.getInfo(),
-    staleTime: 30_000,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
+    retry: false,
   })
+
+  const operationStatus = updateInfo?.operationStatus
+  const runningUpdate = ['scheduled', 'pulling', 'backing_up', 'restarting', 'verifying', 'rolling_back'].includes(operationStatus || '')
+  useEffect(() => {
+    if (['completed', 'rolled_back', 'failed', 'busy'].includes(operationStatus || '')) setApplying(false)
+  }, [operationStatus])
 
   const checkMutation = useMutation({
     mutationFn: () => updateApi.check(),
@@ -459,16 +467,17 @@ function UpdatesTab() {
     try {
       const result = await updateApi.apply()
       if (result.success) {
-        toast.success(result.message || 'Update applied — restarting now')
+        toast.success(result.message || 'Update scheduled on the host')
+        queryClient.invalidateQueries({ queryKey: ['app-update'] })
+        return
       } else {
         toast.error(result.error || 'Update failed')
       }
       queryClient.invalidateQueries({ queryKey: ['app-update'] })
     } catch (err) {
       toast.error(`Apply failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setApplying(false)
     }
+    setApplying(false)
   }
 
   const formatDate = (iso: string | null) => {
@@ -485,16 +494,15 @@ function UpdatesTab() {
   return (
     <div className="max-w-3xl space-y-5">
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#9292a3] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
-          <ArrowUpCircle size={12} className="text-rail-purple" /> Version & Updates
-        </div>
+        <h2 className="mb-4 text-sm font-medium text-white/85">Version and updates</h2>
 
         {isLoading ? (
           <div className="text-[11px] text-[#9292a3]">Loading...</div>
         ) : isError ? (
-          <div className="text-[11px] text-red-400">Failed to load update info</div>
+          <div role="status" className="text-xs text-amber-200">{applying || runningUpdate ? 'Reconnecting while the host finishes the update. This page checks every 5 seconds.' : 'Could not load update information. Retrying shortly.'}</div>
         ) : updateInfo ? (
           <div className="space-y-4">
+            {operationStatus && <p role="status" className={`text-xs ${operationStatus === 'failed' || operationStatus === 'rolled_back' ? 'text-amber-200' : 'text-[#a0a0b0]'}`}>{({ scheduled: 'Update scheduled on the host.', pulling: 'Downloading the selected image. The current app is still running.', backing_up: 'Backing up the RailDock database before replacement.', restarting: 'Starting the new container.', verifying: 'Waiting for the new container to pass its health check.', rolling_back: 'The new container did not start successfully. Restoring the previous image.', rolled_back: 'Update failed. The previous image was restored and passed its health check.', completed: 'Update completed and verified.', failed: 'Host update failed. Inspect data/updates on the installation host for its log and database backup.', busy: 'Another host update already holds the update lock.', unavailable: 'Could not read host update status. Check the local SSH connection.' } as Record<string,string>)[operationStatus] || operationStatus}</p>}
             {/* Current version + last checked */}
             <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
               <div>
@@ -536,7 +544,7 @@ function UpdatesTab() {
                   )}
                 </div>
               </div>
-            ) : hasChecked ? (
+            ) : hasChecked && !updateInfo.checkError ? (
               <div className="p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
                 <div className="text-sm text-[#A0A0B0]">You're up to date</div>
                 {updateInfo.latestVersion && (
@@ -547,6 +555,7 @@ function UpdatesTab() {
               </div>
             ) : null}
 
+            {updateInfo.checkError && <p role="alert" className="text-xs text-amber-200">Update check failed: {updateInfo.checkError}</p>}
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
               <Button
@@ -563,11 +572,10 @@ function UpdatesTab() {
                 <Button
                   size="sm"
                   onClick={handleApply}
-                  disabled={applying}
+                  disabled={applying || runningUpdate}
                   className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-8"
                 >
-                  <Rocket size={12} className="mr-1.5" />
-                  {applying ? 'Applying...' : 'Apply Update'}
+                  {applying || runningUpdate ? 'Updating...' : 'Apply Update'}
                 </Button>
               )}
 
@@ -589,20 +597,19 @@ function UpdatesTab() {
 
       {/* Auto-update settings */}
       <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-        <div className="text-[10px] text-[#9292a3] uppercase tracking-wider font-medium mb-4 flex items-center gap-2">
-          <RefreshCw size={12} className="text-rail-purple" /> Auto-Update
-        </div>
+        <h2 className="mb-4 text-sm font-medium text-white/85">Automatic updates</h2>
         <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg gap-4">
           <div className="min-w-0">
             <div className="text-sm text-white">Automatic Updates</div>
             <div className="text-[11px] text-[#9292a3] mt-0.5">
-              When enabled, RailDock checks for updates every 6 hours and applies them automatically.
+              Checks every 6 hours. Updates run on the installation host, back up the control database, and briefly interrupt the dashboard while the new image is verified.
             </div>
           </div>
           <button
             type="button"
             onClick={() => toggleAutoUpdate.mutate(!updateInfo?.autoUpdateEnabled)}
-            disabled={toggleAutoUpdate.isPending}
+            disabled={toggleAutoUpdate.isPending || (!updateInfo?.canApply && !updateInfo?.autoUpdateEnabled)}
+            aria-label="Automatic updates"
             aria-pressed={updateInfo?.autoUpdateEnabled ?? false}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
               updateInfo?.autoUpdateEnabled

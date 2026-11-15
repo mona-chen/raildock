@@ -63,6 +63,7 @@ COPY --from=gems /gem-cache /usr/local/bundle
 
 # Copy the Rails app code
 COPY backend/ .
+RUN printf '%s\n' "$RAILDOCK_VERSION" > /rails/BUILD_VERSION
 
 # Non-root user for security
 RUN groupadd --system --gid 1000 rails && \

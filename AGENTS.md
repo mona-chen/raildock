@@ -421,3 +421,30 @@ version the target servers run before assuming a behavior.
 - Retain user drafts when a request fails. Reset forms only after confirmed success.
 - Monitoring must distinguish loading, missing samples, failed requests and stale data.
   Primary-container metrics must not be described as aggregated service usage.
+
+## Release versions
+
+`VERSION` is the next development base (currently 0.1.0). Main images embed
+`<base>-dev.<sha>` and update one rolling `edge` GitHub prerelease/tag after CI
+and image publication. Never create a GitHub tag/release per main commit.
+`./scripts/release.sh 0.1.0` creates an intentional versioned release; its
+release page waits for image publication, and image tags omit the `v` prefix.
+Versioned installations check stable releases; development installations track
+edge. Historical generated releases are cleaned only through an explicit,
+reviewed cleanup plan; preserve real versions, assets, and container images.
+
+## Dashboard self-updates
+
+The API schedules a host-owned transient systemd service; it never replaces its
+own container synchronously. Docker's restart policy manages the app container;
+systemd manages only the one-shot updater. SSH updates require a matching local
+host and the current container id on that host, never the first managed server.
+The host job locks updates, pulls the exact image version, takes a checksummed
+custom-format control-database backup and verifies its catalog, recreates only
+RailDock, checks health, and falls back to the previous immutable image on
+failure. It does not automatically reverse database migrations. Logs, backups,
+and status are root-private under `data/updates/<operation>` on the host.
+The API returns 202 for accepted scheduling; UI/automatic updates share this
+runner and report host progress or rollback. Missing systemd or unverifiable
+host identity fails before the current app is stopped. `BUILD_VERSION` records
+the image's immutable version so an `edge`/`latest` Compose alias cannot hide it.
