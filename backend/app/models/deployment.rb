@@ -1,4 +1,5 @@
 class Deployment < ApplicationRecord
+  after_update_commit -> { MonitoringOperationalEventJob.perform_later("deployment", id) if saved_change_to_status? && %w[failed succeeded].include?(status) }
   belongs_to :service
 
   validates :status, inclusion: { in: %w[pending building deploying succeeded failed cancelled] }

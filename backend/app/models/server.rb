@@ -1,6 +1,8 @@
 class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
   has_many :server_metrics, dependent: :delete_all
+  has_many :http_traffic_buckets, dependent: :delete_all
+  has_many :monitoring_incidents, dependent: :delete_all
   # `restrict_with_error`, not `destroy`: a destination owns off-host artifacts
   # that outlive both the server and RailDock itself. Destroying it as a side
   # effect of deleting a server would delete rows that reference those objects,
@@ -104,9 +106,15 @@ class Server < ApplicationRecord
 
   def as_json(options = {})
     super(options.merge(
-      methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains ],
-      except: [ :ssh_key_ciphertext, :host_key ]
+      methods: [ :disk_usage, :memory_usage, :project_ids, :default_proxy, :ssh_user, :base_domain, :auto_domains, :resource_summary ],
+      except: [ :ssh_key_ciphertext, :host_key, :traffic_cursor ]
     ))
+  end
+
+  # Overview is cached history only: listing servers must never open SSH sessions.
+  def resource_summary
+    sample = server_metrics.order(sampled_at: :desc).first
+    (sample&.data || { "available" => false }).slice("available", "cpu", "memory", "disk", "memory_used", "memory_total", "disk_used", "disk_total", "cpu_cores").merge("sampled_at" => sample&.sampled_at&.iso8601, "collection_enabled" => ObservabilitySettings.hosts_enabled?)
   end
 
   private

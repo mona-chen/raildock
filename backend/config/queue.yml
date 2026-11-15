@@ -3,6 +3,10 @@ default: &default
     - polling_interval: 1
       batch_size: 500
   workers:
+    - queues: [ observability ]
+      threads: 2
+      processes: 1
+      polling_interval: 1
     # Control plane: deployments plus lightweight housekeeping. This worker is
     # intentionally separate from the backup workers so a backup upload that is
     # stuck on an unreachable destination can never occupy the threads a

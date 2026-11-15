@@ -1,3 +1,4 @@
+import { Switch } from '@/components/ui/switch'
 import ErrorState from '@/features/shared/ErrorState'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 import {
@@ -24,6 +25,7 @@ interface MetricPoint {
   ts: number
   cpu: number | null
   memory: number | null
+  memoryUsed: number | null
   netIn: number | null
   netOut: number | null
   diskRead: number | null
@@ -83,8 +85,8 @@ function MetricChart({
   valueFormatter?: (value: number) => string
 }) {
   return (
-    <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
-      <div className="text-[11px] text-white/50 mb-2">{title}</div>
+    <div className="bg-[#141417] border border-white/[0.06] rounded-lg p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs text-[#a0a0b0]">{title}</h3><span className="text-xs tabular-nums text-[#dedee7]">{series.map(s=>{const value=data.at(-1)?.[s.key];return value==null?'—':`${series.length>1?s.name+' ':''}${valueFormatter?valueFormatter(value):value}`}).join(' · ')}</span></div>
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -111,7 +113,8 @@ function MetricChart({
               domain={yDomain}
               tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }}
               tickFormatter={yTickFormatter}
-              width={44}
+              width={64}
+              tickCount={4}
             />
             <Tooltip
               contentStyle={{ background: '#151518', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
@@ -128,7 +131,7 @@ function MetricChart({
             {series.map((s) => (
               <Area
                 key={s.key}
-                type="monotone"
+                type="linear"
                 dataKey={s.key}
                 stroke={s.color}
                 strokeWidth={2}
@@ -185,6 +188,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
         ts,
         cpu: s.cpu,
         memory: s.memory,
+        memoryUsed: s.memoryUsed,
         netIn: rate(s.networkIn, previous?.networkIn, dtSeconds),
         netOut: rate(s.networkOut, previous?.networkOut, dtSeconds),
         diskRead: rate(s.blockRead, previous?.blockRead, dtSeconds),
@@ -207,6 +211,10 @@ export default function MetricsTab({ svc }: { svc: Service }) {
   const hasTraffic = points.some((p) => p.netIn != null || p.netOut != null)
   const hasDisk = points.some((p) => p.diskRead != null || p.diskWrite != null)
 
+  const memoryBytes = (value:number|null|undefined) => value==null?'—':value>=1073741824?`${(value/1073741824).toFixed(2)} GiB`:`${(value/1048576).toFixed(1)} MiB`
+  const last = history?.samples.at(-1)
+  const currentMemoryUsed = live?.memoryUsed ?? last?.memoryUsed
+  const currentMemoryLimit = live?.memoryLimit ?? last?.memoryLimit
   return (
     <div className="p-5">
       <div className="flex items-center justify-between mb-4">
@@ -230,16 +238,16 @@ export default function MetricsTab({ svc }: { svc: Service }) {
       </div>
 
       {history?.collectionEnabled === false && <p role="status" className="mb-3 text-xs text-amber-200">Application metric collection is disabled in Settings. Retained history is still available.</p>}
-      <button type="button" className="mb-3 text-xs text-[#c4b5fd] hover:underline" onClick={() => setLiveEnabled(value => !value)}>{liveEnabled ? 'Pause live refresh' : 'Resume live refresh'}</button>
-      <p className="mb-3 text-xs text-[#a0a0b0]">Usage from the primary app container or datastore container. Live refresh is every 10 seconds while open; history is sampled every minute; replicas and worker processes are not aggregated.</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs"><span className="text-[#9292a3]">Primary container · Workers and replicas excluded</span><label htmlFor="application-metrics-live" className="flex items-center gap-2 text-xs text-[#a0a0b0]">Live<Switch id="application-metrics-live" aria-label="Live application refresh" checked={liveEnabled} onCheckedChange={setLiveEnabled} className="data-[state=checked]:bg-[#8b5cf6] [&_[data-slot=switch-thumb]]:bg-white"/></label></div>
+      <div className="mb-5 grid gap-3" style={{gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))'}}>{[['CPU',live?.cpu!=null?`${live.cpu.toFixed(2)}%`:'—',live?.cpuCores?`Limit: ${live.cpuCores} ${live.cpuCores===1?'core':'cores'}`:'100% = one core'],['Memory used',memoryBytes(currentMemoryUsed),`Reported ceiling: ${memoryBytes(currentMemoryLimit)}`],['Network',points.at(-1)?.netIn!=null?formatRate(points.at(-1)!.netIn):'—','Incoming bytes / second']].map(([label,value,help])=><div key={label} className="rounded-lg border border-white/[0.08] bg-[#141417] p-4"><p className="text-xs text-[#9292a3]">{label}</p><p className="mt-2 text-lg font-medium tabular-nums text-white">{value}</p><p className="mt-1 text-[11px] text-[#9292a3]">{help}</p></div>)}</div>
       {(liveQuery.isError || (live && live.cpu == null && live.collectionEnabled !== false)) && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
       {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 3 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
       {historyQuery.isError && <ErrorState title="Could not load metric history" message="Retry to fetch samples for the selected window." onRetry={() => historyQuery.refetch()} />}
       {history?.samples.length === 1 && <p role="status" className="mb-4 text-xs text-[#a0a0b0]">Only one sample is available in this time range. Choose a longer range or wait for another sample. History is normally sampled every minute.</p>}
       {points.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,320px),1fr))'}}>
           <MetricChart
-            title="CPU usage (100% = one core)"
+            title="CPU · 100% = one core"
             data={points}
             hours={hours}
             deployMarkers={deployMarkers}
@@ -250,14 +258,14 @@ export default function MetricsTab({ svc }: { svc: Service }) {
           />
 
           <MetricChart
-            title="Memory (%)"
+            title="Memory used"
             data={points}
             hours={hours}
             deployMarkers={deployMarkers}
-            yDomain={[0, 100]}
-            yTickFormatter={(v) => `${v}%`}
-            valueFormatter={(v) => `${v.toFixed(1)}%`}
-            series={[{ key: 'memory', name: 'Memory', color: '#22c55e' }]}
+            yDomain={[0, 'auto']}
+            yTickFormatter={v => memoryBytes(v).replace(' ', '')}
+            valueFormatter={memoryBytes}
+            series={[{ key: 'memoryUsed', name: 'Memory', color: '#22c55e' }]}
           />
 
           {hasTraffic && (
@@ -290,28 +298,10 @@ export default function MetricsTab({ svc }: { svc: Service }) {
             />
           )}
 
-          <div className="flex flex-wrap items-center gap-6 px-1 pt-1 text-[11px] text-white/50">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-violet-500" /> Live CPU
-              <span className="text-white/70 ml-1">
-                {live?.cpu != null && cpuNorm(live.cpu) != null
-                  ? `${cpuNorm(live.cpu)!.toFixed(2)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}`
-                  : '—'}
-              </span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-500" /> Live Memory
-              <span className="text-white/70 ml-1">{live?.memory != null ? `${live.memory.toFixed(1)}%` : '—'}</span>
-            </span>
-            {deployMarkers.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 border-t border-dashed border-[#8b5cf6]" /> Deploys ({deployMarkers.length})
-              </span>
-            )}
-          </div>
+          <p className="text-[11px] leading-5 text-[#9292a3] sm:col-span-full">Live refresh · 10 seconds. Retained history · 1 minute. Memory ceiling is reported by Docker and may equal host capacity when no limit is set.</p>
         </div>
       ) : !historyQuery.isError ? (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
+        <div className="bg-[#141417] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
           <div className="text-white/50 text-[13px] mb-2">{historyQuery.isLoading ? 'Loading metric history…' : 'No samples in this time range'}</div>
           <div className="text-white/50 text-[11px] max-w-xs">
             Metrics are sampled every minute. Check back shortly to see CPU, memory, network and disk graphs for this service.

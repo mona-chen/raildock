@@ -1,4 +1,5 @@
 class Backup < ApplicationRecord
+  after_update_commit -> { MonitoringOperationalEventJob.perform_later("backup", id) if saved_change_to_status? && %w[failed completed].include?(status) }
   # Raised when a caller tries to delete the only completed artifact for a
   # service. Callers must acknowledge the loss explicitly (`force: true`).
   class LastCopyError < StandardError; end

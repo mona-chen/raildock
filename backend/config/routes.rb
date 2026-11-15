@@ -125,6 +125,11 @@ Rails.application.routes.draw do
       delete "backups/:backup_id", to: "services#destroy_backup"
     end
 
+    get "notifications", to: "observability#notifications"
+    patch "notifications", to: "observability#notifications"
+    get "servers/:server_id/traffic", to: "observability#traffic"
+    patch "servers/:server_id/traffic", to: "observability#traffic"
+
     resources :servers do
       member do
         post :validate

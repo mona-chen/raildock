@@ -8,6 +8,7 @@ export function useServers() {
   return useQuery({
     queryKey: ['servers'],
     queryFn: () => api.servers.list(),
+    refetchInterval: 30000,
   })
 }
 

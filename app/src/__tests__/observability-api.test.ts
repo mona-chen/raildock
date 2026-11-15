@@ -14,3 +14,11 @@ it('reads host timestamps and network counters through the real API boundary', a
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ available: true, sampled_at: '2026-11-15T01:00:00Z', uptime_seconds: 86400, network_rx: 10, network_tx: 20 }))))
   expect(await serversApi.metrics('1')).toMatchObject({ sampledAt: '2026-11-15T01:00:00Z', uptimeSeconds: 86400, networkRx: 10, networkTx: 20 })
 })
+
+it('sends notification settings as a JSON object with snake case keys', async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response('{}'))
+  vi.stubGlobal('fetch', fetch)
+  const { observabilityApi } = await import('@/lib/api')
+  await observabilityApi.saveNotifications({enabled:true, windowMinutes:3} as never)
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({settings:{enabled:true,window_minutes:3}})
+})

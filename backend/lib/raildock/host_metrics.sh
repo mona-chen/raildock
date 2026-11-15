@@ -10,8 +10,9 @@ printf 'cpu '
 printf '%s %s\n' "$first" "$second" | awk '{d=$3-$1; if(d<=0)exit 1; printf "%.4f\n",100*(d-($4-$2))/d}'
 printf 'memory '
 awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2; found=1} END{if(t<=0 || !found)exit 1; printf "%.4f\n",100*(t-a)/t}' /proc/meminfo
-printf 'disk '
-df -Pk / | awk 'NR==2{gsub(/%/,"",$5); print $5}'
+df -Pk / | awk 'NR==2{gsub(/%/,"",$5); printf "disk %s\ndisk_total %.0f\ndisk_used %.0f\ndisk_available %.0f\n",$5,$2*1024,$3*1024,$4*1024}'
+awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{printf "memory_total %.0f\nmemory_used %.0f\nmemory_available %.0f\n",t*1024,(t-a)*1024,a*1024}' /proc/meminfo
+awk '/^cpu[0-9]+ /{n++} END{printf "cpu_cores %d\n",n}' /proc/stat
 printf 'load '
 awk '{print $1}' /proc/loadavg
 printf 'uptime_seconds '

@@ -441,7 +441,7 @@ describe('ServerPage', () => {
       isLoading: false,
     })
 
-    render(<ServerPage />)
+    renderWithClient(<ServerPage />)
 
     expect(screen.getByText('Production')).toBeInTheDocument()
     expect(screen.getByText(/1\.2\.3\.4/)).toBeInTheDocument()
@@ -454,7 +454,7 @@ describe('ServerPage', () => {
       isLoading: false,
     })
 
-    render(<ServerPage />)
+    renderWithClient(<ServerPage />)
 
     fireEvent.click(screen.getAllByRole('button', { name: /connect server/i })[0])
     expect(screen.getByText('Connect a Linux host to run your services.')).toBeInTheDocument()
@@ -467,7 +467,7 @@ describe('ServerPage', () => {
     expect(screen.getByRole('button', { name: 'Connect server' })).toBeInTheDocument()
   })
 
-  it('shows external Traefik settings for a server', () => {
+  it('shows external Traefik settings for a server', async () => {
     ;(useServers as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [
         {
@@ -492,8 +492,9 @@ describe('ServerPage', () => {
       isLoading: false,
     })
 
-    render(<ServerPage />)
-    fireEvent.click(screen.getByTitle('Proxy settings'))
+    renderWithClient(<ServerPage />)
+    fireEvent.keyDown(screen.getByRole('button', {name:'Actions for Production'}), {key:'Enter'})
+    fireEvent.click(await screen.findByRole('menuitem', {name:'Proxy settings'}))
     fireEvent.click(screen.getByLabelText('Proxy Mode'))
     fireEvent.click(screen.getByText('Existing reverse proxy'))
 

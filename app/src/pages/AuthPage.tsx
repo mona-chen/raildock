@@ -130,8 +130,7 @@ export default function AuthPage() {
       <div className="w-full max-w-[420px]">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <Logo className="h-9 w-9" />
-          <span className="text-lg font-bold text-white">RailDock</span>
+          <Logo wordmark className="h-11 w-auto" />
         </div>
 
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-7 sm:p-8">

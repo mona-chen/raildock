@@ -5,6 +5,8 @@ require "base64"
 class HostMetricsCollector
   FIELDS = %w[cpu memory disk load uptime_seconds network_rx network_tx].freeze
 
+  OPTIONAL_FIELDS = %w[cpu_cores memory_total memory_used memory_available disk_total disk_used disk_available].freeze
+
   def self.call(server, now: Time.current)
     ApplicationRecord.connection_pool.with_connection do |connection|
       key = "hashtextextended('raildock:host-metrics:#{Integer(server.id)}', 0)"
@@ -33,7 +35,7 @@ class HostMetricsCollector
     data = result[:output].to_s.lines.to_h do |line|
       key, value = line.split
       [ key, Float(value, exception: false) ]
-    end.slice(*FIELDS)
+    end.slice(*(FIELDS + OPTIONAL_FIELDS))
     return { "available" => false, "reason" => "Host returned incomplete metrics" } unless FIELDS.all? { |field| data[field]&.finite? && data[field] >= 0 }
 
     data.merge("available" => true)

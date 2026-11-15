@@ -40,3 +40,10 @@ const testStorage: Storage = {
 }
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: testStorage })
 Object.defineProperty(window, 'localStorage', { configurable: true, value: testStorage })
+
+// Browser measurement and pointer APIs used by the Radix controls.
+globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }
+HTMLElement.prototype.scrollIntoView = vi.fn()
+HTMLElement.prototype.hasPointerCapture = vi.fn(() => false)
+HTMLElement.prototype.setPointerCapture = vi.fn()
+HTMLElement.prototype.releasePointerCapture = vi.fn()

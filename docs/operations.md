@@ -132,5 +132,71 @@ readings as well as retained history. The primary web/datastore container is the
 current application scope; worker and replica aggregation is not yet supported.
 Host collection failures are unavailable, never synthetic zeroes. Docker sampling
 is batched per host. No additional host agent, public monitoring port or external
-telemetry provider is installed. HTTP analytics and notification rules are a
-separate implementation; see [the observability review](reviews/2026-11-15-005-observability.md).
+telemetry provider is installed. HTTP analytics and notification rules are configured separately; see the sections below.
+
+### HTTP traffic analytics
+
+Open Servers → select a host → HTTP traffic → Configure collection. Collection is
+opt-in and reads an existing **host-accessible** JSON access log. It supports
+Traefik JSON (`StartUTC`, `DownstreamStatus`, `Duration` in nanoseconds) and Caddy
+JSON (`ts`, `status`, `duration` in seconds). The host needs Python 3 and `timeout`.
+Use a regular `.log` or `.jsonl` file under `/var/log/` or `/var/lib/dokku/`.
+Symlink log paths are refused. For a containerized proxy, the log file must already
+be mounted to a host path. RailDock does not restart or rewrite an existing proxy.
+
+Traefik's access log must be enabled in JSON format and written to a host-mounted
+file; Caddy likewise needs its access-log JSON file output configured. These are
+proxy operational changes: arrange the proxy's own safe reload/restart separately.
+RailDock reports failed reads rather than assuming access logging is configured.
+
+First enable and source changes start at EOF, avoiding a replay of an enormous
+historic log. Subsequent scans read at most 2 MiB and preserve an inode/offset
+cursor. Backlog, skipped malformed/oversized lines and rotation gaps appear in the
+UI. Unread data in the old file after rotation may be missing; this is not a
+lossless log archive. Switching sources keeps previously collected history.
+
+Requests, response bytes, status counts and latency histograms are aggregated on
+the host before transmission. Top-path persistence is separately opt-in and capped
+at 25 categories plus an overflow bucket; query strings, IPs, headers and bodies
+are not retained. Paths can still contain identifiers, so review that setting
+before enabling it. Request domains map traffic to applications; unmatched requests
+remain in server totals as unmapped traffic. Unique visitors, location and device
+fingerprinting are not collected. Latency p95 is shown as a histogram upper bound.
+
+Minute detail is retained for at most two days, hourly aggregates for the chosen
+1–30 days. The seven-day dashboard uses hourly data. Cleanup continues when
+collection is disabled. Background collection runs every minute; live views request
+refresh every ten seconds and concurrent collectors are coalesced. Monitoring has
+a separate worker queue so it cannot occupy deployment/backup worker threads.
+
+### Monitoring notifications
+
+Settings → Notifications is organization-scoped and available to owners/admins.
+Enable monitoring for in-app incident history, then enable email to notify the
+organization owner and admins. Add up to ten additional destinations (shared
+inboxes/on-call addresses), separated by commas or new lines. Validated destinations
+are stored with that organization's policy. Configure working SMTP under instance
+Email settings before expecting outgoing mail.
+
+Rules cover sustained host/application CPU and memory pressure, host disk pressure,
+missing metric/HTTP collectors, HTTP 5xx rate and request-volume thresholds. The
+5xx rule requires at least twenty requests in a complete minute. Pattern matching
+is an optional rule with a default threshold of zero (off), not the purpose of the
+analytics overview. A zero numeric threshold disables that rule. Deploy/backup
+failure events are immediate and successful subsequent operations record recovery.
+
+Sustained duration is 1–15 minutes. Active incidents are deduplicated; host resource
+thresholds have five percentage points of recovery hysteresis. Traffic alerts pause
+while collection is unavailable or catching up. Email uses the observability queue,
+retries transient failures up to three attempts, and shows queued/delivered/failed,
+SMTP-unconfigured or no-recipient status. Delivered means SMTP accepted the message,
+not that an inbox received it. A crash after SMTP acceptance can cause a duplicate
+on retry; exactly-once email delivery is not guaranteed. Resolved incident retention
+is configurable from 1–90 days.
+
+Operational cost: the dedicated observability queue adds a Rails worker process
+(two threads), so budget additional application memory before production rollout.
+A local, network-isolated Linux-container benchmark parsed 2,500 synthetic Caddy
+records (375 KB) in 0.0148 CPU seconds with a process peak RSS of about 17 MiB.
+This measures the Python reader only; it excludes Rails, SSH, database and SMTP
+overhead and is not a production capacity guarantee.

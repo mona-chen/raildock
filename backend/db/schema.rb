@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_15_020001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -226,6 +226,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
     t.index ["user_id"], name: "index_git_sources_on_user_id"
   end
 
+  create_table "http_traffic_buckets", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.datetime "bucket_at", null: false
+    t.jsonb "data", default: {}, null: false
+    t.string "resolution", default: "minute", null: false
+    t.index ["bucket_at"], name: "index_http_traffic_buckets_on_bucket_at"
+    t.index ["server_id", "resolution", "bucket_at"], name: "idx_on_server_id_resolution_bucket_at_55e820de80", unique: true
+    t.index ["server_id"], name: "index_http_traffic_buckets_on_server_id"
+  end
+
   create_table "manifest_changes", force: :cascade do |t|
     t.string "change_type", null: false
     t.datetime "created_at", null: false
@@ -256,6 +266,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_manifest_operations_on_project_id"
     t.index ["status"], name: "index_manifest_operations_on_status"
+  end
+
+  create_table "monitoring_incidents", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.string "signal", null: false
+    t.string "state", default: "pending", null: false
+    t.datetime "started_at", null: false
+    t.datetime "last_seen_at", null: false
+    t.datetime "resolved_at"
+    t.string "message", null: false
+    t.string "delivery_status", default: "disabled", null: false
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["server_id", "signal"], name: "index_active_monitoring_incident", unique: true, where: "(resolved_at IS NULL)"
+    t.index ["server_id"], name: "index_monitoring_incidents_on_server_id"
   end
 
   create_table "organization_invitations", force: :cascade do |t|
@@ -306,6 +332,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
     t.bigint "owner_id", null: false
     t.string "slug", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "notification_settings", default: {}, null: false
     t.index ["owner_id"], name: "index_organizations_on_owner_id"
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
@@ -448,6 +475,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
     t.datetime "updated_at", null: false
     t.string "uptime"
     t.bigint "user_id"
+    t.jsonb "traffic_settings", default: {}, null: false
+    t.jsonb "traffic_cursor", default: {}, null: false
     t.index ["organization_id"], name: "index_servers_on_organization_id"
     t.index ["user_id"], name: "index_servers_on_user_id"
   end
@@ -604,8 +633,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
   add_foreign_key "environments", "projects"
   add_foreign_key "git_sources", "organizations"
   add_foreign_key "git_sources", "users"
+  add_foreign_key "http_traffic_buckets", "servers"
   add_foreign_key "manifest_changes", "projects"
   add_foreign_key "manifest_operations", "projects"
+  add_foreign_key "monitoring_incidents", "servers"
   add_foreign_key "organization_invitations", "organizations"
   add_foreign_key "organization_invitations", "users"
   add_foreign_key "organization_invitations", "users", column: "invited_by_id"

@@ -69,6 +69,7 @@ function App() {
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="project/:projectId/*" element={<ProjectCanvas />} />
                 <Route path="servers" element={<ServerPage />} />
+                <Route path="servers/:serverId" element={<ServerPage />} />
                 <Route path="activity" element={<ActivityPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>

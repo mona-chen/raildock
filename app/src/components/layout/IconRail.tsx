@@ -103,8 +103,8 @@ export default function IconRail() {
   return (
     <div className={`${width} bg-[#0B0B0D] border-r border-[rgba(255,255,255,0.06)] flex flex-col py-3 px-2 flex-shrink-0 z-30`}>
       <Link to="/" className={`mb-1 flex h-9 items-center gap-2.5 rounded-lg ${row}`} title="RailDock">
-        <Logo className="h-7 w-7 flex-shrink-0" />
-        <span className={`${label} text-[13px] font-semibold text-white/80`}>RailDock</span>
+        <Logo className={`h-7 w-7 flex-shrink-0 ${collapsed ? '' : 'md:hidden'}`} />
+        {!collapsed && <Logo wordmark className="hidden h-9 w-auto max-w-[144px] md:block" />}
       </Link>
 
       <DropdownMenu>

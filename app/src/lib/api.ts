@@ -660,6 +660,7 @@ export interface ServerTestResult {
 }
 
 export interface HostMetricSample {
+  cpuCores?: number; memoryTotal?: number; memoryUsed?: number; memoryAvailable?: number; diskTotal?: number; diskUsed?: number; diskAvailable?: number
   at?: string
   sampledAt?: string
   available: boolean
@@ -1414,4 +1415,30 @@ export const api = {
   manifest: manifestApi,
   repositoryImports: repositoryImportsApi,
   updates: updateApi,
+}
+
+export interface NotificationPolicy {
+  enabled: boolean; email: boolean; emailDestinations: string[]; cpu: number; memory: number; disk: number
+  httpErrorPercent: number; requestsPerMinute: number; suspiciousPerMinute: number
+  windowMinutes: number; retentionDays: number
+}
+export interface MonitoringIncident {
+  id: number; signal: string; state: string; message: string; serverName: string
+  startedAt: string; lastSeenAt: string; resolvedAt: string | null; deliveryStatus: string
+}
+export interface TrafficSettings { enabled: boolean; path?: string; format: string; retentionDays: number; capturePaths?: boolean }
+export interface TrafficTotals { requests?: number; bandwidth?: number; suspicious?: number; statuses?: Record<string, number>; histogram?: number[]; paths?: Array<{path:string;count:number}> }
+export interface TrafficResponse {
+  applications?: Array<{id:string;name:string}>; byApplication?: Array<{id:string;name:string;requests:number}>; bucketSeconds?: number
+  settings: TrafficSettings
+  collection: { checkedAt?: string; error?: string; backlogBytes?: number; invalidLines?: number; rotations?: number; mappedDomains?: number }
+  summary: TrafficTotals
+  samples: Array<TrafficTotals & { at: string }>
+  coverage: string
+}
+export const observabilityApi = {
+  notifications: (): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications'),
+  saveNotifications: (settings: NotificationPolicy): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications', {method:'PATCH', body: wrapBody('settings', settings)}),
+  traffic: (serverId: string, hours: number, live = true, serviceId = ''): Promise<TrafficResponse> => fetchJson(`/api/servers/${serverId}/traffic?hours=${hours}&refresh=${live}${serviceId?`&service_id=${encodeURIComponent(serviceId)}`:''}`),
+  saveTraffic: (serverId: string, settings: TrafficSettings): Promise<TrafficResponse> => fetchJson(`/api/servers/${serverId}/traffic`, {method:'PATCH', body:wrapBody('settings', settings)}),
 }

@@ -1,8 +1,11 @@
-import { Server, HardDrive, Activity, Plus, Trash2, Settings, Container, Database, Search } from 'lucide-react'
+import { Server, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
-import { formatMbAsGb } from '@/lib/utils'
+import ServerOverview from '@/features/servers/ServerOverview'
 import { useServers, useDestroyServer, useValidateServer, useUpdateServer } from '@/hooks/useServers'
 import { useNetworks, useValidateNetwork } from '@/hooks/useModules'
 import ServerSetupWizard from '@/features/servers/ServerSetupWizard'
@@ -14,8 +17,8 @@ import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import ErrorState from '@/features/shared/ErrorState'
 import EmptyState from '@/features/shared/EmptyState'
 import WorkspaceHeader from '@/features/shared/WorkspaceHeader'
+import HttpTrafficPanel from '@/features/servers/HttpTrafficPanel'
 import HostMetricsPanel from '@/features/servers/HostMetricsPanel'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
 
 export default function ServerPage() {
@@ -27,7 +30,11 @@ export default function ServerPage() {
   const organization = useAuthStore((s) => s.currentOrganization())
   const canCreateServer = organization?.role === 'owner'
 
-  const [metricsServer, setMetricsServer] = useState<ServerRecord | null>(null)
+  const { serverId } = useParams()
+  const navigate = useNavigate()
+  const [params,setParams] = useSearchParams()
+  const selectedServer = servers.find(server => server.id === serverId)
+  const metricsMode = params.get('tab') === 'http' ? 'http' : 'resources'
   const [search, setSearch] = useState('')
   const filteredServers = servers.filter((server) => `${server.name} ${server.host}`.toLowerCase().includes(search.trim().toLowerCase()))
   const [showAdd, setShowAdd] = useState(false)
@@ -84,9 +91,9 @@ export default function ServerPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <Dialog open={!!metricsServer} onOpenChange={open => { if (!open) setMetricsServer(null) }}><DialogContent className="sm:max-w-5xl max-h-[90dvh] overflow-y-auto bg-[#111113] text-white border-white/10"><DialogHeader><DialogTitle>{metricsServer?.name} · Host metrics</DialogTitle><DialogDescription>Resource usage across the whole server.</DialogDescription></DialogHeader>{metricsServer && <HostMetricsPanel key={metricsServer.id} serverId={metricsServer.id} />}</DialogContent></Dialog>
-      <WorkspaceHeader title="Servers" description="Manage the hosts your services run on.">
-        {canCreateServer && (
+
+      <WorkspaceHeader title={serverId ? selectedServer?.name || 'Server' : 'Servers'} description={serverId ? selectedServer?.host || 'Host observability' : 'Manage the hosts your services run on.'}>
+        {canCreateServer && !serverId && (
           <button
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 btn-primary"
@@ -97,7 +104,9 @@ export default function ServerPage() {
       </WorkspaceHeader>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-5xl space-y-5">
+        <div className={`mx-auto ${serverId?'max-w-7xl':'max-w-5xl'} space-y-5`}>
+          {serverId ? <><div className="flex items-center justify-between"><Link to="/dashboard/servers" className="text-xs text-[#a0a0b0] hover:text-white">Servers / {selectedServer?.name || 'Server'}</Link>{selectedServer&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="text-xs text-[#9292a3]">Server actions</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a20] text-white"><DropdownMenuItem onSelect={()=>openSettings(selectedServer)}>Proxy settings</DropdownMenuItem><DropdownMenuItem onSelect={()=>validateServer.mutate(selectedServer.id)}>Check connection</DropdownMenuItem><DropdownMenuItem onSelect={()=>setImportServer(selectedServer)}>Import containers</DropdownMenuItem><DropdownMenuItem onSelect={()=>setAdoptServer(selectedServer)}>Adopt datastores</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div>{selectedServer?<><nav className="flex gap-6 border-b border-white/10" aria-label="Server sections">{(['resources','http'] as const).map(mode=><button key={mode} onClick={()=>setParams({tab:mode})} aria-current={metricsMode===mode?'page':undefined} className={`pb-3 text-sm border-b-2 ${metricsMode===mode?'text-[#c4b5fd] border-[#a78bfa]':'text-[#9292a3] border-transparent'}`}>{mode==='resources'?'Resources':'HTTP traffic'}</button>)}</nav>{metricsMode==='resources'?<HostMetricsPanel key={selectedServer.id} serverId={selectedServer.id}/>:<HttpTrafficPanel key={selectedServer.id} serverId={selectedServer.id}/>}</>:isLoading?<p role="status">Loading server…</p>:<ErrorState title="Server unavailable" message="The server could not be loaded or you no longer have access." onRetry={()=>refetch()}/>}</> : <>
+
           {servers.length > 0 && <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3 text-xs text-[#a0a0b0]"><span className="h-2 w-2 rounded-full bg-emerald-400" />{servers.filter((server) => server.status === 'connected').length} of {servers.length} connected</div><label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2"><Search size={14} className="text-[#a0a0b0]" /><input aria-label="Search servers" placeholder="Find a server…" value={search} onChange={(event) => setSearch(event.target.value)} className="w-44 bg-transparent text-xs outline-none" /></label></div>}
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
@@ -130,116 +139,12 @@ export default function ServerPage() {
               onRetry={() => refetch()}
             />
           ) : (
-            filteredServers.map((srv) => (
-              <div key={srv.id} className="relative group">
-                <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.08)] flex items-center justify-center">
-                        <Server size={20} className="text-rail-purple" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-white">{srv.name}</div>
-                        <div className="text-[10px] text-[#9292a3]">{srv.host} · {srv.os}</div>
-                        {srv.baseDomain && (
-                          <div className="text-[10px] text-rail-purple mt-0.5">*.{srv.baseDomain}</div>
-                        )}
-                        {srv.publicIp && (
-                          <div className="text-[10px] text-[#9292a3] mt-0.5">IP {srv.publicIp}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${srv.status === 'connected' ? 'bg-rail-green' : srv.status === 'error' ? 'bg-rail-red' : 'bg-rail-yellow'}`} />
-                      <span className="text-[11px] text-[#8a8a99] capitalize">{srv.status}</span>
-                      {srv.status !== 'connected' && (
-                        <button
-                          onClick={() => validateServer.mutate(srv.id)}
-                          disabled={validateServer.isPending}
-                          className="text-[10px] px-2 py-0.5 bg-rail-purple/15 text-rail-purple rounded-full hover:bg-rail-purple/25 transition-all disabled:opacity-50"
-                        >
-                          {validateServer.isPending ? 'Validating...' : 'Validate'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setImportServer(srv)}
-                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
-                        title="Import Docker containers"
-                      >
-                        <Container size={14} />
-                      </button>
-                      <button
-                        onClick={() => setAdoptServer(srv)}
-                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
-                        title="Adopt untracked datastores"
-                      >
-                        <Database size={14} />
-                      </button>
-                      <button
-                        onClick={() => openSettings(srv)}
-                        className="p-1 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
-                        title="Proxy settings"
-                      >
-                        <Settings size={14} />
-                      </button>
-                    </div>
-                  </div>
+            filteredServers.map((srv) => <ServerOverview key={srv.id} server={srv}
+              onResources={() => navigate(`/dashboard/servers/${srv.id}?tab=resources`)}
+              onHttp={() => navigate(`/dashboard/servers/${srv.id}?tab=http`)}
+              onSettings={() => openSettings(srv)} onImport={() => setImportServer(srv)} onAdopt={() => setAdoptServer(srv)} onRemove={() => setRemoveTarget(srv)}
+              onValidate={() => validateServer.mutate(srv.id)} validating={validateServer.isPending} canRemove={canCreateServer} />)
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-white">{srv.projectIds.length}</div>
-                      <div className="text-[10px] text-[#9292a3]">Projects</div>
-                    </div>
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-white">{srv.dokkuVersion}</div>
-                      <div className="text-[10px] text-[#9292a3]">Dokku</div>
-                    </div>
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-white">{srv.dockerVersion}</div>
-                      <div className="text-[10px] text-[#9292a3]">Docker</div>
-                    </div>
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-white capitalize">{srv.defaultProxy}</div>
-                      <div className="text-[10px] text-[#9292a3]">Proxy</div>
-                    </div>
-                  </div>
-
-                  <button type="button" onClick={() => setMetricsServer(srv)} className="text-xs text-[#c4b5fd] hover:underline">View live metrics and history</button>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <HardDrive size={12} className="text-rail-blue" />
-                        <span className="text-[10px] text-[#9292a3]">Disk</span>
-                      </div>
-                      <div className="text-sm font-bold text-white">{formatMbAsGb(srv.diskUsage.used)}/{formatMbAsGb(srv.diskUsage.total)} GB</div>
-                      <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-rail-blue rounded-full" style={{ width: `${srv.diskUsage.total > 0 ? Math.min(100, Math.max(0, (srv.diskUsage.used / srv.diskUsage.total) * 100)) : 0}%` }} />
-                      </div>
-                    </div>
-                    <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Activity size={12} className="text-rail-purple" />
-                        <span className="text-[10px] text-[#9292a3]">Memory</span>
-                      </div>
-                      <div className="text-sm font-bold text-white">{formatMbAsGb(srv.memoryUsage.used)}/{formatMbAsGb(srv.memoryUsage.total)} GB</div>
-                      <div className="mt-1.5 h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                        <div className="h-full bg-rail-purple rounded-full" style={{ width: `${srv.memoryUsage.total > 0 ? Math.min(100, Math.max(0, (srv.memoryUsage.used / srv.memoryUsage.total) * 100)) : 0}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setRemoveTarget(srv)}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
-                  title="Remove server"
-                  aria-label={`Remove server ${srv.name}`}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))
           )}
 
           {servers.length > 0 && filteredServers.length === 0 && <EmptyState icon={Search} title="No matching servers" description="Try a server name or host address." action={<button type="button" onClick={() => setSearch('')} className="btn-secondary">Clear search</button>} />}
@@ -261,6 +166,7 @@ export default function ServerPage() {
               hint={canCreateServer ? undefined : 'Only organization owners can connect servers.'}
             />
           )}
+          </>}
         </div>
       </div>
 

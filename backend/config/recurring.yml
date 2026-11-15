@@ -10,6 +10,10 @@
 #     schedule: at 5am every day
 
 production:
+  monitoring_tick:
+    class: MonitoringTickJob
+    schedule: every minute
+
   finalize_manifest_operations:
     class: FinalizeManifestOperationsJob
     schedule: every minute

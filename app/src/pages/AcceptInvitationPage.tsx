@@ -206,8 +206,7 @@ function CenteredCard({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#0B0B0D] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <Logo className="h-9 w-9" />
-          <span className="text-lg font-bold text-white">RailDock</span>
+          <Logo wordmark className="h-11 w-auto" />
         </div>
         <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-xl p-6">
           {children}

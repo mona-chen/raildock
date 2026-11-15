@@ -48,7 +48,7 @@ the caller's authorized server. Shortening retention permanently expires samples
   Its [Logs & Metrics](https://docs.dokploy.com/docs/core/logs-and-metrics) uses
   Vector/cAdvisor to export to external monitoring providers.
 
-## Next implementation boundary: requests and incidents
+## Requests and incidents: implementation boundaries
 
 Do not ship charts that label Docker network bytes as HTTP requests or attacks.
 Traffic analytics requires real proxy access logs, correct host/service mapping,
@@ -56,8 +56,7 @@ log rotation handling, trusted client-IP boundaries and measured collector cost.
 External proxies remain operator-owned; enabling analytics must not silently
 restart or rewrite someone else's Traefik/Caddy instance.
 
-The next layer should use a bounded per-host collector, authenticated batches and
-hourly/daily rollups, rather than forwarding raw request streams into Rails. Keep
+The HTTP layer now uses a bounded per-host reader over authenticated SSH, minute/hourly rollups and organization-scoped monitoring policies. It does not forward raw request streams into Rails. Keep
 request counts/statuses exact, bound top-N cardinality, and mark sampled latency or
 approximate unique visitors explicitly. Percentile aggregates must use mergeable
 histograms; averaging per-minute p95 values is mathematically wrong. Record lag,
@@ -100,3 +99,5 @@ The host sampling script was smoke-tested in a restricted local Linux container.
 Real SSH-host collection, external proxy integration and production load still
 require end-to-end operational validation; no production updater or proxy change
 was executed during this work.
+
+Implementation status: opt-in Traefik/Caddy file collection, minute/hourly history, HTTP/application breakdowns, organization notification rules, additional email destinations, deduplication and recovery are implemented. Optional geography, unique-visitor analytics, device fingerprinting, packet capture and automatic proxy reconfiguration remain outside this implementation. See operations.md for setup, limits and retention.

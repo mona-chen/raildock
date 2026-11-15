@@ -32,6 +32,7 @@ import ConfigSchemaForm from '@/components/ConfigSchemaForm'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
 import MembersTab from '@/features/settings/MembersTab'
 import BackupDestinationsTab from '@/features/settings/BackupDestinationsTab'
+import NotificationsTab from '@/features/settings/NotificationsTab'
 import ObservabilitySettingsTab from '@/features/settings/ObservabilitySettingsTab'
 import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
 import { updateApi } from '@/lib/api'
@@ -46,6 +47,7 @@ const TAB_GROUPS = [
     label: 'Organization',
     tabs: [
       { key: 'members', label: 'Members', icon: Users },
+      { key: 'notifications', label: 'Notifications', icon: Activity },
       { key: 'organizations', label: 'Organizations', icon: Building2 },
       { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
       { key: 'backup-destinations', label: 'Backups', icon: Cloud },
@@ -68,7 +70,7 @@ export default function SettingsPage() {
   const requestedTab = searchParams.get('tab') || 'members'
   const activeTab = TAB_GROUPS.some((group) => group.tabs.some((tab) => tab.key === requestedTab)) ? requestedTab : 'members'
   const { data: modules = [], isLoading: modulesLoading } = useModules()
-  const { user } = useAuthStore()
+  const { user, currentOrganizationId } = useAuthStore()
   const isAdmin = user?.admin === true
   const [filter, setFilter] = useState('')
 
@@ -82,7 +84,7 @@ export default function SettingsPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <WorkspaceHeader title="Settings" description={activeGroup?.label === 'Instance' ? 'Manage the RailDock instance that powers your workspace.' : 'Your team, connections, and recovery preferences.'} />
+      <WorkspaceHeader title="Settings" description={activeGroup?.label === 'Instance' ? 'Instance configuration' : 'Organization configuration'} />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         <aside className="hidden md:flex w-[224px] flex-shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
@@ -101,7 +103,7 @@ export default function SettingsPage() {
           <nav className="flex-1 overflow-y-auto px-2 pb-3">
             {groups.map((group) => (
               <div key={group.label} className="mb-1">
-                <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#9292a3]">{group.label}</div>
+                <div className="px-2 pt-2 pb-1 text-[11px] font-medium text-[#777787]">{group.label}</div>
                 {group.tabs.map((tab) => {
                   const isActive = activeTab === tab.key
                   return (
@@ -136,6 +138,7 @@ export default function SettingsPage() {
           {activeTab === 'git-sources' && <GitSourcesTab />}
           {activeTab === 'organizations' && <OrganizationsTab />}
           {activeTab === 'members' && <MembersTab />}
+          {activeTab === 'notifications' && <NotificationsTab key={currentOrganizationId} />}
           {activeTab === 'backup-destinations' && <BackupDestinationsTab />}
           {activeTab === 'deploy-keys' && <DeployKeysTab />}
           {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}

@@ -46,3 +46,6 @@ coverage/
 # git submodule add https://github.com/dokku/dokku.git dokku
 dokku/
 .playwright-mcp/
+
+# Local Python collector tests
+__pycache__/

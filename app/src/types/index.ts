@@ -453,6 +453,7 @@ export interface Builder {
 // ───────────────────────────────────────────────
 
 export interface Server {
+  resourceSummary?: { cpuCores?: number; memoryUsed?: number; memoryTotal?: number; diskUsed?: number; diskTotal?: number; available: boolean; cpu?: number | null; memory?: number | null; disk?: number | null; sampledAt?: string; collectionEnabled?: boolean }
   id: string
   name: string
   host: string
