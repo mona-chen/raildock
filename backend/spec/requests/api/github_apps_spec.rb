@@ -4,6 +4,15 @@ RSpec.describe "Api::GithubAppsController", type: :request do
   let(:user) { create(:user, :admin) }
 
   describe "GET /api/github-apps/callback" do
+    # `public_base_url` prefers a configured public URL, and the dev stack
+    # exports one (APP_URL=http://localhost:3001). Pin both to nil so the
+    # callback URL resolves to the request host on every machine.
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("RAILDOCK_PUBLIC_URL").and_return(nil)
+      allow(ENV).to receive(:[]).with("APP_URL").and_return(nil)
+    end
+
     it "redirects with error without installation_id" do
       get "/api/github-apps/callback"
       expect(response).to have_http_status(:found)
