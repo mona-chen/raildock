@@ -448,3 +448,10 @@ The API returns 202 for accepted scheduling; UI/automatic updates share this
 runner and report host progress or rollback. Missing systemd or unverifiable
 host identity fails before the current app is stopped. `BUILD_VERSION` records
 the image's immutable version so an `edge`/`latest` Compose alias cannot hide it.
+
+## Observability collection
+
+- Resource history runs every minute. `MetricsSamplerJob` batches Docker stats per host; never return to one Docker stats invocation per service. Host CPU uses a one-second `/proc/stat` delta, memory uses `MemAvailable`, and failures remain unavailable rather than zero.
+- Host live views coalesce collection across workers with a PostgreSQL advisory lock and a ten-second freshness window. Keep SSH outside a database transaction and do not lock the Server row while collecting.
+- Settings → Observability independently disables host/application metrics and sets retention (1–90 days). Disabling collection preserves history until expiry; cleanup must run even when both collectors are off. Live endpoints must honor collection settings too.
+- Container metrics cover the primary web/datastore container. Host metrics include the whole server. Neither constitutes HTTP analytics, application traces or intrusion detection; do not present network bytes as request counts or attack evidence.

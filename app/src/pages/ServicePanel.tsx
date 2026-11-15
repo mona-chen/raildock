@@ -403,7 +403,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
                 {networkingView === 'domains' ? <DomainsTab svc={svc} /> : <StorageTab svc={svc} />}
               </div>
             )}
-            {tab === 'metrics' && <MetricsTab svc={svc} />}
+            {tab === 'metrics' && <MetricsTab key={svc.id} svc={svc} />}
             {tab === 'settings' && <SettingsPanel svc={svc} />}
           </>
         )}

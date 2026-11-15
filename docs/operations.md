@@ -116,3 +116,21 @@ than success until the host verifies the replacement.
 
 Images built before this updater change require one CLI update to install the
 new runner. No host update is executed merely by changing the repository code.
+
+
+### Resource observability
+
+Settings → Observability (instance administrators) controls application/host
+collection independently and metric retention (1–90 days, default 30). Turning a
+collector off stops both live and background reads, while retained samples age
+out normally. Shortening retention expires older samples on the next cleanup.
+
+Servers → View live metrics and history shows whole-host CPU, memory, root disk,
+load, uptime and network counters. Host views refresh every ten seconds while
+open; background history is sampled every minute. Container views now plot live
+readings as well as retained history. The primary web/datastore container is the
+current application scope; worker and replica aggregation is not yet supported.
+Host collection failures are unavailable, never synthetic zeroes. Docker sampling
+is batched per host. No additional host agent, public monitoring port or external
+telemetry provider is installed. HTTP analytics and notification rules are a
+separate implementation; see [the observability review](reviews/2026-11-15-005-observability.md).

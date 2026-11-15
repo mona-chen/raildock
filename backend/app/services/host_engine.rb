@@ -319,6 +319,34 @@ class HostEngine
     }
   end
 
+  # One Docker stats invocation for the host, rather than one SSH connection
+  # and Docker process per deployed service. Only mapped service names persist.
+  def docker_stats_snapshot
+    with_session do
+      result = run("docker stats --no-stream --format '{{json .}}'")
+      return {} unless result[:success]
+
+      limits_result = run("docker ps -q | xargs -r docker inspect --format '{{.Name}} {{.HostConfig.NanoCpus}}'")
+      limits = limits_result[:success] ? limits_result[:output].to_s.lines.to_h { |line| name, nano = line.split; [ name.to_s.delete_prefix("/"), nano.to_f / 1_000_000_000 ] } : {}
+      result[:output].to_s.lines.filter_map do |line|
+        row = JSON.parse(line)
+        next unless row["Name"].present? && row["CPUPerc"].present? && row["MemUsage"].present?
+
+        used, limit = row["MemUsage"].split("/", 2).map { |value| human_size_to_bytes(value.to_s.strip) }
+        [ row["Name"], {
+          cpu: Float(row["CPUPerc"].delete("%"), exception: false),
+          cpu_cores: limits[row["Name"]],
+          memory: limit.to_f.positive? ? used * 100.0 / limit : nil,
+          memory_used: used, memory_limit: limit,
+          network_rx: io_counter_bytes(row["NetIO"], 0), network_tx: io_counter_bytes(row["NetIO"], 1),
+          block_read: io_counter_bytes(row["BlockIO"], 0), block_write: io_counter_bytes(row["BlockIO"], 1)
+        } ]
+      rescue JSON::ParserError
+        nil
+      end.to_h
+    end
+  end
+
   # `docker stats` reports network and block I/O as cumulative "rx / tx" byte
   # counters ("12.3MB / 4.5kB"). Return one side as bytes.
   def io_counter_bytes(pair, index)

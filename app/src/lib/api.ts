@@ -410,14 +410,16 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/data/${encodeURIComponent(table)}?limit=${limit}&offset=${offset}`)
   },
 
-  metrics: async (id: string): Promise<{ cpu: number; cpuCores: number; memory: number; networkIn: number; networkOut: number; blockRead: number; blockWrite: number }> => {
+  metrics: async (id: string): Promise<{ collectionEnabled?: boolean; cpu: number | null; cpuCores: number | null; memory: number | null; memoryUsed?: number | null; memoryLimit?: number | null; networkIn: number; networkOut: number; blockRead: number; blockWrite: number }> => {
     return fetchJson(`/api/services/${id}/metrics`)
   },
 
   metricsHistory: async (id: string, hours = 24): Promise<{
     service: string
-    window_hours: number
-    samples: Array<{ at: string; cpu: number | null; cpu_cores: number | null; memory: number | null; memory_used: number | null; memory_limit: number | null; network_in: number | null; network_out: number | null; block_read: number | null; block_write: number | null }>
+    windowHours: number
+    collectionEnabled?: boolean
+    retentionDays?: number
+    samples: Array<{ at: string; cpu: number | null; cpuCores: number | null; memory: number | null; memoryUsed: number | null; memoryLimit: number | null; networkIn: number | null; networkOut: number | null; blockRead: number | null; blockWrite: number | null }>
   }> => {
     return fetchJson(`/api/services/${id}/metrics_history?hours=${hours}`)
   },
@@ -657,7 +659,24 @@ export interface ServerTestResult {
   logs?: string[]
 }
 
+export interface HostMetricSample {
+  at?: string
+  sampledAt?: string
+  available: boolean
+  collectionEnabled?: boolean
+  reason?: string
+  cpu?: number | null
+  memory?: number | null
+  disk?: number | null
+  load?: number | null
+  uptimeSeconds?: number
+  networkRx?: number
+  networkTx?: number
+}
+
 export const serversApi = {
+  metrics: (id: string): Promise<HostMetricSample> => fetchJson(`/api/servers/${id}/metrics`),
+  metricsHistory: (id: string, hours: number): Promise<{ collectionEnabled: boolean; retentionDays: number; samples: HostMetricSample[] }> => fetchJson(`/api/servers/${id}/metrics_history?hours=${hours}`),
   list: async (): Promise<Server[]> => {
     const data = await fetchJson<unknown[]>('/api/servers')
     return data.map(normalizeServer)

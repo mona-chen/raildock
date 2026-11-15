@@ -129,6 +129,7 @@ Rails.application.routes.draw do
       member do
         post :validate
         get :metrics
+        get :metrics_history
         get :networks, to: "networks#index"
         post "networks/validate", to: "networks#validate", as: :validate_network
       end

@@ -297,11 +297,11 @@ export function useDataTableRows(id: string, table: string | null, limit = 50, o
   })
 }
 
-export function useServiceMetrics(id: string) {
+export function useServiceMetrics(id: string, enabled = true) {
   return useQuery({
     queryKey: ['services', id, 'metrics'],
     queryFn: () => api.services.metrics(id),
-    enabled: !!id,
+    enabled: !!id && enabled,
     refetchInterval: 10000,
   })
 }

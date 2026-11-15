@@ -176,6 +176,28 @@ RSpec.describe "Api::ServersController", type: :request do
     end
   end
 
+  describe "GET /api/servers/:id/metrics_history" do
+    it "returns retained samples even when collection is disabled" do
+      server.server_metrics.create!(sampled_at: 5.minutes.ago, data: { available: true, cpu: 0.05 })
+      SystemSetting.set!("metrics_hosts_enabled", "false")
+      get "/api/servers/#{server.id}/metrics_history?hours=1", headers: org_headers
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["collection_enabled"]).to be(false)
+      expect(response.parsed_body["samples"].first["cpu"]).to eq(0.05)
+      expect(HostMetricsCollector).not_to receive(:call)
+      get "/api/servers/#{server.id}/metrics", headers: org_headers
+      expect(response.parsed_body["collection_enabled"]).to be(false)
+    end
+
+    it "does not expose another organization's samples to an organization owner" do
+      user.update!(admin: false)
+      foreign = create(:server)
+      foreign.server_metrics.create!(sampled_at: Time.current, data: { cpu: 99 })
+      get "/api/servers/#{foreign.id}/metrics_history", headers: org_headers
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "GET /api/servers/:id/metrics" do
     context "when unauthenticated" do
       it "returns 401" do
@@ -186,17 +208,8 @@ RSpec.describe "Api::ServersController", type: :request do
 
     context "when authenticated" do
       it "returns real metrics when ssh_key is present" do
-        engine = instance_double(HostEngine)
-        allow(HostEngine).to receive(:new).with(server).and_return(engine)
-        allow(engine).to receive(:run).with("top -bn1 | awk '/%Cpu/{gsub(/,/, \".\"); print 100-$8}'").and_return(
-          { success: true, output: "38" }
-        )
-        allow(engine).to receive(:run).with("free -m | awk 'NR==2{printf \"%.0f\", $3*100/$2 }'").and_return(
-          { success: true, output: "62" }
-        )
-        allow(engine).to receive(:run).with("df -h / | awk 'NR==2{print $5}' | sed 's/%//'").and_return(
-          { success: true, output: "38" }
-        )
+        sample = server.server_metrics.create!(sampled_at: Time.current, data: { available: true, cpu: 38, memory: 62, disk: 38 })
+        allow(HostMetricsCollector).to receive(:call).with(server).and_return(sample)
 
         get "/api/servers/#{server.id}/metrics", headers: org_headers
 
@@ -207,16 +220,16 @@ RSpec.describe "Api::ServersController", type: :request do
         expect(json["disk"]).to eq(38)
       end
 
-      it "returns zeroed metrics when ssh_key is blank" do
+      it "returns unavailable metrics when ssh_key is blank" do
         server_without_key = create(:server, ssh_key: nil, organization: organization)
 
         get "/api/servers/#{server_without_key.id}/metrics", headers: org_headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json["cpu"]).to eq(0)
-        expect(json["memory"]).to eq(0)
-        expect(json["disk"]).to eq(0)
+        expect(json["cpu"]).to be_nil
+        expect(json["memory"]).to be_nil
+        expect(json["disk"]).to be_nil
       end
 
       it "returns 404 for non-existent server" do

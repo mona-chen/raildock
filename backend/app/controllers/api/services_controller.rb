@@ -517,6 +517,8 @@ module Api
     end
 
     def metrics
+      return render json: { collection_enabled: false, cpu: nil, memory: nil } unless ObservabilitySettings.services_enabled?
+
       server = @service.project&.server
       if server&.ssh_key.present?
         host_engine = HostEngine.new(server)
@@ -555,6 +557,8 @@ module Api
 
       render json: {
         service: @service.name,
+        collection_enabled: ObservabilitySettings.services_enabled?,
+        retention_days: ObservabilitySettings.retention_days,
         window_hours: hours,
         samples: samples.map do |t, cpu, cores, mem, used, limit, net_in, net_out, block_read, block_write|
           {

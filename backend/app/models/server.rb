@@ -1,5 +1,6 @@
 class Server < ApplicationRecord
   has_many :projects, dependent: :nullify
+  has_many :server_metrics, dependent: :delete_all
   # `restrict_with_error`, not `destroy`: a destination owns off-host artifacts
   # that outlive both the server and RailDock itself. Destroying it as a side
   # effect of deleting a server would delete rows that reference those objects,

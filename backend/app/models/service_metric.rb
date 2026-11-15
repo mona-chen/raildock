@@ -10,7 +10,7 @@ class ServiceMetric < ApplicationRecord
   # 30-day retention. Pruned by MetricsSamplerJob so the table stays bounded.
   RETENTION = 30.days
 
-  def self.prune_older_than!(cutoff = RETENTION.ago)
-    where("sampled_at < ?", cutoff).delete_all
+  def self.prune_older_than!(cutoff = ObservabilitySettings.retention_days.days.ago)
+    where("sampled_at < ?", cutoff).in_batches.delete_all
   end
 end

@@ -2,7 +2,7 @@ module Api
   class ServersController < BaseController
     include Authorizable
 
-    before_action :set_server, only: [ :show, :update, :destroy, :validate, :metrics ]
+    before_action :set_server, only: [ :show, :update, :destroy, :validate, :metrics, :metrics_history ]
 
     def index
       authorize_server!(action: :read)
@@ -150,30 +150,30 @@ module Api
       authorize_server_record!(@server, action: :read)
       return if performed?
 
-      if @server.ssh_key.present?
-        # The restricted dokku SSH user cannot run raw shell commands (top,
-        # free, df) — they must go through the root user via HostEngine.
-        engine = HostEngine.new(@server)
-
-        # Try to get real system metrics via SSH.
-        # cpu = % of all cores in use (not core count).
-        cpu_result = engine.run("top -bn1 | awk '/%Cpu/{gsub(/,/, \".\"); print 100-\$8}'")
-        mem_result = engine.run("free -m | awk 'NR==2{printf \"%.0f\", $3*100/$2 }'")
-        disk_result = engine.run("df -h / | awk 'NR==2{print $5}' | sed 's/%//'")
-
-        return render json: {
-          cpu: cpu_result[:success] ? cpu_result[:output].to_f.round : 0,
-          memory: mem_result[:success] ? mem_result[:output].to_i : 0,
-          disk: disk_result[:success] ? disk_result[:output].to_i : 0,
-          uptime: @server.uptime || "0d 0h 0m"
-        }
+      unless ObservabilitySettings.hosts_enabled?
+        return render json: { available: false, collection_enabled: false, cpu: nil, memory: nil, disk: nil }
       end
+      sample = HostMetricsCollector.call(@server)
+      return render json: { available: false, reason: "First sample is being collected" }, status: :accepted unless sample
 
+      render json: sample.data.merge(sampled_at: sample.sampled_at.iso8601, collection_enabled: true)
+    end
+
+    def metrics_history
+      authorize_server_record!(@server, action: :read)
+      return if performed?
+
+      hours = params[:hours].present? ? params[:hours].to_i.clamp(1, 168) : 1
+      # Bucket long windows to keep response size bounded. Failed samples retain
+      # their gaps rather than being averaged into a fictional healthy reading.
+      step = hours > 24 ? 600 : (hours > 6 ? 300 : 60)
+      rows = @server.server_metrics.where(sampled_at: hours.hours.ago..)
+        .select("DISTINCT ON (floor(extract(epoch from sampled_at) / #{step})) server_metrics.*")
+        .order(Arel.sql("floor(extract(epoch from sampled_at) / #{step}), sampled_at DESC"))
       render json: {
-        cpu: 0,
-        memory: 0,
-        disk: 0,
-        uptime: @server.uptime || "0d 0h 0m"
+        collection_enabled: ObservabilitySettings.hosts_enabled?,
+        retention_days: ObservabilitySettings.retention_days,
+        samples: rows.map { |row| row.data.merge(at: row.sampled_at.iso8601) }
       }
     end
 

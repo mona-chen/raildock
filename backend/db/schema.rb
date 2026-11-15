@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_144500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_15_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -406,6 +406,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_144500) do
     t.index ["backup_id"], name: "index_restore_drills_on_backup_id"
   end
 
+  create_table "server_metrics", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.datetime "sampled_at", null: false
+    t.jsonb "data", default: {}, null: false
+    t.index ["sampled_at"], name: "index_server_metrics_on_sampled_at"
+    t.index ["server_id", "sampled_at"], name: "index_server_metrics_on_server_id_and_sampled_at"
+    t.index ["server_id"], name: "index_server_metrics_on_server_id"
+  end
+
   create_table "servers", force: :cascade do |t|
     t.boolean "auto_domains", default: true, null: false
     t.string "base_domain", default: "sslip.io"
@@ -612,6 +621,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_144500) do
   add_foreign_key "projects", "servers"
   add_foreign_key "projects", "users"
   add_foreign_key "restore_drills", "backups"
+  add_foreign_key "server_metrics", "servers"
   add_foreign_key "servers", "organizations"
   add_foreign_key "servers", "users"
   add_foreign_key "service_links", "services", column: "from_service_id"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search, Activity } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUninstallPlugin, usePluginSettings, useUpdatePluginSettings } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
@@ -32,6 +32,7 @@ import ConfigSchemaForm from '@/components/ConfigSchemaForm'
 import GitSourcesTab from '@/features/settings/GitSourcesTab'
 import MembersTab from '@/features/settings/MembersTab'
 import BackupDestinationsTab from '@/features/settings/BackupDestinationsTab'
+import ObservabilitySettingsTab from '@/features/settings/ObservabilitySettingsTab'
 import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
@@ -57,6 +58,7 @@ const TAB_GROUPS = [
       { key: 'integrations', label: 'Integrations', icon: Puzzle },
       { key: 'email', label: 'Email', icon: Mail },
       { key: 'updates', label: 'Updates', icon: ArrowUpCircle },
+      { key: 'observability', label: 'Observability', icon: Activity },
     ],
   },
 ]
@@ -138,6 +140,7 @@ export default function SettingsPage() {
           {activeTab === 'deploy-keys' && <DeployKeysTab />}
           {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}
           {activeTab === 'updates' && <UpdatesTab />}
+          {activeTab === 'observability' && <ObservabilitySettingsTab />}
         </div>
       </div>
     </div>

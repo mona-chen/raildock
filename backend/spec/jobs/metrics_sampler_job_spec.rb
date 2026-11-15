@@ -8,9 +8,9 @@ RSpec.describe MetricsSamplerJob, type: :job do
 
   before do
     allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
-    allow(host_engine).to receive(:dokku_container_name).with(service.dokku_app_name).and_return("app.web.1")
-    allow(host_engine).to receive(:docker_stats).and_return(
-      cpu: 35.5, memory: 50.0, memory_used: 1073741824, memory_limit: 2147483648
+    allow(HostMetricsCollector).to receive(:call)
+    allow(host_engine).to receive(:docker_stats_snapshot).and_return(
+      "#{service.dokku_app_name}.web.1" => { cpu: 35.5, memory: 50.0, memory_used: 1073741824, memory_limit: 2147483648 }
     )
   end
 
@@ -27,9 +27,9 @@ RSpec.describe MetricsSamplerJob, type: :job do
   end
 
   it "persists network and disk I/O counters" do
-    allow(host_engine).to receive(:docker_stats).and_return(
-      cpu: 10.0, memory: 25.0, memory_used: 1024, memory_limit: 4096,
-      network_rx: 2048, network_tx: 4096, block_read: 8192, block_write: 16_384
+    allow(host_engine).to receive(:docker_stats_snapshot).and_return(
+      "#{service.dokku_app_name}.web.1" => { cpu: 10.0, memory: 25.0, memory_used: 1024, memory_limit: 4096,
+      network_rx: 2048, network_tx: 4096, block_read: 8192, block_write: 16_384 }
     )
 
     MetricsSamplerJob.perform_now
@@ -52,8 +52,23 @@ RSpec.describe MetricsSamplerJob, type: :job do
   end
 
   it "skips services whose container is not running" do
-    allow(host_engine).to receive(:dokku_container_name).and_return(nil)
+    allow(host_engine).to receive(:docker_stats_snapshot).and_return({})
     expect { MetricsSamplerJob.perform_now }.not_to change(ServiceMetric, :count)
+  end
+
+  it "stops container sampling when disabled but still expires old data" do
+    SystemSetting.set!("metrics_services_enabled", "false")
+    old = create(:service_metric, service: service, sampled_at: 40.days.ago)
+    MetricsSamplerJob.perform_now
+    expect(ServiceMetric.exists?(old.id)).to be(false)
+    expect(host_engine).not_to have_received(:docker_stats_snapshot)
+  end
+
+  it "uses the configured retention period" do
+    SystemSetting.set!("metrics_retention_days", "7")
+    old = create(:service_metric, service: service, sampled_at: 8.days.ago)
+    MetricsSamplerJob.perform_now
+    expect(ServiceMetric.exists?(old.id)).to be(false)
   end
 
   it "prunes samples older than retention" do

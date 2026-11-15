@@ -38,6 +38,16 @@ RSpec.describe "Api::Admin::SettingsController", type: :request do
     end
   end
 
+  it "validates collection and retention settings atomically" do
+    patch "/api/admin/settings", params: { metrics_services_enabled: "false", metrics_retention_days: "0" }, headers: auth_headers(admin)
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(SystemSetting.find_by(key: "metrics_services_enabled")).to be_nil
+    patch "/api/admin/settings", params: { metrics_hosts_enabled: "false", metrics_retention_days: "7" }, headers: auth_headers(admin)
+    expect(response).to have_http_status(:ok)
+    expect(ObservabilitySettings.hosts_enabled?).to be(false)
+    expect(ObservabilitySettings.retention_days).to eq(7)
+  end
+
   describe "POST /api/admin/settings/test-github-app" do
     context "when slug is configured" do
       before do

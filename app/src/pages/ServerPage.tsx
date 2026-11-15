@@ -14,6 +14,8 @@ import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import ErrorState from '@/features/shared/ErrorState'
 import EmptyState from '@/features/shared/EmptyState'
 import WorkspaceHeader from '@/features/shared/WorkspaceHeader'
+import HostMetricsPanel from '@/features/servers/HostMetricsPanel'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
 
 export default function ServerPage() {
@@ -25,6 +27,7 @@ export default function ServerPage() {
   const organization = useAuthStore((s) => s.currentOrganization())
   const canCreateServer = organization?.role === 'owner'
 
+  const [metricsServer, setMetricsServer] = useState<ServerRecord | null>(null)
   const [search, setSearch] = useState('')
   const filteredServers = servers.filter((server) => `${server.name} ${server.host}`.toLowerCase().includes(search.trim().toLowerCase()))
   const [showAdd, setShowAdd] = useState(false)
@@ -81,6 +84,7 @@ export default function ServerPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <Dialog open={!!metricsServer} onOpenChange={open => { if (!open) setMetricsServer(null) }}><DialogContent className="sm:max-w-5xl max-h-[90dvh] overflow-y-auto bg-[#111113] text-white border-white/10"><DialogHeader><DialogTitle>{metricsServer?.name} · Host metrics</DialogTitle><DialogDescription>Resource usage across the whole server.</DialogDescription></DialogHeader>{metricsServer && <HostMetricsPanel key={metricsServer.id} serverId={metricsServer.id} />}</DialogContent></Dialog>
       <WorkspaceHeader title="Servers" description="Manage the hosts your services run on.">
         {canCreateServer && (
           <button
@@ -199,6 +203,8 @@ export default function ServerPage() {
                       <div className="text-[10px] text-[#9292a3]">Proxy</div>
                     </div>
                   </div>
+
+                  <button type="button" onClick={() => setMetricsServer(srv)} className="text-xs text-[#c4b5fd] hover:underline">View live metrics and history</button>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-[rgba(255,255,255,0.02)] rounded-lg p-3">

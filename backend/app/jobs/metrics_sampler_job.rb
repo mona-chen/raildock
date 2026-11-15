@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Samples live resource usage for every deployed container and persists it
-# to service_metrics for historical graphs. Runs every 5 minutes via
+# to service_metrics for historical graphs. Runs every minute via
 # recurring.yml. Also prunes samples older than ServiceMetric::RETENTION.
 class MetricsSamplerJob < ApplicationJob
   queue_as :default
@@ -11,29 +11,35 @@ class MetricsSamplerJob < ApplicationJob
     Server.where.not(ssh_key_ciphertext: [ nil, "" ]).find_each do |server|
       host_engine = HostEngine.new(server)
 
+      HostMetricsCollector.call(server, now: now) if ObservabilitySettings.hosts_enabled?
+      next unless ObservabilitySettings.services_enabled?
+
+      snapshot = host_engine.docker_stats_snapshot
+      prefixes = ServiceSubtype.where.not(dokku_plugin: nil).distinct.pluck(:dokku_plugin).map { |plugin| "dokku.#{plugin}." }
       server.projects.each do |project|
         project.services.each do |service|
           next unless service.running?
 
-          sample_service(host_engine, service, now)
+          names = [ "#{service.dokku_app_name}.web.1", *prefixes.map { |prefix| "#{prefix}#{service.dokku_app_name}" } ]
+          stats = names.filter_map { |name| snapshot[name] }.first
+          sample_service(service, stats, now) if stats
         rescue => e
           Rails.logger.warn "Metrics sample failed for #{service.dokku_app_name}: #{e.message}"
         end
       end
+    rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
+      raise
+    rescue => e
+      Rails.logger.warn "Metrics collection failed for server #{server.id}: #{e.class}"
     end
 
     ServiceMetric.prune_older_than!
+    ServerMetric.prune_older_than!
   end
 
   private
 
-  def sample_service(host_engine, service, now)
-    container = host_engine.dokku_container_name(service.dokku_app_name)
-    return unless container.present?
-
-    stats = host_engine.docker_stats(container)
-    return unless stats
-
+  def sample_service(service, stats, now)
     service.service_metrics.create!(
       cpu: stats[:cpu],
       cpu_cores: stats[:cpu_cores],

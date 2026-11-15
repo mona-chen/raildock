@@ -3,7 +3,7 @@ module Api
     class SettingsController < BaseController
       before_action :authorize_admin!
 
-      ALLOWED_KEYS = (SystemSetting::GITHUB_APP_KEYS + SystemSetting::SMTP_KEYS).freeze
+      ALLOWED_KEYS = (SystemSetting::GITHUB_APP_KEYS + SystemSetting::SMTP_KEYS + ObservabilitySettings::DEFAULTS.keys).freeze
 
       # GET /api/admin/settings
       def index
@@ -13,15 +13,18 @@ module Api
 
       # PATCH /api/admin/settings
       def update
-        settings_params.each do |key, value|
-          next unless ALLOWED_KEYS.include?(key)
-          SystemSetting.set!(key, value.presence)
+        ObservabilitySettings.validate!(settings_params)
+        SystemSetting.transaction do
+          settings_params.each do |key, value|
+            next unless ALLOWED_KEYS.include?(key)
+            SystemSetting.set!(key, value.presence)
+          end
         end
 
         SmtpService.apply_from_db!
 
         render json: { success: true }
-      rescue ActiveRecord::RecordInvalid => e
+      rescue ActiveRecord::RecordInvalid, ArgumentError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 

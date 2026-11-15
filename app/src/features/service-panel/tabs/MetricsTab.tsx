@@ -134,7 +134,9 @@ function MetricChart({
                 strokeWidth={2}
                 fill={`url(#metric-grad-${s.key})`}
                 name={s.name}
-                dot={false}
+                dot={data.length === 1 ? { r: 3 } : false}
+                isAnimationActive={false}
+                connectNulls={false}
               />
             ))}
           </AreaChart>
@@ -144,43 +146,52 @@ function MetricChart({
   )
 }
 
+type MetricSample = NonNullable<ReturnType<typeof useServiceMetricsHistory>['data']>['samples'][number]
+
 export default function MetricsTab({ svc }: { svc: Service }) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(timer) }, [])
   const [hours, setHours] = useState(1)
-  const liveQuery = useServiceMetrics(svc.id)
+  const [liveEnabled, setLiveEnabled] = useState(true)
+  const [liveSamples, setLiveSamples] = useState<MetricSample[]>([])
+  const liveQuery = useServiceMetrics(svc.id, liveEnabled)
   const { data: live } = liveQuery
   const historyQuery = useServiceMetricsHistory(svc.id, hours)
   const { data: history } = historyQuery
   const { data: deployments } = useServiceDeployments(svc.id)
 
-  // Docker reports CPU as % of one core; a container capped at N cores can
-  // read up to N*100%. Normalize against the configured core limit so the
-  // chart tops out at 100% = the limit, never misleadingly above it.
-  const cpuCores = live?.cpuCores || history?.samples[0]?.cpu_cores || 1
+  useEffect(() => {
+    if (!liveEnabled || !live || live.cpu == null || live.collectionEnabled === false) return
+    const sample: MetricSample = { at: new Date(liveQuery.dataUpdatedAt).toISOString(), cpu: live.cpu, cpuCores: live.cpuCores, memory: live.memory, memoryUsed: live.memoryUsed ?? null, memoryLimit: live.memoryLimit ?? null, networkIn: live.networkIn, networkOut: live.networkOut, blockRead: live.blockRead, blockWrite: live.blockWrite }
+    setLiveSamples(previous => [...previous.filter(point => point.at !== sample.at), sample].slice(-360))
+  }, [live, liveQuery.dataUpdatedAt, liveEnabled])
+
+  // CPU is plotted in Docker's native units (100% = one core), including
+  // unlimited containers and limit changes. The live summary also shows limits.
+  const cpuCores = live?.cpuCores || history?.samples[0]?.cpuCores || 1
   const cpuNorm = useCallback(
     (v: number | null | undefined) =>
-      v == null ? null : Math.round((v / (cpuCores || 1)) * 10) / 10,
+      v == null ? null : v / (cpuCores || 1),
     [cpuCores],
   )
 
   const points: MetricPoint[] = useMemo(() => {
-    const raw = history?.samples ?? []
+    const raw = [...new Map([...(history?.samples ?? []), ...liveSamples].filter(s => new Date(s.at).getTime() >= now - hours * 3600_000).map(s => [s.at, s])).values()].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
     return raw.map((s, index) => {
       const previous = index > 0 ? raw[index - 1] : null
       const ts = new Date(s.at).getTime()
       const dtSeconds = previous ? (ts - new Date(previous.at).getTime()) / 1000 : 0
       return {
         ts,
-        cpu: s.cpu == null ? null : s.cpu / (s.cpu_cores && s.cpu_cores > 0 ? s.cpu_cores : cpuCores),
+        cpu: s.cpu,
         memory: s.memory,
-        netIn: rate(s.network_in, previous?.network_in, dtSeconds),
-        netOut: rate(s.network_out, previous?.network_out, dtSeconds),
-        diskRead: rate(s.block_read, previous?.block_read, dtSeconds),
-        diskWrite: rate(s.block_write, previous?.block_write, dtSeconds),
+        netIn: rate(s.networkIn, previous?.networkIn, dtSeconds),
+        netOut: rate(s.networkOut, previous?.networkOut, dtSeconds),
+        diskRead: rate(s.blockRead, previous?.blockRead, dtSeconds),
+        diskWrite: rate(s.blockWrite, previous?.blockWrite, dtSeconds),
       }
     })
-  }, [history, cpuCores])
+  }, [history, liveSamples, now, hours])
 
   const deployMarkers = useMemo(() => {
     if (points.length < 2) return []
@@ -218,21 +229,23 @@ export default function MetricsTab({ svc }: { svc: Service }) {
         </div>
       </div>
 
-      <p className="mb-3 text-xs text-[#a0a0b0]">Usage from the primary app container or datastore container. History is sampled every 5 minutes; replicas and worker processes are not aggregated.</p>
-      {liveQuery.isError && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
-      {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 15 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
+      {history?.collectionEnabled === false && <p role="status" className="mb-3 text-xs text-amber-200">Application metric collection is disabled in Settings. Retained history is still available.</p>}
+      <button type="button" className="mb-3 text-xs text-[#c4b5fd] hover:underline" onClick={() => setLiveEnabled(value => !value)}>{liveEnabled ? 'Pause live refresh' : 'Resume live refresh'}</button>
+      <p className="mb-3 text-xs text-[#a0a0b0]">Usage from the primary app container or datastore container. Live refresh is every 10 seconds while open; history is sampled every minute; replicas and worker processes are not aggregated.</p>
+      {(liveQuery.isError || (live && live.cpu == null && live.collectionEnabled !== false)) && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
+      {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 3 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
       {historyQuery.isError && <ErrorState title="Could not load metric history" message="Retry to fetch samples for the selected window." onRetry={() => historyQuery.refetch()} />}
-      {history?.samples.length === 1 && <p role="status" className="mb-4 text-xs text-[#a0a0b0]">Only one sample is available in this time range. Choose a longer range or wait for another sample. History is normally sampled every 5 minutes.</p>}
-      {history && history.samples.length > 0 ? (
+      {history?.samples.length === 1 && <p role="status" className="mb-4 text-xs text-[#a0a0b0]">Only one sample is available in this time range. Choose a longer range or wait for another sample. History is normally sampled every minute.</p>}
+      {points.length > 0 ? (
         <div className="space-y-4">
           <MetricChart
-            title="CPU (% of limit)"
+            title="CPU usage (100% = one core)"
             data={points}
             hours={hours}
             deployMarkers={deployMarkers}
-            yDomain={[0, 100]}
+            yDomain={[0, 'auto']}
             yTickFormatter={(v) => `${v}%`}
-            valueFormatter={(v) => `${v.toFixed(1)}%`}
+            valueFormatter={(v) => `${v.toFixed(2)}%`}
             series={[{ key: 'cpu', name: 'CPU', color: '#8b5cf6' }]}
           />
 
@@ -282,7 +295,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
               <span className="w-2 h-2 rounded-full bg-violet-500" /> Live CPU
               <span className="text-white/70 ml-1">
                 {live?.cpu != null && cpuNorm(live.cpu) != null
-                  ? `${cpuNorm(live.cpu)!.toFixed(1)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}`
+                  ? `${cpuNorm(live.cpu)!.toFixed(2)}% of ${cpuCores} core${cpuCores > 1 ? 's' : ''}`
                   : '—'}
               </span>
             </span>
@@ -301,11 +314,11 @@ export default function MetricsTab({ svc }: { svc: Service }) {
         <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
           <div className="text-white/50 text-[13px] mb-2">{historyQuery.isLoading ? 'Loading metric history…' : 'No samples in this time range'}</div>
           <div className="text-white/50 text-[11px] max-w-xs">
-            Metrics are sampled every 5 minutes. Check back shortly to see CPU, memory, network and disk graphs for this service.
+            Metrics are sampled every minute. Check back shortly to see CPU, memory, network and disk graphs for this service.
           </div>
           {live && (
             <div className="mt-4 text-[12px] text-white/60">
-              Live: CPU {cpuNorm(live.cpu)?.toFixed(1)}% of {cpuCores} core{cpuCores > 1 ? 's' : ''} · Memory{' '}
+              Live: CPU {cpuNorm(live.cpu)?.toFixed(2)}% of {cpuCores} core{cpuCores > 1 ? 's' : ''} · Memory{' '}
               {live.memory?.toFixed(1)}%
             </div>
           )}
