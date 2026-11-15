@@ -17,23 +17,51 @@ module Api
       render json: { error: e.message }, status: :unprocessable_entity
     end
 
+    def traffic_setup
+      server = scoped_servers.find(params[:server_id])
+      authorize_server!(action: :update)
+      setup = HttpTrafficSetup.new(server)
+      return render json: setup.discover unless request.post?
+
+      setup.verify!(params.require(:review_token))
+      server.with_lock do
+        if server.traffic_settings["setup_state"] == "running" && server.updated_at > 10.minutes.ago
+          return render json: { error: "Proxy setup is already running." }, status: :conflict
+        end
+        server.update!(traffic_settings: server.traffic_settings.merge("setup_state" => "running", "setup_error" => nil))
+        ConfigureHttpTrafficJob.perform_later(server.id, params[:review_token])
+      end
+      render json: { accepted: true }, status: :accepted
+    rescue HttpTrafficSetup::Error => e
+      render json: { error: e.message }, status: :unprocessable_entity
+    end
+
     def traffic
       server = scoped_servers.find(params[:server_id])
       authorize_server!(action: request.patch? ? :update : :read)
       if request.patch?
+        if server.traffic_settings["setup_state"] == "running" && server.updated_at > 10.minutes.ago
+          return render json: { error: "Wait for proxy setup to finish before editing collection." }, status: :conflict
+        end
         values = params.require(:settings).permit(:enabled, :path, :format, :retention_days, :capture_paths).to_h
         settings = { "enabled" => false, "format" => "traefik", "retention_days" => 7, "capture_paths" => false }.merge(server.traffic_settings).merge(values)
         path = settings["path"].to_s
         valid_path = path.match?(%r{\A/(?:var/log|var/lib/dokku)/[A-Za-z0-9_./-]+\.(?:log|jsonl)\z}) && !path.split("/").include?("..")
         unless [ true, false ].include?(settings["capture_paths"]) && [ true, false ].include?(settings["enabled"]) && %w[traefik caddy].include?(settings["format"]) && settings["retention_days"].is_a?(Integer) && (1..30).cover?(settings["retention_days"]) && (!settings["enabled"] || valid_path)
-          return render json: { error: "Use a JSON .log/.jsonl file under /var/log or /var/lib/dokku, a supported format and retention from 1–30 days." }, status: :unprocessable_entity
+          return render json: { error: "Enter an existing host log path under /var/log or /var/lib/dokku ending in .log or .jsonl, choose Traefik or Caddy JSON, and set retention to 1–30 days. Use automatic setup if no log exists." }, status: :unprocessable_entity
         end
         # Clearing the cursor when the source changes prevents an old file's byte
         # offset from skipping unrelated records in a newly selected source.
+        if settings.values_at("path", "format") != server.traffic_settings.values_at("path", "format")
+          settings["managed_logging"] = false
+        end
+        settings["setup_state"] = nil
+        settings["setup_error"] = nil
         source_changed = settings.values_at("path", "format", "enabled") != server.traffic_settings.values_at("path", "format", "enabled")
         server.update!(traffic_settings: settings, traffic_cursor: source_changed ? {} : server.traffic_cursor)
       end
       CollectHttpTrafficJob.perform_later(server.id) if server.traffic_settings["enabled"] && params[:refresh] == "true"
+      HttpTrafficSetup.new(server).refresh_status if server.traffic_settings["setup_state"] == "running"
       hours = params[:hours].to_i.clamp(1, 168)
       resolution = hours > 6 ? "hour" : "minute"
       rows = server.http_traffic_buckets.where(resolution: resolution, bucket_at: hours.hours.ago..).order(:bucket_at)

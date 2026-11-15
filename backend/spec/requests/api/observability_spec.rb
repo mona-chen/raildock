@@ -48,4 +48,13 @@ RSpec.describe "Observability", type: :request do
     expect(response.parsed_body["summary"]["histogram"].first(2)).to eq([ 2, 18 ])
     expect(response.parsed_body["summary"]["paths"]).to eq([ { "path" => "/my_path", "count" => 20 } ])
   end
+  it "requires an authorized, valid review before scheduling proxy changes" do
+    post "/api/servers/#{server.id}/traffic/setup", params: { review_token: "invalid" }.to_json, headers: headers.merge("Content-Type" => "application/json")
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(server.reload.traffic_settings).not_to include("setup_state")
+    membership.update!(role: :member)
+    expect(HttpTrafficSetup).not_to receive(:new)
+    get "/api/servers/#{server.id}/traffic/setup", headers: headers
+    expect(response).to have_http_status(:forbidden)
+  end
 end

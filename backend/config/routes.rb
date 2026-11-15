@@ -127,6 +127,8 @@ Rails.application.routes.draw do
 
     get "notifications", to: "observability#notifications"
     patch "notifications", to: "observability#notifications"
+    get "servers/:server_id/traffic/setup", to: "observability#traffic_setup"
+    post "servers/:server_id/traffic/setup", to: "observability#traffic_setup"
     get "servers/:server_id/traffic", to: "observability#traffic"
     patch "servers/:server_id/traffic", to: "observability#traffic"
 

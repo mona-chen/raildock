@@ -1426,7 +1426,7 @@ export interface MonitoringIncident {
   id: number; signal: string; state: string; message: string; serverName: string
   startedAt: string; lastSeenAt: string; resolvedAt: string | null; deliveryStatus: string
 }
-export interface TrafficSettings { enabled: boolean; path?: string; format: string; retentionDays: number; capturePaths?: boolean }
+export interface TrafficSettings { enabled: boolean; path?: string; format: string; retentionDays: number; capturePaths?: boolean; managedLogging?: boolean; setupState?: string; setupError?: string }
 export interface TrafficTotals { requests?: number; bandwidth?: number; suspicious?: number; statuses?: Record<string, number>; histogram?: number[]; paths?: Array<{path:string;count:number}> }
 export interface TrafficResponse {
   applications?: Array<{id:string;name:string}>; byApplication?: Array<{id:string;name:string;requests:number}>; bucketSeconds?: number
@@ -1436,7 +1436,10 @@ export interface TrafficResponse {
   samples: Array<TrafficTotals & { at: string }>
   coverage: string
 }
+export interface TrafficSource { container: string; image: string; path?: string; canManage: boolean; reason?: string; reviewToken?: string }
 export const observabilityApi = {
+  discoverTraffic: (serverId: string): Promise<{candidates: TrafficSource[]}> => fetchJson(`/api/servers/${serverId}/traffic/setup`),
+  setupTraffic: (serverId: string, reviewToken: string): Promise<{accepted: boolean}> => fetchJson(`/api/servers/${serverId}/traffic/setup`, {method: 'POST', body: JSON.stringify({review_token: reviewToken})}),
   notifications: (): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications'),
   saveNotifications: (settings: NotificationPolicy): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications', {method:'PATCH', body: wrapBody('settings', settings)}),
   traffic: (serverId: string, hours: number, live = true, serviceId = ''): Promise<TrafficResponse> => fetchJson(`/api/servers/${serverId}/traffic?hours=${hours}&refresh=${live}${serviceId?`&service_id=${encodeURIComponent(serviceId)}`:''}`),

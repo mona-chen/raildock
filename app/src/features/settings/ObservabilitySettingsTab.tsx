@@ -38,6 +38,9 @@ export default function ObservabilitySettingsTab() {
           <Select value={form.metrics_retention_days} onValueChange={value => setDraft(d => ({ ...d, metrics_retention_days: value }))}><SelectTrigger id="metric-retention" aria-label="Metric history retention" className="w-[160px] border-white/10 bg-[#1a1a20] text-xs"><SelectValue /></SelectTrigger><SelectContent className="border-white/10 bg-[#1a1a20] text-white">{[1,7,14,30,60,90].map(days => <SelectItem key={days} value={String(days)}>{days} {days === 1 ? 'day' : 'days'}</SelectItem>)}</SelectContent></Select>
         </SettingsRow>
       </SettingsSection>
+      <SettingsSection title="HTTP traffic" description="Request analytics is configured separately for each server. Resource metrics above do not enable HTTP collection.">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5"><p className="max-w-md text-[13px] leading-5 text-[#9292a3]">Open a server’s HTTP traffic tab to detect its proxy, enable logging and choose traffic retention.</p><Button variant="outline" asChild><Link to="/dashboard/servers">Set up HTTP analytics</Link></Button></div>
+      </SettingsSection>
     </fieldset>
     <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-[#9292a3]"><span>Live refresh · 10 seconds <span className="mx-2 text-white/15">/</span> Background history · 1 minute</span><Link className="text-[#bca5f5] hover:text-white" to="/dashboard/servers">View servers</Link></div>
     <SettingsSaveBar dirty={dirty} saving={mutation.isPending} onReset={() => setDraft({})} />

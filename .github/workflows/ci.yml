@@ -96,6 +96,8 @@ jobs:
         run: bundle exec rails db:test:prepare
       - name: Run RSpec
         run: bundle exec rspec --format progress
+      - name: Verify HTTP proxy setup and rollback
+        run: python3 -m unittest discover -s ../test/http-setup -v
       - name: Verify physical PostgreSQL recovery
         if: success()
         run: RAILDOCK_RECOVERY_INTEGRATION=1 bundle exec rspec spec/integration/postgres_physical_recovery_spec.rb
