@@ -40,7 +40,7 @@ gem "net-scp", "~> 4.0"
 gem "jwt", "~> 2.8"
 
 # Encryption at rest for sensitive data (tokens, SSH keys)
-gem "lockbox", "~> 2.0"
+gem "lockbox", "~> 2.3"
 gem "octokit", "~> 9.0"
 gem "rack-attack"
 gem "concurrent-ruby"
