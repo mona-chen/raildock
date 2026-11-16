@@ -37,4 +37,12 @@ RSpec.describe NetworkFlowCollector do
     expect(NetworkFlowSample.where(server: server).count).to eq(1)
     expect(NetworkFlowSample.find_by!(server: server).sent_bytes).to eq(200)
   end
+  it "can persist a sample when SSH stages an unpersisted first-connection host key" do
+    allow_any_instance_of(HostEngine).to receive(:run) do
+      server.host_key = "synthetic-first-connection-key"
+      { success: true, output: data.to_json }
+    end
+    described_class.call(server)
+    expect(server.reload.network_flow_snapshot["links"].first["sent_bytes"]).to eq(100)
+  end
 end

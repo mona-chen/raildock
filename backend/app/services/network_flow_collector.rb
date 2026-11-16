@@ -36,6 +36,9 @@ class NetworkFlowCollector
           server.update_columns(network_flow_snapshot: { "sampled_at" => Time.current.iso8601, "error" => "TCP flow collection unavailable. Check Linux, root SSH, Python 3, nsenter and ss." })
           return
         end
+        # SSH can stage first-connection host-key fields on the in-memory record.
+        # Reload before locking, and re-check the current collection policy.
+        server.reload
         # Do not re-enable or save a sample after a concurrent settings change.
         server.with_lock do
           return unless settings(server)["enabled"] && settings(server)["epoch"] == config[:epoch]
