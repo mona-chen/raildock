@@ -30,6 +30,7 @@ interface ConnectionLinesProps {
 
 function ConnectionLines({ connections, activeServiceId, flows, animate = false, projectId = "" }: ConnectionLinesProps) {
   const [hovered, setHovered] = useState<string | null>(null)
+  const [focused, setFocused] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [now,setNow] = useState(Date.now)
   const reduced = useSyncExternalStore(subscribeMotion,reducedMotion,()=>true)
@@ -60,6 +61,7 @@ function ConnectionLines({ connections, activeServiceId, flows, animate = false,
       {connections.map((conn,index) => {
         const key = `${conn.fromId}-${conn.toId}`
         const isHovered = hovered === key
+        const emphasized = isHovered || focused === key || selected === key
         const flow = measured(conn.fromId,conn.toId)
         const active = flowActive(flow,flows?.sampledAt,now)
         const moving = index<40 && animate && !reduced && !document.hidden && active
@@ -78,7 +80,7 @@ function ConnectionLines({ connections, activeServiceId, flows, animate = false,
             key={key}
             style={{ pointerEvents: 'auto' }}
             className="outline-none" onMouseDown={event=>event.stopPropagation()}
-            onFocus={()=>setHovered(key)} onBlur={()=>setHovered(null)}
+            onFocus={()=>setFocused(key)} onBlur={()=>setFocused(null)}
             role="button" tabIndex={0} aria-label={`Connection activity: ${description}`}
             onClick={event=>{event.stopPropagation();setSelected(key)}}
             onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();setSelected(key)}}}
@@ -97,18 +99,18 @@ function ConnectionLines({ connections, activeServiceId, flows, animate = false,
             <path
               d={pathD}
               fill="none"
-              stroke={isHovered ? '#c4b5fd' : active ? '#34d399' : (activeServiceId && related) ? '#a78bfa' : related ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.08)'}
-              strokeWidth={isHovered ? 2.5 : 1.5}
+              stroke={emphasized ? '#bda9ed' : (activeServiceId && related) ? 'rgba(167,139,250,0.5)' : related ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.08)'}
+              strokeWidth={emphasized ? 2 : 1.25}
               strokeDasharray={related ? undefined : '4 5'}
               style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
             />
-            {moving&&(flow?.sentBytes||0)>0&&<circle r={3} fill="#6ee7b7" aria-hidden="true"><animateMotion dur="2s" repeatCount="indefinite" path={pathD}/></circle>}
-            {moving&&(flow?.receivedBytes||0)>0&&<circle r={3} fill="#93c5fd" aria-hidden="true"><animateMotion dur="2s" repeatCount="indefinite" path={pathD} keyPoints="1;0" keyTimes="0;1" calcMode="linear"/></circle>}
+            {moving&&(flow?.sentBytes||0)>0&&<circle r={2.1} fill="#a7c8bc" opacity={0.8} aria-hidden="true"><animateMotion begin={`${-(index%7)*0.31}s`} dur="3.2s" repeatCount="indefinite" path={pathD}/></circle>}
+            {moving&&(flow?.receivedBytes||0)>0&&<circle r={2.1} fill="#afbdd7" opacity={0.8} aria-hidden="true"><animateMotion begin={`${-0.95-(index%7)*0.31}s`} dur="3.6s" repeatCount="indefinite" path={pathD} keyPoints="1;0" keyTimes="0;1" calcMode="linear"/></circle>}
             <circle
               cx={endX}
               cy={endY}
-              r={isHovered ? 5 : 3.5}
-              fill={isHovered ? 'rgba(139,92,246,0.7)' : 'rgba(255,255,255,0.25)'}
+              r={emphasized ? 3.5 : 3}
+              fill={emphasized ? 'rgba(167,139,250,0.55)' : 'rgba(255,255,255,0.25)'}
               style={{ transition: 'all 0.2s' }}
             />
           </g>
