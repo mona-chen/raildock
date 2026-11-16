@@ -159,7 +159,8 @@ def apply(plan):
                 raise ValueError('Proxy image changed; review the image before retrying setup')
             if candidate.get('template_b64'):
                 text = base64.b64decode(candidate['template_b64']).decode()
-                fields = ['--accesslog=true', '--accesslog.format=json', '--accesslog.filepath=' + str(log), '--accesslog.bufferingsize=100', '--accesslog.fields.defaultmode=drop', '--accesslog.fields.headers.defaultmode=drop'] + ['--accesslog.fields.names.' + f + '=keep' for f in FIELDS]
+                fields_names = FIELDS + (['RequestPath'] if plan.get('capture_paths') else [])
+                fields = ['--accesslog=true', '--accesslog.format=json', '--accesslog.filepath=' + str(log), '--accesslog.bufferingsize=100', '--accesslog.fields.defaultmode=drop', '--accesslog.fields.headers.defaultmode=drop'] + ['--accesslog.fields.names.' + f + '=keep' for f in fields_names]
                 text = text.replace('      - --log.format=json', '      - --log.format=json\n' + '\n'.join('      - ' + f for f in fields))
                 text = text.replace('    volumes:', '    volumes:\n      - "' + str(directory) + ':' + str(directory) + '"')
                 atomic(template, text.encode())

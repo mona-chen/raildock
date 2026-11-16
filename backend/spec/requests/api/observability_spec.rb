@@ -39,6 +39,21 @@ RSpec.describe "Observability", type: :request do
     expect(response).to have_http_status(:ok)
     expect(server.reload.traffic_settings["enabled"]).to be(true)
   end
+  it "refuses path retention edits that the managed proxy log cannot honour" do
+    server.update!(traffic_settings: { "enabled" => true, "path" => "/var/log/raildock-http/proxy/access.log", "format" => "traefik", "retention_days" => 7, "capture_paths" => false, "managed_logging" => true })
+    patch "/api/servers/#{server.id}/traffic", params: { settings: { capture_paths: true } }.to_json, headers: headers.merge("Content-Type" => "application/json")
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(server.reload.traffic_settings["capture_paths"]).to be(false)
+    patch "/api/servers/#{server.id}/traffic", params: { settings: { retention_days: 14 } }.to_json, headers: headers.merge("Content-Type" => "application/json")
+    expect(response).to have_http_status(:ok)
+    expect(server.reload.traffic_settings["retention_days"]).to eq(14)
+  end
+  it "leaves unrelated edits alone when a managed server never stored a path choice" do
+    server.update!(traffic_settings: { "enabled" => true, "path" => "/var/log/raildock-http/proxy/access.log", "format" => "traefik", "retention_days" => 7, "managed_logging" => true })
+    patch "/api/servers/#{server.id}/traffic", params: { settings: { retention_days: 3 } }.to_json, headers: headers.merge("Content-Type" => "application/json")
+    expect(response).to have_http_status(:ok)
+    expect(server.reload.traffic_settings["retention_days"]).to eq(3)
+  end
   it "merges histogram counts rather than averaging percentiles, preserving path spelling" do
     2.times do |index|
       server.http_traffic_buckets.create!(bucket_at: (index + 1).minutes.ago.beginning_of_minute, data: { "unmapped" => { "requests" => 10, "histogram" => [ 1, 9 ], "paths" => { "/my_path" => 10 } } })

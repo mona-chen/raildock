@@ -104,8 +104,8 @@ function ConnectionLines({ connections, activeServiceId, flows, animate = false,
               strokeDasharray={related ? undefined : '4 5'}
               style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
             />
-            {moving&&(flow?.sentBytes||0)>0&&<circle r={2.1} fill="#a7c8bc" opacity={0.8} aria-hidden="true"><animateMotion begin={`${-(index%7)*0.31}s`} dur="3.2s" repeatCount="indefinite" path={pathD}/></circle>}
-            {moving&&(flow?.receivedBytes||0)>0&&<circle r={2.1} fill="#afbdd7" opacity={0.8} aria-hidden="true"><animateMotion begin={`${-0.95-(index%7)*0.31}s`} dur="3.6s" repeatCount="indefinite" path={pathD} keyPoints="1;0" keyTimes="0;1" calcMode="linear"/></circle>}
+            {moving&&(flow?.sentBytes||0)>0&&<circle r={2.1} fill="#83cbb8" opacity={0.9} aria-hidden="true"><animateMotion begin={`${-(index%7)*0.31}s`} dur="3.2s" repeatCount="indefinite" path={pathD}/></circle>}
+            {moving&&(flow?.receivedBytes||0)>0&&<circle r={2.1} fill="#a3aef0" opacity={0.9} aria-hidden="true"><animateMotion begin={`${-0.95-(index%7)*0.31}s`} dur="3.6s" repeatCount="indefinite" path={pathD} keyPoints="1;0" keyTimes="0;1" calcMode="linear"/></circle>}
             <circle
               cx={endX}
               cy={endY}

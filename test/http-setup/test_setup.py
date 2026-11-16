@@ -86,6 +86,16 @@ class HostSetupTest(unittest.TestCase):
         self.assertEqual(subprocess.check_output(['sh', str(hook)], text=True).strip(), str(custom))
         self.assertIn('--accesslog.format=json', custom.read_text())
         self.assertIn('/certs:/certs', custom.read_text())
+        self.assertNotIn('RequestPath', custom.read_text())
+
+    def test_dokku_template_keeps_request_paths_only_when_the_plan_opts_in(self):
+        template = 'services:\n  traefik:\n    command:\n      - --log.format=json\n    volumes:\n      - /certs:/certs\n'
+        self.candidate['template_b64'] = base64.b64encode(template.encode()).decode()
+        self.plan['capture_paths'] = True
+        self.apply()
+        rendered = (self.root / 'state/compose.yml.sigil').read_text()
+        self.assertIn('--accesslog.fields.names.RequestPath=keep', rendered)
+        self.assertIn('--accesslog.fields.names.RequestHost=keep', rendered)
 
 
 if __name__ == '__main__':

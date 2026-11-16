@@ -21,7 +21,7 @@ module Api
       server = scoped_servers.find(params[:server_id])
       authorize_server!(action: :update)
       setup = HttpTrafficSetup.new(server)
-      return render json: setup.discover unless request.post?
+      return render json: setup.discover(capture_paths: ActiveModel::Type::Boolean.new.cast(params[:capture_paths])) unless request.post?
 
       setup.verify!(params.require(:review_token))
       server.with_lock do
@@ -45,6 +45,11 @@ module Api
         end
         values = params.require(:settings).permit(:enabled, :path, :format, :retention_days, :capture_paths).to_h
         settings = { "enabled" => false, "format" => "traefik", "retention_days" => 7, "capture_paths" => false }.merge(server.traffic_settings).merge(values)
+        # Managed logging decides path fields at the proxy, so flipping this here
+        # would claim retention the log file cannot provide.
+        if values.key?("capture_paths") && server.traffic_settings["managed_logging"] && values["capture_paths"] != server.traffic_settings.fetch("capture_paths", false)
+          return render json: { error: "Path retention for automatically configured logging is part of the reviewed proxy setup. Run setup review again to change it." }, status: :unprocessable_entity
+        end
         path = settings["path"].to_s
         valid_path = path.match?(%r{\A/(?:var/log|var/lib/dokku)/[A-Za-z0-9_./-]+\.(?:log|jsonl)\z}) && !path.split("/").include?("..")
         unless [ true, false ].include?(settings["capture_paths"]) && [ true, false ].include?(settings["enabled"]) && %w[traefik caddy].include?(settings["format"]) && settings["retention_days"].is_a?(Integer) && (1..30).cover?(settings["retention_days"]) && (!settings["enabled"] || valid_path)

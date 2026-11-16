@@ -1438,7 +1438,7 @@ export interface TrafficResponse {
 }
 export interface TrafficSource { container: string; image: string; path?: string; canManage: boolean; reason?: string; reviewToken?: string }
 export const observabilityApi = {
-  discoverTraffic: (serverId: string): Promise<{candidates: TrafficSource[]}> => fetchJson(`/api/servers/${serverId}/traffic/setup`),
+  discoverTraffic: (serverId: string, capturePaths = false): Promise<{candidates: TrafficSource[]}> => fetchJson(`/api/servers/${serverId}/traffic/setup${capturePaths ? '?capture_paths=true' : ''}`),
   setupTraffic: (serverId: string, reviewToken: string): Promise<{accepted: boolean}> => fetchJson(`/api/servers/${serverId}/traffic/setup`, {method: 'POST', body: JSON.stringify({review_token: reviewToken})}),
   notifications: (): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications'),
   saveNotifications: (settings: NotificationPolicy): Promise<{settings: NotificationPolicy; smtpConfigured: boolean; incidents: MonitoringIncident[]}> => fetchJson('/api/notifications', {method:'PATCH', body: wrapBody('settings', settings)}),

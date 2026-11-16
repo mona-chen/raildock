@@ -41,6 +41,7 @@ RSpec.describe HttpTrafficSetup do
       expect(proxy["command"]).to include("--providers.docker=true", "--entrypoints.web.address=:80", "--accesslog.format=json")
       expect(proxy["command"]).not_to include("--accesslog.format=common")
       expect(proxy["command"].join).not_to include("ClientAddr", "RequestPath=keep")
+      expect(plan["capture_paths"]).to be(false)
       expect(proxy.except("command", "volumes")).to eq(document["services"]["traefik"].except("command", "volumes"))
       expect(updated["services"]["other"]).to eq(document["services"]["other"])
       expect(updated["networks"]).to eq(document["networks"])
@@ -48,5 +49,35 @@ RSpec.describe HttpTrafficSetup do
       { "path" => "/var/log/raildock-http/coolify-proxy/access.log" }
     end
     setup.apply(token)
+  end
+
+  it "logs request paths only when the review opted in" do
+    expect(setup).to receive(:remote).with("apply", anything) do |_, plan|
+      proxy = YAML.safe_load(Base64.strict_decode64(plan["compose_b64"]))["services"]["traefik"]
+      expect(proxy["command"]).to include("--accesslog.fields.names.RequestPath=keep")
+      expect(proxy["command"]).to include("--accesslog.fields.names.RequestHost=keep")
+      expect(plan["capture_paths"]).to be(true)
+      { "path" => "/var/log/raildock-http/coolify-proxy/access.log" }
+    end
+    setup.apply(setup.discover(capture_paths: true)[:candidates].first.fetch("review_token"))
+  end
+
+  it "treats a token issued without the path choice as opting out" do
+    expect(setup).to receive(:remote).with("apply", anything) do |_, plan|
+      proxy = YAML.safe_load(Base64.strict_decode64(plan["compose_b64"]))["services"]["traefik"]
+      expect(proxy["command"].join).not_to include("RequestPath")
+      expect(plan["capture_paths"]).to be(false)
+      { "path" => "/var/log/raildock-http/coolify-proxy/access.log" }
+    end
+    setup.apply(token)
+  end
+
+  it "carries the reviewed path choice into the completed settings" do
+    server.update!(traffic_settings: { "setup_state" => "running", "setup_capture_paths" => true })
+    setup.complete({ "path" => "/var/log/raildock-http/coolify-proxy/access.log" })
+    settings = server.reload.traffic_settings
+    expect(settings["capture_paths"]).to be(true)
+    expect(settings["managed_logging"]).to be(true)
+    expect(settings).not_to have_key("setup_capture_paths")
   end
 end
