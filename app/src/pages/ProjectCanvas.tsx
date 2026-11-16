@@ -18,6 +18,8 @@ import ErrorState from '@/features/shared/ErrorState'
 
 import CanvasGrid from '@/features/project-canvas/components/CanvasGrid'
 import ServiceCard from '@/features/project-canvas/components/ServiceCard'
+import { useNetworkFlows } from '@/hooks/useNetworkFlows'
+import NetworkFlowControl from '@/features/project-canvas/components/NetworkFlowControl'
 import ConnectionLines from '@/features/project-canvas/components/ConnectionLines'
 import CanvasControls from '@/features/project-canvas/components/CanvasControls'
 import CanvasToolbar from '@/features/project-canvas/components/CanvasToolbar'
@@ -96,6 +98,10 @@ export default function ProjectCanvas() {
     if (!activeEnvironmentId) return allServices
     return allServices.filter((service) => service.environmentId === activeEnvironmentId)
   }, [allServices, activeEnvironmentId])
+
+  const flowQuery = useNetworkFlows(projectId || '', activeEnvironmentId)
+  const [animateFlows,setAnimateFlows] = useState(()=>{try{return localStorage.getItem('raildock:animate-flows')!=='false'}catch{return true}})
+  const setFlowAnimation = (enabled: boolean) => {setAnimateFlows(enabled);try{localStorage.setItem('raildock:animate-flows',String(enabled))}catch{/* Storage may be unavailable. */}}
 
   const activeEnvironmentName =
     environments.find((environment) => environment.id === activeEnvironmentId)?.name ?? 'this environment'
@@ -225,10 +231,10 @@ export default function ProjectCanvas() {
           const from = positions[s.id]
           const to = positions[tid]
           if (!from || !to) return null
-          return { from, to, fromId: s.id, toId: tid }
+          return { from, to, fromId: s.id, toId: tid, fromName: s.name, toName: services.find(service=>service.id===tid)?.name }
         })
         .filter(Boolean)
-    ) as { from: { x: number; y: number }; to: { x: number; y: number }; fromId: string; toId: string }[]
+    ) as { from: { x: number; y: number }; to: { x: number; y: number }; fromId: string; toId: string; fromName?: string; toName?: string }[]
   }, [services, positions, visibleServices])
 
   // Drag / click handlers
@@ -539,6 +545,7 @@ export default function ProjectCanvas() {
             data-cv="1"
           >
             <CanvasGrid zoom={zoom} pan={pan} />
+            <NetworkFlowControl data={flowQuery.isError?undefined:flowQuery.data} error={flowQuery.isError} serverId={project?.serverId} animate={animateFlows} setAnimate={setFlowAnimation}/>
 
             {/* Error sticky note — dismissible, auto-clears after successful deploy */}
             {(() => {
@@ -586,7 +593,7 @@ export default function ProjectCanvas() {
                 transformOrigin: '0 0',
               }}
             >
-              <ConnectionLines activeServiceId={activeServiceId} connections={connections} />
+              <ConnectionLines activeServiceId={activeServiceId} connections={connections} flows={flowQuery.isError?undefined:flowQuery.data} animate={animateFlows} projectId={projectId}/>
 
               {visibleServices.map((s) => (
                 <ServiceCard

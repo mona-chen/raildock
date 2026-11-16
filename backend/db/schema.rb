@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_15_020001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -284,6 +284,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_020001) do
     t.index ["server_id"], name: "index_monitoring_incidents_on_server_id"
   end
 
+  create_table "network_flow_samples", force: :cascade do |t|
+    t.bigint "server_id", null: false
+    t.bigint "service_link_id", null: false
+    t.datetime "sampled_at", null: false
+    t.bigint "sent_bytes", default: 0, null: false
+    t.bigint "received_bytes", default: 0, null: false
+    t.integer "connections", default: 0, null: false
+    t.float "window_seconds", null: false
+    t.index ["sampled_at"], name: "index_network_flow_samples_on_sampled_at"
+    t.index ["server_id"], name: "index_network_flow_samples_on_server_id"
+    t.index ["service_link_id", "sampled_at"], name: "index_network_flow_samples_on_service_link_id_and_sampled_at", unique: true
+    t.index ["service_link_id"], name: "index_network_flow_samples_on_service_link_id"
+  end
+
   create_table "organization_invitations", force: :cascade do |t|
     t.datetime "accepted_at"
     t.datetime "created_at", null: false
@@ -477,6 +491,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_020001) do
     t.bigint "user_id"
     t.jsonb "traffic_settings", default: {}, null: false
     t.jsonb "traffic_cursor", default: {}, null: false
+    t.jsonb "network_flow_settings", default: {}, null: false
+    t.jsonb "network_flow_snapshot", default: {}, null: false
     t.index ["organization_id"], name: "index_servers_on_organization_id"
     t.index ["user_id"], name: "index_servers_on_user_id"
   end
@@ -637,6 +653,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_020001) do
   add_foreign_key "manifest_changes", "projects"
   add_foreign_key "manifest_operations", "projects"
   add_foreign_key "monitoring_incidents", "servers"
+  add_foreign_key "network_flow_samples", "servers", on_delete: :cascade
+  add_foreign_key "network_flow_samples", "service_links", on_delete: :cascade
   add_foreign_key "organization_invitations", "organizations"
   add_foreign_key "organization_invitations", "users"
   add_foreign_key "organization_invitations", "users", column: "invited_by_id"

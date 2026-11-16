@@ -97,7 +97,7 @@ function getAuthHeaders(): Record<string, string> {
   return headers
 }
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+export async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const { controller, fetchPromise } = createAbortableFetch(`${API_BASE}${path}`, {
     headers: getAuthHeaders(),
     ...options,

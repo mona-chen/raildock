@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  network_flow_samples:
+    class: NetworkFlowSamplerJob
+    schedule: every minute
   monitoring_tick:
     class: MonitoringTickJob
     schedule: every minute

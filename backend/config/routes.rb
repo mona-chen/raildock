@@ -125,6 +125,10 @@ Rails.application.routes.draw do
       delete "backups/:backup_id", to: "services#destroy_backup"
     end
 
+    get "projects/:project_id/network_flows", to: "network_flows#index"
+    get "projects/:project_id/network_flows/:link_id/history", to: "network_flows#history"
+    get "servers/:server_id/network_flow_settings", to: "network_flows#settings"
+    patch "servers/:server_id/network_flow_settings", to: "network_flows#settings"
     get "notifications", to: "observability#notifications"
     patch "notifications", to: "observability#notifications"
     get "servers/:server_id/traffic/setup", to: "observability#traffic_setup"
