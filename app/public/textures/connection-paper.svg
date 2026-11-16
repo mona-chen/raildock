@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="640" viewBox="0 0 400 640" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="paper" x2=".12" y2="1">
+      <stop stop-color="#f5e9d1"/><stop offset=".5" stop-color="#f7ecd8"/><stop offset="1" stop-color="#efdfc3"/>
+    </linearGradient>
+    <radialGradient id="wear" cx=".48" cy=".4" r=".75">
+      <stop offset=".6" stop-color="#c2a57e" stop-opacity="0"/>
+      <stop offset="1" stop-color="#a88450" stop-opacity=".15"/>
+    </radialGradient>
+    <filter id="edge" x="-3%" y="-3%" width="106%" height="106%">
+      <feTurbulence type="fractalNoise" baseFrequency=".065 .11" numOctaves="3" seed="14" result="rough"/>
+      <feDisplacementMap in="SourceGraphic" in2="rough" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="3" seed="8"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".19"/></feComponentTransfer>
+    </filter>
+    <filter id="fibers" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".045 .55" numOctaves="2" seed="21"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".065"/></feComponentTransfer>
+    </filter>
+    <clipPath id="sheet"><rect x="4" y="4" width="392" height="632" rx="13"/></clipPath>
+  </defs>
+  <g filter="url(#edge)">
+    <rect x="4" y="4" width="392" height="632" rx="13" fill="url(#paper)" stroke="#cbb792" stroke-width="1"/>
+    <g clip-path="url(#sheet)">
+      <rect x="4" y="4" width="392" height="632" fill="url(#wear)"/>
+      <rect x="4" y="4" width="392" height="632" filter="url(#grain)" opacity=".65"/>
+      <rect x="4" y="4" width="392" height="632" filter="url(#fibers)"/>
+    </g>
+    <rect x="5.5" y="5.5" width="389" height="629" rx="12" fill="none" stroke="#fff9e9" stroke-opacity=".8" stroke-width="1.4"/>
+    <rect x="7.5" y="7.5" width="385" height="625" rx="10" fill="none" stroke="#e2cfaa" stroke-opacity=".35" stroke-width=".6"/>
+  </g>
+</svg>
