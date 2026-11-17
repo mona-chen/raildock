@@ -11,7 +11,18 @@ RSpec.describe "Network flows", type: :request do
   let!(:link) { ServiceLink.create!(from_service: source, to_service: target) }
   let(:headers) { auth_headers(user).merge("X-Organization-ID" => organization.id.to_s, "Content-Type" => "application/json") }
 
-  it "defaults to off and performs no SSH collection" do
+  it "defaults to live-only collection and schedules a sample" do
+    expect(NetworkFlowCollector.settings(server)).to include("enabled" => true, "retention_days" => 0)
+    expect(NetworkFlowSamplerJob).to receive(:enqueue_once).with(server.id)
+    get "/api/projects/#{project.id}/network_flows", headers: headers
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body).to include("enabled" => true)
+    expect(response.parsed_body["links"].first["state"]).to eq("unavailable")
+  end
+
+  it "preserves an explicit opt-out and performs no collection" do
+    server.update!(network_flow_settings: { "enabled" => false })
+    expect(NetworkFlowSamplerJob).not_to receive(:enqueue_once)
     expect(NetworkFlowSamplerJob).not_to receive(:perform_later)
     get "/api/projects/#{project.id}/network_flows", headers: headers
     expect(response).to have_http_status(:ok)

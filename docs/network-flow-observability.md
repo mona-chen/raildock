@@ -1,6 +1,6 @@
 # Service connection activity
 
-RailDock measures sampled direct TCP traffic between linked services on the same Docker host. Open **Servers → a server → Service connections** to enable collection. It defaults to off and live-only retention. Historical minute aggregates can be retained for 1–30 days. Changing to live-only deletes retained samples at cleanup; cleanup still runs while collection is off.
+RailDock measures sampled direct TCP traffic between linked services on the same Docker host. Open **Servers → a server → Service connections** to configure collection. Collection is enabled by default with live-only retention; an explicitly disabled server stays disabled. Historical minute aggregates can be retained for 1–30 days. Changing to live-only deletes retained samples at cleanup; cleanup still runs while collection is off.
 
 The canvas **Network flow** control changes animation independently from collection and links to server settings. Pulses indicate a byte increase in the last sample, not individual packets. Green travels from source to target; blue travels back. Reduced-motion preferences suppress movement. Hidden browser tabs stop live polling and movement. Motion is limited to 40 edges; other edges still expose counters. Selecting an edge shows counts, timing, last observed activity and recent retained minute history.
 

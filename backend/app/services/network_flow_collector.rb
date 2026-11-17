@@ -2,7 +2,7 @@ require "base64"
 require "shellwords"
 
 class NetworkFlowCollector
-  DEFAULTS = { "enabled" => false, "retention_days" => 0 }.freeze
+  DEFAULTS = { "enabled" => true, "retention_days" => 0 }.freeze
 
   def self.settings(server) = DEFAULTS.merge(server.network_flow_settings)
 
