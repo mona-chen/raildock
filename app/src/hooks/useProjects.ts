@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { deletionInFlight } from '@/lib/projects'
 import { useAuthStore } from '@/stores/useAuthStore'
 
 export function useProjects() {
@@ -8,6 +9,7 @@ export function useProjects() {
   return useQuery({
     queryKey: ['projects', 'list', organizationId],
     queryFn: () => api.projects.list(),
+    refetchInterval: (query) => query.state.data?.some((p) => deletionInFlight(p)) ? 2000 : false,
   })
 }
 
@@ -48,7 +50,7 @@ export function useDestroyProject() {
     }) => api.projects.destroy(id, confirmation, { forceDestroyData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
-      toast.success('Project deleted')
+      toast.info('Project deletion queued. Progress is shown on the project card.')
     },
     onError: (err) => toast.error(`Failed to delete project: ${err.message}`),
   })

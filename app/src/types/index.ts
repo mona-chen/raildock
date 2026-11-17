@@ -12,6 +12,11 @@ export interface Project {
   description: string
   /** Display label for the project's primary (default) environment. */
   environment: string
+  deletionStatus?: 'queued' | 'running' | 'failed' | null
+  deletionErrorCode?: string | null
+  deletionError?: string | null
+  /** Server-side verdict; false once a stalled deletion stops blocking the project. */
+  deletionPending?: boolean | null
   serviceIds: string[]       // references to services in this project
   serviceCounts: { total: number; app: number; database: number; cache: number }
   sharedVars: SharedVar[]    // project-level env vars (Railway shared variables)

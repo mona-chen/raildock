@@ -23,6 +23,13 @@ default: &default
       threads: <%= ENV.fetch("BACKUP_THREADS", 2) %>
       processes: <%= ENV.fetch("BACKUP_CONCURRENCY", 1) %>
       polling_interval: 0.5
+    # Destructive project teardown: snapshots first, then Dokku resource
+    # removal. It can hold a project lock for a long time, so it gets its own
+    # worker instead of delaying deployments or PITR WAL archiving.
+    - queues: [ maintenance ]
+      threads: 1
+      processes: 1
+      polling_interval: 0.5
 
 development:
   <<: *default

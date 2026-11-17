@@ -118,23 +118,21 @@ RSpec.describe "Api::ProjectsController", type: :request do
         expect(response.parsed_body.dig("project", "services")).to eq(1)
       end
 
-      it "destroys the project when the name is confirmed" do
-        expect {
-          delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
-        }.to change(Project, :count).by(-1)
-
-        expect(response).to have_http_status(:no_content)
-      end
-
-      it "refuses to delete a project whose databases cannot be snapshotted" do
-        create(:service, :database, project: project)
-
+      it "queues deletion without doing SSH work in the request" do
         expect {
           delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
         }.not_to change(Project, :count)
 
-        expect(response).to have_http_status(:precondition_required)
-        expect(response.parsed_body["code"]).to eq("snapshot_required")
+        expect(response).to have_http_status(:accepted)
+        expect(project.reload.deletion_status).to eq("queued")
+      end
+
+      it "queues another snapshot attempt after a recoverable snapshot failure" do
+        project.update!(deletion_status: "failed", deletion_error_code: "snapshot_required", deletion_error: "No verified destination")
+        delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
+        expect(response).to have_http_status(:accepted)
+        expect(project.reload.deletion_status).to eq("queued")
+        expect(project.deletion_error_code).to be_nil
       end
 
       it "deletes the project when data loss is explicitly acknowledged" do
@@ -144,9 +142,39 @@ RSpec.describe "Api::ProjectsController", type: :request do
           delete "/api/projects/#{project.id}",
             params: { confirmation: project.name, force_destroy_data: true },
             headers: auth_headers(user)
-        }.to change(Project, :count).by(-1)
+        }.not_to change(Project, :count)
 
-        expect(response).to have_http_status(:no_content)
+        expect(response).to have_http_status(:accepted)
+        expect(project.reload.deletion_status).to eq("queued")
+      end
+
+      it "returns the existing operation when deletion is retried" do
+        project.update!(deletion_status: "running", deletion_requested_at: Time.current)
+        expect {
+          delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
+        }.not_to have_enqueued_job(ProjectDeletionJob)
+        expect(response).to have_http_status(:accepted)
+        expect(response.parsed_body["status"]).to eq("running")
+      end
+
+      it "re-queues a stalled deletion instead of blocking the project forever" do
+        project.update!(deletion_status: "running", deletion_requested_at: 3.hours.ago)
+        expect {
+          delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)
+        }.to have_enqueued_job(ProjectDeletionJob)
+        expect(response).to have_http_status(:accepted)
+        expect(project.reload.deletion_status).to eq("queued")
+        expect(project.deletion_requested_at).to be > 1.minute.ago
+      end
+
+      it "reports whether a deletion is still in flight" do
+        project.update!(deletion_status: "queued", deletion_requested_at: Time.current)
+        get "/api/projects", headers: auth_headers(user)
+        expect(response.parsed_body.first).to include("deletion_pending" => true)
+
+        project.update!(deletion_requested_at: 3.hours.ago)
+        get "/api/projects", headers: auth_headers(user)
+        expect(response.parsed_body.first).to include("deletion_pending" => false)
       end
 
       it "returns 404 for non-existent project" do

@@ -53,36 +53,17 @@ module Api
         }, status: :precondition_required
       end
 
-      snapshot = DestructionSnapshot.capture_all(project.services.to_a)
-      if snapshot[:errors].any? && !force_destroy_data?
-        return render json: {
-          error: "Refusing to delete #{project.name}: #{snapshot[:errors].join('; ')}. Configure a verified backup destination, or explicitly acknowledge permanent data loss.",
-          code: "snapshot_required",
-          actionable: true,
-          project: project.dokku_resource_summary
-        }, status: :precondition_required
-      end
+      # Repeated requests attach to the existing operation instead of deleting twice.
+      return render json: { status: project.deletion_status }, status: :accepted if project.deletion_pending?
 
-      if snapshot[:errors].any?
-        ActivityEvent.create!(
-          project: project,
-          service_name: "-",
-          action: :warning,
-          message: "Deleting #{project.name} without complete snapshots: #{snapshot[:errors].join('; ')}"
-        )
+      project.update!(deletion_status: "queued", deletion_error: nil, deletion_error_code: nil, deletion_requested_at: Time.current)
+      begin
+        ProjectDeletionJob.perform_later(project.id, force_destroy_data: force_destroy_data?)
+      rescue StandardError
+        project.update!(deletion_status: "failed", deletion_error: "Could not queue deletion. Please retry.")
+        raise
       end
-
-      project.destroy_with_resources!(confirmed: true)
-      head :no_content
-    rescue ActiveRecord::RecordNotDestroyed => e
-      # Dokku refused to remove a resource, or the guard tripped. Nothing was
-      # deleted from RailDock, so this is safe to retry.
-      render json: {
-        error: project.errors.full_messages.presence&.join("; ") || e.message,
-        code: "resources_not_removed",
-        actionable: true,
-        project: project.dokku_resource_summary
-      }, status: :unprocessable_entity
+      render json: { status: "queued" }, status: :accepted
     end
 
     def shared_vars
@@ -206,7 +187,11 @@ module Api
     def serialize_project_operation
       project = scoped_projects.find(params[:id])
       authorize_project!(project, action: action_name == "destroy" ? :delete : :update)
-      ServiceOperationLock.with_project(project, exclusive: true) { yield }
+      if action_name == "destroy" && project.deletion_pending?
+        yield
+      else
+        ServiceOperationLock.with_project(project, exclusive: true, allow_deletion: action_name == "destroy") { yield }
+      end
     end
 
     def bulk_services(project)

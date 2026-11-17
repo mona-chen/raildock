@@ -32,3 +32,18 @@ RSpec.describe ServiceOperationLock do
     connection&.close
   end
 end
+
+RSpec.describe "Pending project deletion locks" do
+  it "explains why service operations are blocked even before the worker starts" do
+    project = create(:project, deletion_status: "queued", deletion_requested_at: Time.current)
+    service = create(:service, project: project)
+    expect { ServiceOperationLock.with(service) { raise "must not run" } }
+      .to raise_error(ServiceOperationLock::Busy, /Project deletion is in progress/)
+  end
+
+  it "stops blocking once a deletion has stalled, so the project can be retried" do
+    project = create(:project, deletion_status: "running", deletion_requested_at: 3.hours.ago)
+    service = create(:service, project: project)
+    expect { ServiceOperationLock.with(service) { :ran } }.not_to raise_error
+  end
+end

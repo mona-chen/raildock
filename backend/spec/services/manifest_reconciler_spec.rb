@@ -36,6 +36,17 @@ RSpec.describe ManifestReconciler do
     }
   end
 
+  it "provisions Redis caches through the datastore plugin rather than a Git app" do
+    definition = app_definition(name: "redis", repo: nil).merge(category: "cache", subtype: "redis")
+    reconciler = described_class.new(project, desired_state(services: [ definition ]))
+    change = reconciler.diff.find { |entry| entry.field == :service }
+    engine = double("engine")
+    expect(engine).to receive(:datastore_create).with(have_attributes(subtype: "redis")).and_return(success: true)
+    expect(engine).not_to receive(:app_create)
+    expect(reconciler.send(:apply_create_service, engine, change)[:success]).to be(true)
+    expect(project.services.find_by!(name: "redis").status).to eq("running")
+  end
+
   describe "#diff" do
     it "includes explicitly listed UI-managed services" do
       create(

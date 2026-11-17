@@ -87,9 +87,14 @@ module Api
 
     private
       def import_manifest_content(canonical_manifest:, original_format:, original_content:)
-        format = original_format == "raildock.toml" ? "raildock.toml" : "raildock.json"
-        content = original_content.presence || canonical_manifest
-        [ content, format ]
+        # Discovery has already applied the reviewed branch, commit and builder
+        # choices. Reusing the raw file here silently discards those choices.
+        if original_format == "raildock.toml"
+          parsed = JSON.parse(canonical_manifest).deep_symbolize_keys
+          [ ManifestSerializer.dump(parsed, format: "raildock.toml"), "raildock.toml" ]
+        else
+          [ canonical_manifest, "raildock.json" ]
+        end
       end
 
       # Services that exist today but are absent from the manifest an import

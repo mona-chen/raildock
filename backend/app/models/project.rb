@@ -26,6 +26,24 @@ class Project < ApplicationRecord
   after_create :set_network_name
   after_create :create_default_environment
 
+  # A queued or running deletion blocks other operations on the project, but the
+  # worker can die (host restart, killed job) without clearing the row. After
+  # this window the operation is treated as stalled so the project can be
+  # retried instead of being wedged forever.
+  DELETION_STALE_AFTER = 2.hours
+
+  def deletion_requested?
+    %w[queued running].include?(deletion_status)
+  end
+
+  def deletion_pending?
+    deletion_requested? && (deletion_requested_at.nil? || deletion_requested_at > DELETION_STALE_AFTER.ago)
+  end
+
+  def deletion_stalled?
+    deletion_requested? && !deletion_pending?
+  end
+
   # Opt-in flag for the before_destroy hook below. Deliberately not persisted.
   attr_accessor :allow_resource_destruction
 
@@ -235,6 +253,6 @@ class Project < ApplicationRecord
         :service_ids, :service_counts, :shared_vars_for_api,
         :manifest_synced, :manifest_synced?, :has_deployments, :has_deployments?
       ]
-    )).merge("environments" => environments_for_api)
+    )).merge("environments" => environments_for_api, "deletion_pending" => deletion_pending?)
   end
 end

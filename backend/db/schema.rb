@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_16_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_17_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -427,6 +427,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_010000) do
     t.jsonb "shared_vars", default: []
     t.datetime "updated_at", null: false
     t.bigint "user_id"
+    t.string "deletion_status"
+    t.text "deletion_error"
+    t.string "deletion_error_code"
+    t.datetime "deletion_requested_at"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
     t.index ["server_id"], name: "index_projects_on_server_id"
     t.index ["user_id"], name: "index_projects_on_user_id"

@@ -52,6 +52,32 @@ RSpec.describe "Repository imports", type: :request do
     expect(project.reload.manifest_content).to include("acme/storefront", '"builder": "railpack"')
   end
 
+  it "applies the reviewed staging branch instead of the raw TOML main branch" do
+    services = result.services.deep_dup
+    services.first["source"]["branch"] = "staging"
+    reviewed = RepositoryDiscovery::Result.new(
+      repository: result.repository, branch: "staging", commit_sha: result.commit_sha,
+      services: services, links: [], warnings: [], conflicts: [], evidence: [],
+      original_format: "raildock.toml", original_content: <<~TOML
+        [[services]]
+        name = "web"
+        source = { type = "git", repo = "https://github.com/acme/storefront.git", branch = "main" }
+      TOML
+    )
+    allow(RepositoryDiscovery).to receive(:new).and_return(instance_double(RepositoryDiscovery, call: reviewed))
+    post "/api/projects/#{project.id}/repository-import/preview",
+      params: { git_source_id: git_source.id, repository: "acme/storefront", branch: "staging" },
+      headers: auth_headers(user), as: :json
+    token = response.parsed_body.fetch("snapshot_token")
+    post "/api/projects/#{project.id}/repository-import/apply",
+      params: { snapshot_token: token, builder_overrides: { web: "railpack" } },
+      headers: auth_headers(user), as: :json
+    expect(response).to have_http_status(:accepted)
+    parsed = ManifestParser.parse(project.reload.manifest_content, filename: "raildock.toml")
+    expect(parsed.services.first.dig(:source, :branch)).to eq("staging")
+    expect(parsed.services.first[:builder]).to eq("railpack")
+  end
+
   it "does not allow a reviewed snapshot to be replayed into another project" do
     post "/api/projects/#{project.id}/repository-import/preview",
       params: { git_source_id: git_source.id, repository: "acme/storefront" },

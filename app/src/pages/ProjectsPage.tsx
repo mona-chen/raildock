@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Folder, Plus, Search, Box, Trash2, ArrowUpRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
+import { deletionInFlight } from '@/lib/projects'
+import type { Project } from '@/types'
 
 import { useCanvasStore } from '@/stores/useCanvasStore'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
@@ -218,7 +220,7 @@ function ProjectCard({
   onOpen,
   onDelete,
 }: {
-  project: { id: string; name: string; description: string; environment: string; serviceCounts: { total: number; app: number; database: number; cache: number } }
+  project: Pick<Project, 'id' | 'name' | 'description' | 'environment' | 'serviceCounts' | 'deletionStatus' | 'deletionError' | 'deletionErrorCode' | 'deletionPending'>
   onOpen: (id: string) => void
   onDelete: (id: string, confirmation: string, options?: { forceDestroyData?: boolean }) => Promise<unknown>
 }) {
@@ -229,6 +231,8 @@ function ProjectCard({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [needsAcknowledgement, setNeedsAcknowledgement] = useState(false)
 
+  const deletionPending = deletionInFlight(project)
+  const deletionStalled = !deletionPending && (project.deletionStatus === 'queued' || project.deletionStatus === 'running')
   const isConfirmValid = confirmName === project.name
 
   const handleOpen = () => {
@@ -240,8 +244,8 @@ function ProjectCard({
   const handleDeleteClick = () => {
     setShowConfirm(true)
     setConfirmName('')
-    setDeleteError(null)
-    setNeedsAcknowledgement(false)
+    setDeleteError(project.deletionError || null)
+    setNeedsAcknowledgement(project.deletionErrorCode === 'snapshot_required')
   }
 
   const handleDelete = async (forceDestroyData = false) => {
@@ -249,8 +253,8 @@ function ProjectCard({
     setDeleting(true)
     setDeleteError(null)
     try {
-      // The backend takes a verified snapshot of every database/volume first and
-      // refuses the delete when that is impossible.
+      // Deletion is queued: the job snapshots every database and volume, then
+      // removes the Dokku resources. Failures come back through deletionStatus.
       await onDelete(project.id, confirmName, { forceDestroyData })
       setShowConfirm(false)
       setConfirmName('')
@@ -293,6 +297,9 @@ function ProjectCard({
             </span>
           </div>
 
+          {deletionPending && <p role="status" className="text-xs text-amber-300 mb-2">Deleting project… You can leave this page.</p>}
+          {deletionStalled && <p role="status" className="text-xs text-amber-300 mb-2">Deletion stalled. Retry deletion to finish removing this project.</p>}
+          {project.deletionStatus === 'failed' && <p role="alert" className="text-xs text-red-300 mb-2">Deletion failed: {project.deletionError} Retry deletion after resolving the error.</p>}
           <p className="text-xs leading-relaxed text-[#9393a5] mb-5 min-h-8 line-clamp-2">{project.description || 'No description.'}</p>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#a0a0b0] [&>span]:whitespace-nowrap">
@@ -312,7 +319,8 @@ function ProjectCard({
             handleDeleteClick()
           }}
           className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
-          title="Delete project"
+          disabled={deletionPending}
+          title={deletionPending ? 'Project deletion is in progress' : 'Delete project'}
         >
           <Trash2 size={14} />
         </button>
@@ -382,6 +390,15 @@ function ProjectCard({
               />
             </div>
 
+            {needsAcknowledgement && (
+              <button
+                onClick={() => handleDelete(true)}
+                disabled={!isConfirmValid || deleting}
+                className="w-full mb-3 py-2 text-sm text-red-300 disabled:opacity-30"
+              >
+                Permanently delete without snapshot
+              </button>
+            )}
             <div className="w-full flex gap-2">
               <button
                 onClick={handleClose}
@@ -390,11 +407,11 @@ function ProjectCard({
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(needsAcknowledgement)}
+                onClick={() => handleDelete(false)}
                 disabled={!isConfirmValid || deleting}
                 className="flex-1 py-2.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {deleting ? 'Deleting…' : needsAcknowledgement ? 'Delete without snapshot' : 'Delete project'}
+                {deleting ? 'Queuing…' : needsAcknowledgement ? 'Retry snapshots' : 'Delete project'}
               </button>
             </div>
         </DialogContent>

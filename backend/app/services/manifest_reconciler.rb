@@ -250,7 +250,7 @@ class ManifestReconciler
         service_type: svc[:category],
         subtype: svc[:subtype],
         managed_by: svc[:managed_by],
-        datastore: DestructionSnapshot.datastore?(service) || svc[:category] == "database",
+        datastore: DestructionSnapshot.datastore?(service) || datastore_service?(svc),
         data_bearing: DestructionSnapshot.data_bearing?(service),
         storage_mounts: Array(svc[:storage]).map { |mount| mount[:host] },
         domains: Array(svc[:domains]),
@@ -388,7 +388,7 @@ class ManifestReconciler
       storage proxy scaling limits reservations checks cron
       scripts docker_options traefik_labels letsencrypt depends_on
     ]
-    if desired_svc[:category] == "database"
+    if datastore_service?(desired_svc)
       fields -= %i[domains proxy scaling checks cron traefik_labels letsencrypt]
     end
 
@@ -535,11 +535,16 @@ class ManifestReconciler
 
   # ── Application ─────────────────────────────────────────────
 
+  def datastore_service?(svc)
+    svc[:category] == "database" ||
+      (svc[:category] == "cache" && svc[:subtype] == "redis")
+  end
+
   def apply_create_service(engine, change)
     svc = change.new_value
     app_name = Service.dokku_app_name_for(@project.name, svc[:name])
 
-    if svc[:category] == "database"
+    if datastore_service?(svc)
       result = create_database_service(engine, svc, app_name)
     else
       result = create_app_service(engine, svc, app_name)
@@ -547,7 +552,7 @@ class ManifestReconciler
 
     # Persist to DB
     if result[:success]
-      initial_status = if svc[:category] == "database"
+      initial_status = if datastore_service?(svc)
         "running"
       elsif @project.server&.ssh_key.present?
         "deploying"

@@ -10,11 +10,21 @@ class ServiceOperationLock
     end
   end
 
-  def self.with_project(project, exclusive: false)
+  def self.with_project(project, exclusive: false, allow_deletion: false)
     id = project.respond_to?(:id) ? project.id : project
     return yield unless id
 
-    with_key("project", id, shared: !exclusive) { yield }
+    with_key("project", id, shared: !exclusive) do
+      if !allow_deletion && Project.find_by(id: id)&.deletion_pending?
+        raise Busy, "Project deletion is in progress. Wait for it to finish before changing its services."
+      end
+      yield
+    end
+  rescue Busy
+    if !allow_deletion && Project.find_by(id: id)&.deletion_pending?
+      raise Busy, "Project deletion is in progress. Wait for it to finish before changing its services."
+    end
+    raise
   end
 
   def self.with_key(kind, id, shared: false)

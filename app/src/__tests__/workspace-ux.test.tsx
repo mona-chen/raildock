@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import ProjectsPage from '@/pages/ProjectsPage'
@@ -63,4 +63,46 @@ it('shows zoom limits and only functional canvas controls', () => {
   expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /undo/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /layers/i })).not.toBeInTheDocument()
+})
+
+it('shows deletion progress and prevents duplicate deletion requests', () => {
+  const project = projects[0] as typeof projects[number] & { deletionStatus?: string }
+  project.deletionStatus = 'running'
+  try {
+    render(<MemoryRouter><ProjectsPage /></MemoryRouter>)
+    expect(screen.getByRole('status')).toHaveTextContent('Deleting project')
+    expect(screen.getByTitle('Project deletion is in progress')).toBeDisabled()
+  } finally {
+    delete project.deletionStatus
+  }
+})
+
+it('unlocks a project whose deletion stalled so it can be retried', () => {
+  const project = projects[0] as typeof projects[number] & { deletionStatus?: string; deletionPending?: boolean }
+  Object.assign(project, { deletionStatus: 'running', deletionPending: false })
+  try {
+    render(<MemoryRouter><ProjectsPage /></MemoryRouter>)
+    expect(screen.getByRole('status')).toHaveTextContent('Deletion stalled')
+    const card = screen.getByText(/Deletion stalled/).closest('.group') as HTMLElement
+    expect(within(card).getByTitle('Delete project')).not.toBeDisabled()
+  } finally {
+    delete project.deletionStatus
+    delete project.deletionPending
+  }
+})
+it('keeps deletion errors visible and offers snapshot retry or explicit data-loss acknowledgement', async () => {
+  const user = userEvent.setup()
+  const project = projects[0] as typeof projects[number] & { deletionStatus?: string; deletionError?: string; deletionErrorCode?: string }
+  Object.assign(project, { deletionStatus: 'failed', deletionError: 'No verified destination', deletionErrorCode: 'snapshot_required' })
+  try {
+    render(<MemoryRouter><ProjectsPage /></MemoryRouter>)
+    expect(screen.getByRole('alert')).toHaveTextContent('No verified destination')
+    await user.click(screen.getAllByTitle('Delete project')[0])
+    expect(screen.getByRole('button', { name: 'Retry snapshots' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Permanently delete without snapshot' })).toBeDisabled()
+  } finally {
+    delete project.deletionStatus
+    delete project.deletionError
+    delete project.deletionErrorCode
+  }
 })
