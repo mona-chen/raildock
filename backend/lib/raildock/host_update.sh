@@ -30,6 +30,7 @@ old_version=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{
 [[ "$old_version" =~ ^[A-Za-z0-9.-]+$ ]] || old_version=unknown
 [[ "$old_image" =~ ^sha256:[a-f0-9]{64}$ ]] || { status failed; exit 1; }
 replacing=0
+phase=preflight
 healthy() {
   local container health
   for ((attempt=0; attempt<90; attempt++)); do
@@ -54,7 +55,7 @@ finish() {
         status failed
       fi
     else
-      status failed
+      if [[ "$phase" == backup ]]; then status backup_failed; else status failed; fi
     fi
   fi
   exit "$code"
@@ -63,14 +64,23 @@ trap finish EXIT
 status pulling
 timeout 600 "${compose[@]}" pull raildock
 status backing_up
-# DATABASE_URL is expanded inside the old container, never in the host shell.
-# shellcheck disable=SC2016
-timeout 600 docker exec "$old_container" sh -c 'pg_dump --format=custom "$DATABASE_URL"' > "$state_dir/database.dump"
+phase=backup
+# Use the bundled database's matching client, but back up the app's actual URL.
+# The connection URL travels over stdin, never host command arguments or logs.
+backup_client=$("${compose[@]}" ps -q db)
+if [[ -n "$backup_client" ]]; then
+  timeout 30 docker exec "$old_container" sh -c 'printf "%s\n" "$DATABASE_URL"' |
+    timeout 600 docker exec -i "$backup_client" sh -c 'IFS= read -r url; test -n "$url"; exec pg_dump --format=custom "$url"' > "$state_dir/database.dump"
+else
+  backup_client=$old_container
+  timeout 600 docker exec "$old_container" sh -c 'pg_dump --format=custom "$DATABASE_URL"' > "$state_dir/database.dump"
+fi
 [[ -s "$state_dir/database.dump" ]]
-docker exec -i "$old_container" pg_restore --list < "$state_dir/database.dump" > "$state_dir/backup-catalog.txt"
+timeout 60 docker exec -i "$backup_client" pg_restore --list < "$state_dir/database.dump" > "$state_dir/backup-catalog.txt"
 sha256sum "$state_dir/database.dump" > "$state_dir/database.dump.sha256"
 sha256sum -c "$state_dir/database.dump.sha256"
 cp .env "$state_dir/env.backup"
+phase=replacement
 status restarting
 replacing=1
 "${compose[@]}" up -d --no-deps raildock

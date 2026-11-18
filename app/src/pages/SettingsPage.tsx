@@ -441,7 +441,7 @@ export function UpdatesTab() {
   const operationStatus = updateInfo?.operationStatus
   const runningUpdate = ['scheduled', 'pulling', 'backing_up', 'restarting', 'verifying', 'rolling_back'].includes(operationStatus || '')
   useEffect(() => {
-    if (['completed', 'rolled_back', 'failed', 'busy'].includes(operationStatus || '')) setApplying(false)
+    if (['completed', 'rolled_back', 'failed', 'backup_failed', 'busy'].includes(operationStatus || '')) setApplying(false)
   }, [operationStatus])
 
   const checkMutation = useMutation({
@@ -508,7 +508,7 @@ export function UpdatesTab() {
           <div role="status" className="text-xs text-amber-200">{applying || runningUpdate ? 'Reconnecting while the host finishes the update. This page checks every 5 seconds.' : 'Could not load update information. Retrying shortly.'}</div>
         ) : updateInfo ? (
           <div className="space-y-4">
-            {operationStatus && <p role="status" className={`text-xs ${operationStatus === 'failed' || operationStatus === 'rolled_back' ? 'text-amber-200' : 'text-[#a0a0b0]'}`}>{({ scheduled: 'Update scheduled on the host.', pulling: 'Downloading the selected image. The current app is still running.', backing_up: 'Backing up the RailDock database before replacement.', restarting: 'Starting the new container.', verifying: 'Waiting for the new container to pass its health check.', rolling_back: 'The new container did not start successfully. Restoring the previous image.', rolled_back: 'Update failed. The previous image was restored and passed its health check.', completed: 'Update completed and verified.', failed: 'Host update failed. Inspect data/updates on the installation host for its log and database backup.', busy: 'Another host update already holds the update lock.', unavailable: 'Could not read host update status. Check the local SSH connection.' } as Record<string,string>)[operationStatus] || operationStatus}</p>}
+            {operationStatus && <p role="status" className={`text-xs ${operationStatus === 'backup_failed' || operationStatus === 'failed' || operationStatus === 'rolled_back' ? 'text-amber-200' : 'text-[#a0a0b0]'}`}>{({ scheduled: 'Update scheduled on the host.', pulling: 'Downloading the selected image. The current app is still running.', backing_up: 'Backing up the RailDock database before replacement.', restarting: 'Starting the new container.', verifying: 'Waiting for the new container to pass its health check.', rolling_back: 'The new container did not start successfully. Restoring the previous image.', rolled_back: 'Update failed. The previous image was restored and passed its health check.', completed: 'Update completed and verified.', backup_failed: 'Database backup failed before replacement. RailDock is still running unchanged. Inspect the update log on the installation host.', failed: 'Host update failed. Inspect data/updates on the installation host for its log and database backup.', busy: 'Another host update already holds the update lock.', unavailable: 'Could not read host update status. Check the local SSH connection.' } as Record<string,string>)[operationStatus] || operationStatus}</p>}
             {/* Current version + last checked */}
             <div className="flex items-center justify-between p-3 bg-[rgba(255,255,255,0.02)] rounded-lg">
               <div>

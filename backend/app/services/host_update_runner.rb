@@ -5,7 +5,7 @@ require "shellwords"
 # Schedules a detached host operation. It never replaces its own container.
 class HostUpdateRunner
   ACTIVE = %w[scheduled pulling backing_up restarting verifying rolling_back].freeze
-  STATES = (ACTIVE + %w[completed rolled_back failed busy unavailable]).freeze
+  STATES = (ACTIVE + %w[completed rolled_back failed backup_failed busy unavailable]).freeze
 
   def initialize(server: nil)
     @server = server

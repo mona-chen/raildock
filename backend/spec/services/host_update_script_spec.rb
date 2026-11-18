@@ -20,7 +20,7 @@ RSpec.describe "Detached host update lifecycle" do
           args = ARGV
           File.open(File.join(dir, "commands"), "a") { |file| file.puts(args.join(" ")) }
           if args.include?("ps")
-            puts "container"
+            puts(args.last == "db" ? (ENV["TEST_FAILURE"] == "no_db" ? "" : "database") : "container")
           elsif args.first == "image"
             puts "RAILDOCK_VERSION=0.1.0"
           elsif args.first == "inspect" && args.join.include?(".Image")
@@ -29,6 +29,7 @@ RSpec.describe "Detached host update lifecycle" do
             puts(File.exist?(File.join(dir, "rollback")) || ENV["TEST_FAILURE"] != "health" ? "healthy" : "unhealthy")
           elsif args.first == "exec"
             exit 1 if ENV["TEST_FAILURE"] == "backup"
+            exit 1 if ENV["TEST_FAILURE"] == "catalog" && args.include?("pg_restore")
             puts "-- test database dump"
           elsif args.include?("up")
             File.write(File.join(dir, "rollback"), "yes") if args.any? { |arg| arg.end_with?("rollback.yml") }
@@ -55,6 +56,8 @@ RSpec.describe "Detached host update lifecycle" do
       expect(File.read(File.join(dir, ".env"))).to include("RAILDOCK_VERSION=0.2.0")
       commands = File.read(File.join(dir, "commands"))
       expect(commands.index("pg_dump")).to be < commands.index("up -d")
+      expect(commands).to include("exec -i database sh -c", "exec -i database pg_restore --list")
+      expect(commands).not_to include("exec container sh -c pg_dump")
     end
   end
 
@@ -70,8 +73,24 @@ RSpec.describe "Detached host update lifecycle" do
   it "leaves the app untouched if its database cannot be backed up" do
     run_update("backup") do |dir, result, status|
       expect(result).not_to be_success
-      expect(status["status"]).to eq("failed")
+      expect(status["status"]).to eq("backup_failed")
       expect(File.read(File.join(dir, "commands"))).not_to include("up -d")
+    end
+  end
+
+  it "refuses replacement when the archive catalog cannot be verified" do
+    run_update("catalog") do |dir, result, status|
+      expect(result).not_to be_success
+      expect(status["status"]).to eq("backup_failed")
+      expect(File.read(File.join(dir, "commands"))).not_to include("up -d")
+    end
+  end
+
+  it "uses the application client when there is no bundled database service" do
+    run_update("no_db") do |dir, result, status|
+      expect(result).to be_success
+      expect(status["status"]).to eq("completed")
+      expect(File.read(File.join(dir, "commands"))).to include("exec container sh -c pg_dump", "exec -i container pg_restore --list")
     end
   end
 
