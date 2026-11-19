@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search, Activity, Bot } from 'lucide-react'
+import { Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Mail, Cloud, Cog, Search, Activity, Bot, UserRound } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUninstallPlugin, usePluginSettings, useUpdatePluginSettings } from '@/hooks/useModules'
-import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
 import { useDeployKeys, useCreateDeployKey, useDeleteDeployKey } from '@/hooks/useDeployKeys'
 import { useAuthStore } from '@/stores/useAuthStore'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
@@ -36,6 +35,8 @@ import NotificationsTab from '@/features/settings/NotificationsTab'
 import ObservabilitySettingsTab from '@/features/settings/ObservabilitySettingsTab'
 import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
 import AgentAccessTab from '@/features/settings/AgentAccessTab'
+import ProfileTab from '@/features/settings/ProfileTab'
+import OrganizationsTab from '@/features/settings/OrganizationsTab'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { AppUpdateInfo, Module } from '@/types'
@@ -44,6 +45,12 @@ import type { AppUpdateInfo, Module } from '@/types'
 // are configured once for this RailDock instance. Grouping them stops a user
 // from hunting for "Members" among instance-level plugin settings.
 const TAB_GROUPS = [
+  {
+    label: 'Account',
+    tabs: [
+      { key: 'profile', label: 'Profile', icon: UserRound },
+    ],
+  },
   {
     label: 'Organization',
     tabs: [
@@ -86,7 +93,16 @@ export default function SettingsPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <WorkspaceHeader title="Settings" description={activeGroup?.label === 'Instance' ? 'Instance configuration' : 'Organization configuration'} />
+      <WorkspaceHeader
+        title="Settings"
+        description={
+          activeGroup?.label === 'Instance'
+            ? 'Instance configuration'
+            : activeGroup?.label === 'Account'
+              ? 'Your account'
+              : 'Organization configuration'
+        }
+      />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         <aside className="hidden md:flex w-[224px] shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
@@ -137,6 +153,7 @@ export default function SettingsPage() {
             <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
           )}
 
+          {activeTab === 'profile' && <ProfileTab key={user?.id} />}
           {activeTab === 'git-sources' && <GitSourcesTab />}
           {activeTab === 'organizations' && <OrganizationsTab />}
           {activeTab === 'members' && <MembersTab />}
@@ -761,178 +778,6 @@ function DeployKeysTab() {
           if (!removeTarget) return
           try {
             await deleteKey.mutateAsync(removeTarget.id)
-            setRemoveTarget(null)
-          } catch {
-            /* surfaced by the mutation hook */
-          }
-        }}
-      />
-    </div>
-  )
-}
-
-function OrganizationsTab() {
-  const { data: organizations = [], isLoading } = useOrganizations()
-  const createOrg = useCreateOrganization()
-  const deleteOrg = useDeleteOrganization()
-  const { currentOrganizationId, setCurrentOrganizationId } = useAuthStore()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
-
-  const handleCreate = () => {
-    if (!name.trim() || !slug.trim()) return
-    createOrg.mutate({ name: name.trim(), slug: slug.trim() }, {
-      onSuccess: () => {
-        setName('')
-        setSlug('')
-        setDialogOpen(false)
-      },
-    })
-  }
-
-  return (
-    <div className="max-w-3xl space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-medium text-white">Organizations</h2>
-          <p className="text-[11px] text-[#9292a3] mt-0.5">Manage teams and shared resources</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-8">
-              <Plus size={14} className="mr-1" />
-              New Organization
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-[#161618] border-[rgba(255,255,255,0.06)] text-[#F0F1F3]">
-            <DialogHeader>
-              <DialogTitle className="text-sm">Create Organization</DialogTitle>
-              <DialogDescription className="text-[11px] text-[#9292a3]">
-                Organizations let you share projects and git sources with your team.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <div>
-                <label className="text-[11px] text-[#A0A0B0] mb-1 block">Name</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Acme Corp"
-                  className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-[#A0A0B0] mb-1 block">Slug</label>
-                <Input
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="acme-corp"
-                  className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={handleCreate}
-                disabled={createOrg.isPending || !name.trim() || !slug.trim()}
-                className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs"
-              >
-                {createOrg.isPending ? 'Creating...' : 'Create'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {isLoading ? (
-        <div className="text-[11px] text-[#9292a3]">Loading...</div>
-      ) : organizations.length === 0 ? (
-        <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] rounded-xl p-8 text-center">
-          <Building2 size={24} className="text-[#9292a3] mx-auto mb-2" />
-          <p className="text-sm text-[#A0A0B0]">No organizations yet</p>
-          <p className="text-[11px] text-[#9292a3] mt-1">Create one to share projects with your team.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {organizations.map((org) => (
-            <div
-              key={org.id}
-              className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                currentOrganizationId === org.id
-                  ? 'bg-[rgba(139,92,246,0.06)] border-[rgba(139,92,246,0.2)]'
-                  : 'bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.05)]'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[rgba(139,92,246,0.12)] flex items-center justify-center text-rail-purple text-xs font-bold">
-                  {org.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div className="text-sm text-white font-medium">{org.name}</div>
-                  <div className="text-[10px] text-[#9292a3] flex items-center gap-2">
-                    <span>@{org.slug}</span>
-                    <span className="flex items-center gap-1">
-                      <Users size={10} />
-                      {org.memberCount ?? 1} members
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {currentOrganizationId === org.id ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rail-purple/10 text-rail-purple">Active</span>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentOrganizationId(org.id)}
-                    className="text-[11px] text-[#A0A0B0] hover:text-white h-7"
-                  >
-                    Switch
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRemoveTarget(org)}
-                  className="text-[11px] text-[#9292a3] hover:text-red-400 h-7"
-                  aria-label={`Delete organization ${org.name}`}
-                >
-                  <Trash2 size={13} />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <ConfirmDialog
-        open={removeTarget !== null}
-        onOpenChange={(open) => !open && setRemoveTarget(null)}
-        title="Delete organization?"
-        description={
-          <>
-            <span className="font-medium text-white">{removeTarget?.name}</span>, its projects, services and
-            servers will be removed from RailDock. Apps and datastores already running on your hosts are left
-            untouched, but RailDock will no longer deploy to or back them up.
-          </>
-        }
-        confirmLabel="Delete organization"
-        destructive
-        confirmWord={removeTarget?.name}
-        confirmWordLabel={
-          <>
-            Type <span className="font-mono font-medium text-white">{removeTarget?.name}</span> to confirm
-          </>
-        }
-        pending={deleteOrg.isPending}
-        onConfirm={async () => {
-          if (!removeTarget) return
-          try {
-            await deleteOrg.mutateAsync(removeTarget.id)
-            if (currentOrganizationId === removeTarget.id) setCurrentOrganizationId(null)
             setRemoveTarget(null)
           } catch {
             /* surfaced by the mutation hook */

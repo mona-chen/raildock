@@ -7,6 +7,7 @@ Rails.application.routes.draw do
     post "services/:id/webhooks/:token/deploy", to: "webhooks#service_deploy", as: :service_webhook_deploy
     post "login", to: "auth#login"
     get "me", to: "auth#me"
+    patch "profile", to: "profile#update"
     get "setup", to: "users#setup_required"
     post "users", to: "users#create"
 

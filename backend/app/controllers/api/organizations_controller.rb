@@ -47,7 +47,10 @@ module Api
       if @organization.update(organization_params)
         render json: serialize(@organization)
       else
-        render json: { errors: @organization.errors.full_messages }, status: :unprocessable_entity
+        render json: {
+          error: @organization.errors.full_messages.join(", "),
+          errors: @organization.errors.full_messages
+        }, status: :unprocessable_entity
       end
     end
 

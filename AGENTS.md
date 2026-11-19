@@ -451,6 +451,11 @@ version the target servers run before assuming a behavior.
   argument breaks enqueueing before the job can run.
 - Frontend ids are strings; the v1 presenters do the same. Any new v1 resource
   needs a string id and must stay out of the dashboard serializers.
+- Account credentials are person-owned, not machine-owned. `PATCH /api/profile`
+  updates name/email/password and requires the current password for email or
+  password changes; API tokens are refused with `token_not_allowed`. Do not
+  expose this through `/api/v1` or MCP. Organization profiles use
+  `PATCH /api/organizations/:id` and require an owner/admin membership.
 - `/mcp` is transport only. `Mcp::Toolset` composes the same `AgentScope`,
   presenters, `AgentWrites`, `AgentPlan` and `AgentPlanApply` as the REST
   controllers, so a tool can never bypass a scope, binding or authorization
