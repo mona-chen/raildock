@@ -58,12 +58,12 @@ function ManifestBanner({ svc }: { svc: Service }) {
   return (
     <div className={`mb-4 p-3 rounded-lg border ${
       isManifest
-        ? 'bg-[#8b5cf6]/5 border-[#8b5cf6]/15'
+        ? 'bg-rail-purple/5 border-rail-purple/15'
         : 'bg-amber-500/5 border-amber-500/15'
     }`}>
       <div className="flex items-center gap-2">
-        <FileCode size={14} className={isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'} />
-        <span className={`text-[12px] font-medium ${isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'}`}>
+        <FileCode size={14} className={isManifest ? 'text-rail-purple' : 'text-amber-400'} />
+        <span className={`text-[12px] font-medium ${isManifest ? 'text-rail-purple' : 'text-amber-400'}`}>
           {isManifest ? 'Managed by Manifest' : 'Hybrid Mode'}
         </span>
       </div>
@@ -74,7 +74,7 @@ function ManifestBanner({ svc }: { svc: Service }) {
       </div>
       <button
         onClick={() => navigate(`/dashboard/project/${projectId}/manifest`)}
-        className={`mt-2 text-[11px] hover:underline ${isManifest ? 'text-[#8b5cf6]' : 'text-amber-400'}`}
+        className={`mt-2 text-[11px] hover:underline ${isManifest ? 'text-rail-purple' : 'text-amber-400'}`}
       >
         Open Manifest Editor →
       </button>
@@ -87,7 +87,7 @@ function SettingsSyncBar({ draft }: { draft: SettingsDraftState }) {
   if (status === 'idle' && !isDirty) return null
 
   return (
-    <div className="flex items-center justify-end gap-3 h-9 px-5 border-b border-white/[0.06] bg-[#0f0f13] text-[11px] flex-shrink-0">
+    <div className="flex items-center justify-end gap-3 h-9 px-5 border-b border-white/6 bg-[#0f0f13] text-[11px] shrink-0">
       {status === 'saving' && (
         <span className="flex items-center gap-1.5 text-white/50">
           <Loader2 size={12} className="animate-spin" /> Saving…
@@ -95,14 +95,14 @@ function SettingsSyncBar({ draft }: { draft: SettingsDraftState }) {
       )}
       {status === 'error' && <span className="text-red-400">Couldn’t save changes.</span>}
       {status === 'saved' && !isDirty && (
-        <span className="flex items-center gap-1.5 text-[#22c55e]">
+        <span className="flex items-center gap-1.5 text-rail-green">
           <Check size={12} /> Saved
         </span>
       )}
       {isDirty && status !== 'saving' && (
         <button
           onClick={saveNow}
-          className="px-2 py-1 rounded bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors"
+          className="px-2 py-1 rounded bg-white/6 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors"
         >
           Save now
         </button>
@@ -127,7 +127,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
   return (
     <SettingsDraftContext.Provider value={draft}>
       <div className="flex h-full flex-col md:flex-row">
-        <div className="hidden md:flex w-[190px] border-r border-white/[0.06] bg-[#0f0f13] flex-shrink-0 flex flex-col">
+        <div className="hidden md:flex w-[190px] border-r border-white/6 bg-[#0f0f13] shrink-0 flex flex-col">
           <div className="p-3 pb-2">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b6b7b]" />
@@ -136,7 +136,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter settings…"
                 aria-label="Filter settings"
-                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-7 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#6b6b7b] focus:outline-none focus:border-rail-purple/40"
+                className="w-full rounded-lg bg-black/40 border border-white/8 pl-7 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#6b6b7b] focus:outline-hidden focus:border-rail-purple/40"
               />
             </div>
           </div>
@@ -145,7 +145,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
               const matchedRows = rowsFor(t.key)
               const danger = t.key === 'danger'
               return (
-                <div key={t.key} className={danger ? 'mt-2 border-t border-white/[0.06] pt-2' : ''}>
+                <div key={t.key} className={danger ? 'mt-2 border-t border-white/6 pt-2' : ''}>
                   <button
                     onClick={() => setTab(t.key)}
                     aria-current={tab === t.key ? 'page' : undefined}
@@ -153,10 +153,10 @@ export function SettingsPanel({ svc }: { svc: Service }) {
                       tab === t.key
                         ? danger
                           ? 'bg-red-500/10 text-red-300'
-                          : 'bg-white/[0.06] text-white/85'
+                          : 'bg-white/6 text-white/85'
                         : danger
                           ? 'text-red-400/70 hover:text-red-300 hover:bg-red-500/[0.07]'
-                          : 'text-white/55 hover:text-white/70 hover:bg-white/[0.03]'
+                          : 'text-white/55 hover:text-white/70 hover:bg-white/3'
                     }`}
                   >
                     <t.icon size={13} className={tab === t.key ? (danger ? 'text-red-400' : 'text-rail-purple') : ''} />
@@ -177,7 +177,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
             )}
           </nav>
         </div>
-        <div className="border-b border-white/[0.08] p-3 md:hidden"><select aria-label="Service settings section" value={tab} onChange={(event) => setTab(event.target.value)} className="input-dark">{tabs.map((item) => <option key={item.key} value={item.key}>{item.label} settings</option>)}</select></div>
+        <div className="border-b border-white/8 p-3 md:hidden"><select aria-label="Service settings section" value={tab} onChange={(event) => setTab(event.target.value)} className="input-dark">{tabs.map((item) => <option key={item.key} value={item.key}>{item.label} settings</option>)}</select></div>
         <div className="flex-1 min-w-0 flex flex-col">
           <SettingsSyncBar draft={draft} />
           <div className="flex-1 overflow-y-auto p-5">
@@ -431,7 +431,7 @@ function SourceSettings({ svc }: { svc: Service }) {
                 <label
                   key={b}
                   className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    svc.builder === b ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5' : 'border-white/[0.06] bg-black/25 hover:border-white/[0.12]'
+                    svc.builder === b ? 'border-rail-purple/40 bg-rail-purple/5' : 'border-white/6 bg-black/25 hover:border-white/12'
                   }`}
                 >
                   <input
@@ -439,7 +439,7 @@ function SourceSettings({ svc }: { svc: Service }) {
                     name="builder"
                     checked={svc.builder === b}
                     onChange={() => setField('builder', b)}
-                    className="accent-[#8b5cf6]"
+                    className="accent-rail-purple"
                   />
                   <span className="text-[13px] text-white/70 capitalize">{b}</span>
                 </label>
@@ -452,7 +452,7 @@ function SourceSettings({ svc }: { svc: Service }) {
             title="Static Site"
             description="Serve static files instead of running a start script. A plain static site has no build step at all."
           >
-            <div className={svc.staticSite?.plainStatic ? 'pb-4' : 'border-b border-white/[0.06] pb-4'}>
+            <div className={svc.staticSite?.plainStatic ? 'pb-4' : 'border-b border-white/6 pb-4'}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[13px] text-white/70">Plain static site</div>
@@ -509,7 +509,7 @@ function SourceSettings({ svc }: { svc: Service }) {
               <AccessibleToggle checked={svc.autoDeploy} onChange={(v) => setField('autoDeploy', v)} label="Auto-deploy" />
             </div>
             {svc.webhookUrl && (
-              <div className="border-t border-white/[0.06] pt-4 mt-4">
+              <div className="border-t border-white/6 pt-4 mt-4">
                 <div className="text-[13px] text-white/70 mb-1">Deploy Webhook</div>
                 <div className="text-[11px] text-white/50 mb-2">Use this URL in your CI/CD pipeline to trigger deployments.</div>
                 <div className="flex items-center gap-2">
@@ -542,7 +542,7 @@ function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyo
       <>
         <SettingCard wide title="Git Repository">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-md bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-md bg-white/6 flex items-center justify-center shrink-0">
               <Github size={15} className="text-white/70" />
             </div>
             <div className="min-w-0 flex-1">
@@ -551,14 +551,14 @@ function SourceSection({ svc, setField }: { svc: Service; setField: (field: keyo
                 href={svc.gitRepo}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] text-white/45 hover:text-[#8b5cf6] inline-flex items-center gap-1"
+                className="text-[11px] text-white/45 hover:text-rail-purple inline-flex items-center gap-1"
               >
                 View repository <ExternalLink size={10} />
               </a>
             </div>
             <button
               onClick={() => setField('gitRepo', '')}
-              className="px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-md border border-white/[0.08] transition-colors flex-shrink-0"
+              className="px-2.5 py-1 text-[11px] text-white/50 hover:text-white/80 hover:bg-white/6 rounded-md border border-white/8 transition-colors shrink-0"
             >
               Disconnect
             </button>
@@ -608,7 +608,7 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
     <div>
       {canSelect ? (
         <Select value={branch} onValueChange={onChange}>
-          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+          <SelectTrigger className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-hidden focus:border-rail-purple/40">
             <SelectValue placeholder="Select branch" />
           </SelectTrigger>
           <SelectContent>
@@ -623,7 +623,7 @@ function BranchField({ repoFullName, sourceId, branch, onChange }: { repoFullNam
             type="text"
             value={branch}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-hidden focus:border-rail-purple/40"
             placeholder="main"
           />
           {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
@@ -643,7 +643,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
     <div>
       {canSelect ? (
         <Select value={directory || '.'} onValueChange={onChange}>
-          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40">
+          <SelectTrigger className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-hidden focus:border-rail-purple/40">
             <SelectValue placeholder="Select directory" />
           </SelectTrigger>
           <SelectContent className="max-h-[240px]">
@@ -658,7 +658,7 @@ function DirectoryField({ repoFullName, sourceId, branch, directory, onChange }:
             type="text"
             value={directory}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-none focus:border-[#8b5cf6]/40"
+            className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[12px] text-white/80 focus:outline-hidden focus:border-rail-purple/40"
             placeholder="./"
           />
           {isLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 animate-spin" />}
@@ -686,7 +686,7 @@ function DeploySettings({ svc }: { svc: Service }) {
     <SettingsGroup>
       <SettingCard title="Restart Policy" description="What Docker does when the container exits.">
         <Select value={svc.restartPolicy} onValueChange={(v) => setField('restartPolicy', v)}>
-          <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
+          <SelectTrigger className="w-full bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:border-rail-purple/40">
             <SelectValue placeholder="Select restart policy" />
           </SelectTrigger>
           <SelectContent>
@@ -706,7 +706,7 @@ function DeploySettings({ svc }: { svc: Service }) {
         <div className="flex items-start justify-between gap-4">
           <div className="text-[12px] text-white/60">Zero-downtime policy</div>
           <Select value={checks.mode} onValueChange={(v) => { setConfigPath('checks.mode', v); setConfigPath('checks.enabled', v === 'enabled') }}>
-            <SelectTrigger className="rounded border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-none focus:border-[#8b5cf6]/40">
+            <SelectTrigger className="rounded border border-white/8 bg-black/40 px-2 py-1.5 text-[11px] text-white/65 focus:outline-hidden focus:border-rail-purple/40">
               <SelectValue placeholder="Select check mode" />
             </SelectTrigger>
             <SelectContent>
@@ -790,7 +790,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
         <>
           <SettingCard title="Proxy Type" description="Which proxy Dokku configures for this app.">
             <Select value={proxy.proxyType} onValueChange={(v) => setConfigPath('proxy.proxyType', v)}>
-              <SelectTrigger className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40">
+              <SelectTrigger className="w-full bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:border-rail-purple/40">
                 <SelectValue placeholder="Select proxy type" />
               </SelectTrigger>
               <SelectContent>
@@ -809,9 +809,9 @@ function NetworkSettings({ svc }: { svc: Service }) {
         {proxy.portMappings.length > 0 ? (
           <div className="space-y-2 mb-3">
             {proxy.portMappings.map((pm, i) => (
-              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2">
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/6 rounded-lg p-2">
                 <Select value={pm.scheme} onValueChange={(v) => updatePort(i, { scheme: v })}>
-                  <SelectTrigger className="bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70">
+                  <SelectTrigger className="bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] text-white/70">
                     <SelectValue placeholder="scheme" />
                   </SelectTrigger>
                   <SelectContent>
@@ -824,7 +824,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
                   type="number"
                   value={pm.hostPort}
                   onChange={(e) => updatePort(i, { hostPort: parseInt(e.target.value) || 0 })}
-                  className="w-20 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70"
+                  className="w-20 bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] text-white/70"
                   placeholder="host"
                 />
                 <span className="text-white/20">→</span>
@@ -832,10 +832,10 @@ function NetworkSettings({ svc }: { svc: Service }) {
                   type="number"
                   value={pm.containerPort}
                   onChange={(e) => updatePort(i, { containerPort: parseInt(e.target.value) || 0 })}
-                  className="w-20 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70"
+                  className="w-20 bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] text-white/70"
                   placeholder="container"
                 />
-                <button onClick={() => removePort(i)} className="ml-auto p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400">
+                <button onClick={() => removePort(i)} className="ml-auto p-1 hover:bg-white/6 rounded text-white/20 hover:text-red-400">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -846,7 +846,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
         )}
         <button
           onClick={addPort}
-          className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all"
+          className="px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all"
         >
           Add Port Mapping
         </button>
@@ -880,13 +880,13 @@ function NetworkSettings({ svc }: { svc: Service }) {
               return (
                 <label
                   key={net.name}
-                  className="flex items-center gap-2.5 p-2 rounded-lg bg-black/25 border border-white/[0.06] cursor-pointer hover:border-white/[0.12] transition-colors"
+                  className="flex items-center gap-2.5 p-2 rounded-lg bg-black/25 border border-white/6 cursor-pointer hover:border-white/12 transition-colors"
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggleExternalNetwork(net.name)}
-                    className="rounded border-white/20 bg-black/40 text-[#8b5cf6] focus:ring-[#8b5cf6]/40"
+                    className="rounded border-white/20 bg-black/40 text-rail-purple focus:ring-rail-purple/40"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] text-white/70 truncate">{net.name}</div>
@@ -906,7 +906,7 @@ function NetworkSettings({ svc }: { svc: Service }) {
         {externalNetworks.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {externalNetworks.map((name) => (
-              <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded text-[11px]">
+              <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-rail-purple/15 text-rail-purple rounded text-[11px]">
                 {name}
                 <button onClick={() => toggleExternalNetwork(name)} className="hover:text-white/70">
                   <Trash2 size={10} />
@@ -1017,10 +1017,10 @@ function AdvancedSettings({ svc }: { svc: Service }) {
         {options.length > 0 ? (
           <div className="space-y-2 mb-3">
             {options.map((opt, i) => (
-              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2.5 group">
-                <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/50 rounded uppercase">{opt.phase}</span>
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/6 rounded-lg p-2.5 group">
+                <span className="text-[10px] px-1.5 py-0.5 bg-white/6 text-white/50 rounded uppercase">{opt.phase}</span>
                 <span className="text-[12px] text-white/60 font-mono flex-1 truncate">{opt.option}</span>
-                <button onClick={() => removeOption(i)} className="p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => removeOption(i)} className="p-1 hover:bg-white/6 rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -1031,7 +1031,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
         )}
         <div className="flex gap-2">
           <Select value={newPhase} onValueChange={(v) => setNewPhase(v as 'build' | 'deploy' | 'run')}>
-            <SelectTrigger className="bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/70">
+            <SelectTrigger className="bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] text-white/70">
               <SelectValue placeholder="phase" />
             </SelectTrigger>
             <SelectContent>
@@ -1046,9 +1046,9 @@ function AdvancedSettings({ svc }: { svc: Service }) {
             value={newOption}
             onChange={(e) => setNewOption(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addOption()}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
+            className="flex-1 bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
           />
-          <button onClick={addOption} className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all">
+          <button onClick={addOption} className="px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all">
             Add
           </button>
         </div>
@@ -1058,10 +1058,10 @@ function AdvancedSettings({ svc }: { svc: Service }) {
         {jobs.length > 0 ? (
           <div className="space-y-2 mb-3">
             {jobs.map((job, i) => (
-              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/[0.06] rounded-lg p-2.5 group">
-                <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded font-mono">{job.schedule}</span>
+              <div key={i} className="flex items-center gap-2 bg-black/25 border border-white/6 rounded-lg p-2.5 group">
+                <span className="text-[10px] px-1.5 py-0.5 bg-rail-purple/10 text-rail-purple rounded font-mono">{job.schedule}</span>
                 <span className="text-[12px] text-white/60 font-mono flex-1 truncate">{job.command}</span>
-                <button onClick={() => removeJob(i)} className="p-1 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => removeJob(i)} className="p-1 hover:bg-white/6 rounded text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -1076,7 +1076,7 @@ function AdvancedSettings({ svc }: { svc: Service }) {
             placeholder="*/5 * * * *"
             value={schedule}
             onChange={(e) => setSchedule(e.target.value)}
-            className="w-32 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
+            className="w-32 bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
           />
           <input
             type="text"
@@ -1084,9 +1084,9 @@ function AdvancedSettings({ svc }: { svc: Service }) {
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addJob()}
-            className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
+            className="flex-1 bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] font-mono text-white/70"
           />
-          <button onClick={addJob} className="px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all">
+          <button onClick={addJob} className="px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all">
             Add
           </button>
         </div>
@@ -1163,7 +1163,7 @@ function DangerZone({ svc }: { svc: Service }) {
 
       {showConfirm && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center px-4"
           onClick={handleClose}
         >
           <div
@@ -1209,7 +1209,7 @@ function DangerZone({ svc }: { svc: Service }) {
                 autoComplete="off"
                 spellCheck={false}
                 className={cn(
-                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-none transition-colors',
+                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-hidden transition-colors',
                   confirmationFieldTone(confirmName, isConfirmValid)
                 )}
                 autoFocus
@@ -1297,7 +1297,7 @@ function SettingCard({ title, description, wide = false, children }: { title?: s
         {title && <div className="text-[13px] font-medium text-white/85">{title}</div>}
         {description && <div className="mt-0.5 text-[11px] leading-snug text-white/40">{description}</div>}
       </div>
-      <div className={cn('flex min-w-0 flex-col gap-2.5', wide ? 'mt-3' : 'sm:w-[300px] sm:flex-shrink-0')}>{children}</div>
+      <div className={cn('flex min-w-0 flex-col gap-2.5', wide ? 'mt-3' : 'sm:w-[300px] sm:shrink-0')}>{children}</div>
     </div>
   )
 }
@@ -1307,7 +1307,7 @@ function SettingCard({ title, description, wide = false, children }: { title?: s
 // (a danger zone, a group of rows); a card per setting reads as noise.
 function SettingsGroup({ children }: { children: React.ReactNode }) {
   return (
-    <div className="divide-y divide-white/[0.055] overflow-hidden rounded-lg border border-white/[0.06] bg-[#17171b]">
+    <div className="divide-y divide-white/5.5 overflow-hidden rounded-lg border border-white/6 bg-[#17171b]">
       {children}
     </div>
   )
@@ -1326,7 +1326,7 @@ function TextField({ label, value, placeholder, type = 'text', hideLabel = false
         placeholder={placeholder}
         aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+        className="w-full bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
       />
     </div>
   )
@@ -1340,7 +1340,7 @@ function CopyButton({ text }: { text: string }) {
       onClick={() => copy(text, 'settings-webhook')}
       className="px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
     >
-      {isCopied ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+      {isCopied ? <Check size={12} className="text-rail-green" /> : <Copy size={12} />}
       {isCopied ? 'Copied' : 'Copy'}
     </button>
   )
@@ -1356,7 +1356,7 @@ function ResourceInput({ label, value, onChange }: { label: string; value: strin
         placeholder="—"
         aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+        className="w-full mt-1 bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-hidden focus:border-rail-purple/40"
       />
     </div>
   )

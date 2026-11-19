@@ -131,25 +131,25 @@ export default function VariablesTab({ svc }: { svc: Service }) {
     return (
       <div
         key={ev.key}
-        className={`flex items-start gap-3 border border-white/[0.06] rounded-xl p-3 group transition-colors ${
-          ev.isDokkuInternal ? 'bg-[#131318]' : 'bg-[#1a1a1e] hover:border-white/[0.1]'
+        className={`flex items-start gap-3 border border-white/6 rounded-xl p-3 group transition-colors ${
+          ev.isDokkuInternal ? 'bg-[#131318]' : 'bg-[#1a1a1e] hover:border-white/10'
         }`}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[13px] font-mono text-[#8b5cf6]/80">{ev.key}</span>
+            <span className="text-[13px] font-mono text-rail-purple/80">{ev.key}</span>
             {ev.source && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.06] text-white/50 rounded-full">
+              <span className="text-[10px] px-1.5 py-0.5 bg-white/6 text-white/50 rounded-full">
                 {ev.source}
               </span>
             )}
             {ev.isDokkuInternal && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-[#22c55e]/10 text-[#22c55e]/60 rounded-full">
+              <span className="text-[10px] px-1.5 py-0.5 bg-rail-green/10 text-rail-green/60 rounded-full">
                 dokku
               </span>
             )}
             {isReference && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6]/60 rounded-full">
+              <span className="text-[10px] px-1.5 py-0.5 bg-rail-purple/10 text-rail-purple/60 rounded-full">
                 reference
               </span>
             )}
@@ -170,13 +170,13 @@ export default function VariablesTab({ svc }: { svc: Service }) {
                   }
                   if (e.key === 'Escape') setEditing(null)
                 }}
-                className="flex-1 bg-black/40 border border-white/[0.08] rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="flex-1 bg-black/40 border border-white/8 rounded px-2 py-1 text-[12px] font-mono text-white/70 focus:outline-hidden focus:border-rail-purple/40"
               />
               <button
                 onClick={() => {
                   saveEdit(ev.key)
                 }}
-                className="px-2 py-1 bg-[#22c55e]/10 text-[#22c55e] rounded text-[11px] hover:bg-[#22c55e]/20"
+                className="px-2 py-1 bg-rail-green/10 text-rail-green rounded text-[11px] hover:bg-rail-green/20"
               >
                 Save
               </button>
@@ -195,16 +195,16 @@ export default function VariablesTab({ svc }: { svc: Service }) {
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <IconButton
             onClick={() => copy(ev.value, ev.key)}
-            className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
+            className="p-1.5 hover:bg-white/6 rounded text-[#9292a3] hover:text-white/50"
             title="Copy value"
           >
-            {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+            {copiedKey === ev.key ? <Check size={12} className="text-rail-green" /> : <Copy size={12} />}
           </IconButton>
           {!readonly && (
             <>
               <IconButton
                 onClick={() => toggleReveal(ev.key)}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
+                className="p-1.5 hover:bg-white/6 rounded text-[#9292a3] hover:text-white/50"
                 title={isRevealed ? 'Hide value' : 'Show value'}
               >
                 {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -214,7 +214,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
                   setEditing(ev.key)
                   setEditValue(ev.value)
                 }}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-white/50"
+                className="p-1.5 hover:bg-white/6 rounded text-[#9292a3] hover:text-white/50"
                 title="Edit"
               >
                 <Wrench size={12} />
@@ -222,7 +222,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
               <IconButton
                 onClick={() => setDeleteKey(ev.key)}
                 aria-label={`Delete ${ev.key}`}
-                className="p-1.5 hover:bg-white/[0.06] rounded text-[#9292a3] hover:text-red-400"
+                className="p-1.5 hover:bg-white/6 rounded text-[#9292a3] hover:text-red-400"
                 title="Delete"
               >
                 <Trash2 size={12} />
@@ -273,7 +273,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
       )}
 
       {mode === 'raw' && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4 space-y-3">
+        <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4 space-y-3">
           <div className="text-[13px] font-medium text-white/70">Bulk Import</div>
           <p className="text-[11px] text-white/50">
             Paste <code className="text-white/50">KEY=VALUE</code> pairs, one per line. Lines starting with # are
@@ -284,7 +284,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
             placeholder={`DATABASE_URL=postgres://...\nREDIS_URL=redis://...\nAPI_KEY=sk-...`}
-            className="w-full h-40 bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/60 focus:outline-none focus:border-[#8b5cf6]/40 resize-none"
+            className="w-full h-40 bg-black/30 border border-white/8 rounded-lg px-3 py-2 text-[12px] font-mono text-white/60 focus:outline-hidden focus:border-rail-purple/40 resize-none"
           />
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-white/50">{parseRawEnv(rawText).length} variable(s) ready to import</span>
@@ -301,7 +301,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
               <button
                 onClick={handleRawSave}
                 disabled={parseRawEnv(rawText).length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all disabled:opacity-40"
               >
                 <Plus size={12} />
                 Import
@@ -319,7 +319,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             </div>
             <div className="space-y-2">
               {userVars.length === 0 ? (
-                <div className="text-[12px] text-[#9292a3] py-4 text-center border border-dashed border-white/[0.06] rounded-xl">
+                <div className="text-[12px] text-[#9292a3] py-4 text-center border border-dashed border-white/6 rounded-xl">
                   No user-defined variables. Add one below or use the Raw Editor.
                 </div>
               ) : (
@@ -328,7 +328,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
             </div>
           </div>
 
-          <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+          <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
             <div className="text-[13px] font-medium text-white/70 mb-3">Add Variable</div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -339,7 +339,7 @@ export default function VariablesTab({ svc }: { svc: Service }) {
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                className="flex-1 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="flex-1 bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-hidden focus:border-rail-purple/40"
               />
               <input
                 type="text"
@@ -351,12 +351,12 @@ export default function VariablesTab({ svc }: { svc: Service }) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); addVariable() }
                 }}
-                className="flex-[2] bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="flex-2 bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 focus:outline-hidden focus:border-rail-purple/40"
               />
               <button
                 onClick={addVariable}
                 disabled={!newKey.trim() || setEnvVar.isPending}
-                className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-40"
+                className="px-4 py-2 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all disabled:opacity-40"
               >
                 Add
               </button>

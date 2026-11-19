@@ -133,7 +133,7 @@ export default function BackupDestinationsTab() {
                     readOnly
                     value={recoveryKey}
                     onFocus={(event) => event.currentTarget.select()}
-                    className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1.5 truncate border border-[rgba(255,255,255,0.08)] focus:outline-none"
+                    className="flex-1 text-[10px] font-mono text-[#A0A0B0] bg-[rgba(255,255,255,0.03)] rounded px-2 py-1.5 truncate border border-[rgba(255,255,255,0.08)] focus:outline-hidden"
                   />
                   <Button
                     variant="ghost"
@@ -257,7 +257,7 @@ export default function BackupDestinationsTab() {
         <div
           className={`rounded-xl border p-3 ${
             criticalFindings.length > 0
-              ? 'border-red-500/20 bg-red-500/[0.04]'
+              ? 'border-red-500/20 bg-red-500/4'
               : 'border-amber-400/15 bg-amber-400/[0.035]'
           }`}
         >

@@ -48,7 +48,7 @@ export default function ServerDockerImportModal({ serverId, serverName, onClose 
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center px-4" onClick={onClose}>
       <div
         className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[640px] max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -58,7 +58,7 @@ export default function ServerDockerImportModal({ serverId, serverName, onClose 
             <h3 className="text-base font-semibold text-white">Import Docker Containers</h3>
             <p className="text-[11px] text-[#8a8a99]">{serverName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.05]">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5">
             <X size={16} />
           </button>
         </div>

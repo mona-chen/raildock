@@ -25,8 +25,8 @@ function ChangeRow({ change }: { change: ManifestChange }) {
   }
 
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
-      <div className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${bg}`}>
+    <div className="flex items-start gap-3 py-2.5 border-b border-white/4 last:border-0">
+      <div className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center shrink-0 ${bg}`}>
         <Icon size={12} className={color} />
       </div>
       <div className="flex-1 min-w-0">
@@ -104,10 +104,10 @@ export default function DiffViewer({ changes, severity, warnings }: DiffViewerPr
         )}
       </div>
 
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg">
+      <div className="bg-white/2 border border-white/6 rounded-lg">
         {Object.entries(byService).map(([serviceName, serviceChanges]) => (
           <div key={serviceName} className="px-3">
-            <div className="text-[11px] text-white/50 uppercase tracking-wider py-2 border-b border-white/[0.04]">
+            <div className="text-[11px] text-white/50 uppercase tracking-wider py-2 border-b border-white/4">
               {serviceName}
             </div>
             <div>

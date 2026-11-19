@@ -1,8 +1,219 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap')
+layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-dark-bg: #0d0d0f;
+  --color-dark-surface: #151518;
+  --color-dark-elevated: #1a1a1f;
+  --color-dark-card: #1e1e24;
+  --color-dark-hover: #2a2a32;
+  --color-dark-active: #32323d;
+
+  --color-rail-purple: #8b5cf6;
+  --color-rail-purple-dark: #7c3aed;
+  --color-rail-purple-light: #a78bfa;
+  --color-rail-blue: #3b82f6;
+  --color-rail-green: #22c55e;
+  --color-rail-yellow: #eab308;
+  --color-rail-orange: #f97316;
+  --color-rail-red: #ef4444;
+  --color-rail-teal: #14b8a6;
+
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: JetBrains Mono, monospace;
+
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xs: calc(var(--radius) - 6px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-pulse-slow: pulse-slow 2s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-slow {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#8B5CF6] text-white text-sm font-medium rounded-lg hover:bg-[#7C3AED] transition-all active:scale-[0.98];
+}
+
+@utility btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-[rgba(255,255,255,0.06)] text-[#A0A0B0] text-sm font-medium rounded-lg hover:bg-[rgba(255,255,255,0.1)] hover:text-white transition-all active:scale-[0.98];
+}
+
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all;
+}
+
+@utility input-dark {
+  @apply w-full px-3 py-2 bg-[#151518] border border-[rgba(255,255,255,0.1)] rounded-lg text-sm text-[#F0F0F5] placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.5)] focus:ring-1 focus:ring-[rgba(139,92,246,0.2)] transition-all;
+}
+
+@utility card-dark {
+  @apply bg-[#1A1A1F] border border-[rgba(255,255,255,0.06)] rounded-xl;
+}
+
+@utility card-hover {
+  @apply hover:bg-[#1E1E24] hover:border-[rgba(255,255,255,0.1)] transition-all;
+}
+
+@utility sidebar-item {
+  @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#A0A0B0] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer;
+}
+
+@utility sidebar-item-active {
+  @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)] transition-all cursor-pointer;
+}
+
+@utility tab-item {
+  @apply px-4 py-2.5 text-sm font-medium text-[#8a8a99] border-b-2 border-transparent hover:text-[#A0A0B0] transition-all cursor-pointer;
+}
+
+@utility tab-item-active {
+  @apply px-4 py-2.5 text-sm font-medium text-[#8B5CF6] border-b-2 border-[#8B5CF6] transition-all cursor-pointer;
+}
+
+@utility badge {
+  @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+}
+
+@utility badge-green {
+  @apply badge bg-[rgba(34,197,94,0.15)] text-[#22C55E];
+}
+
+@utility badge-yellow {
+  @apply badge bg-[rgba(234,179,8,0.15)] text-[#EAB308];
+}
+
+@utility badge-red {
+  @apply badge bg-[rgba(239,68,68,0.15)] text-[#EF4444];
+}
+
+@utility badge-blue {
+  @apply badge bg-[rgba(59,130,246,0.15)] text-[#3B82F6];
+}
+
+@utility badge-purple {
+  @apply badge bg-[rgba(139,92,246,0.15)] text-[#8B5CF6];
+}
+
+@utility badge-gray {
+  @apply badge bg-[rgba(255,255,255,0.06)] text-[#8a8a99];
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
 
 @layer base {
   :root {
@@ -96,69 +307,6 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(255,255,255,0.2);
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#8B5CF6] text-white text-sm font-medium rounded-lg hover:bg-[#7C3AED] transition-all active:scale-[0.98];
-  }
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-[rgba(255,255,255,0.06)] text-[#A0A0B0] text-sm font-medium rounded-lg hover:bg-[rgba(255,255,255,0.1)] hover:text-white transition-all active:scale-[0.98];
-  }
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-[#A0A0B0] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all;
-  }
-  .input-dark {
-    @apply w-full px-3 py-2 bg-[#151518] border border-[rgba(255,255,255,0.1)] rounded-lg text-sm text-[#F0F0F5] placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.5)] focus:ring-1 focus:ring-[rgba(139,92,246,0.2)] transition-all;
-  }
-  .card-dark {
-    @apply bg-[#1A1A1F] border border-[rgba(255,255,255,0.06)] rounded-xl;
-  }
-  .card-hover {
-    @apply hover:bg-[#1E1E24] hover:border-[rgba(255,255,255,0.1)] transition-all;
-  }
-  .sidebar-item {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#A0A0B0] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer;
-  }
-  .sidebar-item-active {
-    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)] transition-all cursor-pointer;
-  }
-  .tab-item {
-    @apply px-4 py-2.5 text-sm font-medium text-[#8a8a99] border-b-2 border-transparent hover:text-[#A0A0B0] transition-all cursor-pointer;
-  }
-  .tab-item-active {
-    @apply px-4 py-2.5 text-sm font-medium text-[#8B5CF6] border-b-2 border-[#8B5CF6] transition-all cursor-pointer;
-  }
-  .badge {
-    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
-  }
-  .badge-green {
-    @apply badge bg-[rgba(34,197,94,0.15)] text-[#22C55E];
-  }
-  .badge-yellow {
-    @apply badge bg-[rgba(234,179,8,0.15)] text-[#EAB308];
-  }
-  .badge-red {
-    @apply badge bg-[rgba(239,68,68,0.15)] text-[#EF4444];
-  }
-  .badge-blue {
-    @apply badge bg-[rgba(59,130,246,0.15)] text-[#3B82F6];
-  }
-  .badge-purple {
-    @apply badge bg-[rgba(139,92,246,0.15)] text-[#8B5CF6];
-  }
-  .badge-gray {
-    @apply badge bg-[rgba(255,255,255,0.06)] text-[#8a8a99];
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .font-mono {
-    font-family: 'JetBrains Mono', monospace;
   }
 }
 

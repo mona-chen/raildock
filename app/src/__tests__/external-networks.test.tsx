@@ -254,7 +254,7 @@ describe('External Networks in NetworkSettings', () => {
 
     const matches = screen.getAllByText('matrix-postgres')
     expect(matches.length).toBeGreaterThanOrEqual(2)
-    expect(matches.some((el) => el.closest('[class*="bg-[#8b5cf6]/15"]'))).toBe(true)
+    expect(matches.some((el) => el.closest('[class*="bg-rail-purple/15"]'))).toBe(true)
   })
 
   it('removes a network via pill button', async () => {

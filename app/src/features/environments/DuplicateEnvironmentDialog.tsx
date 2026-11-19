@@ -104,14 +104,14 @@ export default function DuplicateEnvironmentDialog({
 
         {result ? (
           <div className="space-y-3">
-            <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
+            <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/6 p-3">
               <Check size={14} className="mt-0.5 shrink-0 text-emerald-400" />
               <p className="text-[11px] leading-relaxed text-white/60">
                 {duplicateHighlights(result.summary).join(' · ') || 'Nothing to copy — the environment is empty'}
               </p>
             </div>
             {result.summary.warnings.map((warning) => (
-              <div key={warning} className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3">
+              <div key={warning} className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/6 p-3">
                 <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-400" />
                 <p className="text-[11px] leading-relaxed text-amber-100/70">{warning}</p>
               </div>
@@ -132,7 +132,7 @@ export default function DuplicateEnvironmentDialog({
               onChange={(event) => { setEdited(true); setDraft(event.target.value) }}
               onKeyDown={(event) => { if (event.key === 'Enter') handleDuplicate() }}
               placeholder="staging"
-              className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-[rgba(139,92,246,0.5)]"
+              className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-hidden transition-colors focus:border-[rgba(139,92,246,0.5)]"
             />
           </div>
         )}

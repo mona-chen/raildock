@@ -72,17 +72,17 @@ export default function CanvasToolbar({
 
   return (
     <>
-    <div className="min-h-14 border-b border-white/[0.08] bg-[#111115] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2 flex-shrink-0 z-40">
+    <div className="min-h-14 border-b border-white/8 bg-[#111115] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2 shrink-0 z-40">
       <div className="flex max-w-full items-center gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => navigate('/dashboard/projects')}
-          className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+          className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center hover:bg-white/10"
           aria-label="Back to projects"
         >
           <Box size={16} className="text-white" />
         </button>
-        <div className="w-px h-4 bg-white/[0.08]" />
+        <div className="w-px h-4 bg-white/8" />
         <ProjectNavigator projectId={projectId} projectName={projectName} />
         <span className="text-[#a0a0b0]">/</span>
         <EnvironmentSwitcher
@@ -110,8 +110,8 @@ export default function CanvasToolbar({
                   aria-current={activeView === view.key ? 'page' : undefined}
                   className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] transition-colors ${
                     activeView === view.key
-                      ? 'bg-white/[0.08] text-white/85'
-                      : 'text-white/50 hover:text-white/70 hover:bg-white/[0.04]'
+                      ? 'bg-white/8 text-white/85'
+                      : 'text-white/50 hover:text-white/70 hover:bg-white/4'
                   }`}
                 >
                   <view.icon size={13} />
@@ -119,7 +119,7 @@ export default function CanvasToolbar({
                 </button>
               ))}
             </nav>
-            <div className="w-px h-4 bg-white/[0.08]" />
+            <div className="w-px h-4 bg-white/8" />
           </>
         )}
         {/* Project Actions Dropdown */}
@@ -128,7 +128,7 @@ export default function CanvasToolbar({
             <button
               type="button"
               disabled={isLoading || !activeEnvironmentId}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-white/60 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-white/60 bg-white/6 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 size={12} className="animate-spin" />
@@ -139,33 +139,33 @@ export default function CanvasToolbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="bg-[#1a1a1e] border-white/[0.08] text-white/80 min-w-[180px]"
+            className="bg-[#1a1a1e] border-white/8 text-white/80 min-w-[180px]"
           >
             <DropdownMenuItem
               onClick={() => { setPendingAction('deploy'); setOpen(false) }}
-              className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
+              className="text-[12px] cursor-pointer hover:bg-white/8 focus:bg-white/8 focus:text-white"
             >
-              <Rocket size={13} className="text-[#8b5cf6]" />
+              <Rocket size={13} className="text-rail-purple" />
               Deploy All Apps
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => { setPendingAction('restart'); setOpen(false) }}
-              className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
+              className="text-[12px] cursor-pointer hover:bg-white/8 focus:bg-white/8 focus:text-white"
             >
               <RotateCcw size={13} className="text-white/50" />
               Restart All
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => { setPendingAction('cancel'); setOpen(false) }}
-              className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
+              className="text-[12px] cursor-pointer hover:bg-white/8 focus:bg-white/8 focus:text-white"
             >
               <Ban size={13} className="text-amber-400" />
               Cancel All Deployments
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuSeparator className="bg-white/8" />
             <DropdownMenuItem
               onClick={() => { setPendingAction('stop'); setOpen(false) }}
-              className="text-[12px] cursor-pointer hover:bg-white/[0.08] focus:bg-white/[0.08] focus:text-white"
+              className="text-[12px] cursor-pointer hover:bg-white/8 focus:bg-white/8 focus:text-white"
             >
               <Square size={13} className="text-red-400" />
               Stop All

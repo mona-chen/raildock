@@ -107,7 +107,7 @@ export default function ConfirmDialog({
               disabled={pending}
               aria-invalid={typed.length > 0 && !wordSatisfied}
               className={cn(
-                'w-full rounded-lg border bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-none transition-colors',
+                'w-full rounded-lg border bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-hidden transition-colors',
                 confirmationFieldTone(typed, wordSatisfied)
               )}
             />
@@ -135,7 +135,7 @@ export default function ConfirmDialog({
             disabled={!canConfirm}
             className={cn(
               'inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-              destructive ? 'bg-red-500 hover:bg-red-600' : 'bg-[#8b5cf6] hover:bg-[#7c3aed]'
+              destructive ? 'bg-red-500 hover:bg-red-600' : 'bg-rail-purple hover:bg-rail-purple-dark'
             )}
           >
             {pending && <Loader2 size={13} className="animate-spin" />}

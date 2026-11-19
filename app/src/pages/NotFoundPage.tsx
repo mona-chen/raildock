@@ -8,7 +8,7 @@ export default function NotFoundPage() {
   return (
     <div className="min-h-screen bg-[#0B0B0D] text-[#F0F1F3] flex items-center justify-center p-8">
       <div className="text-center max-w-md">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-5">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-white/4 border border-white/6 flex items-center justify-center mb-5">
           <Compass size={26} className="text-rail-purple" />
         </div>
         <h1 className="text-[20px] font-semibold text-white/90 mb-2">Page not found</h1>
@@ -24,7 +24,7 @@ export default function NotFoundPage() {
           </Link>
           <button
             onClick={() => navigate(-1)}
-            className="px-4 py-2 bg-white/[0.06] text-white/70 text-[13px] rounded-lg hover:bg-white/[0.1] transition-colors"
+            className="px-4 py-2 bg-white/6 text-white/70 text-[13px] rounded-lg hover:bg-white/10 transition-colors"
           >
             Go back
           </button>

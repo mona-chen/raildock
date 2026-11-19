@@ -31,7 +31,7 @@ export default function ProjectNavigator({ projectId, projectName }: ProjectNavi
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] hover:bg-white/[0.06] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8b5cf6]"
+          className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] hover:bg-white/6 focus:outline-hidden focus-visible:ring-1 focus-visible:ring-rail-purple"
           aria-label={`Switch project (currently ${projectName})`}
         >
           <span className="max-w-[180px] truncate font-medium text-white/90">{projectName}</span>
@@ -40,7 +40,7 @@ export default function ProjectNavigator({ projectId, projectName }: ProjectNavi
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="min-w-[240px] border-white/[0.08] bg-[#1a1a1e] text-white/80"
+        className="min-w-[240px] border-white/8 bg-[#1a1a1e] text-white/80"
       >
         <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.12em] text-white/30">
           Projects
@@ -56,7 +56,7 @@ export default function ProjectNavigator({ projectId, projectName }: ProjectNavi
               onClick={() => {
                 if (!isCurrent) navigate(`/dashboard/project/${project.id}`)
               }}
-              className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+              className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
             >
               <Folder size={13} className="text-white/40" />
               <span className="flex-1 truncate">{project.name}</span>
@@ -64,17 +64,17 @@ export default function ProjectNavigator({ projectId, projectName }: ProjectNavi
             </DropdownMenuItem>
           )
         })}
-        <DropdownMenuSeparator className="bg-white/[0.08]" />
+        <DropdownMenuSeparator className="bg-white/8" />
         <DropdownMenuItem
           onClick={() => navigate('/dashboard/projects')}
-          className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+          className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
         >
           <LayoutGrid size={13} className="text-white/50" />
           View all projects
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => navigate('/dashboard/projects?new=1')}
-          className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+          className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
         >
           <FolderPlus size={13} className="text-rail-purple" />
           New project

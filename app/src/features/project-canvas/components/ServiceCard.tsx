@@ -73,13 +73,13 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
     >
       <div
         className={`bg-[#19191f] border rounded-xl overflow-hidden transition-all hover:border-violet-400/40 shadow-lg shadow-black/10 ${
-          isSelected ? 'border-[#8b5cf6]/50 shadow-xl shadow-[#8b5cf6]/5' : 'border-white/[0.1]'
+          isSelected ? 'border-rail-purple/50 shadow-xl shadow-rail-purple/5' : 'border-white/10'
         }`}
       >
         <div className="p-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
               style={{ backgroundColor: `${color}15` }}
             >
               <ServiceIcon subtype={service.subtype} framework={service.framework} dockerImage={service.dockerImage} size={18} />
@@ -93,7 +93,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
                   ref={buttonRef}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); showLinkMenu ? setShowLinkMenu(false) : openMenu() }}
-                  className="p-1 rounded hover:bg-white/[0.08] text-white/50 hover:text-white/60 transition-colors"
+                  className="p-1 rounded hover:bg-white/8 text-white/50 hover:text-white/60 transition-colors"
                   title="Link services"
                   aria-label={`Manage links for ${service.name}`}
                   aria-expanded={showLinkMenu}
@@ -103,7 +103,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
                 </button>
                 {showLinkMenu && menuPos && (
                   <div
-                    className="fixed w-44 bg-[#1a1a1e] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40 py-1.5 z-50"
+                    className="fixed w-44 bg-[#1a1a1e] border border-white/8 rounded-xl shadow-xl shadow-black/40 py-1.5 z-50"
                     style={{ top: menuPos.top, left: menuPos.left }}
                     ref={menuRef}
                   >
@@ -115,7 +115,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
                             key={s.id}
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); onUnlink?.(s.id); setShowLinkMenu(false) }}
-                            className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/[0.04] text-left"
+                            className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/4 text-left"
                           >
                             <Unlink size={11} className="text-red-400/60" />
                             <span className="text-[12px] text-white/60 truncate">{s.name}</span>
@@ -123,7 +123,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
                         ))}
                       </>
                     )}
-                    {linkable.length > 0 && linked.length > 0 && <div className="my-1 border-t border-white/[0.06]" />}
+                    {linkable.length > 0 && linked.length > 0 && <div className="my-1 border-t border-white/6" />}
                     {linkable.length > 0 && (
                       <>
                         <div className="px-3 py-1 text-[10px] text-white/50 uppercase tracking-wider">Link to</div>
@@ -132,9 +132,9 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
                             key={s.id}
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); onLink?.(s.id); setShowLinkMenu(false) }}
-                            className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/[0.04] text-left"
+                            className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-white/4 text-left"
                           >
-                            <Link2 size={11} className="text-[#8b5cf6]/60" />
+                            <Link2 size={11} className="text-rail-purple/60" />
                             <span className="text-[12px] text-white/60 truncate">{s.name}</span>
                           </button>
                         ))}
@@ -165,7 +165,7 @@ function ServiceCard({ service, position, isSelected, onMouseDown, onActivate, o
       </div>
       {service.storageMounts?.length > 0 && (
         <div className="mt-1.5 ml-3 mr-3">
-          <div className="flex items-center gap-2 px-3 py-2 bg-[#16161a]/70 border border-white/[0.04] rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#16161a]/70 border border-white/4 rounded-lg">
             <HardDrive size={11} className="text-[#9393a5]" />
             <span className="text-[11px] text-[#9393a5] font-mono">{service.storageMounts.length === 1 ? service.storageMounts[0].containerPath : `${service.storageMounts.length} volumes`}</span>
           </div>

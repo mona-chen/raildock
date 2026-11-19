@@ -17,7 +17,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
 
   return (
     <div className="min-h-full bg-[#111114]">
-      <div className="flex overflow-x-auto border-b border-white/[0.06] px-5" role="tablist" aria-label="Backup and recovery sections">
+      <div className="flex overflow-x-auto border-b border-white/6 px-5" role="tablist" aria-label="Backup and recovery sections">
         {tabs.map((t) => {
           const Icon = t.icon
           return (
@@ -29,7 +29,7 @@ export default function BackupsTab({ svc, serviceId }: { svc: Service; serviceId
               onClick={() => setSubTab(t.key)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] border-b-2 transition-all whitespace-nowrap ${
                 subTab === t.key
-                  ? 'border-[#8b5cf6] text-[#8b5cf6]'
+                  ? 'border-rail-purple text-rail-purple'
                   : 'border-transparent text-white/50 hover:text-white/60'
               }`}
             >

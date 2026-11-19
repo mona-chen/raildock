@@ -47,7 +47,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
           href="https://github.com/raildock/templates"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#8b5cf6] hover:underline ml-1"
+          className="text-rail-purple hover:underline ml-1"
         >
           Contribute on GitHub →
         </a>
@@ -70,18 +70,18 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                 return (
                   <div
                     key={template.id}
-                    className="flex items-center gap-3 p-3 border border-white/[0.06] bg-[#1a1a1e] rounded-lg hover:border-white/[0.12] transition-all"
+                    className="flex items-center gap-3 p-3 border border-white/6 bg-[#1a1a1e] rounded-lg hover:border-white/12 transition-all"
                   >
                     {template.logo ? (
                       <img
                         src={template.logo}
                         alt={template.name}
-                        className="w-8 h-8 rounded object-contain bg-white/[0.05] flex-shrink-0"
+                        className="w-8 h-8 rounded object-contain bg-white/5 shrink-0"
                         loading="lazy"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center shrink-0">
                         <Icon size={14} style={{ color }} />
                       </div>
                     )}
@@ -92,18 +92,18 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                         {template.services?.map((s: { name: string; category: string }, i: number) => (
                           <span
                             key={i}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-white/50"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/50"
                           >
                             {s.name}
                           </span>
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => onUseAsManifest(template.id, template.raw || '')}
                         disabled={!template.raw}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-[#8b5cf6] bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/15 rounded-lg transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-rail-purple bg-rail-purple/10 hover:bg-rail-purple/15 rounded-lg transition-all disabled:opacity-50"
                       >
                         <FileCode size={12} />
                         Use as Manifest
@@ -111,7 +111,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                       <button
                         onClick={() => handleDeploy(template.id)}
                         disabled={isDeploying}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/60 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/60 bg-white/6 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
                       >
                         {isDeploying ? <Loader2 size={12} className="animate-spin" /> : <Rocket size={12} />}
                         {isDeploying ? 'Deploying...' : 'Deploy'}
@@ -132,7 +132,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
           <div className="text-[11px] text-white/25 mt-1">
             You can add services from Git or a Docker image now. An administrator can configure the community template repository and restart RailDock to enable the catalog.
           </div>
-          <button type="button" onClick={() => void refetch()} disabled={isLoading} className="mt-3 rounded-md bg-white/[0.06] px-3 py-2 text-[12px] text-white/70 disabled:opacity-40">Retry loading templates</button>
+          <button type="button" onClick={() => void refetch()} disabled={isLoading} className="mt-3 rounded-md bg-white/6 px-3 py-2 text-[12px] text-white/70 disabled:opacity-40">Retry loading templates</button>
           <a href="https://github.com/mona-chen/raildock/blob/main/docs/operations.md#templates" target="_blank" rel="noreferrer" className="ml-3 text-[12px] text-violet-300">Catalog setup</a>
         </div>
       )}

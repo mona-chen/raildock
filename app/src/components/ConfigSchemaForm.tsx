@@ -105,7 +105,7 @@ function renderField(
           <SelectTrigger className={commonInputClass}>
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
-          <SelectContent className="bg-[#1A1A1F] border-[rgba(255,255,255,0.1)]">
+          <SelectContent className="bg-dark-elevated border-[rgba(255,255,255,0.1)]">
             {field.options?.map((opt) => (
               <SelectItem key={String(opt)} value={String(opt)} className="text-sm text-white">
                 {String(opt)}

@@ -94,8 +94,8 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        <div className="flex items-start gap-2 rounded-lg border border-[#8b5cf6]/20 bg-[#8b5cf6]/[0.06] px-3 py-2 text-[11px] text-white/60">
-          <GitCompareArrows size={14} className="mt-0.5 shrink-0 text-[#a78bfa]" />
+        <div className="flex items-start gap-2 rounded-lg border border-rail-purple/20 bg-rail-purple/6 px-3 py-2 text-[11px] text-white/60">
+          <GitCompareArrows size={14} className="mt-0.5 shrink-0 text-rail-purple-light" />
           <span>
             These services differ from the manifest. Merging rewrites the manifest with the selected
             live values and loads it into the editor for review — nothing is saved until you Preview and Apply.
@@ -108,7 +108,7 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
           return (
             <div
               key={service.name}
-              className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-3"
+              className="rounded-lg border border-white/6 bg-white/1.5 p-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
                       aria-label={`Merge ${service.name}`}
                       checked={isSelected}
                       onChange={() => toggle(service.name)}
-                      className="h-3.5 w-3.5 cursor-pointer accent-[#8b5cf6]"
+                      className="h-3.5 w-3.5 cursor-pointer accent-rail-purple"
                     />
                   ) : (
                     <span className="h-3.5 w-3.5" />
@@ -157,7 +157,7 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
         })}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-t border-white/6 px-4 py-3">
         <button
           type="button"
           onClick={() => setSelected(mergeable.map((service) => service.name))}
@@ -170,7 +170,7 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
           type="button"
           onClick={handleMerge}
           disabled={activeSelection.length === 0 || merge.isPending}
-          className="flex items-center gap-1.5 rounded-lg bg-[#8b5cf6]/15 px-3 py-1.5 text-[12px] font-medium text-[#c4b5fd] transition-colors hover:bg-[#8b5cf6]/25 disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-lg bg-rail-purple/15 px-3 py-1.5 text-[12px] font-medium text-[#c4b5fd] transition-colors hover:bg-rail-purple/25 disabled:opacity-40"
         >
           {merge.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
           {activeSelection.length > 0 ? `Merge ${activeSelection.length} into editor` : 'Merge into editor'}

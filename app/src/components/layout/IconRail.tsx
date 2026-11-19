@@ -101,9 +101,9 @@ export default function IconRail() {
   const row = collapsed ? 'justify-center px-0' : 'justify-center px-0 md:justify-start md:px-3'
 
   return (
-    <div className={`${width} bg-[#0B0B0D] border-r border-[rgba(255,255,255,0.06)] flex flex-col py-3 px-2 flex-shrink-0 z-30`}>
+    <div className={`${width} bg-[#0B0B0D] border-r border-[rgba(255,255,255,0.06)] flex flex-col py-3 px-2 shrink-0 z-30`}>
       <Link to="/" className={`mb-1 flex h-9 items-center gap-2.5 rounded-lg ${row}`} title="RailDock">
-        <Logo className={`h-7 w-7 flex-shrink-0 ${collapsed ? '' : 'md:hidden'}`} />
+        <Logo className={`h-7 w-7 shrink-0 ${collapsed ? '' : 'md:hidden'}`} />
         {!collapsed && <Logo wordmark className="hidden h-9 w-auto max-w-[144px] md:block" />}
       </Link>
 
@@ -113,7 +113,7 @@ export default function IconRail() {
             className={`mb-3 flex items-center gap-2.5 rounded-lg py-1.5 hover:bg-[rgba(255,255,255,0.04)] transition-colors ${row}`}
             title={currentOrg ? currentOrg.name : 'Personal'}
           >
-            <span className="relative w-8 h-8 rounded-full bg-[rgba(139,92,246,0.12)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center text-[10px] font-bold text-rail-purple flex-shrink-0">
+            <span className="relative w-8 h-8 rounded-full bg-[rgba(139,92,246,0.12)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center text-[10px] font-bold text-rail-purple shrink-0">
               {orgInitial}
               <ChevronDown size={10} className="absolute -bottom-0.5 -right-0.5 text-[#9292a3] bg-[#0B0B0D] rounded-full" />
             </span>
@@ -157,7 +157,7 @@ export default function IconRail() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))} title="Search and commands (⌘K)" aria-label="Search and commands" className={`mb-4 flex h-9 items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.025] text-[#a0a0b0] hover:bg-white/[0.06] ${row}`}><Search size={16} /><span className={`${label} text-xs`}>Search & commands</span><kbd className={`${label} ml-auto mr-1 text-[10px] text-[#878795]`}>⌘K</kbd></button>
+      <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))} title="Search and commands (⌘K)" aria-label="Search and commands" className={`mb-4 flex h-9 items-center gap-3 rounded-lg border border-white/8 bg-white/2.5 text-[#a0a0b0] hover:bg-white/6 ${row}`}><Search size={16} /><span className={`${label} text-xs`}>Search & commands</span><kbd className={`${label} ml-auto mr-1 text-[10px] text-[#878795]`}>⌘K</kbd></button>
       <nav className="flex-1 flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname.startsWith(item.path) || (item.label === 'Projects' && onCanvas)
@@ -170,7 +170,7 @@ export default function IconRail() {
               aria-current={isActive ? 'page' : undefined}
               className={`relative h-9 rounded-lg flex items-center gap-3 transition-all ${row} ${isActive ? 'bg-[rgba(139,92,246,0.12)] text-rail-purple' : 'text-[#9292a3] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)]'}`}
             >
-              <item.icon size={17} className="flex-shrink-0" />
+              <item.icon size={17} className="shrink-0" />
               <span className={`${label} text-[12.5px] font-medium`}>{item.label}</span>
               {isActive && <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-rail-purple rounded-r-full" />}
             </Link>
@@ -187,12 +187,12 @@ export default function IconRail() {
           aria-pressed={collapsed}
           className={`h-9 rounded-lg flex items-center gap-3 text-[#9292a3] hover:text-[#A0A0B0] hover:bg-[rgba(255,255,255,0.04)] transition-all ${row}`}
         >
-          {collapsed ? <PanelLeftOpen size={16} className="flex-shrink-0" /> : <PanelLeftClose size={16} className="flex-shrink-0" />}
+          {collapsed ? <PanelLeftOpen size={16} className="shrink-0" /> : <PanelLeftClose size={16} className="shrink-0" />}
           <span className={`${label} text-[12.5px] font-medium`}>Collapse</span>
         </button>
 
         <div className={`flex items-center gap-2.5 py-1.5 ${row}`} title={user?.name || 'User'}>
-          <span className="w-8 h-8 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center flex-shrink-0">
+          <span className="w-8 h-8 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center shrink-0">
             <User size={14} className="text-rail-purple" />
           </span>
           <span className={`${collapsed ? 'hidden' : 'hidden md:block'} text-[12px] text-white/60 truncate max-w-[128px]`}>{user?.name || 'User'}</span>
@@ -204,7 +204,7 @@ export default function IconRail() {
           aria-label="Sign out"
           className={`h-9 rounded-lg flex items-center gap-3 text-[#9292a3] hover:text-red-400 hover:bg-red-500/10 transition-all ${row}`}
         >
-          <LogOut size={15} className="flex-shrink-0" />
+          <LogOut size={15} className="shrink-0" />
           <span className={`${label} text-[12.5px] font-medium`}>Sign out</span>
         </button>
       </div>

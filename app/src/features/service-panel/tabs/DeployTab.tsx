@@ -88,16 +88,16 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
 
   if (isLoading && !liveLog) {
     return (
-      <div className="ml-6 bg-[#131318] border border-white/[0.06] rounded-xl p-4">
+      <div className="ml-6 bg-[#131318] border border-white/6 rounded-xl p-4">
         <div className="text-[12px] text-white/50">Loading logs...</div>
       </div>
     )
   }
 
   const logView = (
-    <div className={`flex flex-col bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : 'h-[480px] max-h-[65dvh] min-h-64 rounded-lg border border-white/[0.08] overflow-hidden'}`}>
+    <div className={`flex flex-col bg-[#131318] ${isExpanded ? 'fixed inset-0 z-100' : 'h-[480px] max-h-[65dvh] min-h-64 rounded-lg border border-white/8 overflow-hidden'}`}>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-white/6 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Terminal size={12} className="text-white/50" />
@@ -111,19 +111,19 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
               <button
                 type="button"
                 onClick={() => setIsExpanded(false)}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] text-white/50 text-[11px] hover:bg-white/[0.1] transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-white/6 text-white/50 text-[11px] hover:bg-white/10 transition-colors"
                 title="Minimize"
               >
                 <Minimize2 size={11} />
                 Esc to close
               </button>
-              <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+              <div className="w-px h-4 bg-white/8 mx-0.5" />
             </>
           )}
           <IconButton
             type="button"
             onClick={handleCopyAll}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
             title="Copy all logs"
           >
             {copiedAll ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
@@ -131,7 +131,7 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
           <IconButton
             type="button"
             onClick={() => setWrapLines((w) => !w)}
-            className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
+            className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/8 text-white/60' : 'hover:bg-white/6 text-white/50 hover:text-white/60'}`}
             title="Wrap lines"
             aria-pressed={wrapLines}
           >
@@ -140,16 +140,16 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
           <IconButton
             type="button"
             onClick={handleExport}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
             title="Export log"
           >
             <Download size={13} />
           </IconButton>
-          <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+          <div className="w-px h-4 bg-white/8 mx-0.5" />
           <IconButton
             type="button"
             onClick={() => setIsExpanded((expanded) => !expanded)}
-            className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+            className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
             title={isExpanded ? 'Restore log viewer' : 'Expand logs'}
           >
             <Maximize2 size={13} />
@@ -157,7 +157,7 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] px-3 py-2"><input aria-label="Search deployment logs" placeholder="Search output…" value={query} onChange={(event) => setQuery(event.target.value)} className="input-dark max-w-xs text-xs" /><span className="text-xs text-[#a0a0b0]">{query ? `${visibleLines.length} matching ${visibleLines.length === 1 ? 'line' : 'lines'}` : !isLiveDeployment ? 'Saved output' : followLogs ? 'Following output' : 'Following paused'}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 px-3 py-2"><input aria-label="Search deployment logs" placeholder="Search output…" value={query} onChange={(event) => setQuery(event.target.value)} className="input-dark max-w-xs text-xs" /><span className="text-xs text-[#a0a0b0]">{query ? `${visibleLines.length} matching ${visibleLines.length === 1 ? 'line' : 'lines'}` : !isLiveDeployment ? 'Saved output' : followLogs ? 'Following output' : 'Following paused'}</span></div>
       {isError && <div role="status" className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-amber-200">Could not fetch deployment logs. Displayed output is retained.<button type="button" onClick={() => refetch()} className="underline">Retry</button></div>}
       {/* Log lines */}
       <div
@@ -182,11 +182,11 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
         {visibleLines.length > 0 ? (
           <div className="space-y-0.5">
             {visibleLines.map(({ text: line, number }) => (
-              <div key={number} className={`group flex items-start gap-2 px-2 py-0.5 rounded ${/\b(ERROR|FATAL)\b/i.test(line) ? 'bg-red-400/[0.06]' : 'hover:bg-white/[0.03]'}`}>
+              <div key={number} className={`group flex items-start gap-2 px-2 py-0.5 rounded ${/\b(ERROR|FATAL)\b/i.test(line) ? 'bg-red-400/6' : 'hover:bg-white/3'}`}>
                 <span className="select-none w-10 text-right shrink-0 text-[11px] text-[#878795] pt-0.5">
                   {number}
                 </span>
-                <span className={`min-w-0 text-[#c3c3cf] ${wrapLines ? 'whitespace-pre-wrap break-words [overflow-wrap:anywhere]' : 'whitespace-pre'}`}>
+                <span className={`min-w-0 text-[#c3c3cf] ${wrapLines ? 'whitespace-pre-wrap wrap-break-word wrap-anywhere' : 'whitespace-pre'}`}>
                   <LogText text={rawLines[number - 1] || line} />
                 </span>
               </div>
@@ -215,8 +215,8 @@ function RollbackConfirmDialog({
   onCancel: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="bg-[#1a1a1e] border border-white/[0.08] rounded-xl w-[400px] p-5 shadow-2xl">
+    <div className="fixed inset-0 z-70 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+      <div className="bg-[#1a1a1e] border border-white/8 rounded-xl w-[400px] p-5 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle size={20} className="text-amber-400" />
@@ -254,9 +254,9 @@ function WebhookCard({ url }: { url: string }) {
   const { copiedKey, copy } = useCopy(2000)
 
   return (
-    <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+    <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Link2 size={13} className="text-[#8b5cf6]" />
+        <Link2 size={13} className="text-rail-purple" />
         <div className="text-[13px] font-medium text-white/70">Deploy Webhook</div>
       </div>
       <p className="text-[11px] text-white/50 mb-2">
@@ -270,7 +270,7 @@ function WebhookCard({ url }: { url: string }) {
           onClick={() => copy(url, 'webhook')}
           className="px-3 py-2 bg-white/5 text-white/50 rounded-lg text-[11px] hover:bg-white/10 hover:text-white/60 transition-all flex items-center gap-1.5"
         >
-          {copiedKey === 'webhook' ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+          {copiedKey === 'webhook' ? <Check size={12} className="text-rail-green" /> : <Copy size={12} />}
           {copiedKey === 'webhook' ? 'Copied' : 'Copy'}
         </button>
       </div>
@@ -351,10 +351,10 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
   return (
     <div className="p-5 space-y-5">
       {/* Active deployment info */}
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+      <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] px-2 py-0.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full font-medium">
+            <span className="text-[11px] px-2 py-0.5 bg-rail-green/10 text-rail-green rounded-full font-medium">
               ACTIVE
             </span>
             <span className="text-[13px] text-white/50">
@@ -390,7 +390,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
           type="button"
           onClick={() => restartService.mutate(svc.id)}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-white/70 text-[12px] hover:bg-white/[0.1] hover:text-white disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/6 text-white/70 text-[12px] hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
         >
           <RefreshCw size={13} /> Restart
         </button>
@@ -398,15 +398,15 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
           type="button"
           onClick={() => rebuildService.mutate(svc.id)}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-white/70 text-[12px] hover:bg-white/[0.1] hover:text-white disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/6 text-white/70 text-[12px] hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
         >
           <Hammer size={13} /> Rebuild
         </button>
       </div>
 
       {crashedAfterSuccess && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3">
-          <AlertTriangle size={15} className="text-red-400 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/6 p-3">
+          <AlertTriangle size={15} className="text-red-400 mt-0.5 shrink-0" />
           <div className="min-w-0">
             <div className="text-[12px] font-medium text-red-300">Crashed after a successful deploy</div>
             <p className="text-[11px] text-white/50 mt-0.5">
@@ -426,7 +426,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                 <button
                   type="button"
                   onClick={() => setRollbackTarget(previousSucceeded.id)}
-                  className="px-2.5 py-1 rounded-md bg-white/[0.06] text-white/60 text-[11px] hover:bg-white/[0.1] transition-colors"
+                  className="px-2.5 py-1 rounded-md bg-white/6 text-white/60 text-[11px] hover:bg-white/10 transition-colors"
                 >
                   Roll back to previous
                 </button>
@@ -449,12 +449,12 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
       )}
 
       {containerStatus && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
+        <div className="bg-[#1a1a1e] border border-white/6 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="text-[12px] text-white/60">Container Status</div>
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
               containerStatus.status === 'running'
-                ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                ? 'bg-rail-green/10 text-rail-green'
                 : isCrashLooping
                   ? 'bg-red-500/10 text-red-400'
                   : 'bg-white/5 text-white/50'
@@ -464,21 +464,21 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
       )}
 
       {lastUpdate && (
-        <div className="bg-[#8b5cf6]/5 border border-[#8b5cf6]/20 rounded-lg p-3 flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
+        <div className="bg-rail-purple/5 border border-rail-purple/20 rounded-lg p-3 flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-rail-green' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
           <span className="text-[12px] text-white/60">{lastUpdate.message}</span>
           <span className="text-[10px] text-white/25">{realtimeStateLabel(connectionState)}</span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${
-            lastUpdate.status === 'succeeded' ? 'bg-[#22c55e]/10 text-[#22c55e]' :
+            lastUpdate.status === 'succeeded' ? 'bg-rail-green/10 text-rail-green' :
             lastUpdate.status === 'failed' ? 'bg-red-500/10 text-red-400' :
             lastUpdate.status === 'cancelled' ? 'bg-amber-500/10 text-amber-400' :
-            'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+            'bg-rail-purple/10 text-rail-purple'
           }`}>{statusMeta(lastUpdate.status).label}</span>
         </div>
       )}
 
       {/* Deployment ledger */}
-      <section className="overflow-hidden border-y border-white/[0.06]">
+      <section className="overflow-hidden border-y border-white/6">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h4 className="text-[14px] font-medium text-white/80">Deployments</h4>
@@ -494,15 +494,15 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
             </button>
           )}
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_110px_90px_90px] gap-3 border-b border-white/[0.06] px-3 py-2 text-[9px] uppercase tracking-[0.12em] text-white/20">
+        <div className="grid grid-cols-[minmax(0,1fr)_110px_90px_90px] gap-3 border-b border-white/6 px-3 py-2 text-[9px] uppercase tracking-[0.12em] text-white/20">
           <span>Revision</span><span>Trigger</span><span>Started</span><span className="text-right">Duration</span>
         </div>
-        <div className="divide-y divide-white/[0.05]">
+        <div className="divide-y divide-white/5">
           {deployments && deployments.length > 0 ? (
             deployments.map((d) => (
               <article key={d.id}>
                 <div
-                  className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_110px_90px_90px] items-center gap-3 px-3 py-3 hover:bg-white/[0.025] focus-within:bg-white/[0.025]"
+                  className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_110px_90px_90px] items-center gap-3 px-3 py-3 hover:bg-white/2.5 focus-within:bg-white/2.5"
                   onClick={() => setExpandedDeployment(expandedDeployment === d.id ? null : d.id)}
                 >
                   <div className="flex min-w-0 items-center gap-2">
@@ -545,7 +545,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                           setRollbackTarget(d.id)
                         }}
                         disabled={rollbackService.isPending}
-                        className="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/[0.1] hover:text-white/70 disabled:opacity-50"
+                        className="ml-1 rounded bg-white/6 px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/70 disabled:opacity-50"
                       >
                         Rollback
                       </button>
@@ -553,7 +553,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                   </div>
                 </div>
                 {expandedDeployment === d.id && (
-                  <div className="border-t border-white/[0.04] bg-black/10 px-3 py-3"><DeploymentLogPanel deploymentId={d.id} liveLog={logMap[d.id]} /></div>
+                  <div className="border-t border-white/4 bg-black/10 px-3 py-3"><DeploymentLogPanel deploymentId={d.id} liveLog={logMap[d.id]} /></div>
                 )}
               </article>
             ))

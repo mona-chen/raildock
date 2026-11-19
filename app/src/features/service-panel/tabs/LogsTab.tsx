@@ -25,7 +25,7 @@ const LEVEL_COLORS: Record<LogLevel, { text: string; bg: string; border: string;
   debug:   { text: 'text-emerald-400',  bg: 'bg-emerald-500/5',  border: 'border-emerald-500/10',  dot: 'bg-emerald-400',  selectedBg: 'bg-emerald-500/15' },
   trace:   { text: 'text-gray-400',     bg: 'bg-gray-500/5',     border: 'border-gray-500/10',     dot: 'bg-gray-400',     selectedBg: 'bg-gray-500/15' },
   fatal:   { text: 'text-rose-500',     bg: 'bg-rose-500/10',    border: 'border-rose-500/20',     dot: 'bg-rose-500',     selectedBg: 'bg-rose-500/20' },
-  unknown: { text: 'text-white/60',     bg: 'bg-transparent',    border: 'border-transparent',     dot: 'bg-white/30',     selectedBg: 'bg-white/[0.08]' },
+  unknown: { text: 'text-white/60',     bg: 'bg-transparent',    border: 'border-transparent',     dot: 'bg-white/30',     selectedBg: 'bg-white/8' },
 }
 
 const LEVEL_ORDER: LogLevel[] = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'unknown']
@@ -293,15 +293,15 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
   const selectedCount = selectedRange ? selectedRange.end - selectedRange.start + 1 : 0
 
   const logView = (
-    <div className={`flex flex-col h-full bg-[#131318] ${isExpanded ? 'fixed inset-0 z-[100]' : ''}`}>
+    <div className={`flex flex-col h-full bg-[#131318] ${isExpanded ? 'fixed inset-0 z-100' : ''}`}>
       {isError && allLines.length > 0 && <div role="status" className="flex items-center justify-between gap-3 border-b border-amber-400/20 px-4 py-2 text-xs text-amber-200">Could not refresh recent logs. Displayed output is retained.<button type="button" onClick={() => refetch()} disabled={isFetching} className="underline underline-offset-4">Retry</button></div>}
       {/* Toolbar */}
-      <div className="flex flex-col border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex flex-col border-b border-white/6 shrink-0">
         {/* Top row: status + actions */}
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-rail-green' : connectionState === 'fallback' ? 'bg-blue-400' : 'bg-amber-400'} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-pulse' : ''}`} />
               <span className="text-[11px] text-white/50">{realtimeStateLabel(connectionState)}</span>
             </div>
             {isPaused && (
@@ -313,7 +313,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               {filteredLines.length.toLocaleString()} lines
             </span>
             {selectedRange && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">
+              <span className="text-[10px] px-1.5 py-0.5 bg-rail-purple/10 text-rail-purple rounded-full">
                 {selectedCount} selected
               </span>
             )}
@@ -324,7 +324,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                 <button
                   type="button"
                   onClick={copySelection}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-[#8b5cf6]/10 text-[#8b5cf6] text-[11px] hover:bg-[#8b5cf6]/15 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-rail-purple/10 text-rail-purple text-[11px] hover:bg-rail-purple/15 transition-colors"
                   title="Copy selection"
                 >
                   {copiedAll ? <Check size={11} /> : <Copy size={11} />}
@@ -333,12 +333,12 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                 <IconButton
                   type="button"
                   onClick={clearSelection}
-                  className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+                  className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
                   title="Clear selection"
                 >
                   <X size={13} />
                 </IconButton>
-                <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+                <div className="w-px h-4 bg-white/8 mx-0.5" />
               </>
             )}
             {isExpanded && (
@@ -346,19 +346,19 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                 <button
                   type="button"
                   onClick={() => setIsExpanded(false)}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] text-white/50 text-[11px] hover:bg-white/[0.1] transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-white/6 text-white/50 text-[11px] hover:bg-white/10 transition-colors"
                   title="Minimize"
                 >
                   <Minimize2 size={11} />
                   Esc to close
                 </button>
-                <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+                <div className="w-px h-4 bg-white/8 mx-0.5" />
               </>
             )}
             <IconButton
               type="button"
               onClick={copyAll}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title="Copy all logs"
             >
               {copiedAll && !selectedRange ? <Check size={13} className="text-emerald-400" /> : <ClipboardCopy size={13} />}
@@ -366,7 +366,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <IconButton
               type="button"
               onClick={() => setIsPaused((p) => !p)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title={isPaused ? 'Resume following logs' : 'Pause following logs'}
             >
               {isPaused ? <Play size={13} /> : <Pause size={13} />}
@@ -374,7 +374,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <IconButton
               type="button"
               onClick={() => setWrapLines((w) => !w)}
-              className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
+              className={`p-1.5 rounded transition-colors ${wrapLines ? 'bg-white/8 text-white/60' : 'hover:bg-white/6 text-white/50 hover:text-white/60'}`}
               title="Wrap lines"
             >
               <WrapText size={13} />
@@ -382,7 +382,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <IconButton
               type="button"
               onClick={() => setShowFilters((s) => !s)}
-              className={`p-1.5 rounded transition-colors ${showFilters ? 'bg-white/[0.08] text-white/60' : 'hover:bg-white/[0.06] text-white/50 hover:text-white/60'}`}
+              className={`p-1.5 rounded transition-colors ${showFilters ? 'bg-white/8 text-white/60' : 'hover:bg-white/6 text-white/50 hover:text-white/60'}`}
               title="Filters"
             >
               <Filter size={13} />
@@ -390,7 +390,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <IconButton
               type="button"
               onClick={exportLogs}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title="Export logs"
             >
               <Download size={13} />
@@ -398,16 +398,16 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
             <IconButton
               type="button"
               onClick={handleClear}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title="Clear"
             >
               <X size={13} />
             </IconButton>
-            <div className="w-px h-4 bg-white/[0.08] mx-0.5" />
+            <div className="w-px h-4 bg-white/8 mx-0.5" />
             <IconButton
               type="button"
               onClick={() => setIsExpanded(true)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title="Expand logs"
             >
               <Maximize2 size={13} />
@@ -424,7 +424,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 bg-black/30 border border-white/[0.06] rounded-lg text-[12px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/30"
+              className="w-full pl-8 pr-7 py-1.5 bg-black/30 border border-white/6 rounded-lg text-[12px] text-white/70 placeholder:text-white/20 focus:outline-hidden focus:border-rail-purple/30"
             />
             {searchQuery && (
               <button
@@ -445,10 +445,10 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               value={levelFilter}
               onValueChange={(value) => setLevelFilter(value as LogLevel | 'all')}
             >
-              <SelectTrigger className="bg-black/30 border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:border-[#8b5cf6]/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
+              <SelectTrigger className="bg-black/30 border-white/6 rounded px-2 py-1 text-[11px] text-white/60 focus:border-rail-purple/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
                 <SelectValue placeholder="All levels" />
               </SelectTrigger>
-              <SelectContent className="bg-[#1a1a20] border-white/[0.06] text-white/60">
+              <SelectContent className="bg-[#1a1a20] border-white/6 text-white/60">
                 <SelectItem value="all" className="text-[11px]">All levels</SelectItem>
                 {LEVEL_ORDER.map((lvl) => (
                   <SelectItem key={lvl} value={lvl} className="text-[11px]">
@@ -461,10 +461,10 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               value={processFilter}
               onValueChange={(value) => setProcessFilter(value)}
             >
-              <SelectTrigger className="bg-black/30 border-white/[0.06] rounded px-2 py-1 text-[11px] text-white/60 focus:border-[#8b5cf6]/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
+              <SelectTrigger className="bg-black/30 border-white/6 rounded px-2 py-1 text-[11px] text-white/60 focus:border-rail-purple/30 focus:ring-0 focus:ring-offset-0 h-auto w-auto gap-2">
                 <SelectValue placeholder="All processes" />
               </SelectTrigger>
-              <SelectContent className="bg-[#1a1a20] border-white/[0.06] text-white/60">
+              <SelectContent className="bg-[#1a1a20] border-white/6 text-white/60">
                 <SelectItem value="all" className="text-[11px]">All processes</SelectItem>
                 {processTypes.map((pt) => (
                   <SelectItem key={pt} value={pt} className="text-[11px]">{pt}</SelectItem>
@@ -489,7 +489,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
         <button
           type="button"
           onClick={handleResume}
-          className="flex-shrink-0 py-1.5 bg-[#8b5cf6]/10 border-b border-[#8b5cf6]/20 text-[11px] text-[#8b5cf6] hover:bg-[#8b5cf6]/15 transition-colors text-center"
+          className="shrink-0 py-1.5 bg-rail-purple/10 border-b border-rail-purple/20 text-[11px] text-rail-purple hover:bg-rail-purple/15 transition-colors text-center"
         >
           <UnfoldVertical size={11} className="inline mr-1" />
           New logs available — click to resume
@@ -518,11 +518,11 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               return (
                 <div
                   key={`${line.id}-${line.timestamp}`}
-                  className={`group flex items-start gap-1 px-3 py-0.5 hover:bg-white/[0.03] border-l-2 ${sel ? 'border-[#8b5cf6] ' + colors.selectedBg : colors.border + ' ' + colors.bg} transition-colors cursor-pointer`}
+                  className={`group flex items-start gap-1 px-3 py-0.5 hover:bg-white/3 border-l-2 ${sel ? 'border-rail-purple ' + colors.selectedBg : colors.border + ' ' + colors.bg} transition-colors cursor-pointer`}
                   onClick={(e) => handleLineClick(displayIdx, e)}
                 >
                   {/* Line number */}
-                  <span className={`select-none w-10 text-right shrink-0 text-[11px] pt-0.5 ${sel ? 'text-[#8b5cf6]/60' : 'text-white/10'}`}>
+                  <span className={`select-none w-10 text-right shrink-0 text-[11px] pt-0.5 ${sel ? 'text-rail-purple/60' : 'text-white/10'}`}>
                     {displayIdx + 1}
                   </span>
 
@@ -538,7 +538,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                   </span>
 
                   {/* Process type */}
-                  <span className="text-[#8b5cf6]/50 shrink-0 text-[11px] pt-0.5 w-12 text-right">
+                  <span className="text-rail-purple/50 shrink-0 text-[11px] pt-0.5 w-12 text-right">
                     {line.process_type}
                   </span>
 
@@ -552,7 +552,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                       <span>{line.cleanMessage}</span>
                     )}
                     {hasJson && !isExpanded && (
-                      <span className="ml-1 text-[10px] text-[#8b5cf6]/40">{'{...}'}</span>
+                      <span className="ml-1 text-[10px] text-rail-purple/40">{'{...}'}</span>
                     )}
                   </div>
 
@@ -561,7 +561,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                     <IconButton
                       type="button"
                       onClick={(e) => { e.stopPropagation(); copyLine(line) }}
-                      className="p-1 rounded hover:bg-white/[0.08] text-white/20 hover:text-white/50"
+                      className="p-1 rounded hover:bg-white/8 text-white/20 hover:text-white/50"
                       title="Copy line"
                     >
                       {copiedId === line.id ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
@@ -570,7 +570,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
                       <IconButton
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleExpand(line.id) }}
-                        className="p-1 rounded hover:bg-white/[0.08] text-white/20 hover:text-[#8b5cf6]/60"
+                        className="p-1 rounded hover:bg-white/8 text-white/20 hover:text-rail-purple/60"
                         title="Format JSON"
                       >
                         <Terminal size={11} />
@@ -592,7 +592,7 @@ export default function LogsTab({ serviceId }: { serviceId: string }) {
               <button
                 type="button"
                 onClick={() => { setLevelFilter('all'); setProcessFilter('all'); setSearchQuery('') }}
-                className="mt-2 text-[12px] text-[#8b5cf6]/60 hover:text-[#8b5cf6]"
+                className="mt-2 text-[12px] text-rail-purple/60 hover:text-rail-purple"
               >
                 Clear filters
               </button>

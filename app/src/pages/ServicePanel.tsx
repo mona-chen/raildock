@@ -150,13 +150,13 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/6 flex flex-col z-50 shadow-2xl shadow-black/40"
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+              className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center hover:bg-white/10"
               aria-label="Close panel"
               type="button"
             >
@@ -166,7 +166,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           </div>
         </div>
         <div className="flex-1 p-5 space-y-4">
-          <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-4 space-y-3">
+          <div className="rounded-xl border border-white/5 bg-white/2 p-4 space-y-3">
             <div className="flex items-start gap-3">
               <Skeleton className="size-8 rounded-lg" />
               <SkeletonText lines={2} className="flex-1" />
@@ -184,13 +184,13 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
     return (
       <div
         data-service-panel
-        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/[0.06] flex flex-col z-50 shadow-2xl shadow-black/40"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-[960px] bg-[#131318] border-l border-white/6 flex flex-col z-50 shadow-2xl shadow-black/40"
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+              className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center hover:bg-white/10"
               aria-label="Close panel"
               type="button"
             >
@@ -208,7 +208,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
           <button
             type="button"
             onClick={() => refetch()}
-            className="px-4 py-2 bg-white/[0.06] text-white/70 rounded-lg text-[13px] hover:bg-white/[0.1] transition-colors"
+            className="px-4 py-2 bg-white/6 text-white/70 rounded-lg text-[13px] hover:bg-white/10 transition-colors"
           >
             Retry
           </button>
@@ -256,24 +256,24 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       tabIndex={-1}
       role="dialog"
       aria-label={`${svc.name} service`}
-      className={`absolute right-0 top-0 bottom-0 w-full ${expanded ? '' : 'max-w-[min(960px,85%)] max-sm:max-w-full'} bg-[#131318] border-l border-white/[0.1] flex flex-col z-50 shadow-2xl shadow-black/40 outline-none`}
+      className={`absolute right-0 top-0 bottom-0 w-full ${expanded ? '' : 'max-w-[min(960px,85%)] max-sm:max-w-full'} bg-[#131318] border-l border-white/10 flex flex-col z-50 shadow-2xl shadow-black/40 outline-hidden`}
       onWheel={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <ConfirmDialog open={pendingAction !== null} onOpenChange={(open) => { if (!open) setPendingAction(null) }} title={`${pendingAction === 'stop' ? 'Stop' : pendingAction === 'rebuild' ? 'Rebuild' : 'Restart'} ${svc.name}?`} description={pendingAction === 'stop' ? 'This service will stop serving requests until you start it again. Stored data is retained.' : pendingAction === 'rebuild' ? 'Build the configured source again without the build cache, then deploy it. This may take longer than a normal deploy.' : 'Running processes will restart. Requests may be interrupted briefly.'} confirmLabel={pendingAction === 'stop' ? 'Stop service' : pendingAction === 'rebuild' ? 'Rebuild service' : 'Restart service'} destructive={pendingAction === 'stop'} pending={stopService.isPending || restartService.isPending || rebuildService.isPending} onConfirm={async () => { try { if (pendingAction === 'stop') await stopService.mutateAsync(serviceId); if (pendingAction === 'restart') await restartService.mutateAsync(serviceId); if (pendingAction === 'rebuild') { setTab('deploy'); await rebuildService.mutateAsync(serviceId) } setPendingAction(null) } catch { /* The mutation reports the error; keep the review open for retry. */ } }} />
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-3 border-b border-white/6 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1]"
+            className="w-7 h-7 rounded-lg bg-white/6 flex items-center justify-center hover:bg-white/10"
             aria-label="Close panel"
           >
             <X size={15} className="text-white/60" />
           </button>
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
             style={{ backgroundColor: `${color}15` }}
           >
             <ServiceIcon subtype={svc.subtype} framework={svc.framework} dockerImage={svc.dockerImage} size={17} />
@@ -306,7 +306,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             title={showConsole ? 'Close shell (G then C)' : 'Open shell (G then C)'}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] transition-all ${
               showConsole
-                ? 'bg-[#8b5cf6]/20 text-[#8b5cf6]'
+                ? 'bg-rail-purple/20 text-rail-purple'
                 : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
             }`}
           >
@@ -320,7 +320,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/[0.06] overflow-x-auto flex-shrink-0" role="tablist" aria-label="Service sections">
+      <div className="flex border-b border-white/6 overflow-x-auto shrink-0" role="tablist" aria-label="Service sections">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -345,7 +345,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             }}
             className={`px-4 py-2.5 text-[13px] border-b-2 transition-all whitespace-nowrap ${
               tab === t.key && !showConsole
-                ? 'border-[#8b5cf6] text-[#8b5cf6]'
+                ? 'border-rail-purple text-rail-purple'
                 : 'border-transparent text-white/50 hover:text-white/60'
             }`}
           >
@@ -366,7 +366,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
                 {/* A database's home is its connection details, so they sit
                     with the overview instead of in their own tab. */}
                 {db && (
-                  <div className="border-t border-white/[0.06]">
+                  <div className="border-t border-white/6">
                     <DatabaseTab svc={svc} serviceId={serviceId} />
                   </div>
                 )}
@@ -392,8 +392,8 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
                       onClick={() => setNetworkingView(section.key)}
                       className={`rounded-lg px-2.5 py-1.5 text-[12px] transition-colors ${
                         networkingView === section.key
-                          ? 'bg-white/[0.08] text-white/85'
-                          : 'text-white/50 hover:text-white/70 hover:bg-white/[0.04]'
+                          ? 'bg-white/8 text-white/85'
+                          : 'text-white/50 hover:text-white/70 hover:bg-white/4'
                       }`}
                     >
                       {section.label}

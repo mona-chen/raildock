@@ -16,22 +16,22 @@ const STATUS_META: Record<string, StatusMeta> = {
   running: { label: 'Running', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
   succeeded: { label: 'Succeeded', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
   building: { label: 'Building', color: '#eab308', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/20' },
-  deploying: { label: 'Deploying', color: '#8b5cf6', badge: 'bg-[#8b5cf6]/15 text-[#c4b5fd] border-[#8b5cf6]/25' },
+  deploying: { label: 'Deploying', color: '#8b5cf6', badge: 'bg-rail-purple/15 text-[#c4b5fd] border-rail-purple/25' },
   stopped: { label: 'Stopped', color: '#f97316', badge: 'bg-orange-500/15 text-orange-300 border-orange-500/20' },
   error: { label: 'Error', color: '#ef4444', badge: 'bg-red-500/15 text-red-300 border-red-500/20' },
   failed: { label: 'Failed', color: '#ef4444', badge: 'bg-red-500/15 text-red-300 border-red-500/20' },
   crashed: { label: 'Crashed', color: '#ef4444', badge: 'bg-red-500/15 text-red-300 border-red-500/20' },
-  cancelled: { label: 'Cancelled', color: '#6b7280', badge: 'bg-white/[0.06] text-white/60 border-white/[0.08]' },
-  pending: { label: 'Pending', color: '#a0a0b0', badge: 'bg-white/[0.06] text-white/70 border-white/[0.08]' },
-  queued: { label: 'Queued', color: '#a0a0b0', badge: 'bg-white/[0.06] text-white/70 border-white/[0.08]' },
+  cancelled: { label: 'Cancelled', color: '#6b7280', badge: 'bg-white/6 text-white/60 border-white/8' },
+  pending: { label: 'Pending', color: '#a0a0b0', badge: 'bg-white/6 text-white/70 border-white/8' },
+  queued: { label: 'Queued', color: '#a0a0b0', badge: 'bg-white/6 text-white/70 border-white/8' },
   connected: { label: 'Connected', color: '#22c55e', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' },
-  disconnected: { label: 'Disconnected', color: '#6b7280', badge: 'bg-white/[0.06] text-white/60 border-white/[0.08]' },
+  disconnected: { label: 'Disconnected', color: '#6b7280', badge: 'bg-white/6 text-white/60 border-white/8' },
 }
 
 const FALLBACK: StatusMeta = {
   label: 'Unknown',
   color: '#6b6b7b',
-  badge: 'bg-white/[0.06] text-white/60 border-white/[0.08]',
+  badge: 'bg-white/6 text-white/60 border-white/8',
 }
 
 /**

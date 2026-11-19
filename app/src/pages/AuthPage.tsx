@@ -164,7 +164,7 @@ export default function AuthPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                  className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.4)] transition-colors"
                   placeholder="Admin User"
                 />
               </div>
@@ -181,7 +181,7 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.4)] transition-colors"
                 placeholder="admin@example.com"
               />
             </div>
@@ -199,7 +199,7 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+                  className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.4)] transition-colors"
                   placeholder="••••••••"
                 />
                 <button
@@ -252,7 +252,7 @@ export default function AuthPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className={`w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none transition-colors ${
+                  className={`w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden transition-colors ${
                     passwordsMatch ? 'border-[rgba(255,255,255,0.08)] focus:border-[rgba(139,92,246,0.4)]' : 'border-red-500/30 focus:border-red-500/50'
                   }`}
                   placeholder="••••••••"

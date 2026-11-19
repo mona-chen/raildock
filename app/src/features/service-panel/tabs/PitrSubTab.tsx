@@ -40,14 +40,14 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
     <div className="min-h-full bg-[#111114] px-5 py-4">
       <div className="mb-4">
         <div className="flex items-center gap-2 text-[14px] font-medium text-white/85">
-          <DatabaseBackup size={15} className="text-[#8b5cf6]" />
+          <DatabaseBackup size={15} className="text-rail-purple" />
           PostgreSQL point-in-time recovery
         </div>
         <p className="mt-1 text-[12px] text-white/35">Store physical base backups and WAL archives off-site. Verify recovery in an isolated PostgreSQL instance before relying on a recovery target.</p>
       </div>
 
       {pitr?.enabled ? (
-        <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
+        <div className="rounded-lg border border-white/[0.07] bg-white/2 p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-[13px] font-medium text-emerald-400">
@@ -64,7 +64,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/6 pt-4">
             <div>
               <div className="text-[10px] uppercase tracking-[0.14em] text-white/25">Last WAL archived</div>
               <div className="mt-1 text-[12px] text-white/70">{formatDate(pitr.lastWalArchivedAt)}</div>
@@ -79,7 +79,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
           </div>
 
           {pitr.lastError && (
-            <div className="mt-4 rounded-md border border-red-400/20 bg-red-400/[0.04] p-3 text-[11px] text-red-300">
+            <div className="mt-4 rounded-md border border-red-400/20 bg-red-400/4 p-3 text-[11px] text-red-300">
               <div className="flex items-center gap-1.5 font-medium">
                 <AlertCircle size={12} />
                 Last error
@@ -89,7 +89,7 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
+        <div className="rounded-lg border border-white/[0.07] bg-white/2 p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-[13px] font-medium text-white/65">

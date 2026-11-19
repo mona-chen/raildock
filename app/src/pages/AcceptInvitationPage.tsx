@@ -125,7 +125,7 @@ export default function AcceptInvitationPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+              className="w-full h-9 px-3 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.4)] transition-colors"
               placeholder="Your name"
             />
           </div>
@@ -144,7 +144,7 @@ export default function AcceptInvitationPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-none focus:border-[rgba(139,92,246,0.4)] transition-colors"
+              className="w-full h-9 px-3 pr-9 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white placeholder-[#6b6b7b] focus:outline-hidden focus:border-[rgba(139,92,246,0.4)] transition-colors"
               placeholder="••••••••"
             />
             <button
@@ -160,11 +160,11 @@ export default function AcceptInvitationPage() {
             <div className="flex items-center gap-2 mt-1.5">
               <div className="flex-1 h-1 bg-[rgba(255,255,255,0.06)] rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${passwordStrong ? 'bg-[#22c55e]' : 'bg-red-500'}`}
+                  className={`h-full rounded-full transition-all ${passwordStrong ? 'bg-rail-green' : 'bg-red-500'}`}
                   style={{ width: `${Math.min(100, (password.length / 12) * 100)}%` }}
                 />
               </div>
-              <span className={`text-[10px] ${passwordStrong ? 'text-[#22c55e]' : 'text-red-400'}`}>{passwordStrength}</span>
+              <span className={`text-[10px] ${passwordStrong ? 'text-rail-green' : 'text-red-400'}`}>{passwordStrength}</span>
             </div>
           )}
         </div>

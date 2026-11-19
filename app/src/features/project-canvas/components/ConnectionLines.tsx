@@ -79,7 +79,7 @@ function ConnectionLines({ connections, activeServiceId, flows, animate = false,
           <g
             key={key}
             style={{ pointerEvents: 'auto' }}
-            className="outline-none" onMouseDown={event=>event.stopPropagation()}
+            className="outline-hidden" onMouseDown={event=>event.stopPropagation()}
             onFocus={()=>setFocused(key)} onBlur={()=>setFocused(null)}
             role="button" tabIndex={0} aria-label={`Connection activity: ${description}`}
             onClick={event=>{event.stopPropagation();setSelected(key)}}

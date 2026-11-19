@@ -54,10 +54,10 @@ export default function ActivityPage() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <WorkspaceHeader title="Activity" description={isScoped && project ? `What’s happening in ${project.name}.` : 'Deployments, changes, and important events across your workspace.'} />
-      <div className="border-b border-white/[0.08] px-5 pb-4 sm:px-8">
+      <div className="border-b border-white/8 px-5 pb-4 sm:px-8">
         <div className="mt-4 flex max-w-3xl items-center gap-2">
-          <label className="flex flex-1 items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5 focus-within:border-[#8b5cf6]/50"><Search size={13} className="text-[#9292a3]" /><input aria-label="Search activity" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" className="w-full bg-transparent text-[12px] text-white/65 placeholder:text-[#9292a3] focus:outline-none" /></label>
-          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5"><Filter size={12} className="text-[#9292a3]" /><Select value={action} onValueChange={setAction}><SelectTrigger aria-label="Filter activity by action" className="h-auto border-0 bg-transparent p-0 text-[11px] capitalize text-white/50 shadow-none focus:ring-0 [&_svg]:hidden"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all" className="text-[11px]">All actions</SelectItem>{actions.map((value) => <SelectItem key={value} value={value} className="capitalize text-[11px]">{value}</SelectItem>)}</SelectContent></Select></label>
+          <label className="flex flex-1 items-center gap-2 rounded-md border border-white/[0.07] bg-white/2.5 px-2.5 py-1.5 focus-within:border-rail-purple/50"><Search size={13} className="text-[#9292a3]" /><input aria-label="Search activity" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" className="w-full bg-transparent text-[12px] text-white/65 placeholder:text-[#9292a3] focus:outline-hidden" /></label>
+          <label className="flex items-center gap-2 rounded-md border border-white/[0.07] bg-white/2.5 px-2.5 py-1.5"><Filter size={12} className="text-[#9292a3]" /><Select value={action} onValueChange={setAction}><SelectTrigger aria-label="Filter activity by action" className="h-auto border-0 bg-transparent p-0 text-[11px] capitalize text-white/50 shadow-none focus:ring-0 [&_svg]:hidden"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all" className="text-[11px]">All actions</SelectItem>{actions.map((value) => <SelectItem key={value} value={value} className="capitalize text-[11px]">{value}</SelectItem>)}</SelectContent></Select></label>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export default function ActivityPage() {
               onRetry={() => refetch()}
             />
           ) : visibleEvents.length > 0 ? (
-            <div className="relative divide-y divide-white/[0.05] border-y border-white/[0.05] before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-white/[0.06]">
+            <div className="relative divide-y divide-white/5 border-y border-white/5 before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-white/6">
             {visibleEvents.map((event) => {
               const Icon = ACTION_ICON[event.action] || Boxes
               const color = ACTION_COLOR[event.action] || '#A0A0B0'
@@ -89,10 +89,10 @@ export default function ActivityPage() {
               return (
                 <article
                   key={event.id}
-                  className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 py-3 transition-colors hover:bg-white/[0.02]"
+                  className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 py-3 transition-colors hover:bg-white/2"
                 >
                   <div
-                    className="z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.06]"
+                    className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/6"
                     style={{ backgroundColor: `${color}15` }}
                   >
                     <Icon size={15} style={{ color }} />
@@ -116,7 +116,7 @@ export default function ActivityPage() {
                     </div>
                   </div>
                   <span
-                    className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+                    className="text-[10px] px-2 py-0.5 rounded-full shrink-0"
                     style={{ backgroundColor: `${color}10`, color }}
                   >
                     {event.action}

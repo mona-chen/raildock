@@ -61,8 +61,8 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
   return (
     <div className="flex h-full">
       {/* Table sidebar */}
-      <div className="w-[220px] flex-shrink-0 border-r border-white/[0.06] flex flex-col">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06]">
+      <div className="w-[220px] shrink-0 border-r border-white/6 flex flex-col">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/6">
           <div className="text-[11px] font-medium text-white/50 uppercase tracking-wider flex items-center gap-1.5">
             <Database size={12} className="text-white/50" />
             Tables
@@ -101,10 +101,10 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
                 type="button"
                 onClick={() => selectTable(t.name)}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition-colors ${
-                  table === t.name ? 'bg-[#8b5cf6]/10 text-[#a78bfa]' : 'text-white/60 hover:bg-white/[0.04] hover:text-white/80'
+                  table === t.name ? 'bg-rail-purple/10 text-rail-purple-light' : 'text-white/60 hover:bg-white/4 hover:text-white/80'
                 }`}
               >
-                <Table2 size={13} className="flex-shrink-0 opacity-60" />
+                <Table2 size={13} className="shrink-0 opacity-60" />
                 <span className="truncate">{t.name}</span>
               </button>
             ))
@@ -141,7 +141,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/6 shrink-0">
               <div className="text-[13px] font-medium text-white/80 truncate">
                 {table}
                 {tablesData?.type && <span className="ml-2 text-[11px] font-normal text-white/35">{tablesData.type}</span>}
@@ -151,7 +151,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
                   type="button"
                   disabled={offset === 0}
                   onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
-                  className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.05] disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/50 transition-colors"
+                  className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/50 transition-colors"
                 >
                   <ChevronLeft size={13} />
                   Prev
@@ -163,7 +163,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
                   type="button"
                   disabled={!rowsData.has_more}
                   onClick={() => setOffset((o) => o + PAGE_SIZE)}
-                  className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.05] disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/50 transition-colors"
+                  className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[11px] text-white/50 hover:text-white/80 hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/50 transition-colors"
                 >
                   Next
                   <ChevronRight size={13} />
@@ -191,7 +191,7 @@ export default function DataTab({ serviceId }: { serviceId: string }) {
                   </TableHeader>
                   <TableBody>
                     {rows.map((row, i) => (
-                      <TableRow key={i} className="hover:bg-white/[0.02]">
+                      <TableRow key={i} className="hover:bg-white/2">
                         {columns.map((c) => (
                           <TableCell key={c.name} className="px-3 py-1.5">
                             <CellValue value={row[c.name]} />

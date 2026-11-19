@@ -42,7 +42,7 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
 
   return (
     <div className="p-5 space-y-4">
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+      <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[13px] font-medium text-white/70">Connection</div>
           {info?.status && (
@@ -58,8 +58,8 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
 
         {isLoading ? (
           <div className="space-y-2">
-            <div className="h-8 bg-white/[0.03] rounded animate-pulse" />
-            <div className="h-20 bg-white/[0.03] rounded animate-pulse" />
+            <div className="h-8 bg-white/3 rounded animate-pulse" />
+            <div className="h-20 bg-white/3 rounded animate-pulse" />
           </div>
         ) : connectionUrl ? (
           <>
@@ -120,7 +120,7 @@ export default function DatabaseTab({ svc, serviceId }: { svc: Service; serviceI
         )}
       </div>
 
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+      <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
         <div className="text-[13px] font-medium text-white/70 mb-3">Service Details</div>
         <div className="grid grid-cols-2 gap-2">
           {[

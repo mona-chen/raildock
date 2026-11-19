@@ -14,7 +14,7 @@ export function ProjectSettingsView() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/[0.06]">
+      <div className="px-6 py-4 border-b border-white/6">
         <div className="flex items-center gap-3">
           <Settings size={18} className="text-rail-purple" />
           <div>
@@ -74,8 +74,8 @@ function SharedVarsSection() {
   }
 
   return (
-    <section className="bg-[#16161a] border border-white/[0.06] rounded-xl overflow-hidden">
-      <div className="p-4 border-b border-white/[0.06]">
+    <section className="bg-[#16161a] border border-white/6 rounded-xl overflow-hidden">
+      <div className="p-4 border-b border-white/6">
         <div className="flex items-center gap-2">
           <KeyRound size={14} className="text-rail-purple" />
           <h2 className="text-sm font-medium text-white">Shared Variables</h2>
@@ -88,7 +88,7 @@ function SharedVarsSection() {
       </div>
 
       {vars.length > 0 && (
-        <div className="divide-y divide-white/[0.05]">
+        <div className="divide-y divide-white/5">
           {vars.map((variable) => {
               const isRevealed = revealed.has(variable.key)
               return (
@@ -100,7 +100,7 @@ function SharedVarsSection() {
                   <button
                     type="button"
                     onClick={() => toggleReveal(variable.key)}
-                    className="p-1.5 rounded text-white/25 hover:text-white/60 hover:bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-1.5 rounded text-white/25 hover:text-white/60 hover:bg-white/6 opacity-0 group-hover:opacity-100 transition-all"
                     aria-label={isRevealed ? `Hide ${variable.key}` : `Reveal ${variable.key}`}
                     title={isRevealed ? 'Hide value' : 'Show value'}
                   >
@@ -127,7 +127,7 @@ function SharedVarsSection() {
           placeholder="VARIABLE_NAME"
           value={newKey}
           onChange={(event) => setNewKey(event.target.value.toUpperCase())}
-          className="bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 outline-none focus:border-rail-purple/50"
+          className="bg-black/30 border border-white/8 rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 outline-hidden focus:border-rail-purple/50"
         />
         <input
           type="password"
@@ -135,7 +135,7 @@ function SharedVarsSection() {
           value={newValue}
           onChange={(event) => setNewValue(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && handleAdd()}
-          className="bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 outline-none focus:border-rail-purple/50"
+          className="bg-black/30 border border-white/8 rounded-lg px-3 py-2 text-[12px] font-mono text-white/70 outline-hidden focus:border-rail-purple/50"
         />
         <button
           type="button"
@@ -152,7 +152,7 @@ function SharedVarsSection() {
 
 function ServerSection({ server }: { server?: ServerRecord }) {
   return (
-    <section className="bg-[#16161a] border border-white/[0.06] rounded-xl p-4">
+    <section className="bg-[#16161a] border border-white/6 rounded-xl p-4">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-lg bg-rail-purple/10 flex items-center justify-center">
           <Server size={17} className="text-rail-purple" />
@@ -180,9 +180,9 @@ function ServerSection({ server }: { server?: ServerRecord }) {
 
 function PlatformSourcesCard() {
   return (
-    <section className="bg-[#16161a] border border-white/[0.06] rounded-xl p-4">
+    <section className="bg-[#16161a] border border-white/6 rounded-xl p-4">
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center">
+        <div className="w-9 h-9 rounded-lg bg-white/4 flex items-center justify-center">
           <FolderGit2 size={17} className="text-white/45" />
         </div>
         <div className="min-w-0 flex-1">

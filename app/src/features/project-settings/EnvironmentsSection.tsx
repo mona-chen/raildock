@@ -64,8 +64,8 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#16161a]">
-      <div className="flex items-start gap-3 border-b border-white/[0.06] p-4">
+    <section className="overflow-hidden rounded-xl border border-white/6 bg-[#16161a]">
+      <div className="flex items-start gap-3 border-b border-white/6 p-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rail-purple/10">
           <Layers size={17} className="text-rail-purple" />
         </div>
@@ -88,7 +88,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
       </div>
 
       {showCreate && (
-        <div className="flex items-center gap-2 border-b border-white/[0.06] bg-black/15 p-3">
+        <div className="flex items-center gap-2 border-b border-white/6 bg-black/15 p-3">
           <input
             autoFocus
             value={newName}
@@ -99,7 +99,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
             }}
             placeholder="staging"
             aria-label="New environment name"
-            className="flex-1 rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-[12px] text-white/80 outline-none focus:border-rail-purple/50"
+            className="flex-1 rounded-lg border border-white/8 bg-black/30 px-3 py-2 text-[12px] text-white/80 outline-hidden focus:border-rail-purple/50"
           />
           <button
             type="button"
@@ -112,7 +112,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
           <button
             type="button"
             onClick={() => setShowCreate(false)}
-            className="rounded-lg p-2 text-white/35 transition-colors hover:bg-white/[0.05] hover:text-white/60"
+            className="rounded-lg p-2 text-white/35 transition-colors hover:bg-white/5 hover:text-white/60"
             aria-label="Cancel"
           >
             <X size={13} />
@@ -133,7 +133,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
           Could not load environments — retry
         </button>
       ) : (
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-white/5">
           {environments.map((environment) => {
             const serviceCount = environment.serviceCount ?? 0
             const canDelete = !environment.isDefault && serviceCount === 0
@@ -150,7 +150,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                         if (event.key === 'Escape') setEditingId(null)
                       }}
                       aria-label={`Rename ${environment.name}`}
-                      className="flex-1 rounded-lg border border-white/[0.08] bg-black/30 px-2.5 py-1.5 text-[12px] text-white/80 outline-none focus:border-rail-purple/50"
+                      className="flex-1 rounded-lg border border-white/8 bg-black/30 px-2.5 py-1.5 text-[12px] text-white/80 outline-hidden focus:border-rail-purple/50"
                     />
                     <button
                       type="button"
@@ -163,7 +163,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                     <button
                       type="button"
                       onClick={() => setEditingId(null)}
-                      className="rounded p-1.5 text-white/35 hover:bg-white/[0.06]"
+                      className="rounded p-1.5 text-white/35 hover:bg-white/6"
                       aria-label="Cancel rename"
                     >
                       <X size={13} />
@@ -175,7 +175,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[12.5px] text-white/80">{environment.name}</span>
                         {environment.isDefault && (
-                          <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/40">
+                          <span className="rounded bg-white/6 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/40">
                             default
                           </span>
                         )}
@@ -189,7 +189,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                       type="button"
                       onClick={() => setDuplicateSource(environment)}
                       title={`Copy every service in ${environment.name} into a new environment`}
-                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/6 hover:text-white/70"
                       aria-label={`Duplicate ${environment.name}`}
                     >
                       <Copy size={12} />
@@ -203,7 +203,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                           ? 'Create another environment before syncing'
                           : `Pull another environment's services into ${environment.name}`
                       }
-                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-white/30"
+                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/6 hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-white/30"
                       aria-label={`Sync ${environment.name}`}
                     >
                       <RefreshCw size={12} />
@@ -211,7 +211,7 @@ export default function EnvironmentsSection({ projectId }: { projectId: string }
                     <button
                       type="button"
                       onClick={() => startEditing(environment)}
-                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+                      className="rounded p-1.5 text-white/30 transition-colors hover:bg-white/6 hover:text-white/70"
                       aria-label={`Rename ${environment.name}`}
                     >
                       <Pencil size={12} />

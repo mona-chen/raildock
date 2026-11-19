@@ -26,7 +26,7 @@ export default function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/[0.06] px-6 py-10 text-center',
+        'flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/6 px-6 py-10 text-center',
         className
       )}
     >
@@ -39,7 +39,7 @@ export default function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6]/15 px-3 py-1.5 text-[13px] font-medium text-[#c4b5fd] transition-colors hover:bg-[#8b5cf6]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-rail-purple/15 px-3 py-1.5 text-[13px] font-medium text-[#c4b5fd] transition-colors hover:bg-rail-purple/25 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rail-purple-light"
         >
           <RefreshCw size={13} />
           Try again

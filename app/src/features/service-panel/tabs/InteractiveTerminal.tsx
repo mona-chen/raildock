@@ -78,9 +78,9 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
   }, [])
 
   return (
-    <div className={`flex flex-col h-full bg-[#0B0B0D] ${isExpanded ? 'fixed inset-0 z-[100]' : ''}`}>
+    <div className={`flex flex-col h-full bg-[#0B0B0D] ${isExpanded ? 'fixed inset-0 z-100' : ''}`}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-[#0f0f13]">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-white/6 bg-[#0f0f13]">
         <div className="flex items-center gap-2">
           <Monitor size={14} className="text-white/50" />
           <span className="text-[12px] text-white/60 font-medium">
@@ -102,12 +102,12 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           <div className="flex items-center gap-1.5">
             <Shell size={12} className="text-white/50" />
             <Select value={shell} onValueChange={setShell}>
-              <SelectTrigger className="bg-transparent text-[11px] text-white/50 hover:text-white/70 hover:bg-transparent border-white/10 rounded px-1.5 py-0.5 h-auto w-auto gap-1 cursor-pointer outline-none focus:ring-0 focus:border-white/10 [&_svg]:size-3 [&_svg]:text-white/50">
+              <SelectTrigger className="bg-transparent text-[11px] text-white/50 hover:text-white/70 hover:bg-transparent border-white/10 rounded px-1.5 py-0.5 h-auto w-auto gap-1 cursor-pointer outline-hidden focus:ring-0 focus:border-white/10 [&_svg]:size-3 [&_svg]:text-white/50">
                 <SelectValue placeholder="Select shell" />
               </SelectTrigger>
               <SelectContent className="bg-[#0f0f13] border-white/10">
                 {SHELL_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-[11px] text-white/70 focus:bg-white/[0.06] focus:text-white/70">
+                  <SelectItem key={opt.value} value={opt.value} className="text-[11px] text-white/70 focus:bg-white/6 focus:text-white/70">
                     {opt.label}
                   </SelectItem>
                 ))}
@@ -126,7 +126,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           {isExpanded ? (
             <button
               onClick={() => setIsExpanded(false)}
-              className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.06] text-white/50 text-[11px] hover:bg-white/[0.1] transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded bg-white/6 text-white/50 text-[11px] hover:bg-white/10 transition-colors"
               title="Minimize"
             >
               <Minimize2 size={11} />
@@ -135,7 +135,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
           ) : (
             <button
               onClick={() => setIsExpanded(true)}
-              className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+              className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
               title="Expand terminal"
             >
               <Maximize2 size={13} />
@@ -153,7 +153,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
 
       {/* Search bar */}
       {showSearch && (
-        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/[0.06] bg-[#131318]">
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-white/6 bg-[#131318]">
           <Search size={12} className="text-white/50" />
           <input
             type="text"
@@ -161,7 +161,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
             onChange={handleSearchChange}
             placeholder="Find in terminal..."
             autoFocus
-            className="flex-1 bg-transparent text-[12px] text-white/70 placeholder:text-white/20 outline-none"
+            className="flex-1 bg-transparent text-[12px] text-white/70 placeholder:text-white/20 outline-hidden"
           />
           <button
             onClick={handleFindPrev}
@@ -189,9 +189,9 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
 
       {/* Info banner — dismissible */}
       {showInfo && (
-        <div className="px-4 py-2 border-b border-white/[0.06] bg-[#131318] flex items-center justify-between">
+        <div className="px-4 py-2 border-b border-white/6 bg-[#131318] flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] text-white/50">
-            <Power size={12} className="text-[#8b5cf6]" />
+            <Power size={12} className="text-rail-purple" />
             <span>
               Type commands directly. Supports <code className="text-white/60">vim</code>,{' '}
               <code className="text-white/60">top</code>, <code className="text-white/60">nano</code>, and TUI apps.
@@ -231,7 +231,7 @@ export default function InteractiveTerminal({ serviceId, serviceName }: Interact
               <button
                 type="button"
                 onClick={handleRetry}
-                className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+                className="rounded-md border border-white/10 bg-white/6 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 Try again
               </button>

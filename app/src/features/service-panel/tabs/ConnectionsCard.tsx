@@ -48,10 +48,10 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
   return (
     <div className="space-y-4">
       {!isDb && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+        <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Link2 size={14} className="text-[#8b5cf6]" />
+              <Link2 size={14} className="text-rail-purple" />
               <div className="text-[13px] font-medium text-white/70">Connections</div>
             </div>
             <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/50 rounded">
@@ -67,7 +67,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                 const cmd = quickConnectCommand(svc.subtype, ev.value)
                 const isExpanded = expanded === ev.key
                 return (
-                  <div key={ev.key} className="bg-black/30 border border-white/[0.04] rounded-lg p-3">
+                  <div key={ev.key} className="bg-black/30 border border-white/4 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <ServiceIcon subtype={ev.key.includes('REDIS') ? 'redis' : ev.key.includes('MONGO') ? 'mongo' : ev.key.includes('MYSQL') ? 'mysql' : 'postgres'} size={13} />
@@ -76,10 +76,10 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => copy(ev.value, ev.key)}
-                          className="p-1.5 rounded hover:bg-white/[0.06] text-white/50 hover:text-white/60 transition-colors"
+                          className="p-1.5 rounded hover:bg-white/6 text-white/50 hover:text-white/60 transition-colors"
                           title="Copy connection string"
                         >
-                          {copiedKey === ev.key ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+                          {copiedKey === ev.key ? <Check size={12} className="text-rail-green" /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
@@ -91,7 +91,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                     {cmd && (
                       <button
                         onClick={() => setExpanded(isExpanded ? null : ev.key)}
-                        className="text-[11px] text-[#8b5cf6]/70 hover:text-[#8b5cf6] transition-colors"
+                        className="text-[11px] text-rail-purple/70 hover:text-rail-purple transition-colors"
                       >
                         {isExpanded ? 'Hide' : 'Show'} quick-connect CLI
                       </button>
@@ -103,9 +103,9 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                         </div>
                         <button
                           onClick={() => copy(cmd, `${ev.key}-cmd`)}
-                          className="absolute right-1.5 top-1.5 p-1 rounded hover:bg-white/[0.06] text-white/20 hover:text-white/50 transition-colors"
+                          className="absolute right-1.5 top-1.5 p-1 rounded hover:bg-white/6 text-white/20 hover:text-white/50 transition-colors"
                         >
-                          {copiedKey === `${ev.key}-cmd` ? <Check size={10} className="text-[#22c55e]" /> : <Copy size={10} />}
+                          {copiedKey === `${ev.key}-cmd` ? <Check size={10} className="text-rail-green" /> : <Copy size={10} />}
                         </button>
                       </div>
                     )}
@@ -118,10 +118,10 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
       )}
 
       {isDb && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4">
+        <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Link2 size={14} className="text-[#8b5cf6]" />
+              <Link2 size={14} className="text-rail-purple" />
               <div className="text-[13px] font-medium text-white/70">Connected Apps</div>
             </div>
             <span className="text-[10px] px-2 py-0.5 bg-white/5 text-white/50 rounded">
@@ -134,7 +134,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
           ) : (
             <div className="space-y-2">
               {linkedByServices.map((app) => (
-                <div key={app.id} className="flex items-center justify-between bg-black/30 border border-white/[0.04] rounded-lg px-3 py-2">
+                <div key={app.id} className="flex items-center justify-between bg-black/30 border border-white/4 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
                     <ServiceIcon subtype={app.subtype} dockerImage={app.dockerImage} size={13} />
                     <span className="text-[12px] text-white/60">{app.name}</span>
@@ -143,7 +143,7 @@ export default function ConnectionsCard({ svc, serviceId }: { svc: Service; serv
                   <button
                     onClick={() => unlinkService.mutate({ id: app.id, targetId: serviceId })}
                     disabled={unlinkService.isPending}
-                    className="p-1.5 rounded hover:bg-white/[0.06] text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                    className="p-1.5 rounded hover:bg-white/6 text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
                     title="Unlink"
                   >
                     <Unlink size={12} />

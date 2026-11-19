@@ -101,7 +101,7 @@ export default function SyncEnvironmentDialog({
                     className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] transition-colors ${
                       isActive
                         ? 'border-rail-purple/50 bg-rail-purple/10 text-white'
-                        : 'border-white/[0.08] text-white/50 hover:border-white/[0.16] hover:text-white/80'
+                        : 'border-white/8 text-white/50 hover:border-white/16 hover:text-white/80'
                     }`}
                   >
                     {isActive && <Check size={11} className="text-rail-purple" />}
@@ -119,7 +119,7 @@ export default function SyncEnvironmentDialog({
           </div>
 
           {plan.isLoading && sourceId && (
-            <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 p-3 text-[11px] text-white/40">
+            <div className="flex items-center gap-2 rounded-lg border border-white/6 bg-black/20 p-3 text-[11px] text-white/40">
               <Loader2 size={12} className="animate-spin" /> Comparing environments…
             </div>
           )}
@@ -128,14 +128,14 @@ export default function SyncEnvironmentDialog({
             <button
               type="button"
               onClick={() => plan.refetch()}
-              className="w-full rounded-lg border border-red-500/20 bg-red-500/[0.06] p-3 text-left text-[11px] text-red-300"
+              className="w-full rounded-lg border border-red-500/20 bg-red-500/6 p-3 text-left text-[11px] text-red-300"
             >
               Could not compare these environments — retry
             </button>
           )}
 
           {plan.data && (
-            <div className="max-h-[280px] space-y-2 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/20 p-3">
+            <div className="max-h-[280px] space-y-2 overflow-y-auto rounded-lg border border-white/6 bg-black/20 p-3">
               {nothingToDo ? (
                 <div className="flex items-center gap-2 text-[11px] text-emerald-300/80">
                   <Check size={13} className="text-emerald-400" />
@@ -221,7 +221,7 @@ function ChangeGroup({
 
   return (
     <div className="space-y-1">
-      <div className={`flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.1em] ${tone}`}>
+      <div className={`flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest ${tone}`}>
         {icon}
         {label}
         <span className="text-white/25">{changes.length}</span>

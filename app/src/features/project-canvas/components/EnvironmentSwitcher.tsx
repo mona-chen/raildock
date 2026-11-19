@@ -74,7 +74,7 @@ export default function EnvironmentSwitcher({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] text-white/60 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#8b5cf6]"
+            className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] text-white/60 hover:bg-white/6 focus:outline-hidden focus-visible:ring-1 focus-visible:ring-rail-purple"
             aria-label={`Switch environment (currently ${label})`}
           >
             <span className="max-w-[140px] truncate">{label}</span>
@@ -83,7 +83,7 @@ export default function EnvironmentSwitcher({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className="min-w-[230px] border-white/[0.08] bg-[#1a1a1e] text-white/80"
+          className="min-w-[230px] border-white/8 bg-[#1a1a1e] text-white/80"
         >
           <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.12em] text-white/30">
             Environments
@@ -94,13 +94,13 @@ export default function EnvironmentSwitcher({
               <DropdownMenuItem
                 key={environment.id}
                 onClick={() => onSelect(environment.id)}
-                className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+                className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
               >
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-1.5 truncate">
                     {environment.name}
                     {environment.isDefault && (
-                      <span className="rounded bg-white/[0.06] px-1 py-px text-[9px] uppercase tracking-wide text-white/35">
+                      <span className="rounded bg-white/6 px-1 py-px text-[9px] uppercase tracking-wide text-white/35">
                         default
                       </span>
                     )}
@@ -116,10 +116,10 @@ export default function EnvironmentSwitcher({
           {environments.length === 0 && (
             <div className="px-2 py-1.5 text-[12px] text-white/40">No environments yet</div>
           )}
-          <DropdownMenuSeparator className="bg-white/[0.08]" />
+          <DropdownMenuSeparator className="bg-white/8" />
           <DropdownMenuItem
             onClick={() => setShowCreate(true)}
-            className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+            className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
           >
             <Plus size={13} className="text-rail-purple" />
             New environment
@@ -127,14 +127,14 @@ export default function EnvironmentSwitcher({
           <DropdownMenuItem
             disabled={!duplicateSource}
             onClick={() => setShowDuplicate(true)}
-            className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+            className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
           >
             <Copy size={13} className="text-rail-purple" />
             Duplicate {duplicateSource?.name ?? 'environment'}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => navigate(`/dashboard/project/${projectId}/settings`)}
-            className="cursor-pointer text-[12px] focus:bg-white/[0.08] focus:text-white"
+            className="cursor-pointer text-[12px] focus:bg-white/8 focus:text-white"
           >
             <Settings2 size={13} className="text-white/50" />
             Manage environments
@@ -162,7 +162,7 @@ export default function EnvironmentSwitcher({
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => { if (event.key === 'Enter') handleCreate() }}
               placeholder="staging"
-              className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-[rgba(139,92,246,0.5)]"
+              className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-hidden transition-colors focus:border-[rgba(139,92,246,0.5)]"
             />
             <p className="flex items-center gap-1.5 pt-1 text-[10px] text-white/30">
               <Sparkles size={11} className="text-rail-purple" />

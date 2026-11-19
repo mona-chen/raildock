@@ -245,7 +245,7 @@ export default function GitSourcesTab() {
                     <Button
                       size="sm"
                       onClick={handleGitHubAppInstall}
-                      className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-[11px] h-8 px-3"
+                      className="bg-rail-purple hover:bg-rail-purple/90 text-white text-[11px] h-8 px-3"
                     >
                       <ExternalLink size={12} className="mr-1" />
                       Install App
@@ -263,7 +263,7 @@ export default function GitSourcesTab() {
                     </Button>
                   )}
                   {isConnected && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22c55e]/10 text-[#22c55e]">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rail-green/10 text-rail-green">
                       Connected
                     </span>
                   )}
@@ -297,7 +297,7 @@ export default function GitSourcesTab() {
               value={patToken}
               onChange={(e) => setPatToken(e.target.value)}
               placeholder={patProvider === 'github' ? 'ghp_xxxxxxxxxxxx' : 'glpat-xxxxxxxxxxxx'}
-              className="w-full px-3 py-2.5 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-[#8b5cf6]/40"
+              className="w-full px-3 py-2.5 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple/40"
               onKeyDown={(e) => e.key === 'Enter' && handlePatConnect()}
             />
             <p className="text-[10px] text-[#6b6b7b] mt-1.5">
@@ -308,7 +308,7 @@ export default function GitSourcesTab() {
             <Button
               onClick={handlePatConnect}
               disabled={connect.isPending || !patToken.trim()}
-              className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs"
+              className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs"
             >
               {connect.isPending ? 'Connecting...' : 'Connect'}
             </Button>
@@ -400,7 +400,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
               <Button
                 onClick={handleCreateApp}
                 disabled={createManifest.isPending}
-                className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-9"
+                className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-9"
               >
                 <Sparkles size={14} className="mr-1.5" />
                 {createManifest.isPending ? 'Preparing...' : 'Create GitHub App'}
@@ -411,7 +411,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
               {/* App Details Card */}
               <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <Github size={18} className="text-[#8b5cf6]" />
+                  <Github size={18} className="text-rail-purple" />
                   <div>
                     <div className="text-sm text-white font-medium">{ghConfig?.githubApp?.appSlug}</div>
                     <div className="text-[11px] text-[#6b6b7b]">GitHub App configured</div>
@@ -439,7 +439,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                           {inst.accountType === 'organization' ? 'Organization' : 'Personal'}
                         </span>
                         {inst.connected ? (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#22c55e]/10 text-[#22c55e]">Active</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-rail-green/10 text-rail-green">Active</span>
                         ) : (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">Disconnected</span>
                         )}
@@ -457,7 +457,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleInstallApp}
-                  className="bg-[#8b5cf6] hover:bg-[#8b5cf6]/90 text-white text-xs h-8"
+                  className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-8"
                 >
                   <ExternalLink size={12} className="mr-1.5" />
                   {appInstallations.length > 0 ? 'Add Another Account' : 'Install GitHub App'}
@@ -537,7 +537,7 @@ function TestConnectionButton() {
       {testConnection.isPending ? (
         <RefreshCw size={12} className="mr-1 animate-spin" />
       ) : testConnection.isSuccess && testConnection.data?.valid ? (
-        <CheckCircle2 size={12} className="mr-1 text-[#22c55e]" />
+        <CheckCircle2 size={12} className="mr-1 text-rail-green" />
       ) : (
         <ExternalLink size={12} className="mr-1" />
       )}

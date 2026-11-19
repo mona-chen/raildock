@@ -66,7 +66,7 @@ function SslBadge({ domain }: { domain: Domain }) {
     case 'active':
       return (
         <span
-          className="text-[10px] px-1.5 bg-[#22c55e]/10 text-[#22c55e] rounded-full flex items-center gap-1"
+          className="text-[10px] px-1.5 bg-rail-green/10 text-rail-green rounded-full flex items-center gap-1"
           title={domain.sslExpiresAt ? `Valid until ${new Date(domain.sslExpiresAt).toLocaleDateString()}` : 'SSL active'}
         >
           <ShieldCheck size={10} /> Certificate
@@ -75,7 +75,7 @@ function SslBadge({ domain }: { domain: Domain }) {
     case 'pending':
       return (
         <span
-          className="text-[10px] px-1.5 bg-[#eab308]/10 text-[#eab308] rounded-full flex items-center gap-1"
+          className="text-[10px] px-1.5 bg-rail-yellow/10 text-rail-yellow rounded-full flex items-center gap-1"
           title="Certificate provisioning..."
         >
           <ShieldQuestion size={10} /> Certificate
@@ -84,7 +84,7 @@ function SslBadge({ domain }: { domain: Domain }) {
     case 'failed':
       return (
         <span
-          className="text-[10px] px-1.5 bg-[#ef4444]/10 text-[#ef4444] rounded-full flex items-center gap-1"
+          className="text-[10px] px-1.5 bg-rail-red/10 text-rail-red rounded-full flex items-center gap-1"
           title={domain.sslStatusMessage || 'SSL failed'}
         >
           <ShieldAlert size={10} /> Certificate
@@ -106,9 +106,9 @@ function SslAlert({ domain }: { domain: Domain }) {
   if (domain.sslStatus !== 'failed' || !domain.sslStatusMessage) return null
 
   return (
-    <div className="flex items-start gap-2 mt-2 p-2.5 bg-[#ef4444]/5 border border-[#ef4444]/20 rounded-lg">
-      <Info size={14} className="text-[#ef4444] mt-0.5 flex-shrink-0" />
-      <div className="text-[11px] text-[#ef4444]/80 leading-relaxed">
+    <div className="flex items-start gap-2 mt-2 p-2.5 bg-rail-red/5 border border-rail-red/20 rounded-lg">
+      <Info size={14} className="text-rail-red mt-0.5 shrink-0" />
+      <div className="text-[11px] text-rail-red/80 leading-relaxed">
         {domain.sslStatusMessage}
       </div>
     </div>
@@ -162,15 +162,15 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
 
   return (
     <div className="space-y-0">
-      <div className="flex items-center gap-3 bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-3 group hover:border-white/[0.10] transition-colors">
-        <Globe size={15} className="text-white/50 flex-shrink-0" />
+      <div className="flex items-center gap-3 bg-[#1a1a1e] border border-white/6 rounded-xl p-3 group hover:border-white/10 transition-colors">
+        <Globe size={15} className="text-white/50 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <a
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="text-[13px] text-white/70 hover:text-[#8b5cf6] truncate transition-colors"
+              className="text-[13px] text-white/70 hover:text-rail-purple truncate transition-colors"
               title={url}
             >
               {domain.hostname}
@@ -179,7 +179,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
               <span className="text-[10px] px-1.5 bg-[#f59e0b]/10 text-[#f59e0b] rounded-full">Wildcard</span>
             )}
             {domain.temporary && (
-              <span className="text-[10px] px-1.5 bg-[#8b5cf6]/10 text-[#8b5cf6] rounded-full">Auto-generated</span>
+              <span className="text-[10px] px-1.5 bg-rail-purple/10 text-rail-purple rounded-full">Auto-generated</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
@@ -203,7 +203,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
         <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={editing ? () => setEditing(false) : startEditing}
-            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/60 transition-colors"
+            className="p-1.5 hover:bg-white/6 rounded text-white/20 hover:text-white/60 transition-colors"
             title={editing ? 'Cancel edit' : 'Edit domain'}
             aria-label={`Edit domain ${domain.hostname}`}
           >
@@ -211,23 +211,23 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
           </button>
           <button
             onClick={() => copy(url, domain.hostname)}
-            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/60 transition-colors"
+            className="p-1.5 hover:bg-white/6 rounded text-white/20 hover:text-white/60 transition-colors"
             title="Copy URL"
           >
-            {copiedKey === domain.hostname ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+            {copiedKey === domain.hostname ? <Check size={12} className="text-rail-green" /> : <Copy size={12} />}
           </button>
           <a
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-white/60 transition-colors"
+            className="p-1.5 hover:bg-white/6 rounded text-white/20 hover:text-white/60 transition-colors"
             title="Open URL"
           >
             <ExternalLink size={12} />
           </a>
           <button
             onClick={() => setConfirmOpen(true)}
-            className="p-1.5 hover:bg-white/[0.06] rounded text-white/20 hover:text-red-400 transition-colors"
+            className="p-1.5 hover:bg-white/6 rounded text-white/20 hover:text-red-400 transition-colors"
             title="Remove domain"
             aria-label={`Remove domain ${domain.hostname}`}
           >
@@ -236,7 +236,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
         </div>
       </div>
       {editing && (
-        <div className="mt-2 p-3 bg-[#1a1a1e] border border-[#8b5cf6]/25 rounded-xl space-y-3">
+        <div className="mt-2 p-3 bg-[#1a1a1e] border border-rail-purple/25 rounded-xl space-y-3">
           <div className="space-y-1">
             <label htmlFor={`domain-hostname-${domain.id}`} className="text-[11px] text-white/50 block">Hostname</label>
             <input
@@ -244,7 +244,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
               value={hostnameInput}
               onChange={(e) => setHostnameInput(e.target.value)}
               placeholder="example.com or *.example.com"
-              className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/40"
+              className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-hidden focus:border-rail-purple/40"
             />
             {normalized.error && (
               <div className="text-[11px] text-red-400 flex items-center gap-1">
@@ -262,7 +262,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
                 value={targetPortInput}
                 onChange={(e) => setTargetPortInput(e.target.value)}
                 placeholder={String(appPort)}
-                className="w-28 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="w-28 bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-hidden focus:border-rail-purple/40"
               />
               <span className="text-[11px] text-white/50">
                 Leave blank to follow the app&apos;s port ({appPort})
@@ -273,7 +273,7 @@ function DomainRow({ domain, svc, onRemove }: { domain: Domain; svc: Service; on
             <button
               onClick={saveEdit}
               disabled={!normalized.hostname || Boolean(normalized.error) || updateDomain.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all disabled:opacity-50"
             >
               {updateDomain.isPending && <Loader2 size={11} className="animate-spin" />}
               {updateDomain.isPending ? 'Saving...' : 'Save'}
@@ -363,14 +363,14 @@ export default function DomainsTab({ svc }: { svc: Service }) {
         <button
           onClick={() => generateDomain.mutate(svc.id)}
           disabled={generateDomain.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] hover:bg-rail-purple/25 transition-all disabled:opacity-50"
         >
           <Globe size={13} />
           {generateDomain.isPending ? 'Generating...' : 'Generate Domain'}
         </button>
       </div>
 
-      <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-xl p-4 space-y-3">
+      <div className="bg-[#1a1a1e] border border-white/6 rounded-xl p-4 space-y-3">
         <label className="text-[12px] text-white/50 block">Add custom domain</label>
         <div className="flex gap-2">
           <div className="flex-1 min-w-0 relative">
@@ -380,13 +380,13 @@ export default function DomainsTab({ svc }: { svc: Service }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="example.com or *.example.com"
-              className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none focus:border-[#8b5cf6]/40"
+              className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 placeholder:text-white/20 focus:outline-hidden focus:border-rail-purple/40"
             />
           </div>
           <button
             onClick={handleAdd}
             disabled={!normalized.hostname || Boolean(normalized.error) || addDomain.isPending}
-            className="px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50"
+            className="px-4 py-2 bg-rail-purple/15 text-rail-purple rounded-lg text-[13px] hover:bg-rail-purple/25 transition-all disabled:opacity-50"
           >
             {addDomain.isPending ? 'Adding...' : 'Add'}
           </button>
@@ -434,7 +434,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
                 value={targetPort}
                 onChange={(e) => setTargetPort(e.target.value)}
                 placeholder={String(detectedOrDefault)}
-                className="w-28 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-1.5 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="w-28 bg-black/40 border border-white/8 rounded-lg px-3 py-1.5 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
               />
               <span className="text-[11px] text-white/50">
                 Leave blank to follow the app&apos;s port ({detectedOrDefault})
@@ -456,7 +456,7 @@ export default function DomainsTab({ svc }: { svc: Service }) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 border border-dashed border-white/[0.06] rounded-xl">
+        <div className="text-center py-8 border border-dashed border-white/6 rounded-xl">
           <Globe size={24} className="mx-auto text-white/20 mb-2" />
           <div className="text-[13px] text-white/50">No domains yet</div>
           <div className="text-[11px] text-white/50 mt-0.5">

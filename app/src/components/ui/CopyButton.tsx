@@ -24,7 +24,7 @@ export function CopyButton({ text, size = 12, className = '', title = 'Copy' }: 
   return (
     <button
       onClick={handleCopy}
-      className={`p-1 rounded hover:bg-white/[0.06] text-white/20 hover:text-white/50 transition-all ${className}`}
+      className={`p-1 rounded hover:bg-white/6 text-white/20 hover:text-white/50 transition-all ${className}`}
       title={title}
       type="button"
     >

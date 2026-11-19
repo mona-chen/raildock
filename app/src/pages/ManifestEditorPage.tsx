@@ -165,16 +165,16 @@ export default function ManifestEditorPage() {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="p-1.5 hover:bg-white/[0.06] rounded-lg text-white/50 hover:text-white/60 transition-colors"
+            className="p-1.5 hover:bg-white/6 rounded-lg text-white/50 hover:text-white/60 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
           <div className="flex items-center gap-2">
-            <FileCode size={16} className="text-[#8b5cf6]" />
+            <FileCode size={16} className="text-rail-purple" />
             <span className="text-[14px] font-medium text-white/80">Manifest Editor</span>
           </div>
           {status?.driftDetected && (
@@ -198,14 +198,14 @@ export default function ManifestEditorPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/4 rounded-lg transition-all"
           >
             <Copy size={13} />
             Copy
           </button>
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/50 hover:text-white/60 hover:bg-white/4 rounded-lg transition-all"
           >
             <RotateCcw size={13} />
             Reset
@@ -213,7 +213,7 @@ export default function ManifestEditorPage() {
           <button
             onClick={handlePreview}
             disabled={isPreviewing || !hasChanges}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#8b5cf6] bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/15 rounded-lg transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-rail-purple bg-rail-purple/10 hover:bg-rail-purple/15 rounded-lg transition-all disabled:opacity-50"
           >
             {isPreviewing ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
             Preview
@@ -222,7 +222,7 @@ export default function ManifestEditorPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 px-4 border-b border-white/[0.06]">
+      <div className="flex items-center gap-1 px-4 border-b border-white/6">
         {[
           { id: 'editor' as const, label: 'Editor', icon: FileCode },
           { id: 'drift' as const, label: 'Drift', icon: GitCompareArrows },
@@ -234,7 +234,7 @@ export default function ManifestEditorPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 text-[12px] border-b-2 transition-all ${
               activeTab === tab.id
-                ? 'text-[#8b5cf6] border-[#8b5cf6]'
+                ? 'text-rail-purple border-rail-purple'
                 : 'text-white/50 border-transparent hover:text-white/60'
             }`}
           >
@@ -244,7 +244,7 @@ export default function ManifestEditorPage() {
               <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-400" />
             )}
             {tab.id === 'preview' && previewResult && (
-              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06]">
+              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-white/6">
                 {previewResult.changes.length}
               </span>
             )}
@@ -265,7 +265,7 @@ export default function ManifestEditorPage() {
         {activeTab === 'editor' && (
           <div className="h-full flex">
             <div className="flex-1 flex flex-col">
-              <div className="px-3 py-1.5 border-b border-white/[0.04] flex items-center gap-2">
+              <div className="px-3 py-1.5 border-b border-white/4 flex items-center gap-2">
                 <span className="text-[10px] text-white/50 font-mono">
                   {manifest?.format || 'raildock.toml'}
                 </span>
@@ -282,7 +282,7 @@ export default function ManifestEditorPage() {
                 }}
               />
             </div>
-            <div className="w-[320px] border-l border-white/[0.06] bg-white/[0.01] overflow-y-auto">
+            <div className="w-[320px] border-l border-white/6 bg-white/1 overflow-y-auto">
               <div className="p-4 space-y-4">
                 <div>
                   <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Quick Reference</div>
@@ -297,11 +297,11 @@ export default function ManifestEditorPage() {
                     <div><code className="text-white/50">[[links]]</code> — Service links</div>
                   </div>
                 </div>
-                <div className="border-t border-white/[0.06] pt-3">
+                <div className="border-t border-white/6 pt-3">
                   <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Formats</div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-[11px]">
-                      <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+                      <div className="w-2 h-2 rounded-full bg-rail-purple" />
                       <span className="text-white/50">raildock.toml</span>
                       <span className="text-white/25">— Full features</span>
                     </div>
@@ -326,7 +326,7 @@ export default function ManifestEditorPage() {
                   href="https://raildock.dev/docs/manifest"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[11px] text-[#8b5cf6] hover:underline"
+                  className="flex items-center gap-2 text-[11px] text-rail-purple hover:underline"
                 >
                   <BookOpen size={12} />
                   Full manifest documentation
@@ -356,7 +356,7 @@ export default function ManifestEditorPage() {
               )}
             </div>
             {previewResult && previewResult.changes.length > 0 && (
-              <div className="w-[280px] border-l border-white/[0.06] bg-white/[0.01] p-4">
+              <div className="w-[280px] border-l border-white/6 bg-white/1 p-4">
                 <div className="text-[11px] text-white/50 uppercase tracking-wider mb-3">Summary</div>
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-[12px]">
@@ -368,7 +368,7 @@ export default function ManifestEditorPage() {
                     <ChangeBadge severity={previewResult.severity} />
                   </div>
                 </div>
-                <div className="border-t border-white/[0.06] pt-3">
+                <div className="border-t border-white/6 pt-3">
                   <div className="text-[11px] text-white/50 uppercase tracking-wider mb-2">Impact</div>
                   <div className="text-[11px] text-white/50">
                     {previewResult.severity === 'reload' && 'These changes can be applied without restarting any services.'}
@@ -398,7 +398,7 @@ export default function ManifestEditorPage() {
                 <button
                   onClick={handleApply}
                   disabled={isApplying}
-                  className="w-full mt-4 py-2.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-4 py-2.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[13px] font-medium hover:bg-rail-purple/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isApplying ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                   {isApplying ? 'Applying...' : 'Apply Changes'}
@@ -417,7 +417,7 @@ export default function ManifestEditorPage() {
 
       {showRemovalConfirm && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center px-4"
           onClick={() => setShowRemovalConfirm(false)}
         >
           <div
@@ -440,7 +440,7 @@ export default function ManifestEditorPage() {
 
             <ul className="space-y-2 mb-4 max-h-[220px] overflow-y-auto">
               {removals.map((removal) => (
-                <li key={removal.serviceName} className="bg-black/30 border border-white/[0.06] rounded-lg p-3">
+                <li key={removal.serviceName} className="bg-black/30 border border-white/6 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-mono text-white">{removal.serviceName}</span>
                     <span className="text-[11px] text-white/50">{removal.serviceType}/{removal.subtype}</span>

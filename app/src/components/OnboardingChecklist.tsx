@@ -115,7 +115,7 @@ export default function OnboardingChecklist() {
   if (dismissed || allCompleted) return null
 
   return (
-    <div className="mb-6 overflow-hidden rounded-xl border border-[rgba(139,92,246,0.12)] bg-white/[0.02]">
+    <div className="mb-6 overflow-hidden rounded-xl border border-[rgba(139,92,246,0.12)] bg-white/2">
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button
           type="button"
@@ -124,7 +124,7 @@ export default function OnboardingChecklist() {
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           <span className="shrink-0 text-[12px] font-medium text-white">Getting started</span>
-          <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/[0.06]">
+          <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-white/6">
             <span
               className="block h-full rounded-full bg-rail-purple transition-all"
               style={{ width: `${(completedCount / STEPS.length) * 100}%` }}
@@ -153,7 +153,7 @@ export default function OnboardingChecklist() {
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss getting started"
-          className="shrink-0 rounded p-1 text-[#9292a3] transition-colors hover:bg-white/[0.04] hover:text-[#A0A0B0]"
+          className="shrink-0 rounded p-1 text-[#9292a3] transition-colors hover:bg-white/4 hover:text-[#A0A0B0]"
         >
           <X size={13} />
         </button>
@@ -173,7 +173,7 @@ export default function OnboardingChecklist() {
                       ? 'opacity-55'
                       : isNext
                         ? 'bg-[rgba(139,92,246,0.08)] hover:bg-[rgba(139,92,246,0.14)]'
-                        : 'hover:bg-white/[0.04]'
+                        : 'hover:bg-white/4'
                   }`}
                 >
                   {isDone ? (

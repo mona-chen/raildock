@@ -72,7 +72,7 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
   }
 
   const typeColors: Record<OutputLine['type'], string> = {
-    command: 'text-[#8b5cf6]',
+    command: 'text-rail-purple',
     output: 'text-white/70',
     error: 'text-red-400',
     info: 'text-blue-400',
@@ -81,7 +81,7 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
   return (
     <div className="flex flex-col h-full">
       {/* Enter Container */}
-      <div className="px-4 py-3 border-b border-white/[0.06] bg-[#0f0f13]">
+      <div className="px-4 py-3 border-b border-white/6 bg-[#0f0f13]">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[12px] text-white/50">Enter Container Shell</div>
@@ -89,7 +89,7 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
           </div>
           <button
             onClick={copyEnterCommand}
-            className="flex items-center gap-2 px-3 py-2 bg-white/[0.06] text-white/60 rounded-lg text-[12px] hover:bg-white/[0.1] transition-all"
+            className="flex items-center gap-2 px-3 py-2 bg-white/6 text-white/60 rounded-lg text-[12px] hover:bg-white/10 transition-all"
           >
             {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
             {copied ? 'Copied!' : 'Copy Command'}
@@ -102,24 +102,24 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
       </div>
 
       {/* Command Input */}
-      <div className="px-4 py-3 border-b border-white/[0.06] bg-[#131318]">
+      <div className="px-4 py-3 border-b border-white/6 bg-[#131318]">
         <div className="flex gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2">
-            <span className="text-[#8b5cf6] font-mono text-[13px]">$</span>
+          <div className="flex-1 flex items-center gap-2 bg-black/30 border border-white/8 rounded-lg px-3 py-2">
+            <span className="text-rail-purple font-mono text-[13px]">$</span>
             <input
               type="text"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleRun()}
               placeholder="Enter one-off command (e.g., ls -la, rails c, ps aux)"
-              className="flex-1 bg-transparent text-[12px] text-white/70 font-mono placeholder:text-white/20 focus:outline-none"
+              className="flex-1 bg-transparent text-[12px] text-white/70 font-mono placeholder:text-white/20 focus:outline-hidden"
               disabled={isRunning}
             />
           </div>
           <button
             onClick={handleRun}
             disabled={!command.trim() || isRunning}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[12px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-2 bg-rail-purple/15 text-rail-purple rounded-lg text-[12px] font-medium hover:bg-rail-purple/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRunning ? (
               <>

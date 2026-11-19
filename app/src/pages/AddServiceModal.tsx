@@ -310,7 +310,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
       return (
         <ModalShell onClose={onClose} title="Reading repository…">
           <div className="space-y-5 py-2">
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+            <div className="rounded-xl border border-white/6 bg-white/2 p-4 space-y-3">
               <Skeleton className="h-4 w-2/3" />
               <SkeletonText lines={2} />
             </div>
@@ -374,7 +374,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
               </div>
               <button
                 onClick={() => setDiscovery(null)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/[0.06] py-2.5 text-[13px] font-medium text-white/70 hover:bg-white/[0.1]"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/6 py-2.5 text-[13px] font-medium text-white/70 hover:bg-white/10"
               >
                 <ChevronLeft size={14} /> Go back
               </button>
@@ -387,16 +387,16 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
         <ModalShell onClose={onClose} title="Ready to deploy">
           <div className="space-y-4">
             <button onClick={() => setDiscovery(null)} className="flex items-center gap-1 text-[12px] text-white/50 hover:text-white/70"><ChevronLeft size={14} /> Choose another repository</button>
-            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-4">
+            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/4 p-4">
               <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><Sparkles size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. Choose which services to deploy, or leave them all selected.</p></div></div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-white/40">{selectedCount} of {discovery.services.length} selected</span>
-              <button type="button" onClick={toggleAllServices} className="text-[11px] text-[#8b5cf6] hover:underline">
+              <button type="button" onClick={toggleAllServices} className="text-[11px] text-rail-purple hover:underline">
                 {allSelected ? 'Deselect all' : 'Select all'}
               </button>
             </div>
-            <div className="divide-y divide-white/[0.05] border-y border-white/[0.06]">
+            <div className="divide-y divide-white/5 border-y border-white/6">
               {discovery.services.map((service) => {
                 const selected = selectedServices.has(service.name)
                 return (
@@ -405,7 +405,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                       type="checkbox"
                       checked={selected}
                       onChange={() => toggleService(service.name)}
-                      className="size-3.5 shrink-0 accent-[#8b5cf6]"
+                      className="size-3.5 shrink-0 accent-rail-purple"
                       aria-label={`Deploy ${service.name}`}
                     />
                     <div className={`flex min-w-0 flex-1 items-center gap-3 transition-opacity ${selected ? '' : 'opacity-40'}`}>
@@ -414,7 +414,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                         <div className="truncate text-[12px] font-medium text-white/70">{service.name}</div>
                         <div className="mt-0.5 text-[10px] text-[#9292a3]">{service.category === 'database' ? 'Database' : service.rootDirectory ? `From ${service.rootDirectory}` : 'From repository root'}{service.publishDirectory ? ` · publishes ${service.publishDirectory}` : ''}</div>
                       </div>
-                      <span className="rounded bg-white/[0.05] px-2 py-1 text-[9px] capitalize text-white/35">{service.category}</span>
+                      <span className="rounded bg-white/5 px-2 py-1 text-[9px] capitalize text-white/35">{service.category}</span>
                     </div>
                   </label>
                 )
@@ -422,10 +422,10 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
             </div>
             {(discovery.conflicts.length > 0 || discovery.warnings.length > 0) && <div className="rounded-lg border border-amber-400/15 bg-amber-400/[0.035] p-3 text-[11px] text-amber-200/60"><div className="flex gap-2"><AlertTriangle size={14} className="shrink-0 text-amber-300" /><span>{discovery.conflicts[0] || `${discovery.warnings.length} compatibility note${discovery.warnings.length === 1 ? '' : 's'} found`}</span></div></div>}
             <button type="button" onClick={() => setShowTechnicalDetails((value) => !value)} className="flex w-full items-center justify-between text-[11px] text-white/35 hover:text-white/60"><span>How RailDock decided</span><ChevronDown size={13} className={showTechnicalDetails ? 'rotate-180' : ''} /></button>
-            {showTechnicalDetails && <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/15 p-3">
+            {showTechnicalDetails && <div className="space-y-3 rounded-lg border border-white/6 bg-black/15 p-3">
               {discovery.evidence.map((item) => <div key={item.path} className="flex items-start justify-between gap-3 text-[10px]"><div><div className="font-mono text-white/50">{item.path}</div><div className="mt-0.5 text-[#9292a3]">{item.decision}</div></div><span className="text-emerald-400/70">{item.confidence}</span></div>)}
               {discovery.services.some((service) => (service.envKeys?.length ?? 0) > 0) && (
-                <div className="border-t border-white/[0.06] pt-3">
+                <div className="border-t border-white/6 pt-3">
                   <div className="mb-1 text-[10px] text-white/50">Suggested variables</div>
                   <p className="mb-2 text-[10px] text-[#9292a3]">
                     Documented in the repo's example .env files. Values are never imported — set them in the service's Variables tab after the first deploy.
@@ -436,7 +436,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                         <span className="w-24 shrink-0 truncate text-white/45">{service.name}</span>
                         <div className="flex flex-wrap gap-1">
                           {service.envKeys!.map((key) => (
-                            <span key={key} className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[9px] text-white/50">{key}</span>
+                            <span key={key} className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-white/50">{key}</span>
                           ))}
                         </div>
                       </div>
@@ -444,7 +444,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                   </div>
                 </div>
               )}
-              <div className="border-t border-white/[0.06] pt-3"><div className="mb-2 text-[10px] text-white/50">Build method overrides</div>{discovery.services.filter((service) => service.category === 'app').map((service) => <label key={service.name} className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/45"><span className="truncate">{service.name}</span><Select
+              <div className="border-t border-white/6 pt-3"><div className="mb-2 text-[10px] text-white/50">Build method overrides</div>{discovery.services.filter((service) => service.category === 'app').map((service) => <label key={service.name} className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/45"><span className="truncate">{service.name}</span><Select
                         value={builderOverrides[service.name] ?? '__discovered__'}
                         onValueChange={(value) => setBuilderOverrides((current) => {
                           const next = { ...current }
@@ -465,7 +465,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                       </Select></label>)}</div>
             </div>}
             {discovery.removals && discovery.removals.length > 0 && (
-              <div className="rounded-lg border border-red-400/20 bg-red-400/[0.04] p-3 text-[11px] text-red-200/70">
+              <div className="rounded-lg border border-red-400/20 bg-red-400/4 p-3 text-[11px] text-red-200/70">
                 <div className="flex gap-2">
                   <AlertTriangle size={14} className="shrink-0 text-red-300" />
                   <div>
@@ -500,7 +500,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                 </div>
               </div>
             )}
-            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0 || selectedCount === 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8b5cf6] py-2.5 text-[13px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : selectedCount === 0 ? 'Select a service to deploy' : allSelected && discovery.services.length > 1 ? 'Deploy all services' : `Deploy ${deployTarget}`}</button>
+            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0 || selectedCount === 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-rail-purple py-2.5 text-[13px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : selectedCount === 0 ? 'Select a service to deploy' : allSelected && discovery.services.length > 1 ? 'Deploy all services' : `Deploy ${deployTarget}`}</button>
           </div>
         </ModalShell>
       )
@@ -509,7 +509,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
       <ModalShell onClose={onClose} title="Add Application">
         <button
           onClick={() => setStep('type')}
-          className="flex items-center gap-1 text-[12px] text-[#8b5cf6] hover:underline mb-3"
+          className="flex items-center gap-1 text-[12px] text-rail-purple hover:underline mb-3"
         >
           <ChevronLeft size={14} /> Back
         </button>
@@ -521,7 +521,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
               value={name}
               onChange={(e) => { setName(e.target.value); setNameTouched(true) }}
               placeholder="my-app"
-              className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+              className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
             />
           </div>
 
@@ -538,7 +538,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
               <label className="text-[11px] text-white/50 block mb-1.5">Application Type</label>
               <div className="space-y-2">
                 {appSubtypes.length === 0 && (
-                  <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                  <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/6 rounded-lg">
                     No application modules available
                   </div>
                 )}
@@ -548,8 +548,8 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                     onClick={() => setAppSubtype(st.subtype)}
                     className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all ${
                       appSubtype === st.subtype
-                        ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
-                        : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                        ? 'border-rail-purple/40 bg-rail-purple/10'
+                        : 'border-white/6 bg-[#1a1a1e] hover:border-white/10'
                     }`}
                   >
                     <ServiceIcon subtype={st.subtype} size={18} />
@@ -558,8 +558,8 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                       <div className="text-[11px] text-white/50">{st.description}</div>
                     </div>
                     {appSubtype === st.subtype && (
-                      <div className="w-4 h-4 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+                      <div className="w-4 h-4 rounded-full bg-rail-purple/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-rail-purple" />
                       </div>
                     )}
                   </button>
@@ -594,7 +594,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                 {gitSources.length === 0 && (
                   <p className="text-[11px] text-white/50 mt-1">
                     No Git accounts connected.{" "}
-                    <Link to="/dashboard/settings?tab=git-sources" className="text-[#8b5cf6] hover:underline">
+                    <Link to="/dashboard/settings?tab=git-sources" className="text-rail-purple hover:underline">
                       Go to Settings → Git Sources
                     </Link>{" "}
                     to connect one.
@@ -625,27 +625,27 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                           value={repoSearch}
                           onChange={(e) => setRepoSearch(e.target.value)}
                           placeholder="Search repositories..."
-                          className="w-full bg-black/40 border border-white/[0.08] rounded-lg pl-7 pr-3 py-1.5 text-[12px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                          className="w-full bg-black/40 border border-white/8 rounded-lg pl-7 pr-3 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
                         />
                         <Search aria-hidden="true" className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9292a3]" size={16} />
                       </div>
                       {filteredRepos.length === 0 ? (
-                        <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                        <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/6 rounded-lg">
                           No repositories match "{repoSearch}"
                         </div>
                       ) : (
-                      <div className="max-h-40 overflow-y-auto border border-white/[0.06] rounded-lg divide-y divide-white/[0.04]">
+                      <div className="max-h-40 overflow-y-auto border border-white/6 rounded-lg divide-y divide-white/4">
                       {filteredRepos.map((repo: GitRepo) => (
                         <button
                           key={repo.id}
                           onClick={() => handleSelectRepo(repo)}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors ${
                             gitRepo === (repo.cloneUrl || repo.fullName)
-                              ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
-                              : 'text-white/60 hover:bg-white/[0.03]'
+                              ? 'bg-rail-purple/10 text-rail-purple'
+                              : 'text-white/60 hover:bg-white/3'
                           }`}
                         >
-                          <GitBranch size={12} className={gitRepo === (repo.cloneUrl || repo.fullName) ? 'text-[#8b5cf6]' : 'text-white/50'} />
+                          <GitBranch size={12} className={gitRepo === (repo.cloneUrl || repo.fullName) ? 'text-rail-purple' : 'text-white/50'} />
                           <span className="flex-1 truncate">{repo.fullName}</span>
                           {repo.private && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-white/50 rounded">Private</span>
@@ -657,7 +657,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                       )}
                     </>
                   ) : (
-                    <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg space-y-1">
+                    <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/6 rounded-lg space-y-1">
                       {reposSyncing ? (
                         <span>Syncing repositories…</span>
                       ) : reposData?.error ? (
@@ -684,7 +684,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                   value={gitRepo}
                   onChange={(e) => setGitRepo(e.target.value)}
                   placeholder="https://github.com/username/repo.git"
-                  className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                  className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
                 />
               </div>
 
@@ -695,7 +695,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                     value={gitBranch}
                     onChange={(e) => setGitBranch(e.target.value)}
                     placeholder="main"
-                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                    className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
                   />
                 </div>
                 <div className="flex-1">
@@ -707,7 +707,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                     value={rootDirectory}
                     onChange={(e) => setRootDirectory(e.target.value)}
                     placeholder="/ (repo root)"
-                    className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                    className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
                   />
                 </div>
               </div>
@@ -729,11 +729,11 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                         onClick={() => setBuilder(b.slug)}
                         className={`text-left p-2.5 rounded-lg border transition-all ${
                           isActive
-                            ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10'
-                            : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                            ? 'border-rail-purple/40 bg-rail-purple/10'
+                            : 'border-white/6 bg-[#1a1a1e] hover:border-white/10'
                         }`}
                       >
-                        <div className={`text-[12px] font-medium ${isActive ? 'text-[#8b5cf6]' : 'text-white/70'}`}>
+                        <div className={`text-[12px] font-medium ${isActive ? 'text-rail-purple' : 'text-white/70'}`}>
                           {b.name}
                         </div>
                         <div className="text-[10px] text-white/50 mt-0.5 leading-tight">
@@ -744,7 +744,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                   })}
                 </div>
                 {activeBuilder && (
-                  <div className="text-[11px] text-white/50 bg-white/[0.03] rounded-lg px-3 py-2 mt-2">
+                  <div className="text-[11px] text-white/50 bg-white/3 rounded-lg px-3 py-2 mt-2">
                     {activeBuilder.description}
                   </div>
                 )}
@@ -759,7 +759,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                 value={dockerImage}
                 onChange={(e) => setDockerImage(e.target.value)}
                 placeholder="nginx:alpine"
-                className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+                className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
               />
               <div className="text-[11px] text-white/50 mt-1.5">
                 Dokku will pull and deploy this image directly.
@@ -770,7 +770,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
           <button
             onClick={selectedGitSource?.installationId && sourceType === 'git' ? handleScanRepository : handleCreateApp}
             disabled={isCreating || isScanning || (sourceType === 'git' && !gitRepo.trim()) || (sourceType === 'docker' && !dockerImage.trim())}
-            className="w-full py-2.5 bg-[#8b5cf6]/15 text-[#8b5cf6] rounded-lg text-[13px] font-medium hover:bg-[#8b5cf6]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-rail-purple/15 text-rail-purple rounded-lg text-[13px] font-medium hover:bg-rail-purple/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isScanning ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             {isScanning ? 'Reading deployment settings…' : isCreating ? 'Creating...' : selectedGitSource?.installationId && sourceType === 'git' ? 'Continue' : 'Create Application'}
@@ -786,7 +786,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
       <ModalShell onClose={onClose} title="Add Database">
         <button
           onClick={() => setStep('type')}
-          className="flex items-center gap-1 text-[12px] text-[#8b5cf6] hover:underline mb-3"
+          className="flex items-center gap-1 text-[12px] text-rail-purple hover:underline mb-3"
         >
           <ChevronLeft size={14} /> Back
         </button>
@@ -798,7 +798,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="my-app-db"
-              className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+              className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
             />
           </div>
 
@@ -806,7 +806,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
             <label className="text-[11px] text-white/50 block mb-1.5">Database Type</label>
             <div className="space-y-2">
               {databaseSubtypes.length === 0 && (
-                <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+                <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/6 rounded-lg">
                   No database modules available
                 </div>
               )}
@@ -816,8 +816,8 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                   onClick={() => setDbType(db.subtype)}
                   className={`w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all ${
                     dbType === db.subtype
-                      ? 'border-[#3b82f6]/40 bg-[#3b82f6]/5'
-                      : 'border-white/[0.06] bg-[#1a1a1e] hover:border-white/[0.1]'
+                      ? 'border-rail-blue/40 bg-rail-blue/5'
+                      : 'border-white/6 bg-[#1a1a1e] hover:border-white/10'
                   }`}
                 >
                   <ServiceIcon subtype={db.subtype} size={18} />
@@ -826,8 +826,8 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                     <div className="text-[11px] text-white/50">{db.description} · v{db.defaultVersion}</div>
                   </div>
                   {dbType === db.subtype && (
-                    <div className="w-4 h-4 rounded-full bg-[#3b82f6]/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-[#3b82f6]" />
+                    <div className="w-4 h-4 rounded-full bg-rail-blue/20 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-rail-blue" />
                     </div>
                   )}
                 </button>
@@ -838,7 +838,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
           <button
             onClick={handleCreateDatabase}
             disabled={isCreating}
-            className="w-full py-2.5 bg-[#3b82f6]/15 text-[#3b82f6] rounded-lg text-[13px] font-medium hover:bg-[#3b82f6]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-rail-blue/15 text-rail-blue rounded-lg text-[13px] font-medium hover:bg-rail-blue/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Plus size={14} />
             {isCreating ? 'Creating...' : 'Create Database'}
@@ -853,7 +853,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
     <ModalShell onClose={onClose} title="Add a supporting service">
       <button
         onClick={() => setStep('type')}
-        className="flex items-center gap-1 text-[12px] text-[#8b5cf6] hover:underline mb-3"
+        className="flex items-center gap-1 text-[12px] text-rail-purple hover:underline mb-3"
       >
         <ChevronLeft size={14} /> Back
       </button>
@@ -865,13 +865,13 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="my-service"
-            className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-none focus:border-[#8b5cf6]/40"
+            className="w-full bg-black/40 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white/70 focus:outline-hidden focus:border-rail-purple/40"
           />
         </div>
 
         <div className="space-y-2">
           {otherSubtypes.length === 0 && (
-            <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/[0.06] rounded-lg">
+            <div className="text-[12px] text-white/50 py-3 text-center border border-dashed border-white/6 rounded-lg">
               No service modules available
             </div>
           )}
@@ -897,7 +897,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[620px]" data-no-pan>
-        <div className="border-b border-white/[0.08] px-6 py-5 pr-12">
+        <div className="border-b border-white/8 px-6 py-5 pr-12">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="sr-only">Choose and configure a service for the active project environment.</DialogDescription>
         </div>
@@ -917,10 +917,10 @@ function TypeCard({ icon: Icon, color, title, description, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3.5 bg-[#1a1a1e] border border-white/[0.06] rounded-xl hover:border-white/[0.12] transition-all text-left group"
+      className="w-full flex items-center gap-3 p-3.5 bg-[#1a1a1e] border border-white/6 rounded-xl hover:border-white/12 transition-all text-left group"
     >
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all"
         style={{ backgroundColor: `${color}15` }}
       >
         <Icon size={20} style={{ color }} />
@@ -945,8 +945,8 @@ function SourceButton({ active, onClick, icon: Icon, label }: {
       onClick={onClick}
       className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12px] font-medium transition-all border ${
         active
-          ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#8b5cf6]'
-          : 'border-white/[0.06] bg-[#1a1a1e] text-white/50 hover:text-white/70'
+          ? 'border-rail-purple/40 bg-rail-purple/10 text-rail-purple'
+          : 'border-white/6 bg-[#1a1a1e] text-white/50 hover:text-white/70'
       }`}
     >
       <Icon size={14} />
@@ -966,7 +966,7 @@ function ServiceOption({ icon: Icon, name, description, onClick, isCreating }: {
     <button
       onClick={onClick}
       disabled={isCreating}
-      className="w-full flex items-center gap-3 p-3 bg-[#1a1a1e] border border-white/[0.06] rounded-lg hover:border-white/[0.1] transition-all text-left disabled:opacity-50"
+      className="w-full flex items-center gap-3 p-3 bg-[#1a1a1e] border border-white/6 rounded-lg hover:border-white/10 transition-all text-left disabled:opacity-50"
     >
       <Icon size={16} className="text-white/50" />
       <div className="flex-1">

@@ -99,11 +99,11 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
 
   return (
     <div className="min-h-full bg-[#111114]">
-      <header className="border-b border-white/[0.06] px-5 py-4">
+      <header className="border-b border-white/6 px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[14px] font-medium text-white/85">
-              <DatabaseBackup size={15} className="text-[#8b5cf6]" />
+              <DatabaseBackup size={15} className="text-rail-purple" />
               Volume snapshots
             </div>
             <p className="mt-1 text-[12px] text-white/35">Encrypted point-in-time copies of mounted volumes.</p>
@@ -116,7 +116,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 setShowSchedule(true)
               }}
               disabled={snapshotVolume.isPending || svc.storageMounts.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#17171b] px-3 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/8 bg-[#17171b] px-3 py-1.5 text-[11px] text-white/70 hover:bg-white/5 disabled:opacity-50"
             >
               {snapshotVolume.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
               Schedule snapshot
@@ -128,7 +128,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 snapshotVolume.mutate({ id: serviceId, storageMountId: svc.storageMounts[0]?.id || '' })
               }}
               disabled={snapshotVolume.isPending || svc.storageMounts.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-50"
             >
               {snapshotVolume.isPending ? <Loader2 size={12} className="animate-spin" /> : <DatabaseBackup size={12} />}
               Snapshot now
@@ -138,7 +138,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
       </header>
 
       {svc.storageMounts.length === 0 && (
-        <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2 text-[11px] text-amber-300">
+        <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/4 px-3 py-2 text-[11px] text-amber-300">
           No storage mounts configured.
           <Link to={`/dashboard/projects/${svc.projectId}?service=${svc.id}&tab=storage`} className="ml-1 underline hover:text-amber-200">
             Add a volume mount
@@ -147,7 +147,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
         </div>
       )}
 
-      <section className="border-b border-white/[0.06] px-5 py-4">
+      <section className="border-b border-white/6 px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">
@@ -157,7 +157,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
           </div>
           <Link
             to="/dashboard/settings?tab=backup-destinations"
-            className="text-[11px] text-[#a78bfa] hover:text-[#c4b5fd] flex items-center gap-1"
+            className="text-[11px] text-rail-purple-light hover:text-[#c4b5fd] flex items-center gap-1"
           >
             <ExternalLink size={10} />
             Manage
@@ -177,19 +177,19 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
         </div>
       </section>
 
-      <section className="border-b border-white/[0.06] px-5 py-4">
+      <section className="border-b border-white/6 px-5 py-4">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Snapshot schedules</h3>
           <span className="text-[10px] text-white/20">{volumeSchedules.length} total</span>
         </div>
         {volumeSchedules.length === 0 ? (
-          <div className="border-y border-dashed border-white/[0.08] py-8 text-center">
+          <div className="border-y border-dashed border-white/8 py-8 text-center">
             <Clock3 size={20} className="mx-auto mb-2 text-white/15" />
             <div className="text-[12px] text-white/45">No scheduled snapshots</div>
             <div className="mt-1 text-[11px] text-white/20">Pick a mount and frequency to automate volume backups.</div>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.05] border-y border-white/[0.05]">
+          <div className="divide-y divide-white/5 border-y border-white/5">
             {volumeSchedules.map((schedule) => (
               <div key={schedule.id} className="flex items-center gap-3 py-2.5 text-[12px]">
                 <Clock3 size={13} className="text-white/25" />
@@ -212,13 +212,13 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
         {isLoading ? <div className="py-10 text-center text-[12px] text-white/50">Loading snapshots…</div> : isError ? (
           <button onClick={() => refetch()} className="flex w-full items-center justify-center gap-2 py-10 text-[12px] text-red-400"><AlertCircle size={14} /> Could not load snapshots · Retry</button>
         ) : snapshots.length === 0 ? (
-          <div className="border-y border-dashed border-white/[0.08] py-12 text-center">
+          <div className="border-y border-dashed border-white/8 py-12 text-center">
             <Archive size={22} className="mx-auto mb-2 text-white/15" />
             <div className="text-[12px] text-white/45">No snapshots yet</div>
             <div className="mt-1 text-[11px] text-white/20">Create one before your next risky change.</div>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.05] border-y border-white/[0.05]">
+          <div className="divide-y divide-white/5 border-y border-white/5">
             {snapshots.map((backup: Backup) => {
               const ready = backup.status === 'completed' && Boolean(backup.metadata?.verifiedAt)
               return (
@@ -240,7 +240,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                   </div>
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download snapshot" className="rounded p-1.5 text-white/50 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download snapshot" className="rounded p-1.5 text-white/50 hover:bg-white/6 hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
                     <button type="button" disabled={!ready} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore snapshot" className="rounded p-1.5 text-white/50 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete snapshot" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
@@ -252,8 +252,8 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
       </section>
 
       {showSchedule && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-emerald-300"><Clock3 size={16} /><h3 className="text-[14px] font-medium">Schedule volume snapshot</h3></div>
             <p className="mt-3 text-[12px] leading-5 text-white/50">Create an encrypted snapshot of a mounted volume on a recurring schedule.</p>
             <form className="mt-4 space-y-3" onSubmit={(event) => {
@@ -265,7 +265,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
             }}>
               <label className="text-[10px] text-white/35">Mount
                 <Select value={snapshotMountId} onValueChange={(value) => setSnapshotMountId(value)}>
-                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70">
+                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[11px] text-white/70">
                     <SelectValue placeholder="Select mount" />
                   </SelectTrigger>
                   <SelectContent>
@@ -279,7 +279,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 <label className="flex-1 text-[10px] text-white/35">
                   Frequency
                   <Select value={frequency} onValueChange={(value) => setFrequency(value)}>
-                    <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                    <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
                       <SelectValue placeholder="Frequency" />
                     </SelectTrigger>
                     <SelectContent>
@@ -291,7 +291,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 </label>
                 <label className="w-28 text-[10px] text-white/35">
                   Keep latest
-                  <input type="number" min={1} max={30} value={retentionCount} onChange={(event) => setRetentionCount(Number(event.target.value))} className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70" />
+                  <input type="number" min={1} max={30} value={retentionCount} onChange={(event) => setRetentionCount(Number(event.target.value))} className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70" />
                 </label>
               </div>
               {destinations.length > 0 && (
@@ -299,7 +299,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                   <div className="text-[10px] text-white/35 mb-1">Also send to</div>
                   <div className="flex flex-wrap gap-2">
                     {destinations.map((destination: BackupDestination) => (
-                      <label key={destination.id} className="flex items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 cursor-pointer hover:bg-white/[0.03]">
+                      <label key={destination.id} className="flex items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 cursor-pointer hover:bg-white/3">
                         <input
                           type="checkbox"
                           checked={scheduleDestinations.includes(destination.id)}
@@ -313,7 +313,7 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 </div>
               )}
               <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowSchedule(false)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+                <button type="button" onClick={() => setShowSchedule(false)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">Cancel</button>
                 <button
                   type="submit"
                   disabled={!snapshotMountId || createSchedule.isPending}
@@ -329,11 +329,11 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
       )}
 
       {confirmRestore && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="snapshot-restore-title">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="snapshot-restore-title">
+          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-300"><RotateCcw size={16} /><h3 id="snapshot-restore-title" className="text-[14px] font-medium">Restore this snapshot?</h3></div>
             {restoreTarget && (
-              <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
+              <div className="mt-3 space-y-1.5 rounded-lg border border-white/6 bg-white/2 p-3 text-[11px]">
                 <div className="flex justify-between"><span className="text-white/50">Mount</span><span className="text-white/65">{restoreTarget.metadata?.containerPath || restoreTarget.metadata?.hostPath || 'volume'}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
@@ -349,11 +349,11 @@ export default function SnapshotsSubTab({ svc, serviceId }: { svc: Service; serv
                 onChange={(event) => setRestoreConfirmation(event.target.value)}
                 autoComplete="off"
                 aria-label="Confirm service name"
-                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+                className="mt-1.5 w-full rounded-md border border-white/9 bg-white/3 px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-hidden focus:border-amber-400/40"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">Cancel</button>
               <button disabled={!restoreConfirmed} onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore, confirm: svc.name }, { onSuccess: () => closeRestore() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
             </div>
           </div>

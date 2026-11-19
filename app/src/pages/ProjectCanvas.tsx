@@ -632,7 +632,7 @@ export default function ProjectCanvas() {
             {services.length > 0 && visibleServices.length === 0 && !isLoading && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/3 border border-white/6 flex items-center justify-center mx-auto mb-4">
                     <Search size={28} className="text-[#9292a3]" />
                   </div>
                   <h3 className="text-base font-semibold text-white/70 mb-1">No services match</h3>
@@ -642,7 +642,7 @@ export default function ProjectCanvas() {
                   <button
                     type="button"
                     onClick={() => { useCanvasStore.getState().setFilter('all'); useCanvasStore.getState().setSearchQuery(''); }}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.06] text-white/70 text-sm font-medium rounded-xl hover:bg-white/[0.1] transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/6 text-white/70 text-sm font-medium rounded-xl hover:bg-white/10 transition-all"
                   >
                     Clear filters
                   </button>
@@ -743,9 +743,9 @@ export default function ProjectCanvas() {
                 { key: '⌘ 0', desc: 'Reset view' },
                 { key: '⌘ K', desc: 'Command palette' },
               ].map((item) => (
-                <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-white/[0.04] last:border-0">
+                <div key={item.key} className="flex items-center justify-between py-1.5 border-b border-white/4 last:border-0">
                   <span className="text-[13px] text-white/60">{item.desc}</span>
-                  <kbd className="px-2 py-0.5 bg-white/[0.06] rounded text-[11px] text-white/50 font-mono">{item.key}</kbd>
+                  <kbd className="px-2 py-0.5 bg-white/6 rounded text-[11px] text-white/50 font-mono">{item.key}</kbd>
                 </div>
               ))}
             </div>

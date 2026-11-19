@@ -17,7 +17,7 @@ export default function HttpTrafficSetup({ serverId, settings, capturePaths = fa
   const error = detection.error || setup.error || connect.error
   // The review token binds the path choice, so changing it must re-detect.
   const changePaths = (checked: boolean) => { setRetainPaths(checked); if (sources) detection.mutate(checked) }
-  return <section className="rounded-lg border border-white/10 bg-white/[0.02] p-5 sm:p-6" aria-label="HTTP analytics setup">
+  return <section className="rounded-lg border border-white/10 bg-white/2 p-5 sm:p-6" aria-label="HTTP analytics setup">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="max-w-xl space-y-2"><h3 className="font-medium text-white">{running ? 'Setting up HTTP analytics' : settings.enabled ? 'Change HTTP analytics logging' : 'HTTP analytics is not collecting'}</h3>
         <p className="text-sm leading-relaxed text-[#a0a0b0]">{running ? 'The host is configuring access logging and checking the proxy. This page will update when setup finishes.' : 'Connect your proxy to measure requests, response times and errors. RailDock can find the source and configure logging for you.'}</p>
@@ -25,7 +25,7 @@ export default function HttpTrafficSetup({ serverId, settings, capturePaths = fa
       {!running && <div className="flex items-center gap-2"><Button onClick={() => detection.mutate(retainPaths)} disabled={detection.isPending}>{detection.isPending ? 'Detecting proxy…' : sources ? 'Detect again' : 'Set up HTTP analytics'}</Button>{onClose && <Button variant="ghost" onClick={onClose}>Close</Button>}</div>}
     </div>
     {!running && <div className="mt-4 flex items-start gap-3 rounded-lg border border-white/10 p-3">
-      <Switch id="http-retain-paths" aria-label="Retain normalized request paths" checked={retainPaths} onCheckedChange={changePaths} className="mt-0.5 data-[state=checked]:bg-[#8b5cf6] [&_[data-slot=switch-thumb]]:bg-white"/>
+      <Switch id="http-retain-paths" aria-label="Retain normalized request paths" checked={retainPaths} onCheckedChange={changePaths} className="mt-0.5 data-[state=checked]:bg-rail-purple **:data-[slot=switch-thumb]:bg-white"/>
       <div><label htmlFor="http-retain-paths" className="text-sm text-white">Retain normalized request paths</label>
         <p className="mt-1 text-xs leading-relaxed text-[#9292a3]">Off by default. When enabled, the proxy log carries request paths and RailDock keeps up to 25 normalized categories per bucket, grouping the rest. Paths may contain sensitive identifiers; query strings, client IPs, headers and bodies are never retained.</p></div>
     </div>}

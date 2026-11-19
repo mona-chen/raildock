@@ -74,7 +74,7 @@ const FREQUENCY_LABEL: Record<string, string> = { daily: 'Daily', weekly: 'Weekl
 
 function DestinationBadge({ name, kind }: { name: string; kind?: string }) {
   const color = kind === 'local' ? 'text-white/45' : kind === 'r2' ? 'text-orange-300' : 'text-emerald-300'
-  return <span className={`rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] ${color}`}>{name}</span>
+  return <span className={`rounded bg-white/5 px-1.5 py-0.5 text-[9px] ${color}`}>{name}</span>
 }
 
 export default function BackupsSubTab({ svc, serviceId }: { svc: Service; serviceId: string }) {
@@ -184,7 +184,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
       {destinations.map((destination: BackupDestination) => (
         <label
           key={destination.id}
-          className="flex items-center gap-2 rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05] cursor-pointer"
+          className="flex items-center gap-2 rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/5 cursor-pointer"
         >
           <input
             type="checkbox"
@@ -202,7 +202,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         <button
           type="button"
           onClick={useOrganizationDefault}
-          className="mt-1 flex w-full items-center gap-1.5 border-t border-white/[0.06] px-2 py-1.5 text-left text-[10px] text-white/45 hover:text-white/75"
+          className="mt-1 flex w-full items-center gap-1.5 border-t border-white/6 px-2 py-1.5 text-left text-[10px] text-white/45 hover:text-white/75"
         >
           <RotateCcw size={10} />
           Use organization default
@@ -223,17 +223,17 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
 
   return (
     <div className="min-h-full bg-[#111114]">
-      <header className="border-b border-white/[0.06] px-5 py-4">
+      <header className="border-b border-white/6 px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[14px] font-medium text-white/85">
-              <DatabaseBackup size={15} className="text-[#8b5cf6]" />
+              <DatabaseBackup size={15} className="text-rail-purple" />
               Recovery
             </div>
             <p className="mt-1 text-[12px] text-white/35">Verified database artifacts, retention, and restore history.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] px-2.5 py-1.5 text-[11px] text-white/55 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-md border border-white/8 px-2.5 py-1.5 text-[11px] text-white/55 hover:bg-white/5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rail-purple">
               <Upload size={12} /> Import
             </button>
             <input ref={fileInputRef} type="file" accept=".sql,.dump,.gz" className="hidden" onChange={(event) => {
@@ -243,15 +243,15 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             }} />
 
             <div className="relative group">
-              <button type="button" className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.05]">
+              <button type="button" className="inline-flex items-center gap-1.5 rounded-md border border-white/8 bg-[#17171b] px-2.5 py-1.5 text-[11px] text-white/70 hover:bg-white/5">
                 <Cloud size={12} />
                 {!recovery ? 'Destinations…' : selectedDestinations.length === 0 ? 'Local only' : `${selectedDestinations.length} destination${selectedDestinations.length === 1 ? '' : 's'}`}
               </button>
-              <div className="absolute right-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-white/[0.08] bg-[#17171b] p-1 shadow-xl group-hover:block group-focus-within:block">
+              <div className="absolute right-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-white/8 bg-[#17171b] p-1 shadow-xl group-hover:block group-focus-within:block">
                 {destinationOptions}
                 <Link
                   to="/dashboard/settings?tab=backup-destinations"
-                  className="mt-1 flex items-center gap-1.5 border-t border-white/[0.06] px-2 py-1.5 text-[10px] text-[#a78bfa] hover:text-[#c4b5fd]"
+                  className="mt-1 flex items-center gap-1.5 border-t border-white/6 px-2 py-1.5 text-[10px] text-rail-purple-light hover:text-[#c4b5fd]"
                 >
                   <ExternalLink size={10} />
                   Manage destinations
@@ -259,7 +259,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
               </div>
             </div>
 
-            <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationIds: selectedDestinations })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a78bfa]">
+            <button type="button" onClick={() => createBackup.mutate({ id: serviceId, backupDestinationIds: selectedDestinations })} disabled={createBackup.isPending} className="inline-flex items-center gap-1.5 rounded-md bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rail-purple-light">
               {createBackup.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
               Create backup
             </button>
@@ -268,7 +268,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
       </header>
 
       {!hasDestinations && (
-        <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2 text-[11px] text-amber-300">
+        <div className="mx-5 mt-4 rounded-lg border border-amber-400/20 bg-amber-400/4 px-3 py-2 text-[11px] text-amber-300">
           No shared backup destinations configured.
           <Link to="/dashboard/settings?tab=backup-destinations" className="ml-1 underline hover:text-amber-200">
             Add an S3 or R2 destination
@@ -277,12 +277,12 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         </div>
       )}
 
-      <div className="grid grid-cols-3 border-b border-white/[0.06]">
+      <div className="grid grid-cols-3 border-b border-white/6">
         <div className="px-5 py-3">
           <div className="text-[10px] uppercase tracking-[0.14em] text-white/25">Latest recovery point</div>
           <div className="mt-1 text-[12px] text-white/70">{latestVerified ? formatDate(latestVerified.createdAt) : 'No verified backup'}</div>
         </div>
-        <div className="border-x border-white/[0.06] px-5 py-3">
+        <div className="border-x border-white/6 px-5 py-3">
           <div className="text-[10px] uppercase tracking-[0.14em] text-white/25">Integrity</div>
           <div className="mt-1 flex items-center gap-1.5 text-[12px] text-white/70">
             <ShieldCheck size={13} className={latestVerified ? 'text-emerald-400' : 'text-white/20'} />
@@ -304,7 +304,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         </div>
       </div>
 
-      <section className="border-b border-white/[0.06] px-5 py-4">
+      <section className="border-b border-white/6 px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">
@@ -314,7 +314,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           </div>
           <Link
             to="/dashboard/settings?tab=backup-destinations"
-            className="text-[11px] text-[#a78bfa] hover:text-[#c4b5fd] flex items-center gap-1"
+            className="text-[11px] text-rail-purple-light hover:text-[#c4b5fd] flex items-center gap-1"
           >
             <ExternalLink size={10} />
             Manage
@@ -334,7 +334,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         </div>
       </section>
 
-      <section className="border-b border-white/[0.06] px-5 py-4">
+      <section className="border-b border-white/6 px-5 py-4">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Scheduled backups</h3>
@@ -346,7 +346,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
           <button
             type="button"
             onClick={() => setShowSchedule((value) => !value)}
-            className="shrink-0 text-[11px] text-[#a78bfa] hover:text-[#c4b5fd]"
+            className="shrink-0 text-[11px] text-rail-purple-light hover:text-[#c4b5fd]"
           >
             {showSchedule ? 'Cancel' : '+ Add schedule'}
           </button>
@@ -354,7 +354,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
 
         {showSchedule && (
           <form
-            className="mb-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3"
+            className="mb-3 rounded-lg border border-white/[0.07] bg-white/2 p-3"
             onSubmit={(event) => {
               event.preventDefault()
               const onCreated = () => {
@@ -393,7 +393,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                     value={scheduleKind}
                     onValueChange={(value) => setScheduleKind(value as 'database' | 'volume')}
                   >
-                    <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                    <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
                       <SelectValue placeholder="Database" />
                     </SelectTrigger>
                     <SelectContent>
@@ -406,7 +406,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   <label className="flex-1 text-[10px] text-white/35">
                     Mounted path
                     <Select value={scheduleMountId} onValueChange={setScheduleMountId}>
-                      <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                      <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
                         <SelectValue placeholder="Choose a volume" />
                       </SelectTrigger>
                       <SelectContent>
@@ -431,7 +431,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                     if (!retentionTouched) setRetentionCount(DEFAULT_RETENTION[value] ?? 7)
                   }}
                 >
-                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
+                  <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:ring-1 focus:ring-rail-purple">
                     <SelectValue placeholder="Frequency" />
                   </SelectTrigger>
                   <SelectContent>
@@ -452,7 +452,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                     setRetentionTouched(true)
                     setRetentionCount(Number(event.target.value))
                   }}
-                  className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+                  className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:ring-1 focus:ring-rail-purple"
                 />
               </label>
               <button className="rounded-md bg-rail-purple px-3 py-1.5 text-[11px] font-medium text-white hover:bg-rail-purple-dark">
@@ -470,7 +470,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   {destinations.map((destination: BackupDestination) => (
                     <label
                       key={destination.id}
-                      className="flex cursor-pointer items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 hover:bg-white/[0.03]"
+                      className="flex cursor-pointer items-center gap-1.5 rounded border border-white/[0.07] px-2 py-1 text-[10px] text-white/60 hover:bg-white/3"
                     >
                       <input
                         type="checkbox"
@@ -488,7 +488,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         )}
 
         {schedules.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/[0.08] py-6 text-center">
+          <div className="rounded-lg border border-dashed border-white/8 py-6 text-center">
             <Clock3 size={18} className="mx-auto mb-2 text-white/15" />
             <div className="text-[12px] text-white/45">No scheduled backups</div>
             <div className="mt-1 text-[11px] text-white/20">
@@ -496,7 +496,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.05]">
+          <div className="divide-y divide-white/5 rounded-lg border border-white/5">
             {schedules.map((schedule: BackupSchedule) => {
               const isEditing = editingScheduleId === schedule.id
               const isVolume = schedule.backupKind === 'volume'
@@ -509,7 +509,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                         <span className="font-medium">
                           {FREQUENCY_LABEL[schedule.frequency] || schedule.frequency}
                         </span>
-                        <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-white/40">
+                        <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-white/40">
                           {isVolume ? 'volume' : 'database'}
                         </span>
                         {isVolume && schedule.storageMount?.containerPath && (
@@ -544,7 +544,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                         setEditFrequency(schedule.frequency)
                         setEditRetention(schedule.retentionCount)
                       }}
-                      className="rounded p-1 text-white/25 hover:bg-white/[0.06] hover:text-white/60"
+                      className="rounded p-1 text-white/25 hover:bg-white/6 hover:text-white/60"
                     >
                       <Pencil size={12} />
                     </button>
@@ -559,11 +559,11 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   </div>
 
                   {isEditing && (
-                    <div className="mt-2 flex items-end gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+                    <div className="mt-2 flex items-end gap-2 rounded-lg border border-white/[0.07] bg-white/2 p-2.5">
                       <label className="flex-1 text-[10px] text-white/35">
                         Frequency
                         <Select value={editFrequency} onValueChange={(value) => setEditFrequency(value)}>
-                          <SelectTrigger className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
+                          <SelectTrigger className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70">
                             <SelectValue placeholder="Frequency" />
                           </SelectTrigger>
                           <SelectContent>
@@ -581,7 +581,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                           max={90}
                           value={editRetention}
                           onChange={(event) => setEditRetention(Number(event.target.value))}
-                          className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70"
+                          className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/70"
                         />
                       </label>
                       <button
@@ -617,13 +617,13 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
         {isLoading ? <div className="py-10 text-center text-[12px] text-white/50">Loading recovery history…</div> : isError ? (
           <button onClick={() => refetch()} className="flex w-full items-center justify-center gap-2 py-10 text-[12px] text-red-400"><AlertCircle size={14} /> Could not load backups · Retry</button>
         ) : backups.length === 0 ? (
-          <div className="border-y border-dashed border-white/[0.08] py-12 text-center">
+          <div className="border-y border-dashed border-white/8 py-12 text-center">
             <Archive size={22} className="mx-auto mb-2 text-white/15" />
             <div className="text-[12px] text-white/45">No recovery points yet</div>
             <div className="mt-1 text-[11px] text-white/20">Create one before your next risky change.</div>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.05] border-y border-white/[0.05]">
+          <div className="divide-y divide-white/5 border-y border-white/5">
             {backups.map((backup) => {
               const ready = backup.status === 'completed' && Boolean(backup.metadata?.verifiedAt)
               const destinationNames = (backup.metadata?.destination || 'local').split(', ').filter(Boolean)
@@ -634,7 +634,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                       {ready ? <FileCheck2 size={14} className="text-emerald-400" /> : backup.status === 'failed' ? <AlertCircle size={14} className="text-red-400" /> : <Loader2 size={14} className="animate-spin text-amber-400" />}
                       <span className="font-mono text-[11px] text-white/65">{String(backup.id).slice(0, 8)}</span>
                       <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${ready ? 'bg-emerald-500/10 text-emerald-400' : backup.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-300'}`}>{ready ? 'verified' : backup.status}</span>
-                      <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-white/35 capitalize">{backup.backupKind === 'volume' ? 'volume' : backup.backupKind}</span>
+                      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-white/35 capitalize">{backup.backupKind === 'volume' ? 'volume' : backup.backupKind}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 pl-[22px] text-[10px] text-white/25">
                       <span>{formatDate(backup.createdAt)}</span>
@@ -656,7 +656,7 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                   </div>
                   <div className="text-[10px] text-white/20">{backup.metadata?.destination || 'local'}</div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download backup" className="rounded p-1.5 text-white/50 hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
+                    <button type="button" disabled={!ready} onClick={() => download(backup.id)} aria-label="Download backup" className="rounded p-1.5 text-white/50 hover:bg-white/6 hover:text-white/70 disabled:opacity-20"><Download size={13} /></button>
                     <button type="button" disabled={!ready || (backup.backupKind !== undefined && !['database', 'volume'].includes(backup.backupKind))} onClick={() => { setRestoreConfirmation(''); setConfirmRestore(backup.id) }} aria-label="Restore backup" className="rounded p-1.5 text-white/50 hover:bg-amber-500/10 hover:text-amber-300 disabled:opacity-20"><RotateCcw size={13} /></button>
                     <button type="button" disabled={!ready || backup.backupKind === 'volume' || backup.backupKind === 'wal'} onClick={() => runDrill.mutate({ id: serviceId, backupId: backup.id })} aria-label="Run isolated restore drill" className="rounded p-1.5 text-white/50 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-20"><FlaskConical size={13} /></button>
                     <button type="button" onClick={() => deleteBackup.mutate({ id: serviceId, backupId: backup.id })} aria-label="Delete backup" className="rounded p-1.5 text-white/20 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={13} /></button>
@@ -669,10 +669,10 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
       </section>
 
       {pendingUpload && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upload-restore-title">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upload-restore-title">
+          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-300"><Upload size={16} /><h3 id="upload-restore-title" className="text-[14px] font-medium">Restore from an uploaded dump?</h3></div>
-            <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
+            <div className="mt-3 space-y-1.5 rounded-lg border border-white/6 bg-white/2 p-3 text-[11px]">
               <div className="flex justify-between"><span className="text-white/50">File</span><span className="max-w-[60%] truncate text-white/65">{pendingUpload.name}</span></div>
               <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(pendingUpload.size)}</span></div>
             </div>
@@ -688,11 +688,11 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                 onChange={(event) => setUploadConfirmation(event.target.value)}
                 autoComplete="off"
                 aria-label="Confirm service name"
-                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+                className="mt-1.5 w-full rounded-md border border-white/9 bg-white/3 px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-hidden focus:border-amber-400/40"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={closeUpload} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button onClick={closeUpload} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">Cancel</button>
               <button disabled={uploadConfirmation !== svc.name} onClick={() => restoreUpload.mutate({ id: serviceId, file: pendingUpload, confirm: svc.name }, { onSuccess: () => closeUpload() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
             </div>
           </div>
@@ -700,11 +700,11 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
       )}
 
       {confirmRestore && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="restore-title">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="restore-title">
+          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-300"><RotateCcw size={16} /><h3 id="restore-title" className="text-[14px] font-medium">Restore this recovery point?</h3></div>
             {restoreTarget && (
-              <div className="mt-3 space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-[11px]">
+              <div className="mt-3 space-y-1.5 rounded-lg border border-white/6 bg-white/2 p-3 text-[11px]">
                 <div className="flex justify-between"><span className="text-white/50">Type</span><span className="text-white/65 capitalize">{restoreTarget.backupKind === 'volume' ? 'Volume snapshot' : restoreTarget.backupKind}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Created</span><span className="text-white/65">{formatDate(restoreTarget.createdAt)}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Size</span><span className="text-white/65">{formatSize(restoreTarget.size)}</span></div>
@@ -723,11 +723,11 @@ export default function BackupsSubTab({ svc, serviceId }: { svc: Service; servic
                 onChange={(event) => setRestoreConfirmation(event.target.value)}
                 autoComplete="off"
                 aria-label="Confirm service name"
-                className="mt-1.5 w-full rounded-md border border-white/[0.09] bg-white/[0.03] px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-none focus:border-amber-400/40"
+                className="mt-1.5 w-full rounded-md border border-white/9 bg-white/3 px-2.5 py-1.5 font-mono text-[11px] text-white/80 outline-hidden focus:border-amber-400/40"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">Cancel</button>
+              <button onClick={closeRestore} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">Cancel</button>
               <button disabled={!restoreConfirmed} onClick={() => restoreBackup.mutate({ id: serviceId, backupId: confirmRestore, confirm: svc.name }, { onSuccess: () => closeRestore() })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-3 py-1.5 text-[11px] text-amber-300 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} /> Restore</button>
             </div>
           </div>

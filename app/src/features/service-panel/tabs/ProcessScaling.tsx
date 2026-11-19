@@ -23,7 +23,7 @@ export default function ProcessScaling({ serviceId, process }: { serviceId: stri
       onError: () => setError('Could not apply scaling. Your target is retained.'),
     })
   }
-  return <div className="border-b border-white/[0.08] py-4">
+  return <div className="border-b border-white/8 py-4">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0"><h4 className="text-sm font-medium text-white/85">{process.name}</h4><p className="mt-1 text-xs text-[#a0a0b0]">{process.running} running · {process.quantity} requested</p>{process.command && <p className="mt-1 break-all font-mono text-xs text-[#a0a0b0]">{process.command}</p>}</div>
       <form className="flex items-end gap-2" onSubmit={(event) => { event.preventDefault(); if (!valid || target === process.quantity || scale.isPending) return; if (target === 0) setReview(true); else apply() }}>

@@ -36,8 +36,8 @@ const AccessibleToggle = forwardRef<HTMLInputElement, AccessibleToggleProps>(
         <div
           className={`
             relative w-10 h-5 rounded-full transition-colors
-            peer-focus-visible:ring-2 peer-focus-visible:ring-[#8b5cf6]/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#131318]
-            ${checked ? 'bg-[#8b5cf6]' : 'bg-white/10'}
+            peer-focus-visible:ring-2 peer-focus-visible:ring-rail-purple/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#131318]
+            ${checked ? 'bg-rail-purple' : 'bg-white/10'}
             ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             motion-reduce:transition-none
           `}

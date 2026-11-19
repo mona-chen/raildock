@@ -108,7 +108,7 @@ export default function ManifestCodeEditor({ value, onChange }: ManifestCodeEdit
         onScroll={syncScroll}
         spellCheck={false}
         aria-label="RailDock manifest"
-        className="absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 text-[13px] font-mono leading-relaxed text-transparent caret-white selection:bg-[#8b5cf6]/35 focus:outline-none"
+        className="absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 text-[13px] font-mono leading-relaxed text-transparent caret-white selection:bg-rail-purple/35 focus:outline-hidden"
         style={{ tabSize: 2 }}
       />
     </div>

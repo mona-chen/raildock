@@ -85,7 +85,7 @@ function MetricChart({
   valueFormatter?: (value: number) => string
 }) {
   return (
-    <div className="bg-[#141417] border border-white/[0.06] rounded-lg p-4">
+    <div className="bg-[#141417] border border-white/6 rounded-lg p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs text-[#a0a0b0]">{title}</h3><span className="text-xs tabular-nums text-[#dedee7]">{series.map(s=>{const value=data.at(-1)?.[s.key];return value==null?'—':`${series.length>1?s.name+' ':''}${valueFormatter?valueFormatter(value):value}`}).join(' · ')}</span></div>
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
@@ -228,7 +228,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
               className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
                 hours === w.hours
                   ? 'bg-violet-500/20 text-violet-300'
-                  : 'bg-white/[0.04] text-white/50 hover:text-white/70'
+                  : 'bg-white/4 text-white/50 hover:text-white/70'
               }`}
             >
               {w.label}
@@ -238,8 +238,8 @@ export default function MetricsTab({ svc }: { svc: Service }) {
       </div>
 
       {history?.collectionEnabled === false && <p role="status" className="mb-3 text-xs text-amber-200">Application metric collection is disabled in Settings. Retained history is still available.</p>}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs"><span className="text-[#9292a3]">Primary container · Workers and replicas excluded</span><label htmlFor="application-metrics-live" className="flex items-center gap-2 text-xs text-[#a0a0b0]">Live<Switch id="application-metrics-live" aria-label="Live application refresh" checked={liveEnabled} onCheckedChange={setLiveEnabled} className="data-[state=checked]:bg-[#8b5cf6] [&_[data-slot=switch-thumb]]:bg-white"/></label></div>
-      <div className="mb-5 grid gap-3" style={{gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))'}}>{[['CPU',live?.cpu!=null?`${live.cpu.toFixed(2)}%`:'—',live?.cpuCores?`Limit: ${live.cpuCores} ${live.cpuCores===1?'core':'cores'}`:'100% = one core'],['Memory used',memoryBytes(currentMemoryUsed),`Reported ceiling: ${memoryBytes(currentMemoryLimit)}`],['Network',points.at(-1)?.netIn!=null?formatRate(points.at(-1)!.netIn):'—','Incoming bytes / second']].map(([label,value,help])=><div key={label} className="rounded-lg border border-white/[0.08] bg-[#141417] p-4"><p className="text-xs text-[#9292a3]">{label}</p><p className="mt-2 text-lg font-medium tabular-nums text-white">{value}</p><p className="mt-1 text-[11px] text-[#9292a3]">{help}</p></div>)}</div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs"><span className="text-[#9292a3]">Primary container · Workers and replicas excluded</span><label htmlFor="application-metrics-live" className="flex items-center gap-2 text-xs text-[#a0a0b0]">Live<Switch id="application-metrics-live" aria-label="Live application refresh" checked={liveEnabled} onCheckedChange={setLiveEnabled} className="data-[state=checked]:bg-rail-purple **:data-[slot=switch-thumb]:bg-white"/></label></div>
+      <div className="mb-5 grid gap-3" style={{gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))'}}>{[['CPU',live?.cpu!=null?`${live.cpu.toFixed(2)}%`:'—',live?.cpuCores?`Limit: ${live.cpuCores} ${live.cpuCores===1?'core':'cores'}`:'100% = one core'],['Memory used',memoryBytes(currentMemoryUsed),`Reported ceiling: ${memoryBytes(currentMemoryLimit)}`],['Network',points.at(-1)?.netIn!=null?formatRate(points.at(-1)!.netIn):'—','Incoming bytes / second']].map(([label,value,help])=><div key={label} className="rounded-lg border border-white/8 bg-[#141417] p-4"><p className="text-xs text-[#9292a3]">{label}</p><p className="mt-2 text-lg font-medium tabular-nums text-white">{value}</p><p className="mt-1 text-[11px] text-[#9292a3]">{help}</p></div>)}</div>
       {(liveQuery.isError || (live && live.cpu == null && live.collectionEnabled !== false)) && <p role="status" className="mb-3 text-xs text-amber-200">Current usage is unavailable. Historical samples are retained.</p>}
       {history?.samples.length ? <p className="mb-4 text-xs text-[#a0a0b0]">Last sample: {new Date(history.samples[history.samples.length - 1].at).toLocaleString()}{now - new Date(history.samples[history.samples.length - 1].at).getTime() > 3 * 60 * 1000 ? ' · Data is stale; sampling may be delayed.' : ''}</p> : null}
       {historyQuery.isError && <ErrorState title="Could not load metric history" message="Retry to fetch samples for the selected window." onRetry={() => historyQuery.refetch()} />}
@@ -301,7 +301,7 @@ export default function MetricsTab({ svc }: { svc: Service }) {
           <p className="text-[11px] leading-5 text-[#9292a3] sm:col-span-full">Live refresh · 10 seconds. Retained history · 1 minute. Memory ceiling is reported by Docker and may equal host capacity when no limit is set.</p>
         </div>
       ) : !historyQuery.isError ? (
-        <div className="bg-[#141417] border border-white/[0.06] rounded-xl p-8 flex flex-col items-center justify-center text-center">
+        <div className="bg-[#141417] border border-white/6 rounded-xl p-8 flex flex-col items-center justify-center text-center">
           <div className="text-white/50 text-[13px] mb-2">{historyQuery.isLoading ? 'Loading metric history…' : 'No samples in this time range'}</div>
           <div className="text-white/50 text-[11px] max-w-xs">
             Metrics are sampled every minute. Check back shortly to see CPU, memory, network and disk graphs for this service.

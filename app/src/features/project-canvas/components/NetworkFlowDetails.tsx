@@ -18,7 +18,7 @@ export default function NetworkFlowDetails({flow,at,label,projectId,onClose}:{fl
 
     <div className="flex items-center justify-between gap-3 px-5 pt-3"><p className="text-[12px] text-[#716552]">Connection activity</p><IconButton title="Close connection activity" onClick={onClose} className="text-[#6b6c5e] hover:bg-[#393d330a] hover:text-[#393d33]"><X size={16}/></IconButton></div>
     <div className="px-5 pb-5">
-      <h3 className="mt-1 break-words text-[21px] leading-7 tracking-[-0.02em]">{label||'Service connection'}</h3>
+      <h3 className="mt-1 wrap-break-word text-[21px] leading-7 tracking-[-0.02em]">{label||'Service connection'}</h3>
       <p className="mt-2 flex items-center gap-2 text-[13px] text-[#626958]"><span className={`h-1.5 w-1.5 rounded-full ${active?'bg-[#397a59]':'bg-[#aaa895]'}`}/>{status}</p>
       {measured&&<><dl className="mt-3 grid grid-cols-2 gap-4 border-y border-[#aa9169]/35 py-3"><div><dt className="text-[12px] text-[#716552]">Sent</dt><dd className="mt-1 text-[27px] leading-none tabular-nums tracking-[-0.03em] text-[#326247]">{flowBytes(flow.sentBytes)}</dd></div><div><dt className="text-[12px] text-[#716552]">Received</dt><dd className="mt-1 text-[27px] leading-none tabular-nums tracking-[-0.03em] text-[#496978]">{flowBytes(flow.receivedBytes)}</dd></div></dl><p className="mt-2 text-[12px] text-[#716552]">{flow.connections||0} open {flow.connections===1?'connection':'connections'}<span className="mx-2 text-[#b3ad98]">·</span>{Math.round(flow.windowSeconds||0)} s sample</p></>}
       <p className="mt-1 text-[12px] text-[#716552]">{flow?.lastActivityAt?`Last traffic ${new Date(flow.lastActivityAt).toLocaleTimeString()}`:at?`Updated ${new Date(at).toLocaleTimeString()}`:'Waiting for a measurement'}</p>

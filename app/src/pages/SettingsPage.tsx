@@ -87,7 +87,7 @@ export default function SettingsPage() {
       <WorkspaceHeader title="Settings" description={activeGroup?.label === 'Instance' ? 'Instance configuration' : 'Organization configuration'} />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-        <aside className="hidden md:flex w-[224px] flex-shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
+        <aside className="hidden md:flex w-[224px] shrink-0 border-r border-[rgba(255,255,255,0.06)] flex flex-col">
           <div className="p-3">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9292a3]" />
@@ -96,7 +96,7 @@ export default function SettingsPage() {
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter settings…"
                 aria-label="Filter settings"
-                className="w-full rounded-lg bg-black/40 border border-white/[0.08] pl-8 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#9292a3] focus:outline-none focus:border-rail-purple/40"
+                className="w-full rounded-lg bg-black/40 border border-white/8 pl-8 pr-2 py-1.5 text-[12px] text-white/80 placeholder:text-[#9292a3] focus:outline-hidden focus:border-rail-purple/40"
               />
             </div>
           </div>
@@ -113,7 +113,7 @@ export default function SettingsPage() {
                       onClick={() => setSearchParams({ tab: tab.key })}
                       aria-current={isActive ? 'page' : undefined}
                       className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] transition-colors ${
-                        isActive ? 'bg-white/[0.06] text-white/85' : 'text-[#8a8a99] hover:text-[#A0A0B0] hover:bg-white/[0.03]'
+                        isActive ? 'bg-white/6 text-white/85' : 'text-[#8a8a99] hover:text-[#A0A0B0] hover:bg-white/3'
                       }`}
                     >
                       <tab.icon size={14} className={isActive ? 'text-rail-purple' : ''} />
@@ -129,7 +129,7 @@ export default function SettingsPage() {
           </nav>
         </aside>
 
-        <div className="border-b border-white/[0.08] p-3 md:hidden"><Select value={activeTab} onValueChange={(tab) => setSearchParams({ tab })}><SelectTrigger aria-label="Settings section"><SelectValue /></SelectTrigger><SelectContent>{TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => <SelectItem key={tab.key} value={tab.key}>{group.label} · {tab.label}</SelectItem>))}</SelectContent></Select></div>
+        <div className="border-b border-white/8 p-3 md:hidden"><Select value={activeTab} onValueChange={(tab) => setSearchParams({ tab })}><SelectTrigger aria-label="Settings section"><SelectValue /></SelectTrigger><SelectContent>{TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => <SelectItem key={tab.key} value={tab.key}>{group.label} · {tab.label}</SelectItem>))}</SelectContent></Select></div>
         <div className="flex-1 min-w-0 overflow-y-auto p-5 sm:p-8">
           {activeTab === 'integrations' && (
             <PluginManager modules={modules} isLoading={modulesLoading} isAdmin={isAdmin} />
@@ -346,7 +346,7 @@ function InstallPluginDialog({ onClose }: { onClose: () => void }) {
             <SelectTrigger id="source-type" className="bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-sm h-9 text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1A1A1F] border-[rgba(255,255,255,0.1)]">
+            <SelectContent className="bg-dark-elevated border-[rgba(255,255,255,0.1)]">
               <SelectItem value="remote" className="text-sm text-white">Remote manifest</SelectItem>
               <SelectItem value="github" className="text-sm text-white">GitHub repository</SelectItem>
               <SelectItem value="local" className="text-sm text-white">Local file</SelectItem>

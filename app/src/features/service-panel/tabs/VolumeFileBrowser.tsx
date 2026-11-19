@@ -34,7 +34,7 @@ export default function VolumeFileBrowser({ serviceId, storageMountId, container
 
   return (
     <div className="rounded-lg border border-white/[0.07] bg-[#17171b]">
-      <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-white/6 px-3 py-2">
         <HardDrive size={12} className="text-white/50" />
         <span className="text-[11px] text-white/50">{containerPath}</span>
         <ChevronRight size={12} className="text-white/20" />
@@ -56,14 +56,14 @@ export default function VolumeFileBrowser({ serviceId, storageMountId, container
         ) : sorted.length === 0 ? (
           <div className="py-8 text-center text-[11px] text-white/25">This directory is empty.</div>
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-white/4">
             {sorted.map((entry: StorageMountEntry) => (
               <li key={entry.name}>
                 <button
                   type="button"
                   onClick={() => navigate(entry.name, entry.type)}
                   disabled={entry.type !== 'directory'}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.03] disabled:cursor-default"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/3 disabled:cursor-default"
                 >
                   {entry.type === 'directory' ? (
                     <Folder size={13} className="text-amber-300/70" />

@@ -37,7 +37,7 @@ export default function ServerUnmanagedDatastoresModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center px-4" onClick={onClose}>
       <div
         className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[640px] max-h-[85vh] flex flex-col"
         onClick={(event) => event.stopPropagation()}
@@ -51,7 +51,7 @@ export default function ServerUnmanagedDatastoresModal({
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/[0.05] disabled:opacity-40"
+              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-40"
               title="Rescan the host"
               aria-label="Rescan the host"
             >
@@ -59,7 +59,7 @@ export default function ServerUnmanagedDatastoresModal({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/[0.05]"
+              className="p-1.5 rounded text-white/50 hover:text-white hover:bg-white/5"
               aria-label="Close"
             >
               <X size={14} />
@@ -108,7 +108,7 @@ export default function ServerUnmanagedDatastoresModal({
 
           <div className="space-y-2">
             {resources.map((resource) => (
-              <div key={resource.name} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+              <div key={resource.name} className="rounded-xl border border-white/[0.07] bg-white/2 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export default function ServerUnmanagedDatastoresModal({
                         }`}
                       />
                       <span className="truncate font-mono text-[12px] text-white">{resource.name}</span>
-                      <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/50">
+                      <span className="shrink-0 rounded-full bg-white/6 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/50">
                         {resource.subtype}
                       </span>
                     </div>
@@ -134,7 +134,7 @@ export default function ServerUnmanagedDatastoresModal({
                     <div className="flex shrink-0 items-center gap-2">
                       <button
                         onClick={() => setAdopting(null)}
-                        className="rounded-md px-2.5 py-1 text-[11px] text-white/50 hover:bg-white/[0.05]"
+                        className="rounded-md px-2.5 py-1 text-[11px] text-white/50 hover:bg-white/5"
                       >
                         Cancel
                       </button>
@@ -150,7 +150,7 @@ export default function ServerUnmanagedDatastoresModal({
                 </div>
 
                 {adopting === resource.name && (
-                  <div className="mt-3 border-t border-white/[0.06] pt-3">
+                  <div className="mt-3 border-t border-white/6 pt-3">
                     {serverProjects.length === 0 ? (
                       <p className="text-[11px] text-amber-200">
                         This server has no projects yet — create one before adopting.

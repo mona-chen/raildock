@@ -67,9 +67,9 @@ export default function StorageTab({ svc }: { svc: Service }) {
 
   return (
     <div className="min-h-full bg-[#111114]">
-      <header className="border-b border-white/[0.06] px-5 py-4">
+      <header className="border-b border-white/6 px-5 py-4">
         <div className="flex items-center gap-2 text-[14px] font-medium text-white/85">
-          <HardDrive size={15} className="text-[#8b5cf6]" /> Persistent storage
+          <HardDrive size={15} className="text-rail-purple" /> Persistent storage
         </div>
         <p className="mt-1 max-w-xl text-[12px] leading-5 text-white/35">
           Mount a folder from your service so it survives redeploys and restarts.
@@ -99,7 +99,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
         </div>
 
         {svc.storageMounts.length ? (
-          <div className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.05]">
+          <div className="divide-y divide-white/5 rounded-lg border border-white/5">
             {svc.storageMounts.map((mount) => (
               <article key={`${mount.hostPath}:${mount.containerPath}`} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-3 px-3 py-3">
                 <div className="min-w-0">
@@ -108,7 +108,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                     <span className="truncate font-mono text-[11px] text-white/65">{mount.hostPath}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-5">
-                    <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-white/50">
+                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-medium text-white/50">
                       {kindLabel(mount.kind)}
                     </span>
                   </div>
@@ -141,7 +141,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                     type="button"
                     onClick={() => setBrowsingMount(mount)}
                     aria-label={`Browse ${mount.hostPath}`}
-                    className="rounded p-1.5 text-white/25 hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa]"
+                    className="rounded p-1.5 text-white/25 hover:bg-rail-purple/10 hover:text-rail-purple-light"
                   >
                     <Search size={13} />
                   </button>
@@ -166,14 +166,14 @@ export default function StorageTab({ svc }: { svc: Service }) {
 
       <section className="px-5 pb-5">
         <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Attach storage</h3>
-        <form onSubmit={submit} className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-4">
+        <form onSubmit={submit} className="rounded-lg border border-white/[0.07] bg-white/2 p-4">
           <label className="block text-[11px] text-white/50">
             Container path
             <input
               value={containerPath}
               onChange={(event) => setContainerPath(event.target.value)}
               placeholder="/app/data"
-              className="mt-1.5 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-3 py-2.5 font-mono text-[12px] text-white/70 placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+              className="mt-1.5 block w-full rounded-md border border-white/8 bg-[#17171b] px-3 py-2.5 font-mono text-[12px] text-white/70 placeholder:text-white/15 focus:outline-hidden focus:ring-1 focus:ring-rail-purple"
             />
           </label>
 
@@ -187,11 +187,11 @@ export default function StorageTab({ svc }: { svc: Service }) {
           )}
 
           {showAdvanced && (
-            <div className="mt-3 space-y-3 rounded-lg border border-white/[0.06] bg-[#17171b]/50 p-3">
+            <div className="mt-3 space-y-3 rounded-lg border border-white/6 bg-[#17171b]/50 p-3">
               <label className="block text-[10px] text-white/50">
                 Storage type
                 <Select value={kind} onValueChange={(value) => setKind(value as StorageMountKind)}>
-                  <SelectTrigger className="mt-1 h-9 w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 text-[11px] text-white/70 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]">
+                  <SelectTrigger className="mt-1 h-9 w-full rounded-md border border-white/8 bg-[#17171b] px-2.5 text-[11px] text-white/70 focus:outline-hidden focus:ring-1 focus:ring-rail-purple">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -213,7 +213,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                   value={hostPath}
                   onChange={(event) => setHostPath(event.target.value)}
                   placeholder={kind === 'volume' ? generatedHostPath || 'my-app-data' : '/mnt/data'}
-                  className="mt-1 block w-full rounded-md border border-white/[0.08] bg-[#17171b] px-2.5 py-2 font-mono text-[11px] text-white/70 placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+                  className="mt-1 block w-full rounded-md border border-white/8 bg-[#17171b] px-2.5 py-2 font-mono text-[11px] text-white/70 placeholder:text-white/15 focus:outline-hidden focus:ring-1 focus:ring-rail-purple"
                 />
               </label>
 
@@ -235,13 +235,13 @@ export default function StorageTab({ svc }: { svc: Service }) {
             </button>
             <button
               disabled={!canSubmit || addStorage.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#8b5cf6] px-3 py-2 text-[11px] font-medium text-white hover:bg-[#7C3AED] disabled:opacity-30"
+              className="inline-flex items-center gap-1.5 rounded-md bg-rail-purple px-3 py-2 text-[11px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-30"
             >
               <Plus size={12} /> Attach
             </button>
           </div>
 
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-400/10 bg-amber-400/[0.03] px-3 py-2 text-[10px] leading-4 text-amber-200/50">
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-400/10 bg-amber-400/3 px-3 py-2 text-[10px] leading-4 text-amber-200/50">
             <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-300/50" />
             <span>Mounts take effect on the next deploy. Take a snapshot before changing mounts to avoid data loss.</span>
           </div>
@@ -249,8 +249,8 @@ export default function StorageTab({ svc }: { svc: Service }) {
       </section>
 
       {pendingRemoval && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="flex items-center gap-2 text-red-300">
               <AlertTriangle size={16} />
               <h3 className="text-[14px] font-medium">Detach persistent storage?</h3>
@@ -262,7 +262,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
               for the change to take effect.
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setPendingRemoval(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/[0.05]">
+              <button onClick={() => setPendingRemoval(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">
                 Cancel
               </button>
               <button
@@ -282,8 +282,8 @@ export default function StorageTab({ svc }: { svc: Service }) {
       )}
 
       {browsingMount && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-xl rounded-xl border border-white/[0.09] bg-[#19191d] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-xl rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-[14px] font-medium text-white/85">Browse volume</h3>
@@ -291,7 +291,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
                   {browsingMount.hostPath} → {browsingMount.containerPath}
                 </p>
               </div>
-              <button onClick={() => setBrowsingMount(null)} className="rounded p-1.5 text-white/25 hover:bg-white/[0.05]">
+              <button onClick={() => setBrowsingMount(null)} className="rounded p-1.5 text-white/25 hover:bg-white/5">
                 <X size={14} />
               </button>
             </div>

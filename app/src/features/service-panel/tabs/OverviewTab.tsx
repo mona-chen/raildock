@@ -25,13 +25,13 @@ export default function OverviewTab({
 
   return (
     <div className="p-5 space-y-5">
-      {svc.status === 'error' && <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-l-2 border-red-400 bg-red-400/[0.04] px-4 py-3"><p className="text-[13px] text-red-200">Service error. Check the logs for details.</p>{onNavigate && <button type="button" onClick={() => onNavigate('logs')} className="text-xs text-red-200 underline underline-offset-4">View logs</button>}</div>}
-      {(svc.status === 'building' || svc.status === 'deploying') && onNavigate && <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] pb-4 text-[13px] text-[#a0a0b0]"><span>{svc.status === 'building' ? 'Build in progress' : 'Deployment in progress'}</span><button type="button" onClick={() => onNavigate('deploy')} className="text-violet-300">View deployment</button></div>}
-      {svc.type === 'app' && <div className="border-b border-white/[0.08] pb-5"><div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-white/85"><Globe size={15} className="text-violet-300" />Public access</div>{svc.domains.length > 0 ? <div className="space-y-2">{svc.domains.map((domain) => <a key={domain.hostname} href={`${domain.ssl ? 'https' : 'http'}://${domain.hostname}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-xs text-violet-200 hover:bg-violet-400/10"><span className="truncate">{domain.hostname}</span><ArrowUpRight size={14} className="shrink-0" /></a>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-[#a0a0b0]">No public domain configured.</p>{onNavigate && <button type="button" onClick={() => onNavigate('networking')} className="text-xs font-medium text-violet-300 hover:text-violet-200">Configure a domain <span aria-hidden="true">→</span></button>}</div>}</div>}
+      {svc.status === 'error' && <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-l-2 border-red-400 bg-red-400/4 px-4 py-3"><p className="text-[13px] text-red-200">Service error. Check the logs for details.</p>{onNavigate && <button type="button" onClick={() => onNavigate('logs')} className="text-xs text-red-200 underline underline-offset-4">View logs</button>}</div>}
+      {(svc.status === 'building' || svc.status === 'deploying') && onNavigate && <div className="flex items-center justify-between gap-3 border-b border-white/8 pb-4 text-[13px] text-[#a0a0b0]"><span>{svc.status === 'building' ? 'Build in progress' : 'Deployment in progress'}</span><button type="button" onClick={() => onNavigate('deploy')} className="text-violet-300">View deployment</button></div>}
+      {svc.type === 'app' && <div className="border-b border-white/8 pb-5"><div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-white/85"><Globe size={15} className="text-violet-300" />Public access</div>{svc.domains.length > 0 ? <div className="space-y-2">{svc.domains.map((domain) => <a key={domain.hostname} href={`${domain.ssl ? 'https' : 'http'}://${domain.hostname}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-xs text-violet-200 hover:bg-violet-400/10"><span className="truncate">{domain.hostname}</span><ArrowUpRight size={14} className="shrink-0" /></a>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-[#a0a0b0]">No public domain configured.</p>{onNavigate && <button type="button" onClick={() => onNavigate('networking')} className="text-xs font-medium text-violet-300 hover:text-violet-200">Configure a domain <span aria-hidden="true">→</span></button>}</div>}</div>}
 
       {/* Source Info */}
       {(svc.gitRepo || svc.dockerImage || svc.builder) && (
-        <div className="border-b border-white/[0.08] pb-5 space-y-2">
+        <div className="border-b border-white/8 pb-5 space-y-2">
           <div className="text-[13px] font-medium text-white/70 mb-2">Source</div>
           {svc.gitRepo && (
             <div className="flex items-center gap-2 text-[12px]">
@@ -58,7 +58,7 @@ export default function OverviewTab({
         </div>
       )}
 
-      <details className="group border-b border-white/[0.08] pb-5">
+      <details className="group border-b border-white/8 pb-5">
         <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-medium text-white/75 [&::-webkit-details-marker]:hidden">Runtime details<span className="text-xs font-normal text-[#a0a0b0] group-open:hidden">Show</span><span className="hidden text-xs font-normal text-[#a0a0b0] group-open:inline">Hide</span></summary>
         <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">{[{ label: 'Service type', value: svc.subtype }, { label: 'Version', value: svc.version }, { label: 'Internal hostname', value: svc.internalHostname }, { label: 'Last deployed', value: svc.lastDeployed && Number.isFinite(new Date(svc.lastDeployed).getTime()) ? formatDistanceToNow(new Date(svc.lastDeployed), { addSuffix: true }) : undefined }].filter((field) => field.value).map((field) => <div key={field.label}><dt className="text-[11px] text-[#a0a0b0]">{field.label}</dt><dd className="mt-1 break-all font-mono text-xs text-white/85">{field.value}</dd></div>)}</dl>
       </details>
@@ -75,13 +75,13 @@ export default function OverviewTab({
 
       {/* Container Status */}
       {containerStatus?.status && (
-        <div className="bg-[#1a1a1e] border border-white/[0.06] rounded-lg p-3">
+        <div className="bg-[#1a1a1e] border border-white/6 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="text-[12px] text-white/60">Container Status</div>
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full ${
                 containerStatus.status === 'running'
-                  ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                  ? 'bg-rail-green/10 text-rail-green'
                   : 'bg-white/5 text-white/50'
               }`}
             >
@@ -93,18 +93,18 @@ export default function OverviewTab({
 
       {/* Last Deployment */}
       {lastUpdate && (
-        <div className="bg-[#8b5cf6]/5 border border-[#8b5cf6]/20 rounded-lg p-3 flex items-center gap-2">
+        <div className="bg-rail-purple/5 border border-rail-purple/20 rounded-lg p-3 flex items-center gap-2">
           <span
-            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22c55e]' : 'bg-white/20'} animate-pulse`}
+            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-rail-green' : 'bg-white/20'} animate-pulse`}
           />
           <span className="text-[12px] text-white/60">{lastUpdate.message}</span>
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${
               lastUpdate.status === 'succeeded'
-                ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                ? 'bg-rail-green/10 text-rail-green'
                 : lastUpdate.status === 'failed'
                   ? 'bg-red-500/10 text-red-400'
-                  : 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+                  : 'bg-rail-purple/10 text-rail-purple'
             }`}
           >
             {lastUpdate.status}

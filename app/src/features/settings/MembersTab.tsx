@@ -161,7 +161,7 @@ export default function MembersTab() {
                       onClick={() => copy(lastInviteUrl, 'invite')}
                       className="text-[11px] text-[#A0A0B0] hover:text-white h-8 shrink-0"
                     >
-                      {copiedKey === 'invite' ? <><Check size={12} className="mr-1 text-[#22c55e]" /> Copied</> : <><Copy size={12} className="mr-1" /> Copy</>}
+                      {copiedKey === 'invite' ? <><Check size={12} className="mr-1 text-rail-green" /> Copied</> : <><Copy size={12} className="mr-1" /> Copy</>}
                     </Button>
                   </div>
                   {lastInviteEmailEnqueued ? (
@@ -276,7 +276,7 @@ export default function MembersTab() {
                       onValueChange={(value) => handleRoleChange(m.userId, value as Role)}
                       disabled={updateRole.isPending}
                     >
-                      <SelectTrigger className="h-7 px-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded text-[11px] text-white focus:outline-none focus:border-rail-purple">
+                      <SelectTrigger className="h-7 px-2 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded text-[11px] text-white focus:outline-hidden focus:border-rail-purple">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>

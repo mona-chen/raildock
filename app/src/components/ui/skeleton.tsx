@@ -5,9 +5,9 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="skeleton"
       className={cn(
-        "relative overflow-hidden rounded-md bg-white/[0.04]",
+        "relative overflow-hidden rounded-md bg-white/4",
         "before:absolute before:inset-0",
-        "before:bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.06)_50%,transparent_100%)] before:bg-[length:200%_100%]",
+        "before:bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.06)_50%,transparent_100%)] before:bg-size-[200%_100%]",
         "before:animate-shimmer",
         className
       )}
@@ -31,7 +31,7 @@ function SkeletonCard({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="skeleton-card"
       className={cn(
-        "rounded-xl border border-white/[0.05] bg-white/[0.02] p-4",
+        "rounded-xl border border-white/5 bg-white/2 p-4",
         className
       )}
       {...props}
@@ -54,7 +54,7 @@ function SkeletonPage({ className, children, ...props }: React.ComponentProps<"d
       className={cn("h-full flex flex-col overflow-hidden", className)}
       {...props}
     >
-      <div className="h-14 border-b border-white/[0.06] px-6 flex items-center gap-3">
+      <div className="h-14 border-b border-white/6 px-6 flex items-center gap-3">
         <Skeleton className="size-5 rounded" />
         <Skeleton className="h-4 w-32" />
       </div>

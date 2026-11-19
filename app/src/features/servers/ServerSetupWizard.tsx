@@ -250,7 +250,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     placeholder={bootstrapLoading ? 'Loading public key...' : 'Public key unavailable'}
                     rows={2}
                     style={{ whiteSpace: 'nowrap' }}
-                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-hidden resize-none"
                   />
                   <p className="text-[10px] text-[#9292a3] mt-1">
                     Add this to <code className="text-[#8a8a99]">~/.ssh/authorized_keys</code> for the admin user and the deployment user (e.g. <code className="text-[#8a8a99]">/home/dokku/.ssh/authorized_keys</code>).
@@ -276,7 +276,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     placeholder={bootstrapLoading ? 'Loading bootstrap command...' : 'Bootstrap command unavailable'}
                     rows={3}
                     style={{ whiteSpace: 'nowrap' }}
-                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-none resize-none"
+                    className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-hidden resize-none"
                   />
                   <p className="text-[10px] text-[#9292a3] mt-1">
                     Run this one-liner as <strong>root</strong> to install Docker/Dokku and authorize the key automatically.
@@ -305,7 +305,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   id="server-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="raildock-prod-01"
                 />
               </div>
@@ -315,7 +315,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   id="server-host"
                   value={host}
                   onChange={(e) => setHost(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="192.168.1.100"
                 />
               </div>
@@ -325,7 +325,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   id="admin-user"
                   value={adminUser}
                   onChange={(e) => setAdminUser(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="root"
                 />
                 <p className="text-[10px] text-[#9292a3] mt-1">Must have passwordless sudo or root access.</p>
@@ -336,7 +336,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   id="ssh-user"
                   value={sshUser}
                   onChange={(e) => setSshUser(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="dokku"
                 />
               </div>
@@ -360,7 +360,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     id="external-proxy-network"
                     value={externalProxyNetwork}
                     onChange={(e) => setExternalProxyNetwork(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                    className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                     placeholder="proxy"
                   />
                   <p className="text-[10px] text-[#9292a3] mt-1">
@@ -384,7 +384,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   id="base-domain"
                   value={baseDomain}
                   onChange={(e) => setBaseDomain(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="example.com"
                 />
                 <p className="text-[10px] text-[#9292a3] mt-1">

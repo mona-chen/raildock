@@ -78,7 +78,7 @@ export default function ProjectsPage() {
         </div>
 
         <OnboardingChecklist />
-        {!isLoading && !isError && projects.length > 0 && <div className="mb-8 flex gap-6 border-b border-white/[0.08] pb-5 text-sm text-[#a0a0b0]"><span><strong className="mr-1.5 text-white">{projects.length}</strong> {projects.length === 1 ? 'project' : 'projects'}</span><span><strong className="mr-1.5 text-white">{serviceCount}</strong> {serviceCount === 1 ? 'service' : 'services'}</span></div>}
+        {!isLoading && !isError && projects.length > 0 && <div className="mb-8 flex gap-6 border-b border-white/8 pb-5 text-sm text-[#a0a0b0]"><span><strong className="mr-1.5 text-white">{projects.length}</strong> {projects.length === 1 ? 'project' : 'projects'}</span><span><strong className="mr-1.5 text-white">{serviceCount}</strong> {serviceCount === 1 ? 'service' : 'services'}</span></div>}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-full flex-1 items-center bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-2.5 gap-3 max-w-md sm:min-w-0">
           <Search size={16} className="text-[#9292a3]" />
@@ -87,7 +87,7 @@ export default function ProjectsPage() {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search projects"
             placeholder="Find a project…"
-            className="bg-transparent text-sm text-white placeholder-[#6b6b7b] outline-none w-full"
+            className="bg-transparent text-sm text-white placeholder-[#6b6b7b] outline-hidden w-full"
           />
         </div>
 
@@ -114,7 +114,7 @@ export default function ProjectsPage() {
               action={
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-2 text-[13px] font-medium text-white hover:bg-[#7c3aed] transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-rail-purple px-3 py-2 text-[13px] font-medium text-white hover:bg-rail-purple-dark transition-colors"
                 >
                   <Plus size={14} /> New Project
                 </button>
@@ -161,7 +161,7 @@ export default function ProjectsPage() {
                   autoComplete="off"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="my-project"
                 />
               </div>
@@ -171,7 +171,7 @@ export default function ProjectsPage() {
                   id="project-description"
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-none focus:border-rail-purple"
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="What is this project about?"
                 />
               </div>
@@ -287,7 +287,7 @@ function ProjectCard({
             <span
               className={`mr-6 text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
                 project.environment === 'production'
-                  ? 'bg-white/[0.05] text-[#b7b7c5]'
+                  ? 'bg-white/5 text-[#b7b7c5]'
                   : project.environment === 'staging'
                   ? 'bg-[rgba(59,130,246,0.08)] text-rail-blue'
                   : 'bg-[rgba(255,255,255,0.04)] text-[#A0A0B0]'
@@ -318,7 +318,7 @@ function ProjectCard({
             e.stopPropagation()
             handleDeleteClick()
           }}
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.04] transition-all"
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/4 transition-all"
           disabled={deletionPending}
           title={deletionPending ? 'Project deletion is in progress' : 'Delete project'}
         >
@@ -383,7 +383,7 @@ function ProjectCard({
                 autoComplete="off"
                 spellCheck={false}
                 className={cn(
-                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-none transition-colors',
+                  'w-full px-3 py-2.5 bg-[#0B0B0D] border rounded-lg text-sm text-white outline-hidden transition-colors',
                   confirmationFieldTone(confirmName, isConfirmValid)
                 )}
                 autoFocus
