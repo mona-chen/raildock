@@ -17,6 +17,9 @@ class ApiToken < ApplicationRecord
   belongs_to :project, optional: true
   belongs_to :environment, optional: true
 
+  has_many :operations, dependent: :nullify
+  has_many :activity_events, dependent: :nullify
+
   attr_accessor :plaintext
 
   before_validation :normalize_scopes

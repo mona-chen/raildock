@@ -10,7 +10,8 @@ class DeploymentJob < ApplicationJob
 
   retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
 
-  def perform(service_id, deployment_id)
+  def perform(service_id, deployment_id, api_token_id: nil)
+    @api_token_id = api_token_id
     ServiceOperationLock.with(Service.find(service_id)) { perform_locked(service_id, deployment_id) }
   end
 
@@ -364,7 +365,7 @@ class DeploymentJob < ApplicationJob
           repaired = recovery.repair
           recovery.messages.each { |message| log_sync.call("-----> #{message}\n") }
           if repaired
-            ActivityEvent.create!(project: project, action: "warning", message: "Repaired Git object-directory permissions for #{service.name}; retrying Git sync once.")
+            ActivityEvent.create!(project: project, action: "warning", message: "Repaired Git object-directory permissions for #{service.name}; retrying Git sync once.", api_token_id: @api_token_id)
             return if abort_if_cancelled(deployment)
             log_sync.call("-----> Retrying Git sync once after object-directory permission recovery\n")
             sync_result = engine.run(sync_command)
@@ -619,7 +620,8 @@ class DeploymentJob < ApplicationJob
       project: project,
       service_name: service.name,
       action: :deployed,
-      message: "Deployed #{service.dokku_app_name} successfully"
+      message: "Deployed #{service.dokku_app_name} successfully",
+      api_token_id: @api_token_id
     )
 
     safely_broadcast_deployment(service, {
@@ -1234,7 +1236,8 @@ class DeploymentJob < ApplicationJob
       project: service.project,
       service_name: service.name,
       action: :warning,
-      message: "Deployment failed for #{service.name}: #{message}"
+      message: "Deployment failed for #{service.name}: #{message}",
+      api_token_id: @api_token_id
     )
 
     safely_broadcast_deployment(service, {

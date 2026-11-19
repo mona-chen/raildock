@@ -10,18 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "activity_events", force: :cascade do |t|
     t.string "action"
+    t.bigint "api_token_id"
     t.datetime "created_at", null: false
     t.string "message"
     t.jsonb "metadata"
     t.bigint "project_id", null: false
     t.string "service_name"
     t.datetime "updated_at", null: false
+    t.index ["api_token_id"], name: "index_activity_events_on_api_token_id"
     t.index ["project_id"], name: "index_activity_events_on_project_id"
   end
 
@@ -320,6 +322,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_010000) do
     t.index ["server_id"], name: "index_network_flow_samples_on_server_id"
     t.index ["service_link_id", "sampled_at"], name: "index_network_flow_samples_on_service_link_id_and_sampled_at", unique: true
     t.index ["service_link_id"], name: "index_network_flow_samples_on_service_link_id"
+  end
+
+  create_table "operations", force: :cascade do |t|
+    t.bigint "api_token_id"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.string "idempotency_key"
+    t.string "kind", null: false
+    t.bigint "organization_id", null: false
+    t.bigint "project_id"
+    t.string "request_fingerprint"
+    t.bigint "service_id"
+    t.string "status"
+    t.bigint "subject_id"
+    t.string "subject_type"
+    t.datetime "updated_at", null: false
+    t.index ["api_token_id"], name: "index_operations_on_api_token_id"
+    t.index ["organization_id", "idempotency_key"], name: "index_operations_on_org_and_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
+    t.index ["organization_id"], name: "index_operations_on_organization_id"
+    t.index ["project_id"], name: "index_operations_on_project_id"
+    t.index ["service_id"], name: "index_operations_on_service_id"
+    t.index ["subject_type", "subject_id"], name: "index_operations_on_subject"
   end
 
   create_table "organization_invitations", force: :cascade do |t|
@@ -658,6 +683,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_010000) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "activity_events", "api_tokens", on_delete: :nullify
   add_foreign_key "activity_events", "projects"
   add_foreign_key "backup_copies", "backup_destinations"
   add_foreign_key "backup_copies", "backups"
@@ -683,6 +709,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_010000) do
   add_foreign_key "monitoring_incidents", "servers"
   add_foreign_key "network_flow_samples", "servers", on_delete: :cascade
   add_foreign_key "network_flow_samples", "service_links", on_delete: :cascade
+  add_foreign_key "operations", "api_tokens", on_delete: :nullify
+  add_foreign_key "operations", "organizations"
+  add_foreign_key "operations", "projects", on_delete: :nullify
+  add_foreign_key "operations", "services", on_delete: :nullify
   add_foreign_key "organization_invitations", "organizations"
   add_foreign_key "organization_invitations", "users"
   add_foreign_key "organization_invitations", "users", column: "invited_by_id"

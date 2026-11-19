@@ -1,5 +1,6 @@
 class ActivityEvent < ApplicationRecord
   belongs_to :project
+  belongs_to :api_token, optional: true
 
   validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed warning rebuilt] }
   validates :message, presence: true

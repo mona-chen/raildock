@@ -8,11 +8,20 @@ class RestartJob < ApplicationJob
 
   retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
 
-  def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
-    ServiceOperationLock.with(Service.find(service_id)) { perform_locked(service_id, idempotency_key: idempotency_key, kind: kind, triggered_by: triggered_by) }
+  def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual", api_token_id: nil)
+    ServiceOperationLock.with(Service.find(service_id)) do
+      perform_locked(
+        service_id,
+        idempotency_key: idempotency_key,
+        kind: kind,
+        triggered_by: triggered_by,
+        api_token_id: api_token_id
+      )
+    end
   end
 
-  def perform_locked(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
+  def perform_locked(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual", api_token_id: nil)
+    @api_token_id = api_token_id
     service = Service.find(service_id)
     project = service.project
     server = project.server
@@ -106,7 +115,8 @@ class RestartJob < ApplicationJob
           project: project,
           service_name: service.name,
           action: :restarted,
-          message: "Restarted #{service.name}"
+          message: "Restarted #{service.name}",
+          api_token_id: @api_token_id
         )
       else
         service.update!(status: "error")

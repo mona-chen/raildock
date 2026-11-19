@@ -50,6 +50,49 @@ module Api
       def scoped_servers
         Server.where(organization_id: current_organization.id)
       end
+
+      def scoped_operations
+        Operation.where(organization: current_organization)
+      end
+
+      # Async writes must be safe to retry: an agent that loses the response can
+      # send the same key again and attach to the work already started.
+      def idempotency_key!
+        key = request.headers["Idempotency-Key"].to_s.strip
+
+        if key.blank?
+          render json: {
+            error: "Idempotency-Key header is required for this write",
+            code: "idempotency_key_required"
+          }, status: :bad_request
+          return nil
+        end
+
+        if key.length > 140
+          render json: {
+            error: "Idempotency-Key must be at most 140 characters",
+            code: "idempotency_key_invalid"
+          }, status: :unprocessable_entity
+          return nil
+        end
+
+        key
+      end
+
+      def find_operation(key)
+        Operation.find_by(organization: current_organization, idempotency_key: key)
+      end
+
+      def render_idempotency_conflict
+        render json: {
+          error: "Idempotency-Key was already used for a different request",
+          code: "idempotency_key_reused"
+        }, status: :unprocessable_entity
+      end
+
+      def render_operation(operation, status:)
+        render json: { operation: OperationPresenter.new(operation).as_json }, status: status
+      end
     end
   end
 end

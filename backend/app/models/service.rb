@@ -8,6 +8,7 @@ class Service < ApplicationRecord
   has_many :domains, dependent: :destroy
   has_many :storage_mounts, dependent: :destroy
   has_many :deployments, dependent: :destroy
+  has_many :operations, dependent: :nullify
   has_many :process_types, dependent: :destroy
   # Nullify (not destroy): backup artifacts must outlive the service so a
   # destroyed database can still be restored from its last snapshot.

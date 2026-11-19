@@ -22,8 +22,16 @@ Rails.application.routes.draw do
         member do
           get :logs
           get :diagnose
+          post :deploy
+          post :restart
         end
       end
+      resources :plans, only: [ :create ] do
+        collection do
+          post :apply
+        end
+      end
+      resources :operations, only: [ :show ]
     end
 
     resources :modules, controller: "plugins", only: [ :index ] do

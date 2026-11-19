@@ -437,6 +437,16 @@ version the target servers run before assuming a behavior.
   is required in addition to the confirmation.
 - Diagnosis composes stored deployments, metrics and activity and performs no
   SSH. Missing samples are `available: false`, never zero usage.
+- Writes are reviewed, async and retry-safe. `AgentPlan` signs the reviewed
+  content, base digest and removal list for 15 minutes; `POST /plans/apply`
+  refuses a stale base (`409 plan_drifted`) and unconfirmed removals
+  (`428 removals_required`). `POST /services/:id/deploy|restart` requires an
+  `Idempotency-Key`; a repeat returns the original `Operation`. Operations
+  point at the authoritative record and derive status from it — do not copy a
+  deployment's status into the operation row. Agent-caused writes set
+  `ActivityEvent#api_token_id` through the job that performs them.
+- Frontend ids are strings; the v1 presenters do the same. Any new v1 resource
+  needs a string id and must stay out of the dashboard serializers.
 
 ## Interface conventions
 

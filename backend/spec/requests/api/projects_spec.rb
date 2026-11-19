@@ -127,6 +127,21 @@ RSpec.describe "Api::ProjectsController", type: :request do
         expect(project.reload.deletion_status).to eq("queued")
       end
 
+      it "records a pollable operation for the queued deletion" do
+        organization = create(:organization, owner: user)
+        create(:organization_membership, user: user, organization: organization, role: :owner)
+        project.update!(organization: organization)
+        headers = auth_headers(user).merge("X-Organization-ID" => organization.id.to_s)
+
+        delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: headers, as: :json
+
+        expect(response).to have_http_status(:accepted)
+        operation = Operation.find(response.parsed_body["operation_id"])
+        expect(operation.kind).to eq("project_deletion")
+        expect(operation.subject).to eq(project)
+        expect(operation.status).to eq("pending")
+      end
+
       it "queues another snapshot attempt after a recoverable snapshot failure" do
         project.update!(deletion_status: "failed", deletion_error_code: "snapshot_required", deletion_error: "No verified destination")
         delete "/api/projects/#{project.id}", params: { confirmation: project.name }, headers: auth_headers(user)

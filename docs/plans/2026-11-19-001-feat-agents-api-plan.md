@@ -166,11 +166,12 @@ stay valid.
 | GET | `/api/v1/services/:id/logs` | `read` | cursor pagination, `limit` ≤ 500 |
 | GET | `/api/v1/services/:id/diagnose` | `read` | last deployments, build-log tail, container status, health, 1h metrics, recent events |
 | POST | `/api/v1/plans` | `read` | manifest content or change request; returns `plan_id`, changes, severity, `expires_at` |
-| POST | `/api/v1/plans/:id/apply` | `deploy` | validates digest, enqueues the existing job, returns `operation_id` |
-| POST | `/api/v1/projects/:id/deployments` | `deploy` | bulk deploy for an environment; requires `Idempotency-Key` |
-| POST | `/api/v1/services/:id/restart` | `deploy` | returns `operation_id` |
-| GET | `/api/v1/operations/:id` | `read` | `{id, kind, status, phase, error_code, events[], links}` |
-| DELETE | `/api/v1/projects/:id` | `destructive` | typed `confirmation`; `428` on a missing snapshot, `202` when queued |
+| POST | `/api/v1/plans/apply` | `config:write` (+ `destructive` for removals) | validates the base digest and removal token, enqueues the existing job, returns an operation |
+| POST | `/api/v1/projects/:id/deployments` | `deploy` | planned: bulk deploy for an environment; requires `Idempotency-Key` |
+| POST | `/api/v1/services/:id/deploy` | `deploy` | requires `Idempotency-Key`; returns an operation |
+| POST | `/api/v1/services/:id/restart` | `deploy` | requires `Idempotency-Key`; returns an operation |
+| GET | `/api/v1/operations/:id` | `read` | `{id, kind, status, subject, result, error, timestamps}` |
+| DELETE | `/api/v1/projects/:id` | `destructive` | planned: typed `confirmation`; `428` on a missing snapshot, `202` when queued; records an operation |
 
 Errors use the existing shape plus a stable `code`: `confirmation_required`,
 `snapshot_required`, `removals_required`, `plan_expired`, `plan_drifted`,
@@ -188,8 +189,9 @@ membership role  ∩  token scopes  ∩  token binding
 ```
 
 - `read` — any member role. Context, services, logs, metrics, diagnosis.
-- `deploy` — `member` or above. Deploy, restart, scale, rollback, apply a plan.
-- `config:write` — `admin` or above. Variables, domains, mounts, manifest edits.
+- `deploy` — `member` or above. Deploy, restart, scale, rollback.
+- `config:write` — `admin` or above. Variables, domains, mounts, manifest edits
+  and applying a reviewed plan.
 - `destructive` — `owner`/`admin` plus the typed confirmation and snapshot
   protocol. Delete a project, remove a service, restore a backup.
 
@@ -215,9 +217,25 @@ keep resolving.
   scopes, binding and last use, creates tokens (name, scopes, project and
   environment binding, expiry) and shows the secret once in a copy dialog.
   Revoking goes through the app confirm dialog.
-- **Pending**: U3 (plans/apply), U4 (operations envelope and idempotency),
-  U5 (MCP), U6 (OpenAPI). The `api_token_id` actor column on `ActivityEvent`
-  moves to U3, the first write surface that needs attribution.
+- **U3 implemented**: `AgentPlan` issues a signed, 15-minute plan carrying the
+  exact content, its digest, the stored-manifest base digest, the removal list
+  and the issuing token. `POST /api/v1/plans` diffs the stored manifest or a
+  supplied `content`; `POST /api/v1/plans/apply` refuses when the stored
+  manifest moved (`409 plan_drifted`), requires `confirm_removals` + the
+  reviewed `removal_token` + the `destructive` scope when the plan removes
+  services, and attaches a replay to the operation already started. The plan
+  token travels in the body, not the URL, so a multi-kilobyte manifest does not
+  have to fit in a path segment.
+- **U4 implemented**: `Operation` is a thin pointer to the authoritative record
+  (`Deployment`, `ManifestOperation`, or the deleting `Project`) and derives its
+  status from it. `GET /api/v1/operations/:id` returns the uniform envelope.
+  `POST /api/v1/services/:id/deploy` and `/restart` require `Idempotency-Key`;
+  a repeat returns the original operation with `200` and starts no second job.
+  Plan applies are keyed by the plan's `jti`, and project deletion (queued
+  through the existing dashboard path) records an operation whose status follows
+  `deletion_status` and is finished by the host job. Agent writes record the
+  token on `ActivityEvent#api_token_id`.
+- **Pending**: U5 (MCP) and U6 (OpenAPI).
 
 ## Implementation Units
 
@@ -253,9 +271,11 @@ response; a token bound to `staging` sees only `staging` services.
 - `backend/app/services/agent_plan.rb` — wraps `ManifestParser`,
   `ManifestReconciler#diff`, `ChangeClassifier` and `RemovalConfirmation`
   semantics; issues and verifies the signed `plan_id`.
-- `POST /plans` and `POST /plans/:id/apply`; apply re-parses the current
-  manifest and refuses when the digest moved (`409 plan_drifted`).
-- Removals still require the reviewed removal token; the plan carries it.
+- `POST /plans` and `POST /plans/apply`; apply re-reads the stored manifest and
+  refuses when the digest moved (`409 plan_drifted`).
+- Removals require the reviewed removal token, `confirm_removals: true` and the
+  `destructive` scope; a plan whose removals are unconfirmed returns
+  `428 removals_required` with the removal list and a freshly issued token.
 
 Acceptance: applying an unchanged manifest is a no-op with a successful
 operation; a plan applied after an edit returns `409 plan_drifted`; a plan with
@@ -267,7 +287,12 @@ removals returns `428 removals_required` until the token is supplied.
 - `GET /operations/:id` resolves the subject and returns a uniform body.
 - `Idempotency-Key` required on deploy/restart writes; a repeat with the same
   key returns the original operation with `200` instead of starting new work.
+  Plan applies use the plan's `jti`, and project deletion records an operation
+  from the queued dashboard path.
 - Deploy, restart, plan apply and project deletion all record an operation.
+  Status is derived from the `Deployment`/`ManifestOperation`/`Project` when
+  that record can report it; an additive apply and a post-destroy deletion keep
+  the terminal outcome on the operation because no record survives to report it.
 
 Acceptance: two identical deploy requests with one key produce one
 `Deployment`; polling an operation while the job runs returns `running`, then
@@ -333,13 +358,12 @@ Acceptance: an MCP client lists the ten tools, a `plan_change` followed by
 
 ## Decisions on Open Questions
 
-- **Additive manifest applies have no durable id yet.** Plan apply will return
-  a `ManifestOperation` id only when the apply includes removals (the record
-  already exists on that path). For additive applies, agents poll
-  `GET /api/v1/projects/:id` and read `manifest.synced` /
-  `manifest.last_applied_at`. U4 will add the operation pointer and derive an
-  additive apply's status from the project's manifest state; it will not
-  create a second status source inside the reconciler.
+- **Additive manifest applies have a durable operation now.** Plan apply
+  always creates an `Operation`; the host job marks it running/succeeded/failed,
+  and an apply that defers removals points the operation at the existing
+  `ManifestOperation` so its status keeps coming from the finalizer. The
+  reconciler still does not create a second status source; the operation is the
+  pointer the caller polls.
 - **Scope granularity stays at four.** `config:write` covers variables, domains
   and mounts for now. Splitting it into `variables:write` and `routing:write`
   waits for a real agent that needs routing without variables; four scopes are
@@ -347,7 +371,7 @@ Acceptance: an MCP client lists the ten tools, a `plan_change` followed by
 - **Binding is project + environment only.** Per-service tokens are not worth
   the matrix yet; a token bound to an environment already covers the
   "staging only" case that makes delegation useful.
-- **Rate limits are per token**, enforced in U4 before `/mcp` is published. The
+- **Rate limits are per token**, enforced in U5 before `/mcp` is published. The
   database is not the place for the counter.
 
 ## Open Questions

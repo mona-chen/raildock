@@ -39,6 +39,9 @@ class ManifestOperation < ApplicationRecord
 
     message = status == "succeeded" ? "Manifest deployments and confirmed removals completed" : error
     RealtimeBroadcaster.project(project, { type: "manifest_apply", status: status == "succeeded" ? "completed" : "failed", message: message })
-    ActivityEvent.create!(project: project, service_name: "-", action: status == "succeeded" ? :deployed : :warning, message: message)
+    # The operation that started this apply is the only place the actor was
+    # recorded; carry it onto the completion event too.
+    actor_id = Operation.find_by(subject_type: "ManifestOperation", subject_id: id)&.api_token_id
+    ActivityEvent.create!(project: project, service_name: "-", action: status == "succeeded" ? :deployed : :warning, message: message, api_token_id: actor_id)
   end
 end

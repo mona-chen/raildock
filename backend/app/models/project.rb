@@ -5,6 +5,9 @@ class Project < ApplicationRecord
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
   has_many :manifest_operations, dependent: :destroy
+  # Operations survive their project so a deletion can still be polled after
+  # the row is gone; the pointer is nullified, not destroyed.
+  has_many :operations, dependent: :nullify
   # `delete_all`, not `destroy`: project teardown is already guarded by
   # `destroy_services_dokku`, and the rows must not re-run Environment's
   # "environment still owns services" guard while the services are vanishing.

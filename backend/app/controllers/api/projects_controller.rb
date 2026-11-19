@@ -54,16 +54,21 @@ module Api
       end
 
       # Repeated requests attach to the existing operation instead of deleting twice.
-      return render json: { status: project.deletion_status }, status: :accepted if project.deletion_pending?
+      if project.deletion_pending?
+        operation = project_deletion_operation(project)
+        return render json: { status: project.deletion_status, operation_id: operation&.id&.to_s }, status: :accepted
+      end
 
       project.update!(deletion_status: "queued", deletion_error: nil, deletion_error_code: nil, deletion_requested_at: Time.current)
+      operation = create_project_deletion_operation(project)
       begin
         ProjectDeletionJob.perform_later(project.id, force_destroy_data: force_destroy_data?)
       rescue StandardError
         project.update!(deletion_status: "failed", deletion_error: "Could not queue deletion. Please retry.")
+        operation&.update!(status: "failed", error: "Could not queue deletion. Please retry.", completed_at: Time.current)
         raise
       end
-      render json: { status: "queued" }, status: :accepted
+      render json: { status: "queued", operation_id: operation&.id&.to_s }, status: :accepted
     end
 
     def shared_vars
@@ -240,6 +245,27 @@ module Api
 
     def force_destroy_data?
       ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false
+    end
+
+    # A deletion is queued, not executed, so the caller polls an operation
+    # instead of waiting for the request. Personal projects have no
+    # organization to scope an operation to, so they keep the bare status.
+    def project_deletion_operation(project)
+      return unless project.organization
+
+      Operation.where(kind: "project_deletion", subject_type: "Project", subject_id: project.id).order(:id).last
+    end
+
+    def create_project_deletion_operation(project)
+      return unless project.organization
+
+      Operation.create!(
+        organization: project.organization,
+        project: project,
+        kind: "project_deletion",
+        subject: project,
+        api_token: current_api_token
+      )
     end
 
     def with_dokku_engine(service)
