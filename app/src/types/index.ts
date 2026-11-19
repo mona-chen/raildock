@@ -27,6 +27,31 @@ export interface Project {
 }
 
 // ───────────────────────────────────────────────
+// Agent access (API tokens)
+// ───────────────────────────────────────────────
+
+export type ApiTokenScope = 'read' | 'deploy' | 'config:write' | 'destructive'
+
+export interface ApiToken {
+  id: string
+  name: string
+  /** Public identifier after the `rd_` prefix; the secret itself is never returned again. */
+  prefix: string
+  scopes: ApiTokenScope[]
+  projectId?: string | null
+  environmentId?: string | null
+  expiresAt?: string | null
+  lastUsedAt?: string | null
+  revokedAt?: string | null
+  createdAt: string
+}
+
+export interface CreatedApiToken {
+  token: ApiToken
+  secret: string
+}
+
+// ───────────────────────────────────────────────
 // Environment (a switchable grouping of a project's services)
 // Every project starts with a default `production` environment.
 // ───────────────────────────────────────────────

@@ -226,6 +226,13 @@ RSpec.describe Service, type: :model do
       expect(json).to have_key("storage_mounts")
       expect(json).to have_key("process_types")
     end
+
+    it "never serializes the webhook token" do
+      json = service.as_json
+
+      expect(json).not_to have_key("webhook_token")
+      expect(service.webhook_token).to be_present
+    end
   end
 
   describe "dependent destroy" do

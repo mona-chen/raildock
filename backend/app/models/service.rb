@@ -241,7 +241,10 @@ class Service < ApplicationRecord
   end
 
   def as_json(options = {})
+    # `webhook_token` is the credential behind `webhook_url`; the dashboard only
+    # needs the URL, so the raw token never belongs in a serialized payload.
     super(options.merge(
+      except: [ :webhook_token ],
       methods: [ :type, :linked_service_ids, :linked_by_service_ids, :logs, :detected_port, :effective_port, :internal_hostname, :webhook_url, :data_view ],
       include: {
         environment_variables: { only: [ :id, :key, :value, :source, :is_dokku_internal ] },

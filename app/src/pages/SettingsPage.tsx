@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search, Activity } from 'lucide-react'
+import { Settings, Puzzle, Building2, Plus, Trash2, Users, Key, FolderGit2, RefreshCw, ArrowUpCircle, Rocket, Mail, Cloud, Cog, Search, Activity, Bot } from 'lucide-react'
 import { useCopy } from '@/hooks/useCopy'
 import { useModules, useInstallPlugin, useEnablePlugin, useDisablePlugin, useUninstallPlugin, usePluginSettings, useUpdatePluginSettings } from '@/hooks/useModules'
 import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations'
@@ -35,6 +35,7 @@ import BackupDestinationsTab from '@/features/settings/BackupDestinationsTab'
 import NotificationsTab from '@/features/settings/NotificationsTab'
 import ObservabilitySettingsTab from '@/features/settings/ObservabilitySettingsTab'
 import SmtpConfigPanel from '@/features/settings/SmtpConfigPanel'
+import AgentAccessTab from '@/features/settings/AgentAccessTab'
 import { updateApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { AppUpdateInfo, Module } from '@/types'
@@ -52,6 +53,7 @@ const TAB_GROUPS = [
       { key: 'git-sources', label: 'Git Sources', icon: FolderGit2 },
       { key: 'backup-destinations', label: 'Backups', icon: Cloud },
       { key: 'deploy-keys', label: 'Deploy Keys', icon: Key },
+      { key: 'agent-access', label: 'Agent Access', icon: Bot },
     ],
   },
   {
@@ -141,6 +143,7 @@ export default function SettingsPage() {
           {activeTab === 'notifications' && <NotificationsTab key={currentOrganizationId} />}
           {activeTab === 'backup-destinations' && <BackupDestinationsTab />}
           {activeTab === 'deploy-keys' && <DeployKeysTab />}
+          {activeTab === 'agent-access' && <AgentAccessTab />}
           {activeTab === 'email' && <div className="max-w-3xl"><SmtpConfigPanel /></div>}
           {activeTab === 'updates' && <UpdatesTab />}
           {activeTab === 'observability' && <ObservabilitySettingsTab />}

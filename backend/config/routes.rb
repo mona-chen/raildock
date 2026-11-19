@@ -9,6 +9,23 @@ Rails.application.routes.draw do
     get "me", to: "auth#me"
     get "setup", to: "users#setup_required"
     post "users", to: "users#create"
+
+    # Machine credentials. Owner/admin only; the secret is returned once.
+    resources :api_tokens, path: "api-tokens", only: [ :index, :create, :destroy ]
+
+    # Agent-facing surface. Additive: the dashboard keeps using the endpoints
+    # above, which are not versioned and may change shape with the UI.
+    namespace :v1 do
+      get "context", to: "context#show"
+      resources :projects, only: [ :show ]
+      resources :services, only: [ :show ] do
+        member do
+          get :logs
+          get :diagnose
+        end
+      end
+    end
+
     resources :modules, controller: "plugins", only: [ :index ] do
       collection do
         post :install

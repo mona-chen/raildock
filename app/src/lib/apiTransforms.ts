@@ -39,6 +39,7 @@ import type {
   BackupDestination,
   RecoveryOverview,
   Backup,
+  ApiToken,
 } from '@/types'
 
 /**
@@ -193,6 +194,16 @@ export function normalizeProject(data: unknown): Project {
   }
   delete camel.environmentsForApi
   return camel as unknown as Project
+}
+
+export function normalizeApiToken(data: unknown): ApiToken {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  for (const key of ['id', 'projectId', 'environmentId'] as const) {
+    if (camel[key] != null && typeof camel[key] !== 'string') {
+      camel[key] = String(camel[key])
+    }
+  }
+  return camel as unknown as ApiToken
 }
 
 export function normalizeEnvironment(data: unknown): Environment {

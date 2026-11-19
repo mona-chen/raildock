@@ -44,6 +44,9 @@ import type {
   StorageMountEntry,
   DataTablesResponse,
   DataRowsResponse,
+  ApiToken,
+  ApiTokenScope,
+  CreatedApiToken,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -53,6 +56,7 @@ import {
   normalizeService,
   normalizeProject,
   normalizeEnvironment,
+  normalizeApiToken,
   normalizeServer,
   normalizeActivityEvent,
   normalizeGitSource,
@@ -185,6 +189,44 @@ export const projectsApi = {
 
   stopAll: async (id: string, environmentId?: string): Promise<{ success: string[]; failed: { name: string; error: string }[] }> => {
     return fetchJson(`/api/projects/${id}/stop_all`, { method: 'POST', body: JSON.stringify({ environment_id: environmentId }) })
+  },
+}
+
+// ── API tokens ────────────────────────────────
+// A token is a delegated user for one organization. The secret is returned
+// once, at creation; the list only ever carries the public prefix.
+
+export interface CreateApiTokenInput {
+  name: string
+  scopes: ApiTokenScope[]
+  projectId?: string | null
+  environmentId?: string | null
+  expiresAt?: string | null
+}
+
+export const apiTokensApi = {
+  list: async (): Promise<ApiToken[]> => {
+    const data = await fetchJson<{ tokens: unknown[] }>('/api/api-tokens')
+    return (data.tokens ?? []).map(normalizeApiToken)
+  },
+
+  create: async (input: CreateApiTokenInput): Promise<CreatedApiToken> => {
+    const data = await fetchJson<{ token: unknown; secret: string }>('/api/api-tokens', {
+      method: 'POST',
+      body: wrapBody('token', {
+        name: input.name,
+        scopes: input.scopes,
+        project_id: input.projectId ?? null,
+        environment_id: input.environmentId ?? null,
+        expires_at: input.expiresAt ?? null,
+      }),
+    })
+    return { token: normalizeApiToken(data.token), secret: data.secret }
+  },
+
+  revoke: async (id: string): Promise<ApiToken> => {
+    const data = await fetchJson<{ token: unknown }>(`/api/api-tokens/${id}`, { method: 'DELETE' })
+    return normalizeApiToken(data.token)
   },
 }
 
@@ -1415,6 +1457,7 @@ export const api = {
   manifest: manifestApi,
   repositoryImports: repositoryImportsApi,
   updates: updateApi,
+  apiTokens: apiTokensApi,
 }
 
 export interface NotificationPolicy {

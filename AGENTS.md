@@ -414,6 +414,30 @@ version the target servers run before assuming a behavior.
   CI succeeded; tagged releases run the reusable CI workflow before publication.
   `scripts/test-image.sh` checks fresh startup before publishing main images.
 
+## Agent access
+
+- `ApiToken` is a **delegated user**, not a new principal. A `Bearer rd_…` token
+  resolves to its owner and organization; the member's role still decides what
+  is allowed, and the token narrows it with `scopes` (`read`, `deploy`,
+  `config:write`, `destructive`) plus an optional project/environment binding.
+  Effective permission is the intersection, never the token alone.
+- Only the SHA-256 digest is stored. The secret is returned once at creation;
+  `prefix` identifies it in logs and settings. Revoke, never delete, so audit
+  rows keep resolving. A revoked/expired token or a removed membership returns a
+  specific `code` (`token_revoked`, `token_expired`, `membership_revoked`) so an
+  agent can stop retrying.
+- `/api/v1` is **additive** and presenter-based. Never reuse the dashboard
+  serializers (`Service#as_json`, `Project#as_json`) for it: they are shaped for
+  the UI and must not define the agent contract. Environment variable values,
+  config values, SSH keys and the webhook token are never serialized; callers get
+  names and `webhook_configured` instead.
+- Agents use the same destructive protocol as humans: typed confirmation, the
+  `428 precondition_required` codes, pre-destruction snapshots and
+  `ServiceOperationLock`. There is no agent-only bypass, and `destructive` scope
+  is required in addition to the confirmation.
+- Diagnosis composes stored deployments, metrics and activity and performs no
+  SSH. Missing samples are `available: false`, never zero usage.
+
 ## Interface conventions
 
 - Use Lucide for interface controls; keep framework/database brand marks in `ServiceIcons`.
