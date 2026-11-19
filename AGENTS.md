@@ -240,6 +240,10 @@ Anything that deletes production data has to be explicit and recoverable. Keep t
 
 ## CI / release
 
+- `develop` is the integration branch: feature branches merge into it, and CI
+  runs on `develop` and `main`. `main` is the release branch; `release-main.yml`
+  still publishes `edge` only from `main`, so work can land on `develop` without
+  publishing an image.
 - `.github/workflows/ci.yml` — lint, test, security audits (Brakeman, bundler-audit, npm audit).
 - `.github/workflows/release-main.yml` — builds and pushes `edge` image on every push to `main`.
 - `.github/workflows/build.yml` — builds and pushes image on git tags.
