@@ -70,6 +70,72 @@ RSpec.describe "Api::OrganizationsController", type: :request do
     end
   end
 
+  describe "PATCH /api/organizations/:id" do
+    let(:org) { create(:organization, owner: user) }
+
+    before do
+      create(:organization_membership, user: user, organization: org, role: :owner)
+    end
+
+    it "updates the organization profile for an owner" do
+      patch "/api/organizations/#{org.id}",
+        params: {
+          organization: {
+            name: "Acme Platform",
+            slug: "acme-platform",
+            avatar_url: "https://example.com/acme.png"
+          }
+        },
+        headers: auth_headers(user),
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["name"]).to eq("Acme Platform")
+      expect(response.parsed_body["slug"]).to eq("acme-platform")
+      expect(response.parsed_body["avatar_url"]).to eq("https://example.com/acme.png")
+      expect(org.reload.name).to eq("Acme Platform")
+    end
+
+    it "allows an admin to update the organization profile" do
+      admin_user = create(:user)
+      create(:organization_membership, user: admin_user, organization: org, role: :admin)
+
+      patch "/api/organizations/#{org.id}",
+        params: { organization: { name: "Admin Renamed" } },
+        headers: auth_headers(admin_user),
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(org.reload.name).to eq("Admin Renamed")
+    end
+
+    it "refuses a regular member" do
+      member_user = create(:user)
+      create(:organization_membership, user: member_user, organization: org, role: :member)
+
+      patch "/api/organizations/#{org.id}",
+        params: { organization: { name: "Member Renamed" } },
+        headers: auth_headers(member_user),
+        as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      expect(org.reload.name).not_to eq("Member Renamed")
+    end
+
+    it "reports a duplicate slug" do
+      create(:organization, slug: "taken-slug")
+
+      patch "/api/organizations/#{org.id}",
+        params: { organization: { slug: "taken-slug" } },
+        headers: auth_headers(user),
+        as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["error"]).to include("Slug")
+      expect(org.reload.slug).not_to eq("taken-slug")
+    end
+  end
+
   describe "DELETE /api/organizations/:id" do
     let(:org) { create(:organization, owner: user) }
 

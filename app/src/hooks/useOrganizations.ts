@@ -23,6 +23,32 @@ export function useCreateOrganization() {
   })
 }
 
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient()
+  const user = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; slug?: string; avatarUrl?: string } }) =>
+      api.organizations.update(id, data),
+    onSuccess: (organization) => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
+      if (user?.organizations) {
+        setUser({
+          ...user,
+          organizations: user.organizations.map((candidate) =>
+            candidate.id === organization.id
+              ? { ...candidate, name: organization.name, slug: organization.slug }
+              : candidate
+          ),
+        })
+      }
+      toast.success('Organization updated')
+    },
+    onError: (err: Error) => toast.error(`Failed to update organization: ${err.message}`),
+  })
+}
+
 export function useDeleteOrganization() {
   const queryClient = useQueryClient()
   return useMutation({

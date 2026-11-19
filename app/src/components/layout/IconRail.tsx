@@ -191,12 +191,24 @@ export default function IconRail() {
           <span className={`${label} text-[12.5px] font-medium`}>Collapse</span>
         </button>
 
-        <div className={`flex items-center gap-2.5 py-1.5 ${row}`} title={user?.name || 'User'}>
-          <span className="w-8 h-8 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.25)] flex items-center justify-center shrink-0">
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard/settings?tab=profile')}
+          title="Edit profile"
+          aria-label="Edit profile"
+          className={`group flex items-center gap-2.5 rounded-lg py-1.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.04)] ${row}`}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[rgba(139,92,246,0.25)] bg-[rgba(139,92,246,0.15)]">
             <User size={14} className="text-rail-purple" />
           </span>
-          <span className={`${collapsed ? 'hidden' : 'hidden md:block'} text-[12px] text-white/60 truncate max-w-[128px]`}>{user?.name || 'User'}</span>
-        </div>
+          <span className={`${collapsed ? 'hidden' : 'hidden md:block'} max-w-[128px] truncate text-[12px] text-white/60`}>
+            {user?.name || 'User'}
+          </span>
+          <Settings
+            size={12}
+            className={`${collapsed ? 'hidden' : 'hidden md:block'} ml-auto text-white/20 transition-colors group-hover:text-white/50`}
+          />
+        </button>
 
         <button
           onClick={handleLogout}
