@@ -79,6 +79,25 @@ RSpec.describe ManifestGenerator do
         expect(parsed["links"].length).to eq(1)
       end
 
+      it 'round-trips a default service without spurious changes' do
+        round_trip_project = create(:project, name: "Round trip")
+        round_trip_project.services.create!(
+          name: "probe",
+          service_type: "app",
+          subtype: "web",
+          status: "stopped",
+          builder: "nixpacks",
+          restart_policy: "on-failure",
+          config: {}
+        )
+
+        toml = described_class.new(round_trip_project).generate(format: :toml)
+        desired = ManifestParser.parse(toml, filename: "raildock.toml")
+        changes = ManifestReconciler.new(round_trip_project, desired).diff.map(&:to_h)
+
+        expect(changes).to eq([])
+      end
+
       it 'round-trips through ManifestParser' do
         generator = described_class.new(project)
         toml = generator.generate(format: :toml)

@@ -71,6 +71,8 @@ class ManifestGenerator
     h[:exposed] = svc.exposed unless svc.exposed.nil?
     h[:port] = svc.port if svc.port.present?
     h[:maintenance] = svc.maintenance_mode if svc.maintenance_mode
+    h[:restart_policy] = svc.restart_policy_value if svc.restart_policy_value.present?
+    h[:restart_max_retries] = svc.restart_max_retries unless svc.restart_max_retries.nil?
 
     # Source
     if svc.git_repo.present?
@@ -232,6 +234,8 @@ class ManifestGenerator
       lines << "exposed = #{svc[:exposed]}" unless svc[:exposed].nil?
       lines << "port = #{svc[:port]}" if svc[:port]
       lines << "maintenance = #{svc[:maintenance]}" if svc[:maintenance]
+      lines << "restart_policy = #{quote(svc[:restart_policy])}" if svc[:restart_policy]
+      lines << "restart_max_retries = #{svc[:restart_max_retries]}" unless svc[:restart_max_retries].nil?
 
       if svc[:source]
         if svc[:source][:repo]

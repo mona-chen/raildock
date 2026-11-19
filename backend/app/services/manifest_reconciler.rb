@@ -398,6 +398,7 @@ class ManifestReconciler
       next if app_json_source_unspecified?(desired_svc, field)
 
       comparison_val = field == :env ? resolved_env_for(name, new_val) : new_val
+      next if toggle_values_equal?(field, old_val, comparison_val)
       next if values_equal?(old_val, comparison_val)
 
       change_type = old_val.nil? ? :added : (new_val.nil? ? :removed : :modified)
@@ -467,6 +468,35 @@ class ManifestReconciler
     return false if a.nil? || b.nil?
 
     canonical_value(a) == canonical_value(b)
+  end
+
+  # `checks` and `letsencrypt` are stored as `{}` until they are configured,
+  # while the parser fills in defaults for an omitted block. A manifest
+  # generated from live state, or one that omits the block, must not look like
+  # a change to an unconfigured service.
+  CHECKS_DEFAULTS = {
+    enabled: false, mode: "disabled", wait: 5, timeout: 30, attempts: 5,
+    wait_to_retire: 60, skip: [], path: "/_up"
+  }.freeze
+  CHECKS_PRESENT_DEFAULTS = CHECKS_DEFAULTS.merge(mode: "enabled").freeze
+  LETSENCRYPT_DEFAULTS = { enabled: false, email: nil, staging: false, auto_renew: true }.freeze
+
+  def toggle_values_equal?(field, old_val, new_val)
+    return false unless %i[checks letsencrypt].include?(field)
+
+    canonical_value(normalize_toggle(field, old_val)) == canonical_value(normalize_toggle(field, new_val))
+  end
+
+  def normalize_toggle(field, value)
+    hash = value.is_a?(Hash) ? value.transform_keys(&:to_sym) : {}
+
+    case field
+    when :checks
+      base = hash.empty? ? CHECKS_DEFAULTS : CHECKS_PRESENT_DEFAULTS
+      base.merge(hash)
+    when :letsencrypt
+      LETSENCRYPT_DEFAULTS.merge(hash)
+    end
   end
 
   def canonical_value(value)
