@@ -23,6 +23,7 @@ import ConfirmDialog from '@/features/shared/ConfirmDialog'
 import { useCopy } from '@/hooks/useCopy'
 import { useProjects } from '@/hooks/useProjects'
 import { useApiTokens, useCreateApiToken, useRevokeApiToken } from '@/hooks/useApiTokens'
+import { useAuthStore } from '@/stores/useAuthStore'
 import type { ApiToken, ApiTokenScope, CreatedApiToken } from '@/types'
 import { SettingsSection } from './SettingsSection'
 
@@ -64,6 +65,7 @@ export default function AgentAccessTab() {
   const createToken = useCreateApiToken()
   const revokeToken = useRevokeApiToken()
   const { copiedKey, copy } = useCopy()
+  const currentOrganizationId = useAuthStore((state) => state.currentOrganizationId)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState('')
@@ -329,7 +331,7 @@ export default function AgentAccessTab() {
       </Dialog>
 
       <Dialog open={!!created} onOpenChange={(open) => { if (!open) setCreated(null) }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Copy the secret now</DialogTitle>
             <DialogDescription>
@@ -338,22 +340,58 @@ export default function AgentAccessTab() {
           </DialogHeader>
 
           {created && (
-            <div className="space-y-3 py-2">
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 overflow-x-auto rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#d8d8e0]">
+            <div className="space-y-4 py-1">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[12px] font-medium text-white/80">{created.token.name}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-white/35">
+                    {created.token.scopes.join(' · ')} · {created.token.projectId ? 'Project-bound' : 'All projects'}
+                  </p>
+                </div>
+                <code className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40">
+                  rd_{created.token.prefix}…
+                </code>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-[11px] font-medium text-white/55">Secret</Label>
+                  <Button variant="secondary" size="sm" onClick={() => copy(created.secret, 'secret')}>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    {copiedKey === 'secret' ? 'Copied' : 'Copy secret'}
+                  </Button>
+                </div>
+                <code className="block select-all break-all rounded-lg border border-rail-purple/25 bg-black/35 px-3.5 py-3 font-mono text-[11px] leading-relaxed text-[#e2e2ea]">
                   {created.secret}
                 </code>
-                <Button variant="secondary" size="sm" onClick={() => copy(created.secret, 'secret')}>
-                  <Copy className="mr-1.5 h-3.5 w-3.5" />
-                  {copiedKey === 'secret' ? 'Copied' : 'Copy'}
-                </Button>
               </div>
-              <p className="flex items-start gap-2 text-xs leading-5 text-[#9292a3]">
-                <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Send it as <code className="text-[#b9b9c6]">Authorization: Bearer …</code> with the organization
-                id in <code className="text-[#b9b9c6]">X-Organization-ID</code>, then call{' '}
-                <code className="text-[#b9b9c6]">/api/v1/context</code> to orient the agent.
-              </p>
+
+              <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3.5">
+                <p className="flex items-center gap-2 text-[11px] font-medium text-white/60">
+                  <Bot size={12} className="text-rail-purple/70" />
+                  Use it from your agent
+                </p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-[#9292a3]">
+                  Send the token as a Bearer credential. Include your organization id if your client asks for it,
+                  then call the context endpoint to orient the agent.
+                </p>
+                <dl className="mt-3 space-y-1.5 font-mono text-[10.5px]">
+                  <div className="flex gap-3">
+                    <dt className="w-28 shrink-0 text-white/30">Authorization</dt>
+                    <dd className="min-w-0 break-all text-white/65">Bearer rd_…</dd>
+                  </div>
+                  <div className="flex gap-3">
+                    <dt className="w-28 shrink-0 text-white/30">X-Organization-ID</dt>
+                    <dd className="min-w-0 break-all text-white/65">
+                      {currentOrganizationId ?? '<organization id>'}
+                    </dd>
+                  </div>
+                  <div className="flex gap-3">
+                    <dt className="w-28 shrink-0 text-white/30">Endpoint</dt>
+                    <dd className="min-w-0 break-all text-white/65">GET /api/v1/context</dd>
+                  </div>
+                </dl>
+              </div>
             </div>
           )}
 

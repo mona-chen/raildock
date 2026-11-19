@@ -9,7 +9,12 @@ import { toast } from 'sonner'
  * the API on an insecure origin and only fail once it is used.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
-  const copied = (await writeWithClipboardApi(text)) || writeWithSelection(text)
+  // On an HTTP-served instance the Clipboard API is absent (or rejects after a
+  // user gesture). Prefer the synchronous selection fallback there so the copy
+  // still runs inside the click's activation window.
+  const copied = canUseClipboardApi()
+    ? (await writeWithClipboardApi(text)) || writeWithSelection(text)
+    : writeWithSelection(text)
 
   if (copied) {
     toast.success('Copied to clipboard')
@@ -18,6 +23,13 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 
   return copied
+}
+
+function canUseClipboardApi(): boolean {
+  if (typeof window === 'undefined') return false
+  if (window.isSecureContext === false) return false
+
+  return !!navigator.clipboard?.writeText
 }
 
 async function writeWithClipboardApi(text: string): Promise<boolean> {
@@ -66,7 +78,13 @@ function writeWithSelection(text: string): boolean {
   })
 
   const previouslyFocused = document.activeElement as HTMLElement | null
-  document.body.appendChild(textarea)
+  // Radix dialogs trap focus inside the dialog. Appending the scratch element
+  // to document.body makes the trap immediately steal focus back to the dialog
+  // (usually the Copy button), leaving execCommand with no text selected and a
+  // false success. Put it inside the topmost dialog when one is open.
+  const dialogs = document.querySelectorAll<HTMLElement>('[data-slot="dialog-content"]')
+  const container = dialogs.length > 0 ? dialogs[dialogs.length - 1] : document.body
+  container.appendChild(textarea)
 
   try {
     textarea.focus({ preventScroll: true })
@@ -76,7 +94,7 @@ function writeWithSelection(text: string): boolean {
   } catch {
     return false
   } finally {
-    document.body.removeChild(textarea)
+    textarea.remove()
     previouslyFocused?.focus?.({ preventScroll: true })
   }
 }

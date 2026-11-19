@@ -476,6 +476,10 @@ version the target servers run before assuming a behavior.
 - Icons identify actions or service types. Avoid decorative rockets, sparkles, uppercase
   eyebrow headings, promotional status cards, and repeated status copy.
 - Retain user drafts when a request fails. Reset forms only after confirmed success.
+- The clipboard fallback must insert its scratch textarea inside the open Radix
+  dialog. Appending it to `document.body` lets the dialog focus trap steal focus,
+  so `execCommand('copy')` reports success while copying nothing — which is what
+  happens on HTTP-served instances where the async Clipboard API is unavailable.
 - Monitoring must distinguish loading, missing samples, failed requests and stale data.
   Primary-container metrics must not be described as aggregated service usage.
 
