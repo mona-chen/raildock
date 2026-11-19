@@ -79,6 +79,16 @@ RSpec.describe "Api::V1 agent surface", type: :request do
       expect(response).to have_http_status(:forbidden)
       expect(response.parsed_body["code"]).to eq("membership_revoked")
     end
+
+    it "returns 429 with a retry delay when the token is over budget" do
+      allow(AgentRateLimit).to receive(:retry_after).and_return(30)
+
+      get "/api/v1/context", headers: token_headers(token_for)
+
+      expect(response).to have_http_status(:too_many_requests)
+      expect(response.headers["Retry-After"]).to eq("30")
+      expect(response.parsed_body).to include("code" => "rate_limited", "retry_after" => 30)
+    end
   end
 
   describe "GET /api/v1/projects/:id" do

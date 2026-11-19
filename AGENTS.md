@@ -447,6 +447,13 @@ version the target servers run before assuming a behavior.
   `ActivityEvent#api_token_id` through the job that performs them.
 - Frontend ids are strings; the v1 presenters do the same. Any new v1 resource
   needs a string id and must stay out of the dashboard serializers.
+- `/mcp` is transport only. `Mcp::Toolset` composes the same `AgentScope`,
+  presenters, `AgentWrites`, `AgentPlan` and `AgentPlanApply` as the REST
+  controllers, so a tool can never bypass a scope, binding or authorization
+  check. Keep the tool list and `docs/agents-api.md` in sync when an endpoint is
+  added, and add the path to `AgentApiDocument` — a spec asserts every
+  `/api/v1` route is described. Per-token rate limits live in `AgentRateLimit`
+  and apply to both surfaces; do not move the counter into PostgreSQL.
 
 ## Interface conventions
 

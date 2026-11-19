@@ -38,46 +38,35 @@ module Api
         return render json: { error: "Not found" }, status: :not_found unless project
 
         authorize_project!(project, action: :update)
-        AgentPlan.verify!(payload: payload, project: project, actor: current_api_token)
 
-        removals = Array(payload[:removals]).map(&:to_s)
-        if removals.any?
+        if Array(payload[:removals]).any?
           return unless require_scope!(:destructive)
-
-          unless removals_confirmed?(payload, project, removals)
-            return render_removals_required(payload, project, removals)
-          end
         end
 
-        operation = Operation.create_or_find_by!(
+        result = AgentPlanApply.new(
           organization: current_organization,
-          idempotency_key: "plan:#{payload[:jti]}"
-        ) do |record|
-          record.kind = "manifest_apply"
-          record.project = project
-          record.subject = project
-          record.status = "pending"
-          record.api_token = current_api_token
-        end
+          actor: current_api_token
+        ).call(
+          payload: payload,
+          project: project,
+          confirm_removals: params[:confirm_removals],
+          removal_token: params[:removal_token],
+          force_destroy_data: params[:force_destroy_data]
+        )
 
-        if operation.previously_new_record?
-          ManifestApplyJob.perform_later(
-            project.id,
-            payload[:content],
-            {
-              allow_removals: removals.any?,
-              force_destroy_data: ActiveModel::Type::Boolean.new.cast(params[:force_destroy_data]) || false,
-              operation_id: operation.id,
-              api_token_id: current_api_token&.id
-            }
-          )
-        end
-
-        render_operation(operation, status: operation.previously_new_record? ? :accepted : :ok)
+        render_operation(result.operation, status: result.created ? :accepted : :ok)
       rescue AgentPlan::Expired => error
         render json: { error: error.message, code: "plan_expired" }, status: :unprocessable_entity
       rescue AgentPlan::Drifted => error
         render json: { error: error.message, code: "plan_drifted" }, status: :conflict
+      rescue AgentPlanApply::RemovalRequired => error
+        render json: {
+          error: error.message,
+          code: "removals_required",
+          actionable: true,
+          removals: error.removals,
+          removal_token: error.removal_token
+        }, status: :precondition_required
       rescue AgentPlan::Invalid => error
         render json: { error: error.message, code: "invalid_plan" }, status: :unprocessable_entity
       end
@@ -95,36 +84,6 @@ module Api
         return value if value.is_a?(String)
 
         value&.[](:id) || params[:plan_id]
-      end
-
-      def removals_confirmed?(payload, project, removals)
-        return false unless ActiveModel::Type::Boolean.new.cast(params[:confirm_removals])
-
-        RemovalConfirmation.verify!(
-          token: params[:removal_token],
-          project: project,
-          digest: payload[:digest],
-          removals: removals
-        )
-        true
-      rescue RemovalConfirmation::InvalidConfirmation => error
-        @removal_error = error.message
-        false
-      end
-
-      def render_removals_required(payload, project, removals)
-        render json: {
-          error: @removal_error || "This plan removes #{removals.length} service(s): #{removals.join(', ')}. " \
-            "Confirm the removals and echo the removal token.",
-          code: "removals_required",
-          actionable: true,
-          removals: removals,
-          removal_token: RemovalConfirmation.issue(
-            project: project,
-            digest: payload[:digest],
-            removals: removals
-          )
-        }, status: :precondition_required
       end
     end
   end

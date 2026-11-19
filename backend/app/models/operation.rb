@@ -6,7 +6,7 @@
 # no subject can report a terminal outcome — an additive manifest apply, or a
 # deletion whose project row no longer exists.
 class Operation < ApplicationRecord
-  KINDS = %w[deploy restart manifest_apply project_deletion].freeze
+  KINDS = %w[deploy restart rollback manifest_apply project_deletion].freeze
   STATUSES = %w[pending running succeeded failed cancelled].freeze
 
   belongs_to :organization

@@ -151,7 +151,7 @@ cd /opt/raildock
 
 Keep a copy of `.env`, `backend/config/master.key`, the RailDock database, and any local backup artifacts on durable storage. Save destination recovery keys off-host so encrypted service backups remain usable after losing the server.
 
-For remote provisioning, backup and restore commands, SMTP configuration, and deployment security settings, see the [operations guide](docs/operations.md).
+For remote provisioning, backup and restore commands, SMTP configuration, and deployment security settings, see the [operations guide](docs/operations.md). For token-scoped agent access over HTTP and MCP, see the [agent API guide](docs/agents-api.md).
 
 ## Development
 

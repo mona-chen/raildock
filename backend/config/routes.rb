@@ -17,6 +17,7 @@ Rails.application.routes.draw do
     # above, which are not versioned and may change shape with the UI.
     namespace :v1 do
       get "context", to: "context#show"
+      get "openapi", to: "openapi#show"
       resources :projects, only: [ :show ]
       resources :services, only: [ :show ] do
         member do
@@ -24,6 +25,7 @@ Rails.application.routes.draw do
           get :diagnose
           post :deploy
           post :restart
+          post :rollback
         end
       end
       resources :plans, only: [ :create ] do
@@ -255,4 +257,10 @@ Rails.application.routes.draw do
     delete "github-apps/installations/:id", to: "github_apps#destroy_installation"
     post "github-apps/webhook", to: "github_apps#webhook"
   end
+
+  # MCP Streamable HTTP. JSON-RPC over POST; a GET/DELETE stream or session
+  # termination is not offered, so those methods answer 405.
+  post "/mcp", to: "mcp#handle"
+  get "/mcp", to: "mcp#method_not_allowed"
+  delete "/mcp", to: "mcp#method_not_allowed"
 end

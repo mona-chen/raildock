@@ -7,6 +7,7 @@ module Api
       include Authorizable
 
       before_action :require_organization_context!
+      before_action :enforce_token_rate_limit!
 
       private
 
@@ -17,6 +18,20 @@ module Api
           error: "X-Organization-ID is required for the v1 API",
           code: "organization_required"
         }, status: :bad_request
+      end
+
+      def enforce_token_rate_limit!
+        return unless current_api_token
+
+        wait = AgentRateLimit.retry_after(current_api_token)
+        return unless wait
+
+        response.headers["Retry-After"] = wait.to_s
+        render json: {
+          error: "Rate limit exceeded",
+          code: "rate_limited",
+          retry_after: wait
+        }, status: :too_many_requests
       end
 
       def require_scope!(scope)
@@ -36,19 +51,19 @@ module Api
       # this scope makes an out-of-binding resource a 404 instead of a 403, so
       # a token cannot probe for ids it is not allowed to see.
       def scoped_projects
-        projects = super
-        projects = projects.where(id: current_api_token.project_id) if current_api_token&.project_id
-        projects
+        agent_scope.projects
       end
 
       def scoped_services
-        services = Service.where(project_id: scoped_projects.select(:id))
-        services = services.where(environment_id: current_api_token.environment_id) if current_api_token&.environment_id
-        services
+        agent_scope.services
       end
 
       def scoped_servers
-        Server.where(organization_id: current_organization.id)
+        agent_scope.servers
+      end
+
+      def agent_scope
+        @agent_scope ||= AgentScope.new(organization: current_organization, token: current_api_token)
       end
 
       def scoped_operations

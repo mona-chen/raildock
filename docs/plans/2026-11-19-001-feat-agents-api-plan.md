@@ -170,7 +170,10 @@ stay valid.
 | POST | `/api/v1/projects/:id/deployments` | `deploy` | planned: bulk deploy for an environment; requires `Idempotency-Key` |
 | POST | `/api/v1/services/:id/deploy` | `deploy` | requires `Idempotency-Key`; returns an operation |
 | POST | `/api/v1/services/:id/restart` | `deploy` | requires `Idempotency-Key`; returns an operation |
+| POST | `/api/v1/services/:id/rollback` | `deploy` | requires `Idempotency-Key`; deploys an earlier commit |
 | GET | `/api/v1/operations/:id` | `read` | `{id, kind, status, subject, result, error, timestamps}` |
+| GET | `/api/v1/openapi` | `read` | OpenAPI 3.1 document |
+| POST | `/mcp` | per tool | MCP Streamable HTTP; tools mirror the scopes above |
 | DELETE | `/api/v1/projects/:id` | `destructive` | planned: typed `confirmation`; `428` on a missing snapshot, `202` when queued; records an operation |
 
 Errors use the existing shape plus a stable `code`: `confirmation_required`,
@@ -235,7 +238,24 @@ keep resolving.
   through the existing dashboard path) records an operation whose status follows
   `deletion_status` and is finished by the host job. Agent writes record the
   token on `ActivityEvent#api_token_id`.
-- **Pending**: U5 (MCP) and U6 (OpenAPI).
+- **U5 implemented**: `POST /mcp` speaks MCP Streamable HTTP (stateless
+  JSON-RPC: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`,
+  `resources/templates/list`, `resources/read`; notifications return `202`;
+  `GET`/`DELETE` return `405`). `Mcp::Toolset` exposes the ten tools and
+  composes `AgentScope`, the v1 presenters, `AgentLogs`, `AgentWrites`,
+  `AgentPlan` and `AgentPlanApply`, so scope/binding/authorization behavior is
+  identical to REST. `POST /api/v1/services/:id/rollback` was added so the
+  `rollback` tool is not a second implementation.
+- **U6 implemented**: `docs/agents-api.md` documents auth, scopes, the 428 flow,
+  error codes, redaction, diagnosis limits, rate limits and MCP.
+  `GET /api/v1/openapi` (and the `raildock://openapi` MCP resource) serves the
+  OpenAPI 3.1 document from `AgentApiDocument`; a request spec asserts every
+  `/api/v1` route is described.
+- **Rate limiting**: `AgentRateLimit` applies per token to both `/api/v1` and
+  `/mcp` (120 requests/minute by default, `AGENT_RATE_LIMIT_PER_MINUTE`),
+  returning `429` with `Retry-After`. The counter is in the shared cache.
+- **Pending**: none of U1–U6. Bulk project deploys and a v1 project-deletion
+  endpoint remain out of scope and are marked "planned" in the endpoint table.
 
 ## Implementation Units
 
@@ -301,11 +321,15 @@ the terminal status; a cancelled deployment reports `cancelled`.
 ### U5. MCP adapter
 
 - `backend/app/controllers/mcp_controller.rb`, mounted at `/mcp`, Streamable
-  HTTP, bearer token or `X-Organization-ID` + token.
-- Tools: `get_context`, `list_services`, `get_service`, `diagnose_service`,
-  `query_logs`, `plan_change`, `apply_plan`, `get_operation`, `deploy`,
-  `rollback`. Each maps to a v1 service object, not an HTTP call.
-- Resource: `raildock://context/{organization}` returning the same presenter.
+  HTTP, `Authorization: Bearer rd_…` (the token carries the organization).
+  Stateless: no `Mcp-Session-Id`, no server-initiated SSE; `GET`/`DELETE` → 405.
+- `Mcp::Toolset` tools: `get_context`, `list_services`, `get_service`,
+  `diagnose_service`, `query_logs`, `plan_change`, `apply_plan`,
+  `get_operation`, `deploy`, `rollback`. Each composes the v1 services and
+  presenters; none re-implements a scope, binding or authorization check.
+- `POST /api/v1/services/:id/rollback` backs the rollback tool so REST and MCP
+  share `AgentWrites`.
+- Resource: `raildock://context/{organization}` and `raildock://openapi`.
 
 Acceptance: an MCP client lists the ten tools, a `plan_change` followed by
 `apply_plan` deploys, and every tool rejects an out-of-scope token with the same
@@ -314,8 +338,10 @@ Acceptance: an MCP client lists the ten tools, a `plan_change` followed by
 ### U6. Documentation and OpenAPI
 
 - `docs/agents-api.md`: authentication, scopes, error codes, the 428 flow,
-  redaction guarantees, and the limits of diagnosis.
-- OpenAPI 3.1 document generated from the v1 serializers.
+  redaction guarantees, rate limits, the limits of diagnosis and MCP usage.
+- `AgentApiDocument` is an OpenAPI 3.1 object served at `GET /api/v1/openapi`
+  and as the `raildock://openapi` MCP resource. A spec asserts every `/api/v1`
+  route is described.
 - `AGENTS.md` gets one paragraph so future changes keep the surfaces aligned.
 
 ## Test Plan

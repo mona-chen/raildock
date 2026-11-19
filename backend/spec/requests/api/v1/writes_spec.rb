@@ -262,6 +262,43 @@ RSpec.describe "Api::V1 write surface", type: :request do
     end
   end
 
+  describe "POST /api/v1/services/:id/rollback" do
+    let(:token) { token_for(scopes: [ "read", "deploy" ]) }
+
+    it "deploys the target commit as a new operation" do
+      target = create(:deployment, service: web, status: :succeeded, commit_sha: "abc1234", branch: "main")
+      headers = token_headers(token).merge("Idempotency-Key" => "rollback-web-1")
+
+      expect do
+        post "/api/v1/services/#{web.id}/rollback",
+          params: { deployment_id: target.id },
+          headers: headers,
+          as: :json
+      end.to have_enqueued_job(DeploymentJob)
+
+      expect(response).to have_http_status(:accepted)
+      operation = response.parsed_body.fetch("operation")
+      expect(operation["kind"]).to eq("rollback")
+
+      rollback = web.deployments.order(:id).last
+      expect(rollback.commit_sha).to eq("abc1234")
+      expect(rollback.triggered_by).to eq("rollback")
+    end
+
+    it "rejects a deployment that belongs to another service" do
+      other = create(:service, project: project, environment: production, name: "other")
+      target = create(:deployment, service: other)
+      headers = token_headers(token).merge("Idempotency-Key" => "rollback-web-2")
+
+      post "/api/v1/services/#{web.id}/rollback",
+        params: { deployment_id: target.id },
+        headers: headers,
+        as: :json
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "GET /api/v1/operations/:id" do
     it "derives status from the deployment instead of copying it" do
       deployment = create(:deployment, service: web, status: :succeeded)
