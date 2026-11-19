@@ -913,6 +913,13 @@ export const organizationsApi = {
     return fetchJson<Organization>('/api/organizations', { method: 'POST', body: wrapBody('organization', data) })
   },
 
+  update: async (id: string, data: { name?: string; slug?: string; avatarUrl?: string }): Promise<Organization> => {
+    return fetchJson<Organization>(`/api/organizations/${id}`, {
+      method: 'PATCH',
+      body: wrapBody('organization', data),
+    })
+  },
+
   destroy: async (id: string): Promise<void> => {
     await fetchJson(`/api/organizations/${id}`, { method: 'DELETE' })
   },
@@ -1397,6 +1404,27 @@ export const authApi = {
       throw new Error(err.error || 'Registration failed')
     }
     return camelizeKeys(await res.json()) as AuthSession
+  },
+
+  updateProfile: async (data: {
+    name: string
+    email: string
+    currentPassword?: string
+    password?: string
+    passwordConfirmation?: string
+  }): Promise<AuthSession['user']> => {
+    return fetchJson<AuthSession['user']>('/api/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        user: {
+          name: data.name,
+          email: data.email,
+          ...(data.password ? { password: data.password } : {}),
+        },
+        current_password: data.currentPassword || undefined,
+        password_confirmation: data.passwordConfirmation || undefined,
+      }),
+    })
   },
 }
 

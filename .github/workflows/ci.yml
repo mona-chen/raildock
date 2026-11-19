@@ -3,9 +3,9 @@ name: CI
 on:
   workflow_call:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 env:
   RUBY_VERSION: "3.4"

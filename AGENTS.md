@@ -240,6 +240,10 @@ Anything that deletes production data has to be explicit and recoverable. Keep t
 
 ## CI / release
 
+- `develop` is the integration branch: feature branches merge into it, and CI
+  runs on `develop` and `main`. `main` is the release branch; `release-main.yml`
+  still publishes `edge` only from `main`, so work can land on `develop` without
+  publishing an image.
 - `.github/workflows/ci.yml` — lint, test, security audits (Brakeman, bundler-audit, npm audit).
 - `.github/workflows/release-main.yml` — builds and pushes `edge` image on every push to `main`.
 - `.github/workflows/build.yml` — builds and pushes image on git tags.
@@ -451,6 +455,11 @@ version the target servers run before assuming a behavior.
   argument breaks enqueueing before the job can run.
 - Frontend ids are strings; the v1 presenters do the same. Any new v1 resource
   needs a string id and must stay out of the dashboard serializers.
+- Account credentials are person-owned, not machine-owned. `PATCH /api/profile`
+  updates name/email/password and requires the current password for email or
+  password changes; API tokens are refused with `token_not_allowed`. Do not
+  expose this through `/api/v1` or MCP. Organization profiles use
+  `PATCH /api/organizations/:id` and require an owner/admin membership.
 - `/mcp` is transport only. `Mcp::Toolset` composes the same `AgentScope`,
   presenters, `AgentWrites`, `AgentPlan` and `AgentPlanApply` as the REST
   controllers, so a tool can never bypass a scope, binding or authorization

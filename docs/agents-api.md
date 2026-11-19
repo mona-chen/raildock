@@ -23,6 +23,10 @@ token narrows it with scopes plus an optional project/environment binding.
 - Tokens can be revoked, never deleted, so audit rows keep resolving.
 - Tokens carry their organization. A different `X-Organization-ID` is refused
   with `403`, never silently ignored.
+- API tokens are delegated users but cannot change the owner's account profile
+  (`PATCH /api/profile`); that endpoint requires a user JWT. Agent tokens also
+  cannot change organization profiles without a member role, and never through
+  `/api/v1` or MCP.
 - User JWTs also work, but require `X-Organization-ID` to select the
   organization.
 
