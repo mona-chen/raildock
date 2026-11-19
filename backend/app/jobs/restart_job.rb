@@ -8,20 +8,13 @@ class RestartJob < ApplicationJob
 
   retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
 
-  def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual", api_token_id: nil)
+  def perform(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
     ServiceOperationLock.with(Service.find(service_id)) do
-      perform_locked(
-        service_id,
-        idempotency_key: idempotency_key,
-        kind: kind,
-        triggered_by: triggered_by,
-        api_token_id: api_token_id
-      )
+      perform_locked(service_id, idempotency_key: idempotency_key, kind: kind, triggered_by: triggered_by)
     end
   end
 
-  def perform_locked(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual", api_token_id: nil)
-    @api_token_id = api_token_id
+  def perform_locked(service_id, idempotency_key: nil, kind: "restart", triggered_by: "manual")
     service = Service.find(service_id)
     project = service.project
     server = project.server
@@ -41,6 +34,11 @@ class RestartJob < ApplicationJob
         deploy_log: ""
       }
     )
+
+    # Same as DeploymentJob: the token actor lives on the operation that points
+    # at this deployment, so the job signature stays positional and compatible
+    # with Solid Queue's concurrency key.
+    @api_token_id = Operation.find_by(subject_type: "Deployment", subject_id: deployment.id)&.api_token_id
 
     if is_new
       RealtimeBroadcaster.deployment(service, {

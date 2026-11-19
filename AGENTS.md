@@ -444,7 +444,11 @@ version the target servers run before assuming a behavior.
   `Idempotency-Key`; a repeat returns the original `Operation`. Operations
   point at the authoritative record and derive status from it — do not copy a
   deployment's status into the operation row. Agent-caused writes set
-  `ActivityEvent#api_token_id` through the job that performs them.
+  `ActivityEvent#api_token_id` through the job that performs them; the job
+  resolves the token from the `Operation` that points at its deployment. Do not
+  add audit keyword arguments to `DeploymentJob`/`RestartJob` enqueues: Solid
+  Queue evaluates `limits_concurrency` keys with the job arguments, so an extra
+  argument breaks enqueueing before the job can run.
 - Frontend ids are strings; the v1 presenters do the same. Any new v1 resource
   needs a string id and must stay out of the dashboard serializers.
 - `/mcp` is transport only. `Mcp::Toolset` composes the same `AgentScope`,

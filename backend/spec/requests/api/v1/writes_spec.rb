@@ -233,6 +233,16 @@ RSpec.describe "Api::V1 write surface", type: :request do
       expect(response.parsed_body["code"]).to eq("scope_denied")
     end
 
+    it "enqueues the deploy job with only its positional arguments" do
+      expect(DeploymentJob).to receive(:perform_later).with(web.id, kind_of(Integer))
+
+      post "/api/v1/services/#{web.id}/deploy",
+        headers: token_headers(token).merge("Idempotency-Key" => "deploy-args"),
+        as: :json
+
+      expect(response).to have_http_status(:accepted)
+    end
+
     it "refuses to deploy a database service" do
       database = create(:service, project: project, environment: production, name: "db", service_type: :database, subtype: "postgres")
 
@@ -331,6 +341,19 @@ RSpec.describe "Api::V1 write surface", type: :request do
       get "/api/v1/operations/#{operation.id}", headers: token_headers(token_for)
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "does not present a deletion result for a manifest apply" do
+      operation = Operation.create!(
+        organization: organization,
+        project: project,
+        kind: "manifest_apply",
+        subject: project,
+        status: "pending"
+      )
+
+      body = Api::V1::OperationPresenter.new(operation).as_json
+      expect(body["result"]).to be_nil
     end
   end
 end

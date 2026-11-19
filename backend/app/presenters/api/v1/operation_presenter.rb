@@ -48,7 +48,7 @@ module Api
             manifest_status: operation.subject.status
           }
         when Project
-          { deletion_status: operation.subject.deletion_status }
+          { deletion_status: operation.subject.deletion_status } if operation.kind == "project_deletion"
         end
       end
     end

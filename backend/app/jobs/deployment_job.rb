@@ -10,8 +10,7 @@ class DeploymentJob < ApplicationJob
 
   retry_on ServiceOperationLock::Busy, wait: 5.seconds, attempts: 60
 
-  def perform(service_id, deployment_id, api_token_id: nil)
-    @api_token_id = api_token_id
+  def perform(service_id, deployment_id)
     ServiceOperationLock.with(Service.find(service_id)) { perform_locked(service_id, deployment_id) }
   end
 
@@ -20,6 +19,11 @@ class DeploymentJob < ApplicationJob
     project = service.project
     server = project.server
     deployment = service.deployments.find(deployment_id)
+    # Agent deploys record the token on the operation that points at this
+    # deployment. Resolve it here instead of adding an audit kwarg: Solid Queue
+    # builds the `limits_concurrency` key from the job's arguments, so a third
+    # argument would break enqueueing before the job could run.
+    @api_token_id = Operation.find_by(subject_type: "Deployment", subject_id: deployment.id)&.api_token_id
 
     # Only app services get redeployed on git push. Infrastructure services
     # (database, cache, queue, search, service) are stateful — they were

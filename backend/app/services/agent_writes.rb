@@ -29,7 +29,7 @@ class AgentWrites
         triggered_by: "manual"
       }
     ) do |deployment|
-      DeploymentJob.perform_later(service.id, deployment.id, api_token_id: actor&.id)
+      DeploymentJob.perform_later(service.id, deployment.id)
       service.update!(status: :deploying)
       ActivityEvent.create!(
         project: service.project,
@@ -59,8 +59,7 @@ class AgentWrites
     ) do |deployment|
       RestartJob.perform_later(
         service.id,
-        idempotency_key: deployment.idempotency_key,
-        api_token_id: actor&.id
+        idempotency_key: deployment.idempotency_key
       )
     end
   end
@@ -81,7 +80,7 @@ class AgentWrites
         triggered_by: "rollback"
       }
     ) do |deployment|
-      DeploymentJob.perform_later(service.id, deployment.id, api_token_id: actor&.id)
+      DeploymentJob.perform_later(service.id, deployment.id)
       service.update!(status: :deploying)
       ActivityEvent.create!(
         project: service.project,
