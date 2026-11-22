@@ -125,8 +125,9 @@ class DokkuEngine
               ch.on_extended_data { |_, _, data| output << coerce_output(data) }
               ch.on_request("exit-status") { |_, data| exit_code = data.read_long }
 
-              chunk = nil
-              ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
+              while (chunk = file.read(64.kilobytes))
+                ch.send_data(chunk)
+              end
               ch.eof!
             end
           end

@@ -101,7 +101,9 @@ class HostEngine
           ch.exec(command) do |_, success|
             return { success: false, output: "Failed to execute command" } unless success
 
-            ch.send_data(chunk) while (chunk = file.read(64.kilobytes))
+            while (chunk = file.read(64.kilobytes))
+              ch.send_data(chunk)
+            end
             ch.eof!
             ch.on_data { |_, data| output << coerce_output(data) }
             ch.on_extended_data { |_, _, data| output << coerce_output(data) }
