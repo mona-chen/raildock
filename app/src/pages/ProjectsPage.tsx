@@ -318,11 +318,13 @@ function ProjectCard({
             e.stopPropagation()
             handleDeleteClick()
           }}
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/4 transition-all"
+          type="button"
+          className="absolute top-4 right-4 inline-flex min-h-8 min-w-8 items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/4 transition-all"
           disabled={deletionPending}
           title={deletionPending ? 'Project deletion is in progress' : 'Delete project'}
+          aria-label={deletionPending ? 'Project deletion is in progress' : `Delete project ${project.name}`}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
         </button>
       </div>
 

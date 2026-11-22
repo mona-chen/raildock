@@ -11,6 +11,26 @@ class BackupDestination < ApplicationRecord
 
   enum :status, { pending: "pending", verified: "verified", failed: "failed" }
 
+  # S3-compatible providers. Every preset speaks the S3 API through
+  # aws-sdk-s3; a preset only supplies an endpoint template (filled from the
+  # region) and the addressing style the provider documents. `s3` and `r2` keep
+  # their original behaviour exactly: no default endpoint, path-style whenever
+  # an endpoint is set, and the SDK's default checksum behaviour.
+  #
+  # `compatible_checksums` asks the SDK to send/validate checksums only when the
+  # operation requires them: newer aws-sdk-s3 releases add CRC32 checksums to
+  # every request, which several S3-compatible services reject.
+  PROVIDERS = {
+    "s3" => { endpoint: nil, path_style: true, endpoint_required: false, compatible_checksums: false },
+    "r2" => { endpoint: nil, path_style: true, endpoint_required: false, compatible_checksums: false },
+    "b2" => { endpoint: "https://s3.%{region}.backblazeb2.com", path_style: true, endpoint_required: false, compatible_checksums: true },
+    "wasabi" => { endpoint: "https://s3.%{region}.wasabisys.com", path_style: true, endpoint_required: false, compatible_checksums: true },
+    "spaces" => { endpoint: "https://%{region}.digitaloceanspaces.com", path_style: false, endpoint_required: false, compatible_checksums: true },
+    "hetzner" => { endpoint: "https://%{region}.your-objectstorage.com", path_style: false, endpoint_required: false, compatible_checksums: true },
+    "minio" => { endpoint: nil, path_style: true, endpoint_required: true, compatible_checksums: true },
+    "gcs" => { endpoint: "https://storage.googleapis.com", path_style: true, endpoint_required: false, compatible_checksums: true }
+  }.freeze
+
   # Destinations usable for a given server: the server's own, plus any owned by
   # the organization that owns the data being backed up. Mirrors what the
   # recovery UI offers, so a destination that is selectable in the UI is also
@@ -43,7 +63,10 @@ class BackupDestination < ApplicationRecord
   end
 
   validates :name, :bucket, :region, presence: true
-  validates :provider, inclusion: { in: %w[s3 r2] }
+  validates :provider, inclusion: { in: PROVIDERS.keys }
+  validates :endpoint, presence: { message: "is required for this provider" }, if: -> { provider_preset[:endpoint_required] }
+  validates :endpoint, format: { with: %r{\Ahttps?://[^\s/]+}i, message: "must be an http(s) URL" },
+    allow_blank: true, if: :endpoint_changed?
   validates :name, uniqueness: { scope: :server_id }, if: -> { server_id.present? }
   validates :name, uniqueness: { scope: :organization_id }, if: -> { organization_id.present? }
   validates :encryption_key, format: { with: /\A[0-9a-f]{64}\z/i, message: "must be a 64-character hexadecimal recovery key" }
@@ -66,6 +89,25 @@ class BackupDestination < ApplicationRecord
 
   def stale_verification?(after: 30.days)
     last_verified_at.blank? || last_verified_at < after.ago
+  end
+
+  def provider_preset
+    PROVIDERS.fetch(provider.to_s, PROVIDERS["s3"])
+  end
+
+  # The endpoint the client talks to: an explicit endpoint always wins, then the
+  # provider's template filled from the region. `nil` means AWS S3 itself.
+  def resolved_endpoint
+    return endpoint if endpoint.present?
+
+    template = provider_preset[:endpoint]
+    template && region.present? ? format(template, region: region) : nil
+  end
+
+  # `BackupCopy#kind` only distinguishes local/s3/r2. Every preset other than
+  # R2 is an S3-compatible copy.
+  def copy_kind
+    provider.to_s == "r2" ? "r2" : "s3"
   end
 
   def object_key(*parts)

@@ -19,12 +19,34 @@ class BackupDestinationClient
     SocketError
   ].freeze
 
+  # Errors that describe the destination itself (credentials, permissions, a
+  # bucket that does not exist, the wrong region or endpoint). Retrying them
+  # only delays the answer, so they surface immediately in every mode.
+  PERMANENT_ERROR_CODES = %w[
+    AccessDenied Forbidden InvalidAccessKeyId SignatureDoesNotMatch
+    InvalidToken ExpiredToken TokenRefreshRequired
+    NoSuchBucket InvalidBucketName PermanentRedirect MovedPermanently
+    AuthorizationHeaderMalformed IllegalLocationConstraintException
+    InvalidRequest BadRequest
+  ].freeze
+
+  # Interactive verification runs inside an HTTP request (Settings and the
+  # service Recovery tab). The health object is eight bytes, so short timeouts
+  # and a single extra attempt are plenty; anything slower is reported rather
+  # than holding the request open for minutes.
+  INTERACTIVE_RETRY_LIMIT = 2
+  INTERACTIVE_TIMEOUTS = { http_open_timeout: 5, http_read_timeout: 15, http_idle_timeout: 5 }.freeze
+
   DEFAULT_MULTIPART_THRESHOLD = 64 * 1024 * 1024 # 64 MiB
   UPLOAD_THREADS = 4
   HEALTH_KEY_TTL = 1.day
 
-  def initialize(destination, client: nil, uploader: nil)
+  # `interactive: true` is for verification inside a web request: short
+  # timeouts, one SDK attempt and at most INTERACTIVE_RETRY_LIMIT attempts of
+  # our own. Background uploads keep the patient defaults.
+  def initialize(destination, client: nil, uploader: nil, interactive: false)
     @destination = destination
+    @interactive = interactive
     @client = client || Aws::S3::Client.new(client_options)
     @uploader = uploader
   end
@@ -33,7 +55,28 @@ class BackupDestinationClient
   # verified when it can be written to *and* read back, so a bucket that accepts
   # writes but cannot serve reads (wrong region, bad policy, wrong endpoint) is
   # caught before it is trusted with a backup.
+  #
+  # The result is recorded on a persisted destination. An unsaved destination
+  # only has its attributes assigned: the caller decides whether to save it, so
+  # a failed create never leaves a row behind.
   def verify!
+    probe!
+    attributes = { status: "verified", last_verified_at: Time.current, last_error: nil }
+    if @destination.persisted?
+      @destination.update_columns(attributes.merge(updated_at: Time.current))
+    else
+      @destination.assign_attributes(attributes)
+    end
+    true
+  rescue => error
+    record_failure(error)
+    raise
+  end
+
+  # The write/read/delete round trip without recording anything. Used to test
+  # candidate settings (a new destination, or edited credentials) before they
+  # replace anything stored.
+  def probe!
     key = @destination.object_key("health/#{SecureRandom.uuid}")
     body = "raildock"
     begin
@@ -49,11 +92,13 @@ class BackupDestinationClient
           raise "destination returned #{head.content_length.to_i} bytes for a #{body.bytesize} byte health check object"
         end
       end
-
-      @destination.update!(status: "verified", last_verified_at: Time.current, last_error: nil)
       true
-    rescue => error
-      record_failure(error)
+    rescue Aws::S3::Errors::ServiceError => error
+      # Exception#message falls back to the class name when the body was empty.
+      if error.message.blank? || error.message == error.class.name
+        raise error.class.new(error.context, describe_service_error(error))
+      end
+
       raise
     ensure
       # Never leave probe objects behind; ignore cleanup failures so they cannot
@@ -131,6 +176,9 @@ class BackupDestinationClient
   end
 
   private
+    # Only a stored destination has a status worth recording. An unsaved one is
+    # a candidate that failed its probe; persisting it would leave a "failed"
+    # row whose recovery key nobody ever saw.
     def record_failure(error)
       message = error.message.to_s.truncate(500)
       attributes = { status: "failed", last_error: message }
@@ -139,13 +187,12 @@ class BackupDestinationClient
         @destination.update_columns(attributes.merge(updated_at: Time.current))
       else
         @destination.assign_attributes(attributes)
-        @destination.save(validate: false)
       end
     rescue => record_error
       Rails.logger.error "BackupDestinationClient: could not record verification failure: #{record_error.message}"
     end
 
-    def with_retries(limit: RETRY_LIMIT)
+    def with_retries(limit: default_retry_limit)
       attempt = 0
       begin
         attempt += 1
@@ -159,14 +206,33 @@ class BackupDestinationClient
       end
     end
 
+    def default_retry_limit
+      @interactive ? INTERACTIVE_RETRY_LIMIT : RETRY_LIMIT
+    end
+
     def retryable?(error)
       return true unless error.is_a?(Aws::S3::Errors::ServiceError)
 
-      # Credentials and permissions will not fix themselves; do not hammer the
-      # endpoint (and do not make a bad key look like a transient blip).
-      !error.is_a?(Aws::S3::Errors::InvalidAccessKeyId) &&
-        !error.is_a?(Aws::S3::Errors::SignatureDoesNotMatch) &&
-        !error.is_a?(Aws::S3::Errors::AccessDenied)
+      # Credentials, permissions, a missing bucket or the wrong region will not
+      # fix themselves; do not hammer the endpoint (and do not make a bad key
+      # look like a transient blip).
+      !PERMANENT_ERROR_CODES.include?(service_error_code(error))
+    end
+
+    def service_error_code(error)
+      error.code.presence || error.class.name.to_s.demodulize
+    end
+
+    # HEAD responses carry no body, so the SDK raises e.g. `Forbidden` with an
+    # empty message. Say what that usually means instead of "verification
+    # failed: ".
+    def describe_service_error(error)
+      case service_error_code(error)
+      when "Forbidden", "AccessDenied" then "access denied: check the key's permissions on bucket #{@destination.bucket}"
+      when "NotFound", "NoSuchBucket" then "bucket #{@destination.bucket} was not found at this endpoint"
+      when "BadRequest", "MovedPermanently", "PermanentRedirect" then "the endpoint rejected the request: check the region and endpoint"
+      else "#{service_error_code(error)} (HTTP #{error.context&.http_response&.status_code || 'error'})"
+      end
     end
 
     def multipart_threshold
@@ -182,13 +248,28 @@ class BackupDestinationClient
         http_read_timeout: 300,
         http_idle_timeout: 30
       }
+      if @interactive
+        # One SDK attempt (standard mode reads max_attempts; retry_limit is
+        # the legacy-mode knob): our own with_retries decides whether to try
+        # again.
+        options[:retry_limit] = 0
+        options[:max_attempts] = 1
+        options.merge!(INTERACTIVE_TIMEOUTS)
+      end
       if @destination.access_key_id.present?
         options[:access_key_id] = @destination.access_key_id
         options[:secret_access_key] = @destination.secret_access_key
       end
-      if @destination.endpoint.present?
-        options[:endpoint] = @destination.endpoint
-        options[:force_path_style] = true
+
+      preset = @destination.provider_preset
+      endpoint = @destination.resolved_endpoint
+      if endpoint.present?
+        options[:endpoint] = endpoint
+        options[:force_path_style] = preset[:path_style]
+      end
+      if preset[:compatible_checksums]
+        options[:request_checksum_calculation] = "when_required"
+        options[:response_checksum_validation] = "when_required"
       end
       options
     end

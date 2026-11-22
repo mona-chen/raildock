@@ -63,6 +63,7 @@ import {
   normalizeBackupDestination,
   normalizeRecoveryOverview,
   normalizeBackup,
+  normalizeBackupSchedule,
 } from './apiTransforms'
 import {
   normalizeEnvironmentSyncPlan,
@@ -99,6 +100,25 @@ function getAuthHeaders(): Record<string, string> {
     headers['X-Organization-ID'] = state.currentOrganizationId
   }
   return headers
+}
+
+/** Backup schedule payload in the snake_case the Rails controller permits. */
+function scheduleBody(data: {
+  frequency?: string
+  retentionCount?: number
+  enabled?: boolean
+  destinationIds?: string[]
+  storageMountId?: string
+  backupKind?: 'database' | 'volume'
+}) {
+  const body: Record<string, unknown> = {}
+  if (data.frequency !== undefined) body.frequency = data.frequency
+  if (data.retentionCount !== undefined) body.retention_count = data.retentionCount
+  if (data.enabled !== undefined) body.enabled = data.enabled
+  if (data.destinationIds !== undefined) body.destination_ids = data.destinationIds
+  if (data.storageMountId !== undefined) body.storage_mount_id = data.storageMountId
+  if (data.backupKind !== undefined) body.backup_kind = data.backupKind
+  return body
 }
 
 export async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
@@ -479,15 +499,24 @@ export const servicesApi = {
   },
 
   backupSchedules: async (id: string): Promise<BackupSchedule[]> => {
-    return fetchJson(`/api/services/${id}/backup_schedules`)
+    return (await fetchJson<unknown[]>(`/api/services/${id}/backup_schedules`)).map(normalizeBackupSchedule)
   },
 
+  // Rails permits snake_case keys. These used to be sent camelCase, which the
+  // controller silently dropped, so every schedule created from the UI failed
+  // validation and an edited retention window never saved.
   createBackupSchedule: async (id: string, data: { frequency: string; retentionCount: number; destinationIds?: string[] }): Promise<void> => {
-    await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: data }) })
+    await fetchJson(`/api/services/${id}/create_backup_schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ backup_schedule: scheduleBody({ ...data, backupKind: 'database' }) }),
+    })
   },
 
   createSnapshotSchedule: async (id: string, data: { frequency: string; retentionCount: number; storageMountId: string; destinationIds?: string[] }): Promise<void> => {
-    await fetchJson(`/api/services/${id}/create_backup_schedule`, { method: 'POST', body: JSON.stringify({ backup_schedule: { ...data, backup_kind: 'volume' } }) })
+    await fetchJson(`/api/services/${id}/create_backup_schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ backup_schedule: scheduleBody({ ...data, backupKind: 'volume' }) }),
+    })
   },
 
   updateBackupSchedule: async (
@@ -495,10 +524,10 @@ export const servicesApi = {
     scheduleId: string,
     data: { frequency?: string; retentionCount?: number; enabled?: boolean; destinationIds?: string[] },
   ): Promise<BackupSchedule> => {
-    return fetchJson(`/api/services/${id}/backup_schedules/${scheduleId}`, {
+    return normalizeBackupSchedule(await fetchJson(`/api/services/${id}/backup_schedules/${scheduleId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ backup_schedule: data }),
-    })
+      body: JSON.stringify({ backup_schedule: scheduleBody(data) }),
+    }))
   },
 
   destroyBackupSchedule: async (id: string, scheduleId: string): Promise<void> => {
@@ -556,8 +585,13 @@ export const servicesApi = {
   deleteBackupDestination: async (id: string, destinationId: string): Promise<void> =>
     fetchJson(`/api/services/${id}/recovery/destinations/${destinationId}`, { method: 'DELETE' }),
 
+  // Omitting `backupDestinationIds` lets the server apply the service's backup
+  // default, the same one the database backup card uses.
   snapshotVolume: async (id: string, storageMountId: string, backupDestinationIds?: string[]): Promise<void> =>
-    fetchJson(`/api/services/${id}/recovery/volumes/${storageMountId}/snapshot`, { method: 'POST', body: JSON.stringify({ backup_destination_ids: backupDestinationIds }) }),
+    fetchJson(`/api/services/${id}/recovery/volumes/${storageMountId}/snapshot`, {
+      method: 'POST',
+      body: JSON.stringify(backupDestinationIds === undefined ? {} : { backup_destination_ids: backupDestinationIds }),
+    }),
 
   configurePitr: async (id: string, backupDestinationId: string, retentionDays: number): Promise<PostgresPitrConfig> =>
     fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'PUT', body: JSON.stringify({ backup_destination_id: backupDestinationId, retention_days: retentionDays }) }),

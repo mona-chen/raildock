@@ -183,6 +183,13 @@ class Service < ApplicationRecord
     linked_by_services.pluck(:id)
   end
 
+  # Whether the engine can produce a logical dump RailDock can store and
+  # restore. Capability-based on purpose: Redis is a `cache`, not a
+  # `database`, yet it backs up and restores like one.
+  def logical_backup_supported?
+    subtype_record&.has_capability?(:backup) && subtype_record&.has_capability?(:restore) ? true : false
+  end
+
   def docker_image_database?
     return true if service_type_database?
     return false if docker_image.blank?

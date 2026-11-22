@@ -395,8 +395,17 @@ export function useConfigurePitr() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, destinationId, retentionDays }: { id: string; destinationId: string; retentionDays: number }) => api.services.configurePitr(id, destinationId, retentionDays),
-    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Point-in-time recovery enabled') },
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Point-in-time recovery saved') },
     onError: (err) => toast.error(`PITR setup failed: ${err.message}`),
+  })
+}
+
+export function useDisablePitr() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.services.disablePitr(id),
+    onSuccess: (_, id) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Point-in-time recovery turned off') },
+    onError: (err) => toast.error(`Could not turn off PITR: ${err.message}`),
   })
 }
 
@@ -404,7 +413,7 @@ export function useRunRestoreDrill() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, backupId, targetTime }: { id: string; backupId: string; targetTime?: string }) => api.services.runRestoreDrill(id, backupId, targetTime),
-    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Isolated restore drill queued') },
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] }); toast.success('Restore test queued') },
     onError: (err) => toast.error(`Drill failed: ${err.message}`),
   })
 }
@@ -462,8 +471,13 @@ export function useUpdateBackupSchedule() {
       scheduleId: string
       data: { frequency?: string; retentionCount?: number; enabled?: boolean; destinationIds?: string[] }
     }) => api.services.updateBackupSchedule(id, scheduleId, data),
-    onSuccess: (_, { id }) => {
+    onSuccess: (_, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id, 'backup_schedules'] })
+      if (data.enabled !== undefined && Object.keys(data).length === 1) {
+        toast.success(data.enabled ? 'Schedule resumed' : 'Schedule paused')
+      } else {
+        toast.success('Schedule updated')
+      }
     },
     onError: (err) => toast.error(`Failed to update schedule: ${err.message}`),
   })
@@ -564,7 +578,25 @@ export function useBackupService() {
   })
 }
 
-export function useRestoreBackup() {
+/**
+ * Some recovery endpoints refuse to act until the operator acknowledges an
+ * irreversible consequence (no safety snapshot possible, last backup). The
+ * caller renders that acknowledgement in an app dialog and calls `proceed`;
+ * without a handler the hook falls back to the browser prompt.
+ */
+export interface ForceRequiredOptions {
+  onForceRequired?: (message: string, proceed: () => void) => void
+}
+
+function askToForce(options: ForceRequiredOptions | undefined, message: string, fallbackPrompt: string, proceed: () => void) {
+  if (options?.onForceRequired) {
+    options.onForceRequired(message, proceed)
+  } else if (confirm(`${message}\n\n${fallbackPrompt}`)) {
+    proceed()
+  }
+}
+
+export function useRestoreBackup(options?: ForceRequiredOptions) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
     mutationFn: ({ id, backupId, confirm, forceDestroyData }: {
@@ -583,9 +615,8 @@ export function useRestoreBackup() {
       // safety snapshot of the current state first — that restore would be
       // unrecoverable, so make the loss explicit.
       if (err.code === 'snapshot_required' && !variables.forceDestroyData) {
-        if (confirm(`${err.message}\n\nRestore anyway? Everything written since this recovery point will be gone for good.`)) {
-          mutation.mutate({ ...variables, forceDestroyData: true })
-        }
+        askToForce(options, err.message, 'Restore anyway? Everything written since this recovery point will be gone for good.', () =>
+          mutation.mutate({ ...variables, forceDestroyData: true }))
         return
       }
       toast.error(`Restore failed: ${err.message}`)
@@ -595,22 +626,21 @@ export function useRestoreBackup() {
   return mutation
 }
 
-export function useDeleteBackup() {
+export function useDeleteBackup(options?: ForceRequiredOptions) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
     mutationFn: ({ id, backupId, force }: { id: string; backupId: string; force?: boolean }) =>
       api.services.deleteBackup(id, backupId, { force }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id, 'backups'] })
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'snapshots'] })
       toast.success('Backup deleted')
     },
     onError: (err: Error & { code?: string }, variables) => {
       // The backend refuses to remove the last restore point without an
       // explicit acknowledgement.
       if (err.code === 'last_backup' && !variables.force) {
-        if (confirm(`${err.message}\n\nDelete it anyway?`)) {
-          mutation.mutate({ ...variables, force: true })
-        }
+        askToForce(options, err.message, 'Delete it anyway?', () => mutation.mutate({ ...variables, force: true }))
         return
       }
       toast.error(`Delete failed: ${err.message}`)
@@ -619,7 +649,7 @@ export function useDeleteBackup() {
   return mutation
 }
 
-export function useRestoreService() {
+export function useRestoreService(options?: ForceRequiredOptions) {
   const mutation = useMutation({
     mutationFn: ({ id, file, confirm, forceDestroyData }: {
       id: string
@@ -632,9 +662,8 @@ export function useRestoreService() {
       // Same gate as restoring a stored artifact: no safety snapshot of the
       // current data means the overwrite is unrecoverable.
       if (err.code === 'snapshot_required' && !variables.forceDestroyData) {
-        if (confirm(`${err.message}\n\nRestore anyway? Everything written since this dump was taken will be gone for good.`)) {
-          mutation.mutate({ ...variables, forceDestroyData: true })
-        }
+        askToForce(options, err.message, 'Restore anyway? Everything written since this dump was taken will be gone for good.', () =>
+          mutation.mutate({ ...variables, forceDestroyData: true }))
         return
       }
       toast.error(`Restore failed: ${err.message}`)

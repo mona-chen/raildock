@@ -39,6 +39,7 @@ import type {
   BackupDestination,
   RecoveryOverview,
   Backup,
+  BackupSchedule,
   ApiToken,
 } from '@/types'
 
@@ -61,6 +62,25 @@ export function normalizeBackup(data: unknown): Backup {
     if (camel[key] != null) camel[key] = String(camel[key])
   }
   return camel as unknown as Backup
+}
+
+/**
+ * Schedule ids, mount ids and destination ids arrive as integers. Destinations
+ * live in `metadata.destination_ids`; lift them so the editor can compare them
+ * against the (string) destination list.
+ */
+export function normalizeBackupSchedule(data: unknown): BackupSchedule {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  for (const key of ['id', 'serviceId', 'storageMountId']) {
+    if (camel[key] != null) camel[key] = String(camel[key])
+  }
+  if (camel.storageMount && typeof camel.storageMount === 'object') {
+    const mount = camel.storageMount as Record<string, unknown>
+    if (mount.id != null) mount.id = String(mount.id)
+  }
+  const metadata = (camel.metadata ?? {}) as Record<string, unknown>
+  camel.destinationIds = Array.isArray(metadata.destinationIds) ? metadata.destinationIds.map(String) : []
+  return camel as unknown as BackupSchedule
 }
 
 export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {

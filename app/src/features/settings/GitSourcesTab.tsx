@@ -17,7 +17,7 @@ import {
   Settings2,
   Wrench,
   CheckCircle2,
-  Sparkles,
+  Plus,
   RotateCcw,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -402,7 +402,7 @@ function AdminConfigPanel({ gitSources }: { gitSources: GitSource[] }) {
                 disabled={createManifest.isPending}
                 className="bg-rail-purple hover:bg-rail-purple/90 text-white text-xs h-9"
               >
-                <Sparkles size={14} className="mr-1.5" />
+                <Plus size={14} className="mr-1.5" />
                 {createManifest.isPending ? 'Preparing...' : 'Create GitHub App'}
               </Button>
             </div>

@@ -55,6 +55,9 @@ export default function ConsoleTab({ serviceId, serviceName }: ConsoleTabProps) 
         },
         onError: (err) => {
           addLine('error', `Error: ${err.message}`)
+          // Keep the operator's command so a transient failure can be retried
+          // without retyping it (unless they already started typing another).
+          setCommand((current) => current || cmd)
           setIsRunning(false)
         },
       }

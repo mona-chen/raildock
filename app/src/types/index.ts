@@ -267,7 +267,7 @@ export interface Backup {
 export interface BackupDestination {
   id: string
   name: string
-  provider: 's3' | 'r2'
+  provider: 's3' | 'r2' | 'b2' | 'wasabi' | 'spaces' | 'hetzner' | 'minio' | 'gcs'
   endpoint?: string
   region: string
   bucket: string
@@ -287,6 +287,8 @@ export interface BackupSchedule {
   enabled: boolean
   storageMountId?: string
   storageMount?: StorageMount
+  /** Off-site destinations this schedule writes to; empty means host only. */
+  destinationIds: string[]
   lastRunAt?: string
   nextRunAt?: string
 }

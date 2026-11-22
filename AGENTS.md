@@ -123,12 +123,25 @@ curl -sSL .../install.sh | bash -s -- \
 ## Remote server setup
 
 Remote hosts are bootstrapped via the script returned by
-`GET /api/organizations/:id/server_bootstrap`. Run it as root; it installs
+`GET /api/organizations/:id/server_bootstrap`. Run it as root (the automated
+path uses `sudo -n` when the admin user is not root); it installs
 Docker, Dokku, the datastore plugins, and the Nixpacks/Railpack builders,
 authorizes the organization's public key for both `root` and `dokku`, and
-raises `sshd` connection limits. For fully automated provisioning, add the
+raises `sshd` connection limits (validated with `sshd -t`, reloading either the
+`ssh` or `sshd` unit). For fully automated provisioning, add the
 organization public key to an admin user's `~/.ssh/authorized_keys` first so
 `ProvisionServerJob` can connect and run the bootstrap for you.
+
+- The setup id is issued by the server (`POST /servers/provision` returns it) and
+  bound to the requesting user/organization; the wizard subscribes to the
+  returned id, and `provision_status`/`ServerSetupChannel` refuse anyone else.
+- `ProvisionServerJob` runs on `maintenance`, refuses a host that is already
+  registered before it touches SSH, and builds the remote command with
+  `ProvisionServerJob.bootstrap_command`, which shell-escapes every value and
+  whitelists `PROXY_MODES`. Never interpolate request values into that command.
+- A pinned host key is set on create only; `update` cannot overwrite it.
+- A server that still hosts projects cannot be deleted (`422 server_has_projects`,
+  `has_many :projects, dependent: :restrict_with_error`).
 
 ## Credentials & secrets
 
@@ -160,13 +173,32 @@ When changing code that touches Rails credentials, ensure fresh installs still w
   `RETRY_BACKOFF` (15 min) rather than retrying it on every scheduler tick.
 - `PATCH /api/services/:id/backup_schedules/:schedule_id` edits frequency, retention, `enabled` and
   destinations. Destination ids are only rewritten when the request includes the key, so toggling a
-  schedule can never silently drop its destinations.
+  schedule can never silently drop its destinations. A frequency change recomputes `next_run_at`,
+  and resuming a paused schedule whose slot passed schedules the next run a full interval out.
+- The schedule endpoints permit snake_case keys and also accept the camelCase aliases; the dashboard
+  sends snake_case (`scheduleBody` in `lib/api.ts`). Camel keys used to be dropped silently, which made
+  every schedule created from the UI fail. `backup_schedule_params` returns a plain hash: assigning a
+  Hash into permitted `Parameters` makes it unpermitted again. Destination ids are checked against
+  `BackupDestination.reachable_from` at the API boundary, not in the model, so copies and internal
+  bookkeeping never fail on a destination deleted later.
+- Logical dumps are gated on the subtype's `backup`/`restore` capabilities (`Service#logical_backup_supported?`),
+  not on `service_type_database?` — Redis is a `cache` and backs up like a database. A `database` schedule
+  on a service without those capabilities is invalid. Retention is 1–90 for every schedule.
+- Restore drills probe readiness per engine (`RestoreDrillJob#readiness_command`); never assume Postgres.
+- Point-in-time recovery only accepts a `verified` destination (`422 destination_unverified`); WAL ships
+  every minute unattended. Recovering a point in time into the *live* database is not implemented —
+  drills recover into an isolated instance.
 - A backup is only marked completed after its artifact is persisted and SHA-256 verified.
 - A backup is only marked completed once at least one copy exists. Remote copies are verified with `head_object` (size match) right after upload; request a destination that cannot be written and the run fails loudly instead of reporting success.
 - `BackupDestination.reachable_from(server)` resolves both the server's own destinations and its organization's, so a destination selectable in the UI is always writable by scheduled backups.
 - Where a backup goes by default is a service choice that falls back to an organization default: `services.default_backup_destination_ids` → `organizations.default_backup_destination_ids` → local only. The service column must stay **nullable** — `nil` means "inherit" and `[]` means a deliberate local-only choice, so a `[]` default would make inheritance unrepresentable. `PATCH /api/services/:id/recovery/preferences` is where the destination picker persists itself, `GET /api/services/:id/recovery` returns the resolved list so the picker never renders "Local only" first, and `BackupDestination#forget_from_backup_defaults` prunes a deleted destination out of both defaults.
 - `VerifyBackupDestinationsJob` re-proves every destination older than `MAX_AGE` (7 days) every 6 hours via `config/recurring.yml`. Verification writes, `head_object`-checks, then deletes a probe object, so a rotated key or tightened bucket policy is caught on a schedule instead of at restore time. `DataSafetyReport` reads the same `status`/`last_verified_at`/`last_error` fields.
 - `Backup` rows outlive their `Service` (`dependent: :nullify`, nullable `service_id`) and carry `service_name`/`project_name` in `metadata`, so a destroyed service can still be restored from its last artifact.
+- Destination providers: `s3`, `r2`, and S3-compatible presets `b2`, `wasabi`, `spaces`, `hetzner`, `minio`,
+  `gcs` (HMAC interop). `BackupCopy#kind` stays `local`/`s3`/`r2`; write `destination.copy_kind`, never
+  `destination.provider`. Creating or editing a destination probes it first and persists nothing on failure;
+  interactive verification uses short timeouts and never retries permanent errors (bad credentials, missing
+  bucket, wrong region). `scripts/decrypt-backup.rb` decrypts an artifact offline with its recovery key.
 - S3-compatible and Cloudflare R2 destinations encrypt artifacts with AES-256-GCM before multipart upload; save the one-time recovery key off-host. `BackupDestinationClient` retries transient S3 errors with backoff, supports custom endpoints with path-style addressing (MinIO/R2), and does not retry bad credentials.
 - `aws-sdk-s3` (1.206+) removed `FileUploader`'s `thread_count` and injection of the multipart executor became the caller's job. `BackupDestinationClient#upload` passes an `executor:` built for one upload and shuts it down afterwards — without it the multipart path raises on the first part, and passing `thread_count` leaks into `put_object` ("unexpected value at params[:thread_count]") for anything below the multipart threshold. Do not swap it for a process-wide memoized pool: Puma can be started with `WEB_CONCURRENCY`, and a thread pool does not survive a fork.
 - Keep the backup directory on durable storage and include it in host-level disaster recovery.
@@ -471,6 +503,11 @@ version the target servers run before assuming a behavior.
 ## Interface conventions
 
 - Use Lucide for interface controls; keep framework/database brand marks in `ServiceIcons`.
+- Service panel: Networking holds domains only. Volumes live with their snapshots in the Storage tab
+  (named Backups for datastores, which also get Database backups and, for Postgres, Point-in-time).
+  `?tab=storage` is a legacy alias for that tab and `?section=` selects the sub-section. Backup UI
+  building blocks (schedule form/list, artifact list, destination checklist) live in
+  `features/service-panel/tabs/recovery/` — reuse them instead of forking per tab.
 - Use `IconButton` for icon-only actions: 16px glyph, 2px stroke, minimum 32px target,
   accessible name and tooltip. Navigation icons may be 18px; service logos may be 20px.
 - Icons identify actions or service types. Avoid decorative rockets, sparkles, uppercase

@@ -126,7 +126,7 @@ class BackupArtifactStore
 
       backup.backup_copies.create!(
         backup_destination: destination,
-        kind: destination.provider,
+        kind: destination.copy_kind,
         status: :completed,
         storage_key: key,
         size: size,

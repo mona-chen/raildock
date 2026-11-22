@@ -40,8 +40,14 @@ module Api
 
     def create_destination
       authorize_service!(@service, action: :update)
-      destination = @service.project.server.backup_destinations.create!(destination_params)
-      BackupDestinationClient.new(destination).verify!
+      # Creation and verification are one unit: a destination that failed its
+      # probe must not linger as a "failed" row whose recovery key was never
+      # shown to anyone.
+      destination = BackupDestination.transaction do
+        record = @service.project.server.backup_destinations.create!(destination_params)
+        BackupDestinationClient.new(record).verify!
+        record
+      end
       render json: destination.as_json.merge("recovery_key" => destination.encryption_key), status: :created
     rescue ApplicationController::AuthorizationDenied, ServiceOperationLock::Busy
       raise
@@ -62,14 +68,36 @@ module Api
 
     def destroy_destination
       authorize_service!(@service, action: :delete)
-      destination_scope.find(params[:destination_id]).destroy!
-      head :no_content
+      # Only the server's own destinations can be removed from a service.
+      # Organization destinations are shared and are managed (with an
+      # owner/admin check) from Settings → Backups.
+      destination = @service.project.server.backup_destinations.find_by(id: params[:destination_id])
+      unless destination
+        return render json: { error: "Organization destinations are managed from Settings → Backups" }, status: :forbidden if destination_scope.exists?(id: params[:destination_id])
+
+        raise ActiveRecord::RecordNotFound
+      end
+
+      if destination.destroy
+        head :no_content
+      else
+        render json: { error: destination.errors.full_messages.to_sentence.presence || "Destination still owns backups", code: "destination_in_use" }, status: :unprocessable_entity
+      end
     end
 
     def snapshot_volume
       authorize_service!(@service, action: :update)
       mount = @service.storage_mounts.find(params[:storage_mount_id])
-      destination_ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
+      # Omitting the key follows the service's backup default (the same picker
+      # the Backups tab uses); `[]` is an explicit local-only snapshot.
+      destination_ids = if params.key?(:backup_destination_ids)
+        Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
+      else
+        @service.resolved_backup_destination_ids
+      end
+      unknown = destination_ids - destination_scope.ids.map(&:to_s)
+      return render json: { error: "Invalid backup destination(s): #{unknown.join(', ')}" }, status: :unprocessable_entity if unknown.any?
+
       backup = @service.backups.create!(
         status: "pending",
         backup_kind: "volume",
@@ -85,12 +113,27 @@ module Api
 
       destination = find_destination(params[:backup_destination_id])
       return render json: { error: "Destination not found" }, status: :not_found unless destination
+      # WAL is archived every minute with nobody watching; an unproven
+      # destination would silently leave the database without recovery points.
+      unless destination.verified?
+        return render json: { error: "Verify #{destination.name} before using it for point-in-time recovery", code: "destination_unverified" }, status: :unprocessable_entity
+      end
 
       config = @service.postgres_pitr_config || @service.build_postgres_pitr_config
-      config.assign_attributes(backup_destination: destination, retention_days: params[:retention_days] || 7)
+      retention = params[:retention_days].presence || config.retention_days.presence || 7
+      config.assign_attributes(backup_destination: destination, retention_days: retention)
+      already_archiving = config.persisted? && config.enabled? && config.status != "error"
+      destination_changed = config.backup_destination_id_changed?
       config.save!
-      PostgresPitrConfigurator.new(config).enable!
-      PostgresBaseBackupJob.perform_later(config.id)
+
+      # WAL is archived to a directory inside the container and shipped by a
+      # job, so a new window or destination needs no PostgreSQL change.
+      # `enable!` restarts the database; only pay that when archiving is not
+      # already running.
+      PostgresPitrConfigurator.new(config).enable! unless already_archiving
+      # A WAL chain is only recoverable from a base backup in the same place,
+      # so a new destination starts with one.
+      PostgresBaseBackupJob.perform_later(config.id) if !already_archiving || destination_changed
       render json: config.reload
     end
 

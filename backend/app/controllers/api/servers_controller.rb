@@ -58,17 +58,40 @@ module Api
         return render json: { error: "Organization required" }, status: :unprocessable_entity
       end
 
-      setup_id = SecureRandom.uuid
+      host = provision_params[:host].to_s.strip
+      if host.blank?
+        return render json: { error: "Host is required", code: "host_required" }, status: :unprocessable_entity
+      end
+
+      proxy_mode = provision_params[:proxy_mode].to_s.presence || "managed"
+      unless Server::PROXY_MODES.include?(proxy_mode)
+        return render json: { error: "Unknown proxy mode #{proxy_mode.inspect}", code: "invalid_proxy_mode" }, status: :unprocessable_entity
+      end
+
+      # Fail before the (multi-minute) bootstrap rather than at the final
+      # uniqueness check, after the host has already been modified.
+      if (existing = existing_server_for(host))
+        return render json: {
+          error: "#{host} is already connected as \"#{existing.name}\". Remove that server first or validate its connection instead.",
+          code: "server_exists",
+          server_id: existing.id.to_s
+        }, status: :unprocessable_entity
+      end
+
+      setup_id = resolve_setup_id(provision_params[:setup_id])
+      Server.record_setup_owner!(setup_id, organization_id: current_organization.id, user_id: current_user.id)
+      SetupProgress.start(setup_id)
+
       ProvisionServerJob.perform_later(
         setup_id,
         current_organization.id,
-        provision_params[:host].to_s.strip,
-        provision_params[:admin_user].presence || "root",
+        host,
+        provision_params[:admin_user].to_s.strip.presence || "root",
         Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}",
-        proxy_mode: provision_params[:proxy_mode].to_s.presence || "managed",
+        proxy_mode: proxy_mode,
         server_name: provision_params[:server_name].to_s.strip.presence,
         base_domain: provision_params[:base_domain].to_s.strip.presence,
-        auto_domains: provision_params[:auto_domains] != false,
+        auto_domains: provision_params[:auto_domains].to_s != "false",
         external_proxy_network: provision_params[:external_proxy_network].to_s.strip.presence,
         external_proxy_http_entrypoint: provision_params[:external_proxy_http_entrypoint].to_s.strip.presence,
         external_proxy_https_entrypoint: provision_params[:external_proxy_https_entrypoint].to_s.strip.presence,
@@ -78,7 +101,7 @@ module Api
 
       audit_log(
         action: "server.provision",
-        metadata: { host: provision_params[:host], admin_user: provision_params[:admin_user] || "root", setup_id: setup_id }
+        metadata: { host: host, admin_user: provision_params[:admin_user] || "root", setup_id: setup_id }
       )
       render json: { setup_id: setup_id }
     end
@@ -89,6 +112,11 @@ module Api
         return render json: { error: "setup_id required" }, status: :bad_request
       end
 
+      # Unknown and foreign setups look the same so ids cannot be probed.
+      unless Server.setup_accessible_by?(setup_id, current_user, organization: current_organization)
+        return render json: { error: "Setup not found" }, status: :not_found
+      end
+
       render json: SetupProgress.get(setup_id)
     end
 
@@ -96,7 +124,7 @@ module Api
       authorize_server_record!(@server, action: :update)
       return if performed?
 
-      @server.update!(server_params)
+      @server.update!(server_params(allow_host_key: false))
       audit_log(action: "server.update", server: @server, metadata: { host: @server.host })
       render json: @server
     end
@@ -184,6 +212,19 @@ module Api
       # A server can hold backup destinations whose artifacts are the only
       # remaining copy of a datastore. Refuse to cascade-delete them and say so
       # instead of replying 204 for work that did not happen.
+      # Projects keep running on the host after the server row is gone, so a
+      # delete would leave them pointing at nothing. Make the user move or
+      # delete them first.
+      project_names = @server.projects.order(:name).pluck(:name)
+      if project_names.any?
+        return render json: {
+          error: "Refusing to delete #{@server.name}: #{project_names.size} project(s) still run on it (#{project_names.join(', ')}). Move or delete them first.",
+          code: "server_has_projects",
+          projects: project_names,
+          actionable: true
+        }, status: :unprocessable_entity
+      end
+
       destinations = @server.backup_destinations.count
       if destinations.positive?
         return render json: {
@@ -210,14 +251,18 @@ module Api
       @server = scoped_servers.find(params[:id])
     end
 
-    def server_params
+    # The pinned host key is what stops a man-in-the-middle from impersonating
+    # a server, so it may be supplied when a server is first added but never
+    # overwritten by a later update from the client.
+    def server_params(allow_host_key:)
       permitted = [
         :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
         :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
-        :external_proxy_redirect_middleware, :host_key, :host_key_fingerprint,
+        :external_proxy_redirect_middleware,
         external_proxy_default_labels: {}
       ]
+      permitted.insert(-2, :host_key, :host_key_fingerprint) if allow_host_key
       params.require(:server).permit(permitted)
     rescue ActionController::ParameterMissing
       params.permit(permitted)
@@ -231,22 +276,36 @@ module Api
 
     def provision_params
       params.require(:server).permit(
-        :host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :host, :admin_user, :setup_id, :proxy_mode, :server_name, :base_domain, :auto_domains,
         :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
         :external_proxy_redirect_middleware
       )
     rescue ActionController::ParameterMissing
       params.permit(
-        :host, :admin_user, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :host, :admin_user, :setup_id, :proxy_mode, :server_name, :base_domain, :auto_domains,
         :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
         :external_proxy_redirect_middleware
       )
     end
 
+    # The wizard may propose its own id so it can subscribe early; accept it
+    # only when it is a UUID nobody has claimed, otherwise mint one. The
+    # response always carries the id the job will broadcast on.
+    def resolve_setup_id(candidate)
+      candidate = candidate.to_s.strip.downcase
+      return candidate if candidate.match?(Server::SETUP_ID_FORMAT) && Server.setup_owner(candidate).nil?
+
+      SecureRandom.uuid
+    end
+
+    def existing_server_for(host)
+      Server.where(organization_id: current_organization.id).where("LOWER(host) = ?", host.downcase).first
+    end
+
     def build_server_from_params
-      server = Server.new(server_params.merge(status: :disconnected))
+      server = Server.new(server_params(allow_host_key: true).merge(status: :disconnected))
 
       if current_organization
         server.organization = current_organization

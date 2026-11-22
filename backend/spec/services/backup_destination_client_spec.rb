@@ -74,6 +74,131 @@ RSpec.describe BackupDestinationClient do
     end
   end
 
+  describe "unsaved destinations" do
+    let(:candidate) do
+      server.backup_destinations.build(
+        name: "candidate", provider: "s3", region: "us-east-1", bucket: "raildock-backups",
+        access_key_id: "access", secret_access_key: "secret"
+      )
+    end
+
+    it "never persists a candidate that failed verification" do
+      allow(s3).to receive(:put_object).and_raise(Aws::S3::Errors::InvalidAccessKeyId.new(nil, "bad key"))
+      allow(s3).to receive(:delete_object)
+
+      expect {
+        expect { described_class.new(candidate, client: s3).verify! }.to raise_error(Aws::S3::Errors::InvalidAccessKeyId)
+      }.not_to change(BackupDestination, :count)
+      expect(candidate).to be_new_record
+      expect(candidate.status).to eq("failed")
+    end
+
+    it "probes without recording anything on the destination" do
+      allow(s3).to receive(:put_object)
+      allow(s3).to receive(:head_object).and_return(head)
+      allow(s3).to receive(:delete_object)
+
+      expect(described_class.new(candidate, client: s3).probe!).to be(true)
+      expect(candidate).to be_new_record
+      expect(candidate.status).to eq("pending")
+    end
+  end
+
+  describe "interactive verification" do
+    subject(:interactive) { described_class.new(destination, client: s3, interactive: true) }
+
+    before { allow(interactive).to receive(:sleep) }
+
+    it "gives up after a couple of attempts instead of holding the request" do
+      attempts = 0
+      allow(s3).to receive(:put_object) do
+        attempts += 1
+        raise Seahorse::Client::NetworkingError.new(StandardError.new("timeout"))
+      end
+      allow(s3).to receive(:delete_object)
+
+      expect { interactive.verify! }.to raise_error(Seahorse::Client::NetworkingError)
+      expect(attempts).to eq(described_class::INTERACTIVE_RETRY_LIMIT)
+    end
+
+    %w[NoSuchBucket InvalidBucketName AuthorizationHeaderMalformed AccessDenied SignatureDoesNotMatch].each do |code|
+      it "treats #{code} as permanent" do
+        attempts = 0
+        allow(s3).to receive(:put_object) do
+          attempts += 1
+          raise Aws::S3::Errors.error_class(code).new(nil, "nope")
+        end
+        allow(s3).to receive(:delete_object)
+
+        expect { interactive.verify! }.to raise_error(Aws::S3::Errors::ServiceError)
+        expect(attempts).to eq(1)
+      end
+    end
+
+    it "explains a bodiless 403 instead of an empty message" do
+      allow(s3).to receive(:put_object)
+      allow(s3).to receive(:head_object).and_raise(Aws::S3::Errors::Forbidden.new(nil, ""))
+      allow(s3).to receive(:delete_object)
+
+      expect { interactive.verify! }.to raise_error(/access denied/)
+      expect(destination.reload.last_error).to match(/access denied/)
+    end
+
+    it "uses short timeouts and a single SDK attempt" do
+      options = described_class.new(destination, interactive: true).send(:client_options)
+
+      expect(options).to include(max_attempts: 1, http_open_timeout: 5, http_read_timeout: 15)
+    end
+  end
+
+  describe "provider presets" do
+    def options_for(**attributes)
+      record = BackupDestination.new(
+        { name: "x", region: "us-east-1", bucket: "b", access_key_id: "a", secret_access_key: "s", server: server }.merge(attributes)
+      )
+      described_class.new(record, client: s3).send(:client_options)
+    end
+
+    it "keeps AWS S3 on the SDK defaults" do
+      options = options_for(provider: "s3")
+      expect(options).not_to include(:endpoint, :force_path_style, :request_checksum_calculation)
+      expect(options).to include(region: "us-east-1", retry_limit: 5, http_read_timeout: 300)
+    end
+
+    it "keeps R2 on its configured endpoint with path-style addressing" do
+      options = options_for(provider: "r2", region: "auto", endpoint: "https://acct.r2.cloudflarestorage.com")
+      expect(options).to include(endpoint: "https://acct.r2.cloudflarestorage.com", force_path_style: true)
+      expect(options).not_to include(:request_checksum_calculation)
+    end
+
+    {
+      "b2" => [ "us-west-004", "https://s3.us-west-004.backblazeb2.com", true ],
+      "wasabi" => [ "eu-central-1", "https://s3.eu-central-1.wasabisys.com", true ],
+      "spaces" => [ "nyc3", "https://nyc3.digitaloceanspaces.com", false ],
+      "hetzner" => [ "fsn1", "https://fsn1.your-objectstorage.com", false ],
+      "gcs" => [ "auto", "https://storage.googleapis.com", true ]
+    }.each do |provider, (region, endpoint, path_style)|
+      it "derives the #{provider} endpoint from the region" do
+        options = options_for(provider: provider, region: region)
+        expect(options).to include(
+          endpoint: endpoint, force_path_style: path_style,
+          request_checksum_calculation: "when_required", response_checksum_validation: "when_required"
+        )
+      end
+    end
+
+    it "lets an explicit endpoint override the preset" do
+      options = options_for(provider: "b2", region: "us-west-004", endpoint: "https://custom.example.com")
+      expect(options).to include(endpoint: "https://custom.example.com")
+    end
+
+    it "requires an endpoint for MinIO" do
+      record = BackupDestination.new(name: "m", provider: "minio", region: "us-east-1", bucket: "b", server: server)
+      expect(record).not_to be_valid
+      expect(record.errors[:endpoint]).to be_present
+    end
+  end
+
   describe "#upload" do
     around do |example|
       Dir.mktmpdir do |dir|

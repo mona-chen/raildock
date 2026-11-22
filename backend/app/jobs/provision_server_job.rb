@@ -1,9 +1,13 @@
 require "net/ssh"
 require "base64"
 require "digest"
+require "shellwords"
 
 class ProvisionServerJob < ApplicationJob
-  queue_as :default
+  # Bootstrapping a host installs Docker, Dokku and plugins and can take many
+  # minutes. Keep it off the control-plane worker so it cannot hold a thread
+  # deployments need, and off `backups` so it cannot delay WAL archiving.
+  queue_as :maintenance
 
   def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed", server_name: nil, base_domain: nil, auto_domains: true,
               external_proxy_network: nil, external_proxy_http_entrypoint: nil, external_proxy_https_entrypoint: nil,
@@ -19,6 +23,20 @@ class ProvisionServerJob < ApplicationJob
     public_key = org_key.public_key
     private_key = org_key.private_key
     proxy_mode = proxy_mode.to_s.presence || "managed"
+
+    unless Server::PROXY_MODES.include?(proxy_mode)
+      broadcast(setup_id, type: "failed", error: "Unknown proxy mode #{proxy_mode.inspect}")
+      return
+    end
+
+    # Checked again here (the API checks first) because a second wizard run
+    # could have connected the same host while this job was queued. Failing
+    # now avoids re-running the whole bootstrap only to hit the uniqueness
+    # validation at the end.
+    if (existing = Server.where(organization_id: organization.id).where("LOWER(host) = ?", host.to_s.downcase).first)
+      broadcast(setup_id, type: "failed", error: "#{host} is already connected as \"#{existing.name}\". Remove that server first or validate its connection instead.")
+      return
+    end
 
     if proxy_mode == "external" && external_proxy_network.blank?
       broadcast(setup_id, type: "failed", error: "External proxy mode requires EXTERNAL_PROXY_NETWORK")
@@ -80,7 +98,7 @@ class ProvisionServerJob < ApplicationJob
       external_proxy_redirect_middleware: external_proxy_redirect_middleware
     )
 
-    broadcast(setup_id, type: "completed", server_id: server.id, host: server.host)
+    broadcast(setup_id, type: "completed", server_id: server.id, host: server.host, host_key_fingerprint: server.host_key_fingerprint)
   rescue ActiveRecord::RecordNotFound
     broadcast(setup_id, type: "failed", error: "Organization not found")
   rescue => e
@@ -128,11 +146,7 @@ class ProvisionServerJob < ApplicationJob
   end
 
   def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode, external_proxy_network: nil)
-    script_url = "#{base_url.chomp('/')}/bootstrap.sh"
-    escaped_key = public_key.gsub("'", "'\"'\"'")
-    env = +"PROXY_MODE='#{proxy_mode}'"
-    env << " EXTERNAL_PROXY_NETWORK='#{external_proxy_network}'" if external_proxy_network.present?
-    command = "curl -fsSL #{script_url} | #{env} bash -s -- '#{escaped_key}'"
+    command = self.class.bootstrap_command(base_url, public_key, proxy_mode, external_proxy_network: external_proxy_network)
 
     broadcast(setup_id, type: "log", line: "$ #{command}")
 
@@ -163,6 +177,21 @@ class ProvisionServerJob < ApplicationJob
       broadcast(setup_id, type: "failed", error: "Bootstrap exited with status #{exit_status}")
       raise "Bootstrap failed"
     end
+  end
+
+  # Every interpolated value is shell-escaped: the proxy network and base URL
+  # are user-supplied and this string runs on the remote host. bootstrap.sh
+  # must run as root, so a non-root admin user goes through `sudo -n` (which
+  # fails immediately instead of hanging on a password prompt).
+  def self.bootstrap_command(base_url, public_key, proxy_mode, external_proxy_network: nil)
+    raise ArgumentError, "unknown proxy mode #{proxy_mode.inspect}" unless Server::PROXY_MODES.include?(proxy_mode.to_s)
+
+    script_url = "#{base_url.to_s.chomp('/')}/bootstrap.sh"
+    env = [ "PROXY_MODE=#{Shellwords.escape(proxy_mode.to_s)}" ]
+    env << "EXTERNAL_PROXY_NETWORK=#{Shellwords.escape(external_proxy_network.to_s)}" if external_proxy_network.present?
+
+    "if [ \"$(id -u)\" -eq 0 ]; then RD_SUDO=''; else RD_SUDO='sudo -n'; fi; " \
+      "curl -fsSL #{Shellwords.escape(script_url)} | $RD_SUDO env #{env.join(' ')} bash -s -- #{Shellwords.escape(public_key.to_s.strip)}"
   end
 
   def broadcast(setup_id, payload)

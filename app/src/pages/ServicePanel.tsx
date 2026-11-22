@@ -18,10 +18,10 @@ import DeployTab from '@/features/service-panel/tabs/DeployTab'
 import DatabaseTab from '@/features/service-panel/tabs/DatabaseTab'
 import DataTab from '@/features/service-panel/tabs/DataTab'
 import BackupsTab from '@/features/service-panel/tabs/BackupsTab'
+import { supportsLogicalBackup } from '@/features/service-panel/tabs/recovery/lib'
 import VariablesTab from '@/features/service-panel/tabs/VariablesTab'
 import MetricsTab from '@/features/service-panel/tabs/MetricsTab'
 import DomainsTab from '@/features/service-panel/tabs/DomainsTab'
-import StorageTab from '@/features/service-panel/tabs/StorageTab'
 import { useWebSocketDeployments } from '@/hooks/useWebSocketDeployments'
 import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 import { realtimeStateLabel } from '@/hooks/useRealtimeState'
@@ -37,8 +37,11 @@ interface ServicePanelProps {
 export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) {
   const { data: svc, isLoading, isError, error, refetch } = useService(serviceId)
   const [searchParams, setSearchParams] = useSearchParams()
-  const requestedTab = searchParams.get('tab') || 'overview'
-  const allowedTabs = ['overview', 'logs', 'variables', 'networking', 'metrics', 'settings', ...(svc?.type !== 'database' ? ['deploy'] : []), ...(svc?.type === 'database' || svc?.storageMounts?.length ? ['backups'] : []), ...(svc?.dataView ? ['data'] : [])]
+  // `storage` is the old deep link for volumes, which now live with their
+  // snapshots under the Storage/Backups tab.
+  const rawTab = searchParams.get('tab') || 'overview'
+  const requestedTab = rawTab === 'storage' ? 'backups' : rawTab
+  const allowedTabs = ['overview', 'logs', 'variables', 'networking', 'backups', 'metrics', 'settings', ...(svc?.type !== 'database' ? ['deploy'] : []), ...(svc?.dataView ? ['data'] : [])]
   const tab = allowedTabs.includes(requestedTab) ? requestedTab : 'overview'
   const setTab = useCallback((next: string) => setSearchParams((previous) => { const params = new URLSearchParams(previous); params.set('tab', next); return params }, { replace: true }), [setSearchParams])
   const [expanded, setExpanded] = useState(false)
@@ -55,7 +58,6 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   const restartService = useRestartService()
   const rebuildService = useRebuildService()
   const deploymentRealtime = useWebSocketDeployments(serviceId)
-  const [networkingView, setNetworkingView] = useState<'domains' | 'volumes'>('domains')
   const [showConsole, setShowConsole] = useState(false)
 
   // These have to be known before the early returns below so the shortcut map
@@ -76,9 +78,9 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       m: 'metrics',
       s: 'settings',
     }
+    targets.b = 'backups'
     if (db) {
       if (hasData) targets.t = 'data'
-      targets.b = 'backups'
     } else {
       targets.d = 'deploy'
     }
@@ -221,7 +223,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   // Metrics, Settings. Logs stays because it is the first thing an operator
   // reaches for when a deploy misbehaves. Everything else that used to be its
   // own tab now lives where Railway puts it — the shell is a header action,
-  // and domains/volumes are grouped under a single Networking tab.
+  // domains sit under Networking, and volumes live with their snapshots.
   const tabs = db
     ? [
         { key: 'overview', label: 'Overview' },
@@ -239,10 +241,10 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         { key: 'logs', label: 'Logs' },
         { key: 'variables', label: 'Variables' },
         { key: 'networking', label: 'Networking' },
-        // An app that owns volumes can back them up, so it gets the same
-        // Backups surface a database has. Without this the volume snapshot
-        // schedules seeded or created for an app were unreachable in the UI.
-        ...(svc.storageMounts?.length ? [{ key: 'backups', label: 'Backups' }] : []),
+        // Volumes and their snapshots live together. Every app gets the tab so
+        // a volume can be attached; a datastore typed as a cache (Redis) still
+        // backs up like a database, so it keeps the Backups name.
+        { key: 'backups', label: supportsLogicalBackup(svc) ? 'Backups' : 'Storage' },
         { key: 'metrics', label: 'Metrics' },
         { key: 'settings', label: 'Settings' },
       ]
@@ -377,32 +379,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             {tab === 'data' && hasData && <DataTab serviceId={serviceId} />}
             {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
             {tab === 'variables' && <VariablesTab svc={svc} />}
-            {tab === 'networking' && (
-              <div>
-                <div className="flex items-center gap-1 px-5 pt-3" role="tablist" aria-label="Networking sections">
-                  {([
-                    { key: 'domains', label: 'Domains' },
-                    { key: 'volumes', label: 'Volumes' },
-                  ] as const).map((section) => (
-                    <button
-                      key={section.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={networkingView === section.key}
-                      onClick={() => setNetworkingView(section.key)}
-                      className={`rounded-lg px-2.5 py-1.5 text-[12px] transition-colors ${
-                        networkingView === section.key
-                          ? 'bg-white/8 text-white/85'
-                          : 'text-white/50 hover:text-white/70 hover:bg-white/4'
-                      }`}
-                    >
-                      {section.label}
-                    </button>
-                  ))}
-                </div>
-                {networkingView === 'domains' ? <DomainsTab svc={svc} /> : <StorageTab svc={svc} />}
-              </div>
-            )}
+            {tab === 'networking' && <DomainsTab svc={svc} />}
             {tab === 'metrics' && <MetricsTab key={svc.id} svc={svc} />}
             {tab === 'settings' && <SettingsPanel svc={svc} />}
           </>

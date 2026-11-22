@@ -2,13 +2,15 @@
 set -e
 
 # RailDock remote server bootstrap script.
-# Run this as root on the Dokku host you want RailDock to manage.
+# Run this as root (or through `sudo bash`) on the Dokku host you want
+# RailDock to manage.
 #
 # Usage:
 #   curl -fsSL https://<raildock-host>/bootstrap.sh | bash -s -- '<org-public-key>'
+#   curl -fsSL https://<raildock-host>/bootstrap.sh | sudo bash -s -- '<org-public-key>'
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root" >&2
+  echo "This script must be run as root (try: ... | sudo bash -s -- '<key>')" >&2
   exit 1
 fi
 
@@ -28,16 +30,51 @@ esac
 log_info() { echo "==> $1"; }
 log_warn() { echo "==> WARNING: $1"; }
 
+reload_sshd() {
+  command -v systemctl >/dev/null 2>&1 || return 1
+  # Debian/Ubuntu name the unit `ssh` (22.04+ has no `sshd` alias); RHEL and
+  # friends use `sshd`. Reload whichever exists.
+  local unit
+  for unit in ssh sshd; do
+    if systemctl list-unit-files "${unit}.service" 2>/dev/null | grep -q "^${unit}\.service"; then
+      systemctl reload "$unit" && return 0
+    fi
+  done
+  return 1
+}
+
 configure_sshd() {
   local sshd_config="/etc/ssh/sshd_config"
   if [ -f "$sshd_config" ] && ! grep -qE "^MaxStartups\\s+" "$sshd_config"; then
+    cp "$sshd_config" "${sshd_config}.raildock.bak"
     echo "MaxStartups 100:30:200" >> "$sshd_config"
-    if command -v systemctl >/dev/null 2>&1; then
-      systemctl reload sshd 2>/dev/null || true
+
+    # Never reload an sshd configuration that does not validate: a broken
+    # config could lock everyone (including RailDock) out of the host.
+    local sshd_bin
+    sshd_bin=$(command -v sshd 2>/dev/null || echo /usr/sbin/sshd)
+    # Socket-activated sshd (Ubuntu 24.04) may not have created its privilege
+    # separation directory yet, which makes `sshd -t` fail spuriously.
+    mkdir -p /run/sshd 2>/dev/null || true
+    if [ -x "$sshd_bin" ] && ! "$sshd_bin" -t 2>/dev/null; then
+      mv "${sshd_config}.raildock.bak" "$sshd_config"
+      log_warn "sshd rejected MaxStartups; left sshd_config unchanged"
+      return 0
     fi
-    log_info "Raised sshd MaxStartups for deploy bursts"
+    rm -f "${sshd_config}.raildock.bak"
+
+    if reload_sshd; then
+      log_info "Raised sshd MaxStartups for deploy bursts"
+    else
+      log_warn "Raised sshd MaxStartups, but could not reload sshd; it applies after the next sshd restart"
+    fi
   fi
 }
+
+# Plugins whose absence breaks core RailDock features; a failure here fails the
+# bootstrap (after the key is registered) instead of being buried in the log.
+CORE_PLUGINS="postgres"
+FAILED_PLUGINS=""
 
 ensure_dokku_plugins() {
   if ! command -v dokku >/dev/null 2>&1; then
@@ -49,7 +86,10 @@ ensure_dokku_plugins() {
     local url="$2"
     if [ ! -d "/var/lib/dokku/plugins/enabled/$name" ]; then
       log_info "Installing Dokku $name plugin..."
-      dokku plugin:install "$url" "$name" || log_warn "Failed to install $name plugin"
+      if ! dokku plugin:install "$url" "$name"; then
+        log_warn "Failed to install $name plugin"
+        FAILED_PLUGINS="$FAILED_PLUGINS $name"
+      fi
     fi
   }
 
@@ -297,5 +337,18 @@ ensure_dokku_plugins
 ensure_builder_binaries
 # Dokku must be installed before the dokku user exists, so add the key after.
 register_dokku_key
+
+if [ -n "$FAILED_PLUGINS" ]; then
+  log_warn "These Dokku datastore plugins failed to install:$FAILED_PLUGINS"
+  log_warn "Retry with: dokku plugin:install https://github.com/dokku/dokku-<name>.git <name>"
+  for plugin in $FAILED_PLUGINS; do
+    case " $CORE_PLUGINS " in
+      *" $plugin "*)
+        echo "==> ERROR: required plugin '$plugin' is missing; bootstrap incomplete" >&2
+        exit 1
+        ;;
+    esac
+  done
+fi
 
 log_info "Bootstrap complete. Return to RailDock and click Validate Server."

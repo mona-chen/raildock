@@ -1,5 +1,9 @@
 class Server < ApplicationRecord
-  has_many :projects, dependent: :nullify
+  # Deleting a server must not silently detach the projects deployed on it:
+  # their apps keep running on the host with nothing in RailDock pointing at
+  # them. The controller refuses with `server_has_projects`; this is the
+  # backstop for any other caller.
+  has_many :projects, dependent: :restrict_with_error
   has_many :server_metrics, dependent: :delete_all
   has_many :http_traffic_buckets, dependent: :delete_all
   has_many :monitoring_incidents, dependent: :delete_all
@@ -29,6 +33,35 @@ class Server < ApplicationRecord
 
   validates :proxy_mode, inclusion: { in: PROXY_MODES }
   validates :external_proxy_network, presence: true, if: :external_proxy?
+
+  SETUP_OWNER_TTL = 2.hours
+  SETUP_ID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+
+  # A provisioning setup id is a bearer handle for the setup log stream (which
+  # carries host details), so remember who started it and only let members of
+  # that organization read it.
+  def self.record_setup_owner!(setup_id, organization_id:, user_id:)
+    Rails.cache.write(setup_owner_key(setup_id), { organization_id: organization_id, user_id: user_id }, expires_in: SETUP_OWNER_TTL)
+  end
+
+  def self.setup_owner(setup_id)
+    return nil unless setup_id.to_s.match?(SETUP_ID_FORMAT)
+
+    Rails.cache.read(setup_owner_key(setup_id))
+  end
+
+  def self.setup_accessible_by?(setup_id, user, organization: nil)
+    owner = setup_owner(setup_id)
+    return false unless owner && user
+    return false if organization && organization.id.to_s != owner[:organization_id].to_s
+
+    owner[:user_id].to_s == user.id.to_s ||
+      user.organization_memberships.exists?(organization_id: owner[:organization_id])
+  end
+
+  def self.setup_owner_key(setup_id)
+    "server_setup_owner:#{setup_id}"
+  end
 
   # Shared Lockbox instance for encryption/decryption (class-level for efficiency)
   LOCKBOX = Lockbox.new(key: Lockbox.master_key, encode: true)
