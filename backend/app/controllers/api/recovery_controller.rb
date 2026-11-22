@@ -12,6 +12,7 @@ module Api
         destinations: reachable_destinations,
         pitr: @service.postgres_pitr_config,
         drills: RestoreDrill.joins(:backup).where(backups: { service_id: @service.id }).recent.limit(25),
+        pitr_restores: PitrRestore.where(source_service_id: @service.id).includes(:restored_service).recent.limit(10),
         backup_preferences: backup_preferences
       }
     end
@@ -157,6 +158,64 @@ module Api
       drill = backup.restore_drills.create!(target_time: target)
       RestoreDrillJob.perform_later(drill.id)
       render json: drill, status: :accepted
+    end
+
+    # POST /api/services/:id/recovery/pitr/restore
+    #
+    # Recovers this PostgreSQL service to `target_time` into a NEW service in
+    # the same project and environment. The live database is never written:
+    # recovery happens in an isolated instance and is then loaded into the new
+    # service by `PitrRestoreJob` (queue `backups`).
+    def restore_pitr
+      authorize_service!(@service, action: :update)
+      unless @service.subtype_record&.has_capability?(:point_in_time_recovery) && @service.postgres_pitr_config
+        return render json: { error: "Point-in-time recovery is not enabled for this service", code: "pitr_disabled" }, status: :unprocessable_entity
+      end
+
+      target = begin
+        Time.iso8601(params[:target_time].to_s)
+      rescue ArgumentError
+        return render json: { error: "Recovery target must be an ISO-8601 timestamp", code: "invalid_target" }, status: :unprocessable_entity
+      end
+
+      bases = @service.backups.completed.where(backup_kind: "pitr_base").order(:created_at, :id)
+      earliest = bases.first&.created_at
+      latest_wal = @service.backups.completed.where(backup_kind: "wal").maximum(:created_at)
+      if earliest.nil? || latest_wal.nil? || target <= earliest || target > latest_wal || target > Time.current
+        return render json: {
+          error: "Choose a moment inside the recovery window",
+          code: "outside_window",
+          window: { from: earliest&.iso8601, to: latest_wal&.iso8601 }
+        }, status: :unprocessable_entity
+      end
+      base = bases.where("created_at < ?", target).last
+
+      name = params[:name].to_s.strip
+      return render json: { error: "Name the new service", code: "name_required" }, status: :unprocessable_entity if name.blank?
+      if @service.project.services.where(environment_id: @service.environment_id).where("LOWER(name) = ?", name.downcase).exists?
+        return render json: { error: "A service named #{name} already exists in this environment", code: "name_taken" }, status: :conflict
+      end
+      if PitrRestore.where(source_service_id: @service.id, status: %w[pending running]).exists?
+        return render json: { error: "A recovery of #{@service.name} is already in progress", code: "restore_in_progress" }, status: :conflict
+      end
+
+      restore = PitrRestore.transaction do
+        restored = @service.project.services.create!(
+          name: name,
+          environment: @service.environment,
+          service_type: @service.service_type,
+          subtype: @service.subtype,
+          version: @service.version,
+          docker_image: @service.docker_image,
+          status: "deploying",
+          canvas_x: @service.canvas_x.to_i + 280,
+          canvas_y: @service.canvas_y.to_i
+        )
+        PitrRestore.create!(source_service: @service, restored_service: restored, backup: base,
+          project: @service.project, target_time: target, service_name: name)
+      end
+      PitrRestoreJob.perform_later(restore.id)
+      render json: { pitr_restore: restore, service: restore.restored_service }, status: :accepted
     end
 
     private

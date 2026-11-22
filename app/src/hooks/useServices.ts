@@ -409,6 +409,20 @@ export function useDisablePitr() {
   })
 }
 
+export function useRestorePitrToNewService() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, targetTime, name }: { id: string; targetTime: string; name: string }) =>
+      api.services.restorePitrToNewService(id, targetTime, name),
+    onSuccess: ({ service }, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'recovery'] })
+      if (service.projectId) queryClient.invalidateQueries({ queryKey: ['projects', service.projectId, 'services'] })
+      toast.success(`Recovering into ${service.name}`)
+    },
+    // The dialog shows the error and keeps the user's choices.
+  })
+}
+
 export function useRunRestoreDrill() {
   const queryClient = useQueryClient()
   return useMutation({

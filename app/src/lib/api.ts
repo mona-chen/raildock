@@ -6,6 +6,7 @@
  */
 
 import type {
+  PitrRestore,
   Project,
   Environment,
   EnvironmentDuplicateSummary,
@@ -62,6 +63,7 @@ import {
   normalizeGitSource,
   normalizeBackupDestination,
   normalizeRecoveryOverview,
+  normalizePitrRestore,
   normalizeBackup,
   normalizeBackupSchedule,
 } from './apiTransforms'
@@ -598,6 +600,16 @@ export const servicesApi = {
 
   disablePitr: async (id: string): Promise<PostgresPitrConfig> =>
     fetchJson(`/api/services/${id}/recovery/pitr`, { method: 'DELETE' }),
+
+  // Recovers the database to `targetTime` into a NEW service in the same
+  // project/environment. The live database is never written.
+  restorePitrToNewService: async (id: string, targetTime: string, name: string): Promise<{ pitrRestore: PitrRestore; service: Service }> => {
+    const data = await fetchJson<{ pitrRestore: unknown; service: unknown }>(`/api/services/${id}/recovery/pitr/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ target_time: targetTime, name }),
+    })
+    return { pitrRestore: normalizePitrRestore(data.pitrRestore), service: normalizeService(data.service) }
+  },
 
   runRestoreDrill: async (id: string, backupId: string, targetTime?: string): Promise<RestoreDrill> =>
     fetchJson(`/api/services/${id}/recovery/backups/${backupId}/drills`, { method: 'POST', body: JSON.stringify({ target_time: targetTime }) }),

@@ -40,6 +40,8 @@ vi.mock('@/hooks/useServices', () => ({
   useConfigurePitr: () => ({ mutate: vi.fn(), isPending: false }),
   useDisablePitr: () => ({ mutate: vi.fn(), isPending: false }),
   useRunRestoreDrill: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestorePitrToNewService: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null }),
+  useServices: () => ({ data: [] }),
   useAddStorageMount: () => ({ mutate: vi.fn(), isPending: false }),
   useRemoveStorageMount: () => ({ mutate: vi.fn(), isPending: false }),
 }))

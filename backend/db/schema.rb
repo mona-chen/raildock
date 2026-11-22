@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -400,6 +400,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_030000) do
     t.index ["slug"], name: "index_organizations_on_slug", unique: true
   end
 
+  create_table "pitr_restores", force: :cascade do |t|
+    t.bigint "source_service_id"
+    t.bigint "restored_service_id"
+    t.bigint "backup_id"
+    t.bigint "project_id", null: false
+    t.datetime "target_time", null: false
+    t.string "service_name", null: false
+    t.string "status", default: "pending", null: false
+    t.string "isolated_resource_name"
+    t.text "log"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["backup_id"], name: "index_pitr_restores_on_backup_id"
+    t.index ["project_id"], name: "index_pitr_restores_on_project_id"
+    t.index ["restored_service_id"], name: "index_pitr_restores_on_restored_service_id"
+    t.index ["source_service_id", "created_at"], name: "index_pitr_restores_on_source_service_id_and_created_at"
+  end
+
   create_table "plugin_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "encrypted_value_ciphertext"
@@ -720,6 +741,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_030000) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_ssh_keys", "organizations"
   add_foreign_key "organizations", "users", column: "owner_id"
+  add_foreign_key "pitr_restores", "backups", on_delete: :nullify
+  add_foreign_key "pitr_restores", "projects"
+  add_foreign_key "pitr_restores", "services", column: "restored_service_id", on_delete: :nullify
+  add_foreign_key "pitr_restores", "services", column: "source_service_id", on_delete: :nullify
   add_foreign_key "plugin_settings", "plugins"
   add_foreign_key "postgres_pitr_configs", "backup_destinations"
   add_foreign_key "postgres_pitr_configs", "services"

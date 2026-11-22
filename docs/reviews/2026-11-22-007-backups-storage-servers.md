@@ -53,13 +53,17 @@ quoting externally):
 | Download artifact | No | Yes |
 | Restore-test in an isolated copy | No | Yes, manual and weekly automatic |
 | Safety snapshot before restore/delete | Staged restore | Yes, `DestructionSnapshot` |
-| PITR restore into the live database | n/a | **Not yet**: drills recover into an isolated instance |
+| PITR restore | n/a | Yes: recover to time T into a **new** service (staged, like Railway); never into the live database |
 
-RailDock covers more kinds of backup than Railway. Two gaps remain worth
+RailDock covers more kinds of backup than Railway. One gap remains worth
 closing:
 
-- **PITR recovery into the live database.** A "recover to time T" that
-  restores into a new service would mirror Railway's staged restore.
+- **Fixed — PITR could only be tested, not recovered.** Point-in-time →
+  "Recover to a new service" picks a moment inside the window and a name;
+  `PitrRestoreJob` replays WAL in an isolated instance, dumps the database,
+  loads it into a new Postgres service in the same environment, and checks the
+  table count before reporting success. The live database is never written,
+  and a failed recovery removes the half-built copy.
 - **Incremental volume snapshots.** RailDock takes a full tar each time.
 
 ## Backup UI/UX

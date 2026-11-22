@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, Clock, Loader2, ShieldCheck, ShieldX } from 'lucide-react'
+import { AlertCircle, Clock, DatabaseBackup, Loader2, ShieldCheck, ShieldX } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
-import { useRecovery, useConfigurePitr, useDisablePitr, useBackups, useRunRestoreDrill } from '@/hooks/useServices'
+import { useRecovery, useConfigurePitr, useDisablePitr, useBackups, useRunRestoreDrill, useRestorePitrToNewService, useServices } from '@/hooks/useServices'
 import type { Service, BackupDestination } from '@/types'
 import { SectionHeading } from './recovery/shared'
-import { formatDate, formatRelative, supportsPitr } from './recovery/lib'
+import { formatDate, formatRelative, pitrWindowError, suggestRecoveredName, supportsPitr } from './recovery/lib'
 
 const RETENTION_OPTIONS = [1, 3, 7, 14, 30, 90]
 
@@ -23,10 +23,16 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
   const configurePitr = useConfigurePitr()
   const disablePitr = useDisablePitr()
   const runDrill = useRunRestoreDrill()
+  const restoreToNew = useRestorePitrToNewService()
+  const { data: siblings = [] } = useServices(svc.projectId)
   const [destinationId, setDestinationId] = useState('')
   const [retentionDays, setRetentionDays] = useState(7)
   const [targetTime, setTargetTime] = useState('')
   const [confirmDisable, setConfirmDisable] = useState(false)
+  const [restoreTime, setRestoreTime] = useState('')
+  // `null` until the user edits it, so the suggestion follows new siblings.
+  const [restoreName, setRestoreName] = useState<string | null>(null)
+  const [confirmRestore, setConfirmRestore] = useState(false)
 
   if (!supportsPitr(svc)) {
     return <div className="py-16 text-center text-[13px] text-white/45">Point-in-time recovery is only available for PostgreSQL.</div>
@@ -60,6 +66,15 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
   const base = [...bases].reverse().find((backup) => !target || new Date(backup.createdAt) < target)
   const pitrDrills = (recovery?.drills ?? []).filter((drill) => bases.some((backup) => backup.id === drill.backupId))
   const lastVerified = pitrDrills.find((drill) => drill.status === 'succeeded')
+
+  const restores = recovery?.pitrRestores ?? []
+  const restoreInProgress = restores.some((restore) => restore.status === 'pending' || restore.status === 'running')
+  const sameEnvironment = siblings.filter((service) => !svc.environmentId || service.environmentId === svc.environmentId)
+  const newName = (restoreName ?? suggestRecoveredName(svc.name, sameEnvironment.map((service) => service.name))).trim()
+  const restoreTarget = restoreTime ? new Date(restoreTime) : null
+  const restoreError = restoreTime ? pitrWindowError(restoreTarget, earliest, pitr?.lastWalArchivedAt) : null
+  const nameTaken = sameEnvironment.some((service) => service.name.toLowerCase() === newName.toLowerCase())
+  const canRestore = Boolean(restoreTarget) && !restoreError && newName.length > 0 && !nameTaken && !restoreInProgress
 
   const save = (nextDestination: string, nextRetention: number) =>
     configurePitr.mutate({ id: serviceId, destinationId: nextDestination, retentionDays: nextRetention })
@@ -252,11 +267,95 @@ export default function PitrSubTab({ svc, serviceId }: { svc: Service; serviceId
               ))}
             </ul>
           )}
-          <p className="mt-3 text-[11px] text-white/30">
-            Recovering into the live database is not available from the dashboard yet; a tested recovery shows the data is there.
-          </p>
         </section>
       )}
+
+      {enabled && (
+        <section className="mt-4 rounded-lg border border-white/[0.07] p-4" aria-label="Recover to a new service">
+          <SectionHeading
+            title="Recover to a new service"
+            description={`Creates a new PostgreSQL service in this environment holding ${svc.name}'s data as of the moment you pick. ${svc.name} keeps running untouched; point your app at the copy once you have checked it.`}
+          />
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-[11px] text-white/45">
+              Recover to (your local time)
+              <input
+                type="datetime-local"
+                step={1}
+                value={restoreTime}
+                onChange={(event) => setRestoreTime(event.target.value)}
+                aria-invalid={Boolean(restoreError)}
+                className="mt-1 block rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/80 aria-invalid:border-red-400/50"
+              />
+            </label>
+            <label className="text-[11px] text-white/45">
+              New service name
+              <input
+                type="text"
+                value={restoreName ?? newName}
+                onChange={(event) => setRestoreName(event.target.value)}
+                aria-invalid={nameTaken}
+                className="mt-1 block min-w-[200px] rounded-md border border-white/8 bg-[#17171b] px-2 py-1.5 text-[12px] text-white/80 aria-invalid:border-red-400/50"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!canRestore}
+              onClick={() => { restoreToNew.reset(); setConfirmRestore(true) }}
+              className="inline-flex items-center gap-1.5 rounded-md bg-rail-purple px-3 py-1.5 text-[12px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-40"
+            >
+              <DatabaseBackup size={12} />
+              Recover to a new service
+            </button>
+          </div>
+          {restoreError && <p className="mt-2 text-[11px] text-red-300">{restoreError}</p>}
+          {nameTaken && <p className="mt-2 text-[11px] text-red-300">A service named {newName} already exists in this environment.</p>}
+          {restoreInProgress && <p className="mt-2 text-[11px] text-amber-300">A recovery is already running. Wait for it to finish before starting another.</p>}
+          {restores.length > 0 && (
+            <ul className="mt-3 space-y-1.5" aria-label="Recoveries into new services">
+              {restores.slice(0, 5).map((restore) => (
+                <li key={restore.id} className="flex items-start gap-2 text-[11px]">
+                  {restore.status === 'succeeded' ? <ShieldCheck size={12} className="mt-0.5 text-emerald-400" /> : restore.status === 'failed' ? <AlertCircle size={12} className="mt-0.5 text-red-400" /> : <Loader2 size={12} className="mt-0.5 animate-spin text-white/40" />}
+                  <span className="text-white/60">
+                    {restore.restoredServiceName ?? restore.serviceName} · to {formatDate(restore.targetTime)}
+                    {' · '}
+                    {restore.log || (restore.status === 'pending' ? 'Waiting for a backup worker' : restore.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      <ConfirmDialog
+        open={confirmRestore}
+        onOpenChange={setConfirmRestore}
+        title={`Recover into ${newName}?`}
+        description={
+          <>
+            A new PostgreSQL service <strong className="text-white/80">{newName}</strong> is created in this environment and loaded with{' '}
+            {svc.name}'s data as of {restoreTarget ? formatDate(restoreTarget.toISOString()) : 'the chosen moment'}. {svc.name} is not stopped or
+            changed, and nothing is linked to the new service until you do it.
+          </>
+        }
+        confirmLabel="Recover"
+        pending={restoreToNew.isPending}
+        error={restoreToNew.error?.message ?? null}
+        onConfirm={() => {
+          if (!restoreTarget) return
+          restoreToNew.mutate(
+            { id: serviceId, targetTime: restoreTarget.toISOString(), name: newName },
+            {
+              onSuccess: () => {
+                setConfirmRestore(false)
+                setRestoreTime('')
+                setRestoreName(null)
+              },
+            },
+          )
+        }}
+      />
 
       <ConfirmDialog
         open={confirmDisable}

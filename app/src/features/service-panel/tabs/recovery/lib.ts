@@ -84,3 +84,29 @@ export function triggerLabel(backup: Backup) {
 export function toggleId(list: string[], id: string) {
   return list.includes(id) ? list.filter((item) => item !== id) : [...list, id]
 }
+
+/**
+ * Why a point-in-time recovery target cannot be used, or null when it can.
+ * Mirrors the API: strictly after the oldest base backup and no later than
+ * the last archived WAL (or now, if nothing has been shipped yet).
+ */
+export function pitrWindowError(target: Date | null, earliest?: string | null, latest?: string | null, now = new Date()): string | null {
+  if (!target || !Number.isFinite(target.getTime())) return 'Pick the moment to recover to.'
+  if (!earliest) return 'No base backup exists yet to recover from.'
+  const upper = latest ? new Date(Math.min(new Date(latest).getTime(), now.getTime())) : now
+  if (target <= new Date(earliest) || target > upper) {
+    return `Pick a moment between ${formatDate(earliest)} and ${formatDate(upper.toISOString())}.`
+  }
+  return null
+}
+
+/** A free name for a recovered copy, e.g. `main-db-recovered-2`. */
+export function suggestRecoveredName(sourceName: string, taken: string[]) {
+  const used = new Set(taken.map((name) => name.toLowerCase()))
+  const base = `${sourceName}-recovered`
+  if (!used.has(base.toLowerCase())) return base
+  for (let index = 2; ; index++) {
+    const candidate = `${base}-${index}`
+    if (!used.has(candidate.toLowerCase())) return candidate
+  }
+}

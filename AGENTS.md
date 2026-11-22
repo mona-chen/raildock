@@ -186,8 +186,18 @@ When changing code that touches Rails credentials, ensure fresh installs still w
   on a service without those capabilities is invalid. Retention is 1–90 for every schedule.
 - Restore drills probe readiness per engine (`RestoreDrillJob#readiness_command`); never assume Postgres.
 - Point-in-time recovery only accepts a `verified` destination (`422 destination_unverified`); WAL ships
-  every minute unattended. Recovering a point in time into the *live* database is not implemented —
-  drills recover into an isolated instance.
+  every minute unattended. PITR never recovers into the *live* database: drills recover into an
+  isolated instance, and `POST /api/services/:id/recovery/pitr/restore` (`target_time`, `name`;
+  `update` permission) recovers into a **new** Postgres service in the same project/environment,
+  mirroring Railway's staged restore. The target must fall after the oldest completed `pitr_base`
+  and no later than the last archived WAL (`422 outside_window`); a taken name or a running restore
+  replies `409` (`name_taken`, `restore_in_progress`). `PitrRestoreJob` (queue `backups`, tracked by
+  `PitrRestore`) reuses `PostgresPhysicalRecovery`: while the verified isolated instance is up it
+  `pg_dump -Fc`s the source database (Dokku names it after the app, `.`/`-` → `_`), creates the new
+  datastore and loads it with `postgres:import`, then requires the new service to report the same
+  user-table count before it is marked `running`. On failure it removes only what it created (the
+  isolated instance, the new datastore and the never-live service record). Only the service's own
+  database is copied; extra databases in the source cluster are not.
 - A backup is only marked completed after its artifact is persisted and SHA-256 verified.
 - A backup is only marked completed once at least one copy exists. Remote copies are verified with `head_object` (size match) right after upload; request a destination that cannot be written and the run fails loudly instead of reporting success.
 - `BackupDestination.reachable_from(server)` resolves both the server's own destinations and its organization's, so a destination selectable in the UI is always writable by scheduled backups.

@@ -314,10 +314,26 @@ export interface RestoreDrill {
   completedAt?: string
 }
 
+/** A point-in-time recovery into a new service; the source is never written. */
+export interface PitrRestore {
+  id: string
+  sourceServiceId: string | null
+  restoredServiceId: string | null
+  restoredServiceName?: string | null
+  serviceName: string
+  targetTime: string
+  status: 'pending' | 'running' | 'succeeded' | 'failed'
+  log?: string | null
+  tableCount?: number | null
+  createdAt?: string
+  completedAt?: string | null
+}
+
 export interface RecoveryOverview {
   destinations: BackupDestination[]
   pitr?: PostgresPitrConfig | null
   drills: RestoreDrill[]
+  pitrRestores: PitrRestore[]
   /**
    * Which destinations a new backup starts from. `serviceDestinationIds` is
    * `null` until the service picks its own list, in which case the organization

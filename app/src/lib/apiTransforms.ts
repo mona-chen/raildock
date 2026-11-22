@@ -38,6 +38,7 @@ import type {
   Environment,
   BackupDestination,
   RecoveryOverview,
+  PitrRestore,
   Backup,
   BackupSchedule,
   ApiToken,
@@ -83,6 +84,14 @@ export function normalizeBackupSchedule(data: unknown): BackupSchedule {
   return camel as unknown as BackupSchedule
 }
 
+export function normalizePitrRestore(data: unknown): PitrRestore {
+  const camel = camelizeKeys(data) as Record<string, unknown>
+  for (const key of ['id', 'sourceServiceId', 'restoredServiceId', 'backupId', 'projectId']) {
+    if (camel[key] != null) camel[key] = String(camel[key])
+  }
+  return camel as unknown as PitrRestore
+}
+
 export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {
   const camel = camelizeKeys(data) as Record<string, unknown>
 
@@ -96,6 +105,7 @@ export function normalizeRecoveryOverview(data: unknown): RecoveryOverview {
       return { ...normalized, id: String(normalized.id), backupId: String(normalized.backupId) }
     })
   }
+  camel.pitrRestores = Array.isArray(camel.pitrRestores) ? camel.pitrRestores.map(normalizePitrRestore) : []
   if (camel.pitr) {
     const pitr = camel.pitr as Record<string, unknown>
     for (const key of ['id', 'serviceId', 'backupDestinationId']) {
