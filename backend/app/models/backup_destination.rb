@@ -1,3 +1,5 @@
+require "uri"
+
 class BackupDestination < ApplicationRecord
   belongs_to :server, optional: true
   belongs_to :organization, optional: true
@@ -65,8 +67,7 @@ class BackupDestination < ApplicationRecord
   validates :name, :bucket, :region, presence: true
   validates :provider, inclusion: { in: PROVIDERS.keys }
   validates :endpoint, presence: { message: "is required for this provider" }, if: -> { provider_preset[:endpoint_required] }
-  validates :endpoint, format: { with: %r{\Ahttps?://[^\s/]+}i, message: "must be an http(s) URL" },
-    allow_blank: true, if: :endpoint_changed?
+  validate :endpoint_is_an_http_url, if: :endpoint_changed?
   validates :name, uniqueness: { scope: :server_id }, if: -> { server_id.present? }
   validates :name, uniqueness: { scope: :organization_id }, if: -> { organization_id.present? }
   validates :encryption_key, format: { with: /\A[0-9a-f]{64}\z/i, message: "must be a 64-character hexadecimal recovery key" }
@@ -139,5 +140,16 @@ class BackupDestination < ApplicationRecord
       return if server_id.present? || organization_id.present?
 
       errors.add(:base, "must belong to a server or organization")
+    end
+
+    def endpoint_is_an_http_url
+      return if endpoint.blank?
+
+      uri = URI.parse(endpoint)
+      valid = uri.is_a?(URI::HTTP) && uri.host.present? && uri.userinfo.blank? &&
+        uri.query.blank? && uri.fragment.blank?
+      errors.add(:endpoint, "must be an http(s) URL") unless valid
+    rescue URI::InvalidURIError
+      errors.add(:endpoint, "must be an http(s) URL")
     end
 end
