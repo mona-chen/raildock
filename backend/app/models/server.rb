@@ -21,6 +21,8 @@ class Server < ApplicationRecord
   validates :host, uniqueness: { scope: :organization_id, case_sensitive: false }, if: :organization_id?
   validates :host, uniqueness: { scope: :user_id, case_sensitive: false }, if: -> { organization_id.blank? && user_id.present? }
   validate :ssh_key_format, if: -> { ssh_key.present? }
+  DEFAULT_SSH_PORT = 22
+  validates :ssh_port, numericality: { only_integer: true, greater_than: 0, less_than: 65_536 }
 
   enum :status, {
     connected: "connected",
@@ -59,6 +61,14 @@ class Server < ApplicationRecord
       user.organization_memberships.exists?(organization_id: owner[:organization_id])
   end
 
+  # Default server for a new project: a connected one first (ServerHealthCheckJob
+  # keeps `status` fresh), then the oldest, so the choice is stable.
+  def self.preferred_for_new_project(scope)
+    scope.order(Arel.sql("CASE servers.status WHEN 'connected' THEN 0 WHEN 'disconnected' THEN 1 ELSE 2 END"))
+      .order(:id)
+      .first
+  end
+
   def self.setup_owner_key(setup_id)
     "server_setup_owner:#{setup_id}"
   end
@@ -86,6 +96,12 @@ class Server < ApplicationRecord
 
   def ssh_user
     self[:ssh_user].presence || DokkuEngineConstants::SSH_USER
+  end
+
+  # Every SSH client goes through SshConnectionBuilder, which reads this, so a
+  # host with sshd on a non-standard port works for deploys, metrics and logs.
+  def ssh_port
+    self[:ssh_port].presence || DEFAULT_SSH_PORT
   end
 
   def default_proxy

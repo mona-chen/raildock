@@ -4,7 +4,7 @@ class SetupProgress
 
   class << self
     def start(setup_id)
-      write(setup_id, state: "connecting", logs: [], error: nil, server_id: nil)
+      write(setup_id, state: "connecting", logs: [], error: nil, server_id: nil, preflight: nil)
     end
 
     def log(setup_id, line, stream: nil)
@@ -30,12 +30,14 @@ class SetupProgress
       when "failed"
         current[:state] = "failed"
         current[:error] = sanitize(payload[:error])
+      when "preflight"
+        current[:preflight] = Array(payload[:checks]).map { |check| check.to_h.transform_values { |v| sanitize(v) } }
       when "completed"
         current[:state] = "completed"
         current[:server_id] = payload[:server_id]&.to_s
       end
 
-      write(setup_id, **current.slice(:state, :logs, :error, :server_id))
+      write(setup_id, **current.slice(:state, :logs, :error, :server_id, :preflight))
     end
 
     def get(setup_id)
@@ -44,13 +46,13 @@ class SetupProgress
 
     private
 
-    def write(setup_id, state:, logs:, error:, server_id:)
-      payload = default_payload(setup_id).merge(state: state, logs: logs || [], error: error, server_id: server_id)
+    def write(setup_id, state:, logs:, error:, server_id:, preflight: nil)
+      payload = default_payload(setup_id).merge(state: state, logs: logs || [], error: error, server_id: server_id, preflight: preflight)
       Rails.cache.write(cache_key(setup_id), payload, expires_in: CACHE_TTL)
     end
 
     def default_payload(setup_id)
-      { setup_id: setup_id, state: "connecting", logs: [], error: nil, server_id: nil }
+      { setup_id: setup_id, state: "connecting", logs: [], error: nil, server_id: nil, preflight: nil }
     end
 
     def cache_key(setup_id)

@@ -31,7 +31,7 @@ export function useTestServer() {
 }
 
 export function useProvisionServer() {
-  return useMutation<{ setupId: string }, Error, { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external'; name?: string; baseDomain?: string; autoDomains?: boolean; externalProxyNetwork?: string }>({
+  return useMutation<{ setupId: string }, Error, Parameters<typeof api.servers.provision>[0]>({
     mutationFn: api.servers.provision,
   })
 }

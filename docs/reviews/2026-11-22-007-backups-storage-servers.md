@@ -176,18 +176,28 @@ The fixes here were done in parallel with this review; see
   - Deleting a server silently orphaned its projects; it is now refused.
   - "Check connection" gave no feedback.
   - The detail page lacked "Remove server…".
+- **Fixed — closing the gaps with Coolify and Dokploy:**
+  - Each server has an SSH port (`servers.ssh_port`, default 22). Every SSH
+    client and the wizard use it.
+  - Provisioning runs read-only preflight checks before installing anything:
+    OS/arch, sudo, disk, RAM, ports 80/443, and whether the host can reach
+    `bootstrap.sh` (a private `app_url` raises a warning). The wizard shows
+    the results.
+  - New projects have a server picker. The default is a connected server, and
+    picking a foreign server is refused.
+  - `ServerHealthCheckJob` refreshes `status` every 5 minutes without holding
+    a DB lock during SSH.
+  - The interactive console no longer skips host-key verification.
+  - The wizard's server name now reaches the job (it was sent as `name`, but
+    only `server_name` was permitted).
 - **Open, compared with Coolify and Dokploy:**
-  - SSH port and jump host;
+  - jump host;
   - per-server keys and key rotation;
-  - preflight checks (OS/arch, disk, RAM, ports, outbound reach to
-    `bootstrap.sh`);
   - showing the host-key fingerprint before trusting it;
   - firewall, swap and Docker cleanup schedules;
   - build servers;
   - moving a project between servers (today `server_id` is only re-pointed);
-  - a server picker when creating a project (currently
-    `scoped_servers.first`);
-  - a periodic server health job, so status does not go stale.
+  - editing the SSH port of an existing server from the UI (the API accepts it).
 
 ## Dashboard-wide UI
 

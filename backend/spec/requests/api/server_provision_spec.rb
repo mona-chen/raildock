@@ -67,6 +67,17 @@ RSpec.describe "Api::ServersController provision", type: :request do
     expect(response.parsed_body["code"]).to eq("invalid_proxy_mode")
   end
 
+  it "passes the SSH port to the job and rejects an invalid one" do
+    expect {
+      post "/api/servers/provision", params: { server: { host: "192.168.1.61", ssh_port: "2222" } }, headers: org_headers
+    }.to have_enqueued_job(ProvisionServerJob).with(anything, organization.id, "192.168.1.61", "root", anything, hash_including(ssh_port: 2222))
+
+    expect {
+      post "/api/servers/provision", params: { server: { host: "192.168.1.62", ssh_port: "0" } }, headers: org_headers
+    }.not_to have_enqueued_job(ProvisionServerJob)
+    expect(response.parsed_body["code"]).to eq("invalid_ssh_port")
+  end
+
   it "returns 422 without an organization" do
     post "/api/servers/provision", params: { server: { host: "192.168.1.60" } }, headers: auth_headers(user)
     expect(response).to have_http_status(:forbidden)

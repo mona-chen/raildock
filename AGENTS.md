@@ -132,6 +132,36 @@ raises `sshd` connection limits (validated with `sshd -t`, reloading either the
 organization public key to an admin user's `~/.ssh/authorized_keys` first so
 `ProvisionServerJob` can connect and run the bootstrap for you.
 
+- **SSH port.** `servers.ssh_port` (default 22) is applied by `SshConnectionBuilder`,
+  the only place SSH options are built. `DokkuEngine`, `HostEngine`, the
+  console (`DokkuTerminalSession`), `LogsChannel`, `ServerTestService`,
+  `ProvisionServerJob` and `ServerHealthCheckJob` all go through it, so a new SSH
+  client must too: building `Net::SSH.start` options by hand loses the port
+  *and* the pinned host-key check.
+- **Preflight before bootstrap.** `ProvisionServerJob` runs `ServerPreflight`
+  over the admin session before `bootstrap.sh`. The checks are read-only: OS
+  (Ubuntu/Debian), arch (amd64/arm64), passwordless sudo for a non-root
+  admin, free disk on `/`, RAM, ports 80/443, and whether the host can `curl`
+  `<app_url>/bootstrap.sh`. A local or private `app_url` is a warning. Results go to
+  the wizard as one `{type: "preflight", checks: [...]}` message on the
+  `server_setup:<id>` stream and are kept in `SetupProgress#preflight` for
+  the polling fallback. Any `fail` stops the job before the host is modified;
+  `warn` is reported and the bootstrap runs. Busy 80/443 is only a warning:
+  it is expected behind an external proxy or on a host that already runs Dokku.
+  The bootstrap URL is the only interpolated value and is shell-escaped.
+- **Server picker.** `POST /api/projects` uses the `server_id` the user chose and
+  replies `422 invalid_server` for a server outside the organization rather than
+  quietly using another. Without one, `Server.preferred_for_new_project` picks a
+  connected server, then the oldest, from the organization's own servers (also
+  for instance admins). `preferredServerId` in `app/src/lib/projects.ts`
+  mirrors it for the dialog's default.
+- **Health job.** `ServerHealthCheckJob` (every 5 minutes on `maintenance`, one
+  sweep at a time) refreshes `status`, `status_checked_at` and `status_error`. It
+  runs a 10-second `version` probe with one retry, holds no transaction or row
+  lock during SSH, and writes back only those columns with `update_all`. It never
+  writes `host_key`. The `maintenance` worker has two threads so a sweep cannot
+  delay provisioning or a project deletion.
+
 - The setup id is issued by the server (`POST /servers/provision` returns it) and
   bound to the requesting user/organization; the wizard subscribes to the
   returned id, and `provision_status`/`ServerSetupChannel` refuse anyone else.

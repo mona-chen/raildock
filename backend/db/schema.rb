@@ -558,8 +558,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_010000) do
     t.string "proxy_mode", default: "managed", null: false
     t.string "public_ip"
     t.text "ssh_key_ciphertext"
+    t.integer "ssh_port", default: 22, null: false
     t.string "ssh_user", default: "dokku"
     t.string "status"
+    t.datetime "status_checked_at"
+    t.string "status_error"
     t.datetime "updated_at", null: false
     t.string "uptime"
     t.bigint "user_id"

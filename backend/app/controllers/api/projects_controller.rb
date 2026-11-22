@@ -21,10 +21,17 @@ module Api
 
     def create
       authorize_project!(nil, action: :create)
+      requested_server_id = (params[:project].is_a?(ActionController::Parameters) ? params[:project][:server_id] : params[:server_id]).presence
       project = Project.new(project_params)
+      # A server the caller picked but cannot use is an error, not a reason to
+      # quietly put the project somewhere else.
+      if requested_server_id && project.server_id.nil?
+        return render json: { error: "Server not found", code: "invalid_server" }, status: :unprocessable_entity
+      end
+
       project.organization = current_organization
       project.user = current_user unless current_organization
-      project.server ||= scoped_servers.first
+      project.server ||= Server.preferred_for_new_project(project_server_candidates)
       project.save!
       ActivityEvent.create!(project: project, service_name: "-", action: :created, message: "Project #{project.name} created")
       render json: project, status: :created
@@ -231,6 +238,12 @@ module Api
         end
       end
       sorted + services.reject { |s| sorted.include?(s) }
+    end
+
+    # The organization's own servers, even for an instance admin (whose
+    # scoped_servers is every server on the instance).
+    def project_server_candidates
+      current_organization ? Server.where(organization: current_organization) : scoped_servers
     end
 
     def project_params

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Check, Copy, Loader2, Server, Terminal } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, CircleCheck, CircleX, Copy, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
 import { useProvisionServer, useServers } from '@/hooks/useServers'
@@ -8,7 +8,8 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { Server as ServerRecord } from '@/types'
+import type { Server as ServerRecord, ServerPreflightCheck } from '@/types'
+import { parseSshPort } from '@/lib/servers'
 
 type Step = 'bootstrap' | 'connect'
 
@@ -29,6 +30,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [step, setStep] = useState<Step>('bootstrap')
   const [name, setName] = useState('')
   const [host, setHost] = useState('')
+  const [sshPort, setSshPort] = useState('22')
   const [adminUser, setAdminUser] = useState('root')
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [externalProxyNetwork, setExternalProxyNetwork] = useState('')
@@ -37,7 +39,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [setupId, setSetupId] = useState<string | null>(null)
   const [connectionTimeout, setConnectionTimeout] = useState(false)
 
-  const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
+  const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId, preflight } = useServerSetupLogs(setupId)
   const { data: servers = [], refetch: refetchServers } = useServers()
   // `host_key_fingerprint` is serialized by the API but not part of the shared Server type.
   const connectedServer = provisionServerId ? (servers.find((s) => s.id === String(provisionServerId)) as (ServerRecord & { hostKeyFingerprint?: string }) | undefined) : undefined
@@ -72,6 +74,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setStep('bootstrap')
     setName('')
     setHost('')
+    setSshPort('22')
     setAdminUser('root')
     setProxyMode('managed')
     setExternalProxyNetwork('')
@@ -123,6 +126,8 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`
   }
 
+  const parsedSshPort = parseSshPort(sshPort)
+
   const handleValidate = () => {
     if (!canCreate) {
       toast.error('Only organization owners can connect servers')
@@ -130,6 +135,10 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     }
     if (!name.trim() || !host.trim()) {
       toast.error('Server name and host are required')
+      return
+    }
+    if (parsedSshPort === null) {
+      toast.error('SSH port must be a number between 1 and 65535')
       return
     }
     if (proxyMode === 'external' && !externalProxyNetwork.trim()) {
@@ -141,6 +150,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setSetupId(null)
     provisionServer.mutate({
       host: host.trim(),
+      sshPort: parsedSshPort,
       adminUser: adminUser.trim() || 'root',
       name: name.trim(),
       baseDomain: baseDomain.trim() || undefined,
@@ -329,6 +339,18 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 />
               </div>
               <div className="col-span-2 sm:col-span-1">
+                <label htmlFor="ssh-port" className="text-[11px] text-[#8a8a99] block mb-1.5">SSH Port</label>
+                <input
+                  id="ssh-port"
+                  inputMode="numeric"
+                  value={sshPort}
+                  onChange={(e) => setSshPort(e.target.value)}
+                  aria-invalid={parsedSshPort === null}
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple aria-invalid:border-rail-red"
+                  placeholder="22"
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
                 <label htmlFor="admin-user" className="text-[11px] text-[#8a8a99] block mb-1.5">Admin User</label>
                 <input
                   id="admin-user"
@@ -403,6 +425,8 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 <label htmlFor="auto-domains" className="text-[11px] text-[#8a8a99]">Auto-assign temporary domains for new services</label>
               </div>
             </div>
+
+            {setupId && preflight && preflight.length > 0 && <PreflightChecklist checks={preflight} />}
 
             {setupId && (
               <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
@@ -483,7 +507,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               </button>
               <button
                 onClick={handleValidate}
-                disabled={!canCreate || !name.trim() || !host.trim() || isBusy}
+                disabled={!canCreate || !name.trim() || !host.trim() || parsedSshPort === null || isBusy}
                 className="flex-1 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isBusy && <Loader2 size={12} className="animate-spin" />}
@@ -495,5 +519,37 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+const PREFLIGHT_ICONS = {
+  pass: { Icon: CircleCheck, className: 'text-rail-green', label: 'Passed' },
+  warn: { Icon: AlertTriangle, className: 'text-rail-yellow', label: 'Warning' },
+  fail: { Icon: CircleX, className: 'text-rail-red', label: 'Failed' },
+} as const
+
+export function PreflightChecklist({ checks }: { checks: ServerPreflightCheck[] }) {
+  const failed = checks.some((c) => c.status === 'fail')
+  return (
+    <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden" data-testid="preflight-checklist">
+      <div className="px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0] flex items-center justify-between">
+        <span>Preflight checks</span>
+        <span className="text-[10px]">{failed ? 'Nothing was installed' : 'Ready to install'}</span>
+      </div>
+      <ul className="divide-y divide-[rgba(255,255,255,0.06)] bg-[#161618]">
+        {checks.map((check) => {
+          const { Icon, className, label } = PREFLIGHT_ICONS[check.status] ?? PREFLIGHT_ICONS.warn
+          return (
+            <li key={check.key} className="px-3 py-2 flex items-start gap-2 text-[11px]">
+              <Icon size={14} strokeWidth={2} className={`${className} mt-0.5 shrink-0`} aria-label={label} />
+              <div className="min-w-0">
+                <p className="text-white">{check.label}</p>
+                <p className="text-[10px] text-[#9292a3] break-words">{check.detail}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

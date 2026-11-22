@@ -40,7 +40,8 @@ module Api
       result = ServerTestService.new(
         organization: current_organization,
         host: test_params[:host],
-        ssh_user: test_params[:ssh_user]
+        ssh_user: test_params[:ssh_user],
+        ssh_port: test_params[:ssh_port]
       ).test
 
       audit_log(
@@ -78,6 +79,11 @@ module Api
         }, status: :unprocessable_entity
       end
 
+      ssh_port = Integer(provision_params[:ssh_port].presence || Server::DEFAULT_SSH_PORT, exception: false)
+      unless ssh_port&.between?(1, 65_535)
+        return render json: { error: "SSH port must be between 1 and 65535", code: "invalid_ssh_port" }, status: :unprocessable_entity
+      end
+
       setup_id = resolve_setup_id(provision_params[:setup_id])
       Server.record_setup_owner!(setup_id, organization_id: current_organization.id, user_id: current_user.id)
       SetupProgress.start(setup_id)
@@ -89,14 +95,16 @@ module Api
         provision_params[:admin_user].to_s.strip.presence || "root",
         Rails.application.config.x.app_url.presence || "#{request.protocol}#{request.host_with_port}",
         proxy_mode: proxy_mode,
-        server_name: provision_params[:server_name].to_s.strip.presence,
+        # The wizard sends `name`; older clients sent `server_name`.
+        server_name: (provision_params[:server_name].presence || provision_params[:name]).to_s.strip.presence,
         base_domain: provision_params[:base_domain].to_s.strip.presence,
         auto_domains: provision_params[:auto_domains].to_s != "false",
         external_proxy_network: provision_params[:external_proxy_network].to_s.strip.presence,
         external_proxy_http_entrypoint: provision_params[:external_proxy_http_entrypoint].to_s.strip.presence,
         external_proxy_https_entrypoint: provision_params[:external_proxy_https_entrypoint].to_s.strip.presence,
         external_proxy_cert_resolver: provision_params[:external_proxy_cert_resolver].to_s.strip.presence,
-        external_proxy_redirect_middleware: provision_params[:external_proxy_redirect_middleware].to_s.strip.presence
+        external_proxy_redirect_middleware: provision_params[:external_proxy_redirect_middleware].to_s.strip.presence,
+        ssh_port: ssh_port
       )
 
       audit_log(
@@ -256,7 +264,7 @@ module Api
     # overwritten by a later update from the client.
     def server_params(allow_host_key:)
       permitted = [
-        :name, :host, :ssh_key, :ssh_user, :default_proxy, :base_domain, :auto_domains,
+        :name, :host, :ssh_key, :ssh_user, :ssh_port, :default_proxy, :base_domain, :auto_domains,
         :proxy_mode, :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
         :external_proxy_redirect_middleware,
@@ -269,21 +277,21 @@ module Api
     end
 
     def test_params
-      params.require(:server).permit(:host, :ssh_user)
+      params.require(:server).permit(:host, :ssh_user, :ssh_port)
     rescue ActionController::ParameterMissing
-      params.permit(:host, :ssh_user)
+      params.permit(:host, :ssh_user, :ssh_port)
     end
 
     def provision_params
       params.require(:server).permit(
-        :host, :admin_user, :setup_id, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :host, :ssh_port, :admin_user, :setup_id, :proxy_mode, :name, :server_name, :base_domain, :auto_domains,
         :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
         :external_proxy_redirect_middleware
       )
     rescue ActionController::ParameterMissing
       params.permit(
-        :host, :admin_user, :setup_id, :proxy_mode, :server_name, :base_domain, :auto_domains,
+        :host, :ssh_port, :admin_user, :setup_id, :proxy_mode, :name, :server_name, :base_domain, :auto_domains,
         :external_proxy_network, :external_proxy_http_entrypoint,
         :external_proxy_https_entrypoint, :external_proxy_cert_resolver,
         :external_proxy_redirect_middleware

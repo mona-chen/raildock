@@ -14,6 +14,7 @@ import type {
   EnvironmentSyncResult,
   Service,
   Server,
+  ServerPreflightCheck,
   GitSource,
   GitRepo,
   GitHubAppConfig,
@@ -175,7 +176,7 @@ export const projectsApi = {
     return normalizeProject(data)
   },
 
-  create: async (data: { name: string; description: string; environment?: string }): Promise<Project> => {
+  create: async (data: { name: string; description: string; environment?: string; serverId?: string }): Promise<Project> => {
     const res = await fetchJson<unknown>('/api/projects', { method: 'POST', body: wrapBody('project', data) })
     return normalizeProject(res)
   },
@@ -776,12 +777,13 @@ export const serversApi = {
     return normalizeServer(res)
   },
 
-  test: async (data: { host: string; sshUser?: string }): Promise<ServerTestResult> => {
+  test: async (data: { host: string; sshUser?: string; sshPort?: number }): Promise<ServerTestResult> => {
     return fetchJson('/api/servers/test', { method: 'POST', body: wrapBody('server', data) })
   },
 
   provision: async (data: {
     host: string
+    sshPort?: number
     adminUser?: string
     setupId: string
     proxyMode?: 'managed' | 'external'
@@ -803,6 +805,7 @@ export const serversApi = {
     logs: Array<{ line: string; stream?: string; timestamp: string }>
     error?: string
     serverId?: string
+    preflight?: ServerPreflightCheck[] | null
   }> => {
     return fetchJson(`/api/servers/provision_status?setup_id=${encodeURIComponent(setupId)}`)
   },

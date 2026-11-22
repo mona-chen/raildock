@@ -506,7 +506,10 @@ export interface Server {
   name: string
   host: string
   sshUser?: string          // SSH user (defaults to 'dokku')
+  sshPort?: number          // SSH port (defaults to 22)
   status: 'connected' | 'disconnected' | 'error'
+  statusCheckedAt?: string | null  // last ServerHealthCheckJob probe
+  statusError?: string | null
   dokkuVersion: string
   dockerVersion: string
   os: string
@@ -525,6 +528,14 @@ export interface Server {
   baseDomain?: string
   autoDomains?: boolean
   publicIp?: string
+}
+
+/** One read-only check ProvisionServerJob runs before bootstrap.sh. */
+export interface ServerPreflightCheck {
+  key: string
+  label: string
+  status: 'pass' | 'warn' | 'fail'
+  detail: string
 }
 
 export interface DockerContainer {

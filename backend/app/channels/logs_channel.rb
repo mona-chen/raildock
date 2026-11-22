@@ -97,7 +97,8 @@ class LogsChannel < ApplicationCable::Channel
     end
 
     begin
-      Net::SSH.start(server.host, "dokku", key_data: [ server.ssh_key ], non_interactive: true, timeout: 10) do |ssh|
+      ssh_options = SshConnectionBuilder.new(server, user: "dokku").options.merge(timeout: 10)
+      Net::SSH.start(server.host, "dokku", ssh_options) do |ssh|
         channel = ssh.open_channel do |ch|
           ch.exec(log_cmd) do |_, success|
             unless success

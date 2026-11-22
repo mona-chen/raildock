@@ -97,7 +97,7 @@ RSpec.describe "Api::ServersController", type: :request do
           docker_version: "26.0.0"
         }
         service = instance_double(ServerTestService, test: result)
-        allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.100", ssh_user: nil).and_return(service)
+        allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.100", ssh_user: nil, ssh_port: nil).and_return(service)
 
         post "/api/servers/test", params: test_params, headers: org_headers
 

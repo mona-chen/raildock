@@ -24,7 +24,7 @@ RSpec.describe "Automated remote server setup flow", type: :request do
       docker_version: "26.0.0"
     }
     service = instance_double(ServerTestService, test: test_result)
-    allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.50", ssh_user: "dokku").and_return(service)
+    allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.50", ssh_user: "dokku", ssh_port: nil).and_return(service)
 
     post "/api/servers/test", params: { server: { host: "192.168.1.50", ssh_user: "dokku" } }, headers: org_headers
     expect(response).to have_http_status(:ok)

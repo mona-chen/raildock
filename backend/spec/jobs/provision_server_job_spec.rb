@@ -63,5 +63,33 @@ RSpec.describe ProvisionServerJob do
         "server_setup:#{setup_id}", hash_including(type: "failed")
       )
     end
+
+    it "stops before the bootstrap when preflight fails, on the requested SSH port" do
+      session = double("ssh")
+      expect(Net::SSH).to receive(:start).with("10.0.0.7", "root", hash_including(port: 2222)).and_yield(session)
+      allow(session).to receive(:exec!).and_return("os_id=centos\nos_version=9\narch=x86_64\nuid=0\ndisk_kb=99999999\nmem_kb=9999999\nport_80=free\nport_443=free\nreach=200\n")
+      expect(session).not_to receive(:open_channel)
+      expect(ServerTestService).not_to receive(:new)
+
+      described_class.perform_now(setup_id, organization.id, "10.0.0.7", "root", "https://raildock.example.com", ssh_port: 2222)
+
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "server_setup:#{setup_id}", hash_including(type: "preflight", checks: array_including(hash_including(key: "os", status: "fail")))
+      )
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "server_setup:#{setup_id}", hash_including(type: "failed", error: a_string_including("Preflight failed"))
+      )
+      expect(Server.where(host: "10.0.0.7")).to be_empty
+    end
+
+    it "rejects an out-of-range SSH port before connecting" do
+      expect(Net::SSH).not_to receive(:start)
+
+      described_class.perform_now(setup_id, organization.id, "10.0.0.8", "root", "https://x", ssh_port: 70_000)
+
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "server_setup:#{setup_id}", hash_including(type: "failed", error: a_string_including("SSH port"))
+      )
+    end
   end
 end

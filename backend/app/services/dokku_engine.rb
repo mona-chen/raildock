@@ -248,6 +248,10 @@ class DokkuEngine
 
   # ── App Lifecycle ────────────────────────────
 
+  def self.parse_version(output)
+    output.to_s[DokkuEngineConstants::DOKKU_VERSION_REGEX, 1]
+  end
+
   def dokku_version_command
     # The dokku SSH user is restricted to dokku subcommands, so "version" maps
     # to "dokku version". Other users must invoke the dokku binary explicitly.
@@ -1144,14 +1148,13 @@ class DokkuTerminalSession
   def open
     return false if @server.ssh_key.blank?
 
-    opts = {
-      key_data: [ @server.ssh_key ],
-      non_interactive: true,
-      timeout: DokkuEngineConstants::SSH_TIMEOUT,
-      verify_host_key: :never
-    }
+    # Same options as every other client: the server's SSH port and the
+    # pinned host key (a console session must not trust an unknown host).
+    user = @server.ssh_user || DokkuEngineConstants::SSH_USER
+    builder = SshConnectionBuilder.new(@server, user: user)
+    opts = builder.options.merge(timeout: DokkuEngineConstants::SSH_TIMEOUT)
 
-    @ssh = Net::SSH.start(@server.host, @server.ssh_user || DokkuEngineConstants::SSH_USER, opts)
+    @ssh = Net::SSH.start(@server.host, user, opts)
 
     @channel = @ssh.open_channel do |ch|
       ch.request_pty(term: "xterm-256color", chars_wide: 80, chars_high: 24) do |_, success|
