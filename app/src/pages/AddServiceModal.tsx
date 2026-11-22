@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
-  Database, Zap, Cog, Plus, Rocket, ChevronLeft,
+  Database, Zap, Cog, Plus, Play, ChevronLeft,
   Search, GitBranch, HelpCircle, FolderOpen, Check, Loader2,
-  Sparkles, AlertTriangle, ChevronDown,
+  PackageCheck, AlertTriangle, ChevronDown,
 } from 'lucide-react'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { useCreateService } from '@/hooks/useServices'
@@ -272,7 +272,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
       <ModalShell onClose={onClose} title="What would you like to build?">
         <div className="space-y-2.5">
           <TypeCard
-            icon={Rocket}
+            icon={Play}
             color="#8b5cf6"
             title="Deploy an app"
             description="Deploy from a Git repository or Docker image"
@@ -388,7 +388,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
           <div className="space-y-4">
             <button onClick={() => setDiscovery(null)} className="flex items-center gap-1 text-[12px] text-white/50 hover:text-white/70"><ChevronLeft size={14} /> Choose another repository</button>
             <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/4 p-4">
-              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><Sparkles size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. Choose which services to deploy, or leave them all selected.</p></div></div>
+              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-emerald-400/10 p-2"><PackageCheck size={16} className="text-emerald-400" /></div><div><h3 className="text-[14px] font-medium text-white/85">We found {applications} {applications === 1 ? 'app' : 'apps'}{databases ? ` and ${databases} ${databases === 1 ? 'database' : 'databases'}` : ''}</h3><p className="mt-1 text-[11px] leading-5 text-white/35">RailDock will use the repository's own deployment settings. Choose which services to deploy, or leave them all selected.</p></div></div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-white/40">{selectedCount} of {discovery.services.length} selected</span>
@@ -500,7 +500,7 @@ export default function AddServiceModal({ projectId, environmentId, onClose }: A
                 </div>
               </div>
             )}
-            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0 || selectedCount === 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-rail-purple py-2.5 text-[13px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}{isApplying ? 'Starting deployment…' : selectedCount === 0 ? 'Select a service to deploy' : allSelected && discovery.services.length > 1 ? 'Deploy all services' : `Deploy ${deployTarget}`}</button>
+            <button onClick={handleApplyDiscovery} disabled={isApplying || discovery.conflicts.length > 0 || selectedCount === 0} className="flex w-full items-center justify-center gap-2 rounded-lg bg-rail-purple py-2.5 text-[13px] font-medium text-white hover:bg-rail-purple-dark disabled:opacity-40">{isApplying ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}{isApplying ? 'Starting deployment…' : selectedCount === 0 ? 'Select a service to deploy' : allSelected && discovery.services.length > 1 ? 'Deploy all services' : `Deploy ${deployTarget}`}</button>
           </div>
         </ModalShell>
       )

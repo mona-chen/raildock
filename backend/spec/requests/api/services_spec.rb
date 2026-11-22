@@ -738,7 +738,7 @@ RSpec.describe "Api::ServicesController", type: :request do
           post "/api/services/#{service.id}/backup", headers: auth_headers(user)
 
           expect(response).to have_http_status(:unprocessable_entity)
-          expect(JSON.parse(response.body)["error"]).to match(/only available for databases/)
+          expect(JSON.parse(response.body)["code"]).to eq("backup_unsupported")
         end
       end
 

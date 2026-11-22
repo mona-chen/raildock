@@ -14,6 +14,7 @@ const { create, projects } = vi.hoisted(() => ({ create: vi.fn(), projects: [
 ] }))
 vi.mock('@/hooks/useProjects', () => ({ useProjects: () => ({ data: projects }), useCreateProject: () => ({ mutate: create }), useDestroyProject: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/components/OnboardingChecklist', () => ({ default: () => null }))
+vi.mock('@/hooks/useServers', () => ({ useServers: () => ({ data: [] }) }))
 beforeEach(() => { vi.clearAllMocks(); useCanvasStore.setState({ filter: 'all', searchQuery: '' }) })
 
 it('requires a project name, creates on Enter, and opens its canvas', async () => {

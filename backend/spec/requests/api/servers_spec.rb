@@ -97,7 +97,7 @@ RSpec.describe "Api::ServersController", type: :request do
           docker_version: "26.0.0"
         }
         service = instance_double(ServerTestService, test: result)
-        allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.100", ssh_user: nil).and_return(service)
+        allow(ServerTestService).to receive(:new).with(organization: organization, host: "192.168.1.100", ssh_user: nil, ssh_port: nil).and_return(service)
 
         post "/api/servers/test", params: test_params, headers: org_headers
 
@@ -240,6 +240,22 @@ RSpec.describe "Api::ServersController", type: :request do
     end
   end
 
+  describe "PATCH /api/servers/:id" do
+    it "does not let the client overwrite the pinned host key" do
+      server.update!(host_key: "ssh-ed25519 AAAAoriginal", host_key_fingerprint: "SHA256:original")
+
+      patch "/api/servers/#{server.id}",
+        params: { server: { name: "Renamed", host_key: "ssh-ed25519 AAAAattacker", host_key_fingerprint: "SHA256:attacker" } },
+        headers: org_headers
+
+      expect(response).to have_http_status(:ok)
+      server.reload
+      expect(server.name).to eq("Renamed")
+      expect(server.host_key).to eq("ssh-ed25519 AAAAoriginal")
+      expect(server.host_key_fingerprint).to eq("SHA256:original")
+    end
+  end
+
   describe "DELETE /api/servers/:id" do
     context "when unauthenticated" do
       it "returns 401" do
@@ -261,6 +277,20 @@ RSpec.describe "Api::ServersController", type: :request do
         delete "/api/servers/999999", headers: org_headers
 
         expect(response).to have_http_status(:not_found)
+      end
+
+      it "refuses to delete a server that projects still run on" do
+        create(:project, server: server, organization: organization, name: "Storefront")
+
+        expect {
+          delete "/api/servers/#{server.id}", headers: org_headers
+        }.not_to change(Server, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        body = response.parsed_body
+        expect(body["code"]).to eq("server_has_projects")
+        expect(body["projects"]).to eq([ "Storefront" ])
+        expect(body["error"]).to include("Storefront")
       end
 
       it "refuses to delete a server that still holds backup destinations" do

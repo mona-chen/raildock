@@ -38,6 +38,7 @@ test-click.png
 
 # Local data
 data/
+.sofia/
 
 # Coverage
 coverage/

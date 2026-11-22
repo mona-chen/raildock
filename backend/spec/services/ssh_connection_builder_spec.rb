@@ -21,6 +21,12 @@ RSpec.describe SshConnectionBuilder do
       expect(builder.options[:host_key_alias]).to eq("#{server.host}-root")
     end
 
+    it "connects on the server's SSH port, defaulting to 22" do
+      expect(described_class.new(server, user: "dokku").options[:port]).to eq(22)
+      server.update!(ssh_port: 2222)
+      expect(described_class.new(server, user: "dokku").options[:port]).to eq(2222)
+    end
+
     it "does not set a host_key_alias for non-root user" do
       builder = described_class.new(server, user: "dokku")
       expect(builder.options[:host_key_alias]).to be_nil

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronDown, Copy, Plus, Settings2, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, Copy, Info, Plus, Settings2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -165,7 +165,7 @@ export default function EnvironmentSwitcher({
               className="w-full rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0B0B0D] px-3 py-2.5 text-sm text-white outline-hidden transition-colors focus:border-[rgba(139,92,246,0.5)]"
             />
             <p className="flex items-center gap-1.5 pt-1 text-[10px] text-white/30">
-              <Sparkles size={11} className="text-rail-purple" />
+              <Info size={11} className="text-white/40" />
               Preview environments from pull requests are not enabled yet.
             </p>
           </div>

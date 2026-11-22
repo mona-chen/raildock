@@ -592,7 +592,7 @@ module Api
 
     def backup
       authorize_service!(@service, action: :update)
-      return render json: { error: "Backups are only available for databases" }, status: :unprocessable_entity unless @service.service_type_database?
+      return render json: { error: "Backups are only available for datastores that support export; snapshot this service's volumes instead", code: "backup_unsupported" }, status: :unprocessable_entity unless @service.logical_backup_supported?
       return render json: { error: "No server configured" }, status: :unprocessable_entity unless @service.project.server&.ssh_key.present?
 
       destination_ids = Array(params[:backup_destination_ids]).compact_blank.map(&:to_s)
@@ -612,7 +612,7 @@ module Api
 
     def restore
       authorize_service!(@service, action: :update)
-      return render json: { error: "Restores are only available for databases" }, status: :unprocessable_entity unless @service.service_type_database?
+      return render json: { error: "Restores are only available for datastores that support import", code: "restore_unsupported" }, status: :unprocessable_entity unless @service.logical_backup_supported?
 
       max_bytes = ENV.fetch("RAILDOCK_MAX_RESTORE_BYTES", 10.gigabytes).to_i
       if request.content_length.to_i > max_bytes
@@ -692,7 +692,7 @@ module Api
       return render json: { error: "Backup artifact is unavailable" }, status: :not_found unless backup.available?
 
       response.headers["Content-Type"] = "application/octet-stream"
-      response.headers["Content-Disposition"] = %(attachment; filename="#{@service.name}-#{backup.id}.backup")
+      response.headers["Content-Disposition"] = %(attachment; filename="#{@service.name.parameterize}-#{backup.id}#{artifact_extension(backup)}")
       self.response_body = Enumerator.new do |stream|
         BackupArtifactStore.new.materialize(backup) do |path|
           File.open(path, "rb") do |file|
@@ -804,7 +804,10 @@ module Api
     def create_backup_schedule
       authorize_service!(@service, action: :update)
 
-      schedule = @service.backup_schedules.create!(backup_schedule_params)
+      attributes = backup_schedule_params
+      return if refuse_unreachable_destinations(attributes)
+
+      schedule = @service.backup_schedules.create!(attributes)
       schedule.update_next_run!
       render json: schedule, status: :created
     end
@@ -813,7 +816,18 @@ module Api
       authorize_service!(@service, action: :update)
 
       schedule = @service.backup_schedules.find(params[:schedule_id])
-      schedule.update!(backup_schedule_params)
+      attributes = backup_schedule_params
+      return if refuse_unreachable_destinations(attributes)
+
+      schedule.assign_attributes(attributes)
+      # A new cadence takes effect from now, not after the old interval lapses.
+      schedule.next_run_at = schedule.calculate_next_run if schedule.frequency_changed?
+      # Resuming a paused schedule whose slot already passed would fire at once;
+      # schedule it a full interval out instead.
+      if schedule.enabled_changed? && schedule.enabled? && schedule.next_run_at.present? && schedule.next_run_at < Time.current
+        schedule.next_run_at = schedule.calculate_next_run
+      end
+      schedule.save!
       render json: schedule
     end
 
@@ -1232,15 +1246,62 @@ module Api
       ]
     end
 
-    def backup_schedule_params
-      params.require(:backup_schedule).permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, :enabled, destination_ids: [])
-            .tap do |permitted|
-              # Only rewrite destinations when the caller actually supplied the
-              # key, so a pause/resume toggle cannot wipe a schedule's destinations.
-              next unless permitted.key?(:destination_ids)
+    # Scheduled runs write to these destinations unattended, so an id this
+    # service cannot reach is refused when saved rather than failing at 3am.
+    def refuse_unreachable_destinations(attributes)
+      ids = Array(attributes.dig(:metadata, "destination_ids")).map(&:to_s)
+      return false if ids.empty?
 
-              permitted[:metadata] = { "destination_ids" => Array(permitted.delete(:destination_ids)).compact_blank }
-            end
+      reachable = BackupDestination.reachable_from(@service.project.server, organization: @service.project.organization).ids.map(&:to_s)
+      invalid = ids - reachable
+      return false if invalid.empty?
+
+      render json: { error: "Invalid backup destination(s): #{invalid.join(", ")}" }, status: :unprocessable_entity
+      true
+    end
+
+    # Extension matching what each engine's export actually writes, so a
+    # downloaded artifact opens with the right tool (pg_restore, mysql, tar…).
+    ARTIFACT_EXTENSIONS = {
+      "postgres" => ".dump",
+      "mysql" => ".sql",
+      "mariadb" => ".sql",
+      "mongo" => ".archive",
+      "redis" => ".rdb"
+    }.freeze
+
+    def artifact_extension(backup)
+      case backup.backup_kind
+      when "volume", "pitr_base" then ".tar.gz"
+      when "wal" then ".wal"
+      else ARTIFACT_EXTENSIONS.fetch(@service.subtype.to_s, ".backup")
+      end
+    end
+
+    # The dashboard serializes camelCase keys; accept both so the endpoint works
+    # for the UI, scripts and older clients alike.
+    BACKUP_SCHEDULE_KEY_ALIASES = {
+      "retentionCount" => "retention_count",
+      "backupKind" => "backup_kind",
+      "storageMountId" => "storage_mount_id",
+      "destinationIds" => "destination_ids"
+    }.freeze
+
+    def backup_schedule_params
+      raw = params.require(:backup_schedule)
+      BACKUP_SCHEDULE_KEY_ALIASES.each do |camel, snake|
+        raw[snake] = raw.delete(camel) if raw.key?(camel) && !raw.key?(snake)
+      end
+
+      permitted = raw.permit(:frequency, :retention_count, :backup_kind, :storage_mount_id, :enabled, destination_ids: []).to_h
+      # Only rewrite destinations when the caller actually supplied the key, so
+      # a pause/resume toggle cannot wipe a schedule's destinations. Returned
+      # as a plain hash: assigning a Hash back into permitted Parameters makes
+      # it unpermitted again, which made every schedule with destinations raise.
+      if permitted.key?("destination_ids")
+        permitted["metadata"] = { "destination_ids" => Array(permitted.delete("destination_ids")).map(&:to_s).compact_blank }
+      end
+      permitted.with_indifferent_access
     end
   end
 end

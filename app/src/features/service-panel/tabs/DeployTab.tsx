@@ -2,7 +2,7 @@ import LogText, { stripLogFormatting } from '@/features/shared/LogText'
 import ProcessScaling from './ProcessScaling'
 import { IconButton } from '@/components/ui/icon-button'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound, Rocket, RefreshCw, Hammer } from 'lucide-react'
+import { ChevronDown, ChevronRight, Terminal, Copy, Check, AlertTriangle, Link2, RotateCcw, ClipboardCopy, WrapText, Maximize2, Minimize2, Download, GitBranch, GitCommit, Timer, UserRound, Play, RefreshCw, Hammer } from 'lucide-react'
 import {
   useRollbackService,
   useServiceDeployments,
@@ -384,7 +384,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
           disabled={busy}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rail-purple text-white text-[12px] font-medium hover:bg-rail-purple-dark disabled:opacity-50 transition-colors"
         >
-          <Rocket size={13} /> Deploy latest
+          <Play size={13} /> Deploy latest
         </button>
         <button
           type="button"

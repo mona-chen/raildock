@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe BackupSchedule, type: :model do
-  let(:service) { create(:service) }
+  let(:service) { create(:service, :database) }
 
   it "is valid for a database schedule without a storage mount" do
     schedule = service.backup_schedules.new(frequency: "daily", retention_count: 7, backup_kind: "database")
@@ -88,7 +88,7 @@ RSpec.describe BackupSchedule, type: :model do
 
   describe "#destination_ids" do
     it "reads destination ids from metadata" do
-      schedule = service.backup_schedules.create!(
+      schedule = service.backup_schedules.new(
         frequency: "daily",
         retention_count: 7,
         metadata: { "destination_ids" => [ "dest-1", "dest-2" ] }
@@ -153,6 +153,18 @@ RSpec.describe BackupSchedule, type: :model do
       schedule.enforce_retention!
 
       expect(Backup.exists?(other_backup.id)).to be(true)
+    end
+  end
+
+  describe "validation" do
+    it "refuses a database schedule on a service that cannot export" do
+      schedule = create(:service).backup_schedules.new(frequency: "daily", retention_count: 7, backup_kind: "database")
+      expect(schedule).not_to be_valid
+    end
+
+    it "allows up to 90 copies, matching the dashboard" do
+      expect(service.backup_schedules.new(frequency: "daily", retention_count: 90)).to be_valid
+      expect(service.backup_schedules.new(frequency: "daily", retention_count: 91)).not_to be_valid
     end
   end
 end

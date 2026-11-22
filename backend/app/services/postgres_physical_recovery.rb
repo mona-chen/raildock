@@ -3,10 +3,19 @@ require "shellwords"
 # Restores into a private disposable volume/container. Never touches the live
 # database or publishes a port. A drill succeeds only after PostgreSQL replays
 # the archive, promotes, and answers a query outside recovery.
+#
+# Pass a block to `call` to read from the recovered instance (for example to
+# dump it into a new service) before it is removed. The block only runs once
+# the instance has been verified, and the isolated resource is removed
+# afterwards whether or not the block succeeds.
 class PostgresPhysicalRecovery
+  RESOURCE_NAME = /\Araildock-(?:drill|pitr)-[a-zA-Z0-9-]+\z/
+  DATABASE_NAME = /\A[a-zA-Z0-9_]+\z/
+  USER_TABLE_COUNT_SQL = "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')".freeze
+
   def initialize(backup, resource_name, target_time: nil)
     @backup = backup
-    raise "Invalid drill resource name" unless resource_name.match?(/\Araildock-drill-[a-zA-Z0-9-]+\z/)
+    raise "Invalid drill resource name" unless resource_name.match?(RESOURCE_NAME)
     @name = resource_name
     @target_time = target_time
     @host = HostEngine.new(backup.service.project.server)
@@ -52,9 +61,36 @@ class PostgresPhysicalRecovery
     # Bound startup/replay time. A failed or unreachable target is a failed drill.
     wait = "for attempt in $(seq 1 120); do result=$(#{query} 2>/dev/null) && [ \"$result\" = t ] && exit 0; sleep 1; done; docker logs --tail 40 #{q(@name)}; exit 1"
     check!(@host.run("sh -c #{q(wait)}"))
+    yield self if block_given?
     { recovered_at: @target_time&.iso8601, wal_count: wal_backups.count }
   ensure
     @host.run("docker rm -f #{q(@name)} >/dev/null 2>&1; docker volume rm #{q(@name)}")
+  end
+
+  # Read-only SQL against the recovered, isolated instance.
+  def query(database, sql)
+    raise "Invalid database name" unless database.to_s.match?(DATABASE_NAME)
+
+    check!(@host.run("docker exec #{q(@name)} psql -h /tmp -U postgres -d #{q(database)} -v ON_ERROR_STOP=1 -Atqc #{q(sql)}"))[:output].to_s.strip
+  end
+
+  def database_exists?(database)
+    raise "Invalid database name" unless database.to_s.match?(DATABASE_NAME)
+
+    query("postgres", "SELECT 1 FROM pg_database WHERE datname = '#{database}'") == "1"
+  end
+
+  # Number of user tables, used to prove a copy carries the same schema.
+  def table_count(database)
+    Integer(query(database, USER_TABLE_COUNT_SQL))
+  end
+
+  # Custom-format dump of one database from the recovered instance, written
+  # to a local file (the format Dokku's `postgres:import` expects).
+  def dump_database(database, path)
+    raise "Invalid database name" unless database.to_s.match?(DATABASE_NAME)
+
+    check!(@host.run_to_file("docker exec #{q(@name)} pg_dump -h /tmp -U postgres -Fc --no-owner --no-acl -d #{q(database)}", path))
   end
 
   private

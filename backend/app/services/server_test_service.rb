@@ -4,10 +4,11 @@ class ServerTestService
   class MissingOrganizationKey < StandardError; end
   class NoOrganization < StandardError; end
 
-  def initialize(organization:, host:, ssh_user: nil, host_key: nil)
+  def initialize(organization:, host:, ssh_user: nil, ssh_port: nil, host_key: nil)
     @organization = organization
     @host = host.to_s.strip
     @ssh_user = ssh_user.presence || DokkuEngineConstants::SSH_USER
+    @ssh_port = Integer(ssh_port.presence || Server::DEFAULT_SSH_PORT, exception: false) || Server::DEFAULT_SSH_PORT
     @host_key = host_key
   end
 
@@ -32,7 +33,7 @@ class ServerTestService
       end
 
       logs = [
-        "Connected to #{server.host} as #{server.ssh_user}",
+        "Connected to #{server.host}:#{server.ssh_port} as #{server.ssh_user}",
         "Host key fingerprint: #{server.host_key_fingerprint}",
         "OS: #{host_info[:os]}",
         "Uptime: #{host_info[:uptime]}",
@@ -45,6 +46,7 @@ class ServerTestService
         success: true,
         host: server.host,
         ssh_user: server.ssh_user,
+        ssh_port: server.ssh_port,
         host_key: server.host_key,
         host_key_fingerprint: server.host_key_fingerprint,
         dokku_version: result[:dokku_version],
@@ -75,6 +77,7 @@ class ServerTestService
       organization: @organization,
       host: @host,
       ssh_user: @ssh_user,
+      ssh_port: @ssh_port,
       status: :disconnected
     )
     server.ssh_key = private_key

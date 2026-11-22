@@ -32,4 +32,27 @@ RSpec.describe PostgresPhysicalRecovery do
     described_class.new(backup, name).call("/tmp/base.tar.gz")
     expect(host).to have_received(:run_with_file).with(include(wal.metadata["wal_name"]), "/tmp/wal")
   end
+
+  it "yields the verified instance for read-only use before removing it" do
+    allow(host).to receive(:run).with(/pg_database/).and_return(success: true, output: "1\n")
+    allow(host).to receive(:run_to_file).and_return(success: true, output: "")
+    steps = []
+
+    described_class.new(backup, "raildock-pitr-1-abc", target_time: 1.minute.from_now).call("/tmp/base.tar.gz") do |recovery|
+      steps << recovery.database_exists?("main_db")
+      recovery.dump_database("main_db", "/tmp/dump")
+    end
+
+    expect(steps).to eq([ true ])
+    expect(host).to have_received(:run_to_file).with(include("pg_dump", "-Fc", "--no-owner", "main_db"), "/tmp/dump")
+    expect(host).to have_received(:run).with(include("docker volume rm", "raildock-pitr-1-abc"))
+  end
+
+  it "refuses unsafe database names" do
+    expect { described_class.new(backup, name).query("x; rm -rf /", "SELECT 1") }.to raise_error(/Invalid database name/)
+  end
+
+  it "refuses resource names outside the isolated prefixes" do
+    expect { described_class.new(backup, "dokku.postgres.main") }.to raise_error(/Invalid drill resource name/)
+  end
 end

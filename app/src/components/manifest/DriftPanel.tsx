@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, CheckCircle2, GitCompareArrows, Info, Loader2, Sparkles } from 'lucide-react'
+import { ArrowRight, CheckCircle2, GitCompareArrows, GitMerge, Info, Loader2 } from 'lucide-react'
 import { useManifestDrift, useManifestMerge } from '@/hooks/useManifest'
 import ErrorState from '@/features/shared/ErrorState'
 import EmptyState from '@/features/shared/EmptyState'
@@ -172,7 +172,7 @@ export default function DriftPanel({ projectId, enabled, onMerge }: DriftPanelPr
           disabled={activeSelection.length === 0 || merge.isPending}
           className="flex items-center gap-1.5 rounded-lg bg-rail-purple/15 px-3 py-1.5 text-[12px] font-medium text-[#c4b5fd] transition-colors hover:bg-rail-purple/25 disabled:opacity-40"
         >
-          {merge.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+          {merge.isPending ? <Loader2 size={13} className="animate-spin" /> : <GitMerge size={13} />}
           {activeSelection.length > 0 ? `Merge ${activeSelection.length} into editor` : 'Merge into editor'}
         </button>
       </div>

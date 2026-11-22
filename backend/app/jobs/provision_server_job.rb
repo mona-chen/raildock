@@ -1,13 +1,17 @@
 require "net/ssh"
 require "base64"
 require "digest"
+require "shellwords"
 
 class ProvisionServerJob < ApplicationJob
-  queue_as :default
+  # Bootstrapping a host installs Docker, Dokku and plugins and can take many
+  # minutes. Keep it off the control-plane worker so it cannot hold a thread
+  # deployments need, and off `backups` so it cannot delay WAL archiving.
+  queue_as :maintenance
 
   def perform(setup_id, organization_id, host, admin_user, base_url, proxy_mode: "managed", server_name: nil, base_domain: nil, auto_domains: true,
               external_proxy_network: nil, external_proxy_http_entrypoint: nil, external_proxy_https_entrypoint: nil,
-              external_proxy_cert_resolver: nil, external_proxy_redirect_middleware: nil)
+              external_proxy_cert_resolver: nil, external_proxy_redirect_middleware: nil, ssh_port: Server::DEFAULT_SSH_PORT)
     organization = Organization.find(organization_id)
     org_key = organization.ensure_ssh_key!
 
@@ -19,20 +23,44 @@ class ProvisionServerJob < ApplicationJob
     public_key = org_key.public_key
     private_key = org_key.private_key
     proxy_mode = proxy_mode.to_s.presence || "managed"
+    ssh_port = Integer(ssh_port.presence || Server::DEFAULT_SSH_PORT, exception: false)
+
+    unless ssh_port&.between?(1, 65_535)
+      broadcast(setup_id, type: "failed", error: "SSH port must be between 1 and 65535")
+      return
+    end
+
+    unless Server::PROXY_MODES.include?(proxy_mode)
+      broadcast(setup_id, type: "failed", error: "Unknown proxy mode #{proxy_mode.inspect}")
+      return
+    end
+
+    # Checked again here (the API checks first) because a second wizard run
+    # could have connected the same host while this job was queued. Failing
+    # now avoids re-running the whole bootstrap only to hit the uniqueness
+    # validation at the end.
+    if (existing = Server.where(organization_id: organization.id).where("LOWER(host) = ?", host.to_s.downcase).first)
+      broadcast(setup_id, type: "failed", error: "#{host} is already connected as \"#{existing.name}\". Remove that server first or validate its connection instead.")
+      return
+    end
 
     if proxy_mode == "external" && external_proxy_network.blank?
       broadcast(setup_id, type: "failed", error: "External proxy mode requires EXTERNAL_PROXY_NETWORK")
       return
     end
 
-    broadcast(setup_id, type: "log", line: "Starting automated provisioning for #{host} (PROXY_MODE=#{proxy_mode})")
+    broadcast(setup_id, type: "log", line: "Starting automated provisioning for #{host}:#{ssh_port} (PROXY_MODE=#{proxy_mode})")
 
-    admin_server = build_admin_server(host, admin_user, private_key)
+    admin_server = build_admin_server(host, admin_user, private_key, ssh_port)
     builder = SshConnectionBuilder.new(admin_server, user: admin_user)
 
+    bootstrapped = false
     begin
       Net::SSH.start(host, admin_user, builder.options) do |ssh|
         broadcast(setup_id, type: "log", line: "Connected to #{host} as #{admin_user}")
+        next unless run_preflight(ssh, setup_id, base_url, proxy_mode)
+
+        bootstrapped = true
         run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode, external_proxy_network: external_proxy_network)
         host_keys = read_host_keys(ssh)
         if host_keys.present?
@@ -44,10 +72,11 @@ class ProvisionServerJob < ApplicationJob
     ensure
       builder.cleanup
     end
+    return unless bootstrapped
 
     broadcast(setup_id, type: "log", line: "Bootstrap complete. Validating Dokku connection...")
 
-    result = ServerTestService.new(organization: organization, host: host, ssh_user: "dokku", host_key: admin_server.host_key).test
+    result = ServerTestService.new(organization: organization, host: host, ssh_user: "dokku", ssh_port: ssh_port, host_key: admin_server.host_key).test
     unless result[:success]
       broadcast(setup_id, type: "failed", error: result[:error] || "Dokku validation failed")
       return
@@ -60,6 +89,7 @@ class ProvisionServerJob < ApplicationJob
       name: server_name.presence || "RailDock #{host}",
       host: host,
       ssh_user: "dokku",
+      ssh_port: ssh_port,
       ssh_key: private_key,
       status: :connected,
       host_key: result[:host_key] || admin_server.host_key,
@@ -80,7 +110,7 @@ class ProvisionServerJob < ApplicationJob
       external_proxy_redirect_middleware: external_proxy_redirect_middleware
     )
 
-    broadcast(setup_id, type: "completed", server_id: server.id, host: server.host)
+    broadcast(setup_id, type: "completed", server_id: server.id, host: server.host, host_key_fingerprint: server.host_key_fingerprint)
   rescue ActiveRecord::RecordNotFound
     broadcast(setup_id, type: "failed", error: "Organization not found")
   rescue => e
@@ -90,10 +120,33 @@ class ProvisionServerJob < ApplicationJob
 
   private
 
-  def build_admin_server(host, admin_user, private_key)
-    server = Server.new(host: host, ssh_user: admin_user, status: :disconnected)
+  def build_admin_server(host, admin_user, private_key, ssh_port)
+    server = Server.new(host: host, ssh_user: admin_user, ssh_port: ssh_port, status: :disconnected)
     server.ssh_key = private_key
     server
+  end
+
+  # Read-only checks before anything is installed. Results go to the wizard as
+  # one `preflight` message; any failing check stops here, before the host is
+  # modified.
+  def run_preflight(ssh, setup_id, base_url, proxy_mode)
+    broadcast(setup_id, type: "log", line: "Running preflight checks...")
+    preflight = ServerPreflight.new(base_url: base_url, proxy_mode: proxy_mode)
+    checks = preflight.run(ssh)
+
+    checks.each do |check|
+      broadcast(setup_id, type: "log", line: "[#{check[:status]}] #{check[:label]}: #{check[:detail]}",
+                stream: check[:status] == "pass" ? nil : "stderr")
+    end
+    broadcast(setup_id, type: "preflight", checks: checks)
+
+    if preflight.failed?
+      summary = preflight.failures.map { |c| "#{c[:label]}: #{c[:detail]}" }.join(" ")
+      broadcast(setup_id, type: "failed", error: "Preflight failed. Nothing was installed. #{summary}")
+      return false
+    end
+
+    true
   end
 
   def read_host_keys(ssh)
@@ -128,11 +181,7 @@ class ProvisionServerJob < ApplicationJob
   end
 
   def run_remote_bootstrap(ssh, setup_id, base_url, public_key, proxy_mode, external_proxy_network: nil)
-    script_url = "#{base_url.chomp('/')}/bootstrap.sh"
-    escaped_key = public_key.gsub("'", "'\"'\"'")
-    env = +"PROXY_MODE='#{proxy_mode}'"
-    env << " EXTERNAL_PROXY_NETWORK='#{external_proxy_network}'" if external_proxy_network.present?
-    command = "curl -fsSL #{script_url} | #{env} bash -s -- '#{escaped_key}'"
+    command = self.class.bootstrap_command(base_url, public_key, proxy_mode, external_proxy_network: external_proxy_network)
 
     broadcast(setup_id, type: "log", line: "$ #{command}")
 
@@ -163,6 +212,21 @@ class ProvisionServerJob < ApplicationJob
       broadcast(setup_id, type: "failed", error: "Bootstrap exited with status #{exit_status}")
       raise "Bootstrap failed"
     end
+  end
+
+  # Every interpolated value is shell-escaped: the proxy network and base URL
+  # are user-supplied and this string runs on the remote host. bootstrap.sh
+  # must run as root, so a non-root admin user goes through `sudo -n` (which
+  # fails immediately instead of hanging on a password prompt).
+  def self.bootstrap_command(base_url, public_key, proxy_mode, external_proxy_network: nil)
+    raise ArgumentError, "unknown proxy mode #{proxy_mode.inspect}" unless Server::PROXY_MODES.include?(proxy_mode.to_s)
+
+    script_url = "#{base_url.to_s.chomp('/')}/bootstrap.sh"
+    env = [ "PROXY_MODE=#{Shellwords.escape(proxy_mode.to_s)}" ]
+    env << "EXTERNAL_PROXY_NETWORK=#{Shellwords.escape(external_proxy_network.to_s)}" if external_proxy_network.present?
+
+    "if [ \"$(id -u)\" -eq 0 ]; then RD_SUDO=''; else RD_SUDO='sudo -n'; fi; " \
+      "curl -fsSL #{Shellwords.escape(script_url)} | $RD_SUDO env #{env.join(' ')} bash -s -- #{Shellwords.escape(public_key.to_s.strip)}"
   end
 
   def broadcast(setup_id, payload)

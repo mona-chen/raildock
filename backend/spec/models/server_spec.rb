@@ -41,7 +41,7 @@ RSpec.describe Server, type: :model do
   end
 
   describe "associations" do
-    it { is_expected.to have_many(:projects).dependent(:nullify) }
+    it { is_expected.to have_many(:projects).dependent(:restrict_with_error) }
   end
 
   describe "enums" do
@@ -101,11 +101,12 @@ RSpec.describe Server, type: :model do
   end
 
   describe "projects dependency" do
-    it "nullifies associated projects when destroyed" do
+    it "refuses to be destroyed while projects still reference it" do
       server = create(:server)
       project = create(:project, server: server)
-      expect { server.destroy }.not_to raise_error
-      expect(project.reload.server_id).to be_nil
+      expect(server.destroy).to be(false)
+      expect(server.errors.full_messages.join).to match(/projects/i)
+      expect(project.reload.server_id).to eq(server.id)
     end
   end
 end

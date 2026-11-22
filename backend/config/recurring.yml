@@ -53,6 +53,11 @@ production:
     class: ProxyDriftCheckJob
     schedule: every 6 hours
 
+  server_health_check:
+    class: ServerHealthCheckJob
+    queue: maintenance
+    schedule: every 5 minutes
+
   malware_scan:
     class: MalwareScanJob
     schedule: every hour at minute 5

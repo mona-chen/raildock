@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Check, Copy, Loader2, Server, Terminal } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, CircleCheck, CircleX, Copy, Loader2, Server, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useServerBootstrap } from '@/hooks/useOrganizations'
-import { useProvisionServer } from '@/hooks/useServers'
+import { useProvisionServer, useServers } from '@/hooks/useServers'
 import { useServerSetupLogs } from '@/hooks/useServerSetupLogs'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useCopy } from '@/hooks/useCopy'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { Server as ServerRecord, ServerPreflightCheck } from '@/types'
+import { parseSshPort } from '@/lib/servers'
 
 type Step = 'bootstrap' | 'connect'
 
@@ -28,7 +30,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [step, setStep] = useState<Step>('bootstrap')
   const [name, setName] = useState('')
   const [host, setHost] = useState('')
-  const [sshUser, setSshUser] = useState('dokku')
+  const [sshPort, setSshPort] = useState('22')
   const [adminUser, setAdminUser] = useState('root')
   const [proxyMode, setProxyMode] = useState<'managed' | 'external'>('managed')
   const [externalProxyNetwork, setExternalProxyNetwork] = useState('')
@@ -37,14 +39,20 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
   const [setupId, setSetupId] = useState<string | null>(null)
   const [connectionTimeout, setConnectionTimeout] = useState(false)
 
-  const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId } = useServerSetupLogs(setupId)
+  const { logs: provisionLogs, state: provisionState, error: provisionError, serverId: provisionServerId, preflight } = useServerSetupLogs(setupId)
+  const { data: servers = [], refetch: refetchServers } = useServers()
+  // `host_key_fingerprint` is serialized by the API but not part of the shared Server type.
+  const connectedServer = provisionServerId ? (servers.find((s) => s.id === String(provisionServerId)) as (ServerRecord & { hostKeyFingerprint?: string }) | undefined) : undefined
+  const hostKeyFingerprint = connectedServer?.hostKeyFingerprint
 
+  // Keep the dialog open on success so the pinned host-key fingerprint can be
+  // compared against the host before the user moves on.
   useEffect(() => {
     if (provisionState === 'completed') {
       toast.success('Server connected')
-      setTimeout(onClose, 1500)
+      refetchServers()
     }
-  }, [provisionState, onClose])
+  }, [provisionState, refetchServers])
 
   // If the job is still running after a while, surface a message so the user
   // knows we are still working. With the polling fallback this is just
@@ -66,7 +74,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     setStep('bootstrap')
     setName('')
     setHost('')
-    setSshUser('dokku')
+    setSshPort('22')
     setAdminUser('root')
     setProxyMode('managed')
     setExternalProxyNetwork('')
@@ -118,6 +126,8 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
     return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`
   }
 
+  const parsedSshPort = parseSshPort(sshPort)
+
   const handleValidate = () => {
     if (!canCreate) {
       toast.error('Only organization owners can connect servers')
@@ -127,27 +137,36 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
       toast.error('Server name and host are required')
       return
     }
+    if (parsedSshPort === null) {
+      toast.error('SSH port must be a number between 1 and 65535')
+      return
+    }
     if (proxyMode === 'external' && !externalProxyNetwork.trim()) {
       toast.error('External proxy network is required in external proxy mode')
       return
     }
 
     setConnectionTimeout(false)
-    const id = generateSetupId()
-    setSetupId(id)
+    setSetupId(null)
     provisionServer.mutate({
       host: host.trim(),
+      sshPort: parsedSshPort,
       adminUser: adminUser.trim() || 'root',
       name: name.trim(),
       baseDomain: baseDomain.trim() || undefined,
       autoDomains,
       proxyMode,
       externalProxyNetwork: proxyMode === 'external' ? externalProxyNetwork.trim() : undefined,
-      setupId: id,
+      // The API may mint its own id; always follow the one it returns, which
+      // is the channel the provisioning job broadcasts on.
+      setupId: generateSetupId(),
+    }, {
+      onSuccess: (result) => setSetupId(result.setupId),
     })
   }
 
   const isBusy = provisionState === 'live' || provisionState === 'connecting' || provisionServer.isPending
+  const isConnected = provisionState === 'completed'
 
   const renderStepIndicator = () => (
     <div className="flex items-center gap-2 mb-6">
@@ -279,7 +298,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     className="w-full px-3 py-2.5 bg-[#161618] border border-[rgba(255,255,255,0.08)] rounded-lg text-[10px] text-white font-mono outline-hidden resize-none"
                   />
                   <p className="text-[10px] text-[#9292a3] mt-1">
-                    Run this one-liner as <strong>root</strong> to install Docker/Dokku and authorize the key automatically.
+                    Run this one-liner as <strong>root</strong> (or replace <code className="text-[#8a8a99]">bash</code> with <code className="text-[#8a8a99]">sudo bash</code>) to install Docker/Dokku and authorize the key automatically.
                   </p>
                 </div>
               </div>
@@ -320,6 +339,18 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                 />
               </div>
               <div className="col-span-2 sm:col-span-1">
+                <label htmlFor="ssh-port" className="text-[11px] text-[#8a8a99] block mb-1.5">SSH Port</label>
+                <input
+                  id="ssh-port"
+                  inputMode="numeric"
+                  value={sshPort}
+                  onChange={(e) => setSshPort(e.target.value)}
+                  aria-invalid={parsedSshPort === null}
+                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple aria-invalid:border-rail-red"
+                  placeholder="22"
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
                 <label htmlFor="admin-user" className="text-[11px] text-[#8a8a99] block mb-1.5">Admin User</label>
                 <input
                   id="admin-user"
@@ -328,17 +359,9 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
                   placeholder="root"
                 />
-                <p className="text-[10px] text-[#9292a3] mt-1">Must have passwordless sudo or root access.</p>
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label htmlFor="ssh-user" className="text-[11px] text-[#8a8a99] block mb-1.5">Deployment User</label>
-                <input
-                  id="ssh-user"
-                  value={sshUser}
-                  onChange={(e) => setSshUser(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0B0B0D] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm text-white outline-hidden focus:border-rail-purple"
-                  placeholder="dokku"
-                />
+                <p className="text-[10px] text-[#9292a3] mt-1">
+                  Must already accept the organization key. If it is not root it needs passwordless sudo — setup runs through <code className="text-[#8a8a99]">sudo -n</code>. RailDock then deploys as Dokku&apos;s <code className="text-[#8a8a99]">dokku</code> user.
+                </p>
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <label htmlFor="proxy-mode-connect" className="text-[11px] text-[#8a8a99] block mb-1.5">Proxy Mode</label>
@@ -403,6 +426,8 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               </div>
             </div>
 
+            {setupId && preflight && preflight.length > 0 && <PreflightChecklist checks={preflight} />}
+
             {setupId && (
               <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden">
                 <div className="w-full flex items-center justify-between px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0]">
@@ -410,8 +435,7 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                   <span className="text-[10px]">
                     {provisionState === 'completed' && 'Completed'}
                     {provisionState === 'failed' && 'Failed'}
-                    {(provisionState === 'live' || provisionState === 'connecting') && 'Streaming...'}
-                    {!provisionState && 'Waiting...'}
+                    {(provisionState === 'live' || provisionState === 'connecting') && 'Streaming…'}
                   </span>
                 </div>
                 <div className="p-3 bg-[#161618] max-h-48 overflow-y-auto font-mono text-[10px] text-[#A0A0B0] space-y-1">
@@ -420,8 +444,22 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
                     <div key={i} className={log.stream === 'stderr' ? 'text-rail-red' : ''}>{log.line}</div>
                   ))}
                   {provisionError && <div className="text-rail-red">{provisionError}</div>}
-                  {provisionServerId && (
-                    <div className="text-rail-green">Server connected (ID: {provisionServerId})</div>
+                </div>
+              </div>
+            )}
+
+            {isConnected && (
+              <div className="p-3 rounded-lg bg-rail-green/10 border border-rail-green/20 flex items-start gap-2">
+                <Check size={14} className="text-rail-green mt-0.5 shrink-0" />
+                <div className="text-[11px] text-[#d8d8e0] min-w-0">
+                  <p className="font-medium text-rail-green">Server connected</p>
+                  {hostKeyFingerprint ? (
+                    <>
+                      <p className="opacity-90 mt-1">RailDock pinned this host key. Compare it with <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the host:</p>
+                      <p className="font-mono text-[10px] text-white break-all mt-1">{hostKeyFingerprint}</p>
+                    </>
+                  ) : (
+                    <p className="opacity-90 mt-1">{connectedServer ? 'No host key fingerprint was captured for this server.' : 'Loading host key fingerprint…'}</p>
                   )}
                 </div>
               </div>
@@ -450,6 +488,16 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               </div>
             )}
 
+            {isConnected ? (
+              <div className="flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
             <div className="flex gap-2">
               <button
                 onClick={() => setStep('bootstrap')}
@@ -459,16 +507,49 @@ export default function ServerSetupWizard({ isOpen, onClose }: ServerSetupWizard
               </button>
               <button
                 onClick={handleValidate}
-                disabled={!canCreate || !name.trim() || !host.trim() || isBusy}
+                disabled={!canCreate || !name.trim() || !host.trim() || parsedSshPort === null || isBusy}
                 className="flex-1 py-2 bg-rail-purple text-white text-xs font-medium rounded-lg hover:bg-rail-purple-dark disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isBusy && <Loader2 size={12} className="animate-spin" />}
                 {isBusy ? 'Connecting…' : 'Connect server'}
               </button>
             </div>
+            )}
           </div>
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+const PREFLIGHT_ICONS = {
+  pass: { Icon: CircleCheck, className: 'text-rail-green', label: 'Passed' },
+  warn: { Icon: AlertTriangle, className: 'text-rail-yellow', label: 'Warning' },
+  fail: { Icon: CircleX, className: 'text-rail-red', label: 'Failed' },
+} as const
+
+export function PreflightChecklist({ checks }: { checks: ServerPreflightCheck[] }) {
+  const failed = checks.some((c) => c.status === 'fail')
+  return (
+    <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden" data-testid="preflight-checklist">
+      <div className="px-3 py-2 bg-[#0B0B0D] text-[11px] text-[#A0A0B0] flex items-center justify-between">
+        <span>Preflight checks</span>
+        <span className="text-[10px]">{failed ? 'Nothing was installed' : 'Ready to install'}</span>
+      </div>
+      <ul className="divide-y divide-[rgba(255,255,255,0.06)] bg-[#161618]">
+        {checks.map((check) => {
+          const { Icon, className, label } = PREFLIGHT_ICONS[check.status] ?? PREFLIGHT_ICONS.warn
+          return (
+            <li key={check.key} className="px-3 py-2 flex items-start gap-2 text-[11px]">
+              <Icon size={14} strokeWidth={2} className={`${className} mt-0.5 shrink-0`} aria-label={label} />
+              <div className="min-w-0">
+                <p className="text-white">{check.label}</p>
+                <p className="text-[10px] text-[#9292a3] break-words">{check.detail}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

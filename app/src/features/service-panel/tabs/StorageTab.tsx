@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Archive, ChevronDown, ChevronRight, Database, FolderOpen, HardDrive, Link2, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Archive, ChevronDown, ChevronRight, Database, FolderOpen, Link2, Plus, Search, Trash2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAddStorageMount, useRecovery, useRemoveStorageMount, useSnapshotVolume } from '@/hooks/useServices'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { IconButton } from '@/components/ui/icon-button'
+import ConfirmDialog from '@/features/shared/ConfirmDialog'
+import { useAddStorageMount, useRemoveStorageMount, useSnapshotVolume } from '@/hooks/useServices'
 import VolumeFileBrowser from './VolumeFileBrowser'
 import type { Service, StorageMount, StorageMountKind } from '@/types'
 
@@ -27,7 +30,6 @@ export default function StorageTab({ svc }: { svc: Service }) {
   const addStorage = useAddStorageMount()
   const removeStorage = useRemoveStorageMount()
   const snapshotVolume = useSnapshotVolume()
-  const { data: recovery } = useRecovery(svc.id)
 
   const [kind, setKind] = useState<StorageMountKind>('volume')
   const [hostPath, setHostPath] = useState('')
@@ -35,7 +37,6 @@ export default function StorageTab({ svc }: { svc: Service }) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [pendingRemoval, setPendingRemoval] = useState<StorageMount | null>(null)
   const [browsingMount, setBrowsingMount] = useState<StorageMount | null>(null)
-  const [snapshotDestination, setSnapshotDestination] = useState('')
 
   const generatedHostPath = useMemo(() => {
     if (!containerPath) return ''
@@ -68,34 +69,16 @@ export default function StorageTab({ svc }: { svc: Service }) {
   return (
     <div className="min-h-full bg-[#111114]">
       <header className="border-b border-white/6 px-5 py-4">
-        <div className="flex items-center gap-2 text-[14px] font-medium text-white/85">
-          <HardDrive size={15} className="text-rail-purple" /> Persistent storage
-        </div>
-        <p className="mt-1 max-w-xl text-[12px] leading-5 text-white/35">
-          Mount a folder from your service so it survives redeploys and restarts.
+        <h2 className="text-[14px] font-medium text-white/85">Volumes</h2>
+        <p className="mt-1 max-w-xl text-[12px] leading-5 text-white/40">
+          Folders that survive redeploys and restarts. A snapshot goes to the same destinations as this service's backups.
         </p>
       </header>
 
       <section className="px-5 py-4">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Mounted paths</h3>
-          {svc.storageMounts.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Select value={snapshotDestination} onValueChange={(value) => setSnapshotDestination(value)}>
-                <SelectTrigger aria-label="Snapshot destination" className="rounded border border-white/[0.07] bg-[#17171b] px-2 py-1 text-[10px] text-white/50">
-                  <SelectValue placeholder="Local snapshots" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recovery?.destinations.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-[10px] text-white/20">{svc.storageMounts.length} attached</span>
-            </div>
-          )}
+          <h3 className="text-[12px] font-medium text-white/70">Mounted paths</h3>
+          {svc.storageMounts.length > 0 && <span className="text-[11px] text-white/35">{svc.storageMounts.length} attached</span>}
         </div>
 
         {svc.storageMounts.length ? (
@@ -122,37 +105,24 @@ export default function StorageTab({ svc }: { svc: Service }) {
                   <div className="mt-1 pl-5 text-[10px] text-white/20">Container path</div>
                 </div>
                 <div className="flex items-center">
-                  <button
-                    type="button"
+                  <IconButton
+                    title={`Snapshot ${mount.containerPath} now`}
                     disabled={!mount.id || snapshotVolume.isPending}
-                    onClick={() =>
-                      snapshotVolume.mutate({
-                        id: svc.id,
-                        storageMountId: mount.id,
-                        backupDestinationIds: snapshotDestination ? [snapshotDestination] : undefined,
-                      })
-                    }
-                    aria-label={`Snapshot ${mount.hostPath}`}
-                    className="rounded p-1.5 text-white/25 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30"
+                    onClick={() => snapshotVolume.mutate({ id: svc.id, storageMountId: mount.id })}
+                    className="hover:bg-emerald-500/10 hover:text-emerald-400"
                   >
-                    <Archive size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBrowsingMount(mount)}
-                    aria-label={`Browse ${mount.hostPath}`}
-                    className="rounded p-1.5 text-white/25 hover:bg-rail-purple/10 hover:text-rail-purple-light"
-                  >
-                    <Search size={13} />
-                  </button>
-                  <button
-                    type="button"
+                    <Archive />
+                  </IconButton>
+                  <IconButton title={`Browse ${mount.containerPath}`} onClick={() => setBrowsingMount(mount)}>
+                    <Search />
+                  </IconButton>
+                  <IconButton
+                    title={`Detach ${mount.containerPath}`}
                     onClick={() => setPendingRemoval(mount)}
-                    aria-label={`Remove ${mount.hostPath}`}
-                    className="rounded p-1.5 text-white/25 hover:bg-red-500/10 hover:text-red-400"
+                    className="hover:bg-red-500/10 hover:text-red-400"
                   >
-                    <Trash2 size={13} />
-                  </button>
+                    <Trash2 />
+                  </IconButton>
                 </div>
               </article>
             ))}
@@ -165,7 +135,7 @@ export default function StorageTab({ svc }: { svc: Service }) {
       </section>
 
       <section className="px-5 pb-5">
-        <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">Attach storage</h3>
+        <h3 className="mb-2 text-[12px] font-medium text-white/70">Attach a volume</h3>
         <form onSubmit={submit} className="rounded-lg border border-white/[0.07] bg-white/2 p-4">
           <label className="block text-[11px] text-white/50">
             Container path
@@ -248,57 +218,40 @@ export default function StorageTab({ svc }: { svc: Service }) {
         </form>
       </section>
 
-      {pendingRemoval && (
-        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
-            <div className="flex items-center gap-2 text-red-300">
-              <AlertTriangle size={16} />
-              <h3 className="text-[14px] font-medium">Detach persistent storage?</h3>
-            </div>
-            <p className="mt-3 text-[12px] leading-5 text-white/50">
-              The data on <span className="font-mono text-white/60">{pendingRemoval.hostPath}</span> is not deleted,
-              but the service will lose access to{' '}
-              <span className="font-mono text-white/60">{pendingRemoval.containerPath}</span>. A redeploy is required
-              for the change to take effect.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setPendingRemoval(null)} className="rounded-md px-3 py-1.5 text-[11px] text-white/45 hover:bg-white/5">
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  removeStorage.mutate(
-                    { id: svc.id, hostPath: pendingRemoval.hostPath },
-                    { onSuccess: () => setPendingRemoval(null) }
-                  )
-                }
-                className="rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] text-red-300 hover:bg-red-500/25"
-              >
-                Detach
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => { if (!open) setPendingRemoval(null) }}
+        title="Detach this volume?"
+        description={
+          pendingRemoval && (
+            <>
+              The data in <span className="font-mono text-white/70">{pendingRemoval.hostPath}</span> is kept, but the service
+              loses access to <span className="font-mono text-white/70">{pendingRemoval.containerPath}</span> on its next deploy.
+            </>
+          )
+        }
+        confirmLabel="Detach"
+        destructive
+        pending={removeStorage.isPending}
+        onConfirm={() => {
+          if (!pendingRemoval) return
+          removeStorage.mutate({ id: svc.id, hostPath: pendingRemoval.hostPath }, { onSuccess: () => setPendingRemoval(null) })
+        }}
+      />
 
-      {browsingMount && (
-        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-xl rounded-xl border border-white/9 bg-[#19191d] p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-[14px] font-medium text-white/85">Browse volume</h3>
-                <p className="mt-0.5 text-[11px] text-white/35">
-                  {browsingMount.hostPath} → {browsingMount.containerPath}
-                </p>
-              </div>
-              <button onClick={() => setBrowsingMount(null)} className="rounded p-1.5 text-white/25 hover:bg-white/5">
-                <X size={14} />
-              </button>
-            </div>
+      <Dialog open={browsingMount !== null} onOpenChange={(open) => { if (!open) setBrowsingMount(null) }}>
+        <DialogContent className="border-white/9 bg-[#19191d] text-white sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">Browse volume</DialogTitle>
+            <DialogDescription className="text-[11px] text-white/40">
+              {browsingMount?.hostPath} → {browsingMount?.containerPath}
+            </DialogDescription>
+          </DialogHeader>
+          {browsingMount && (
             <VolumeFileBrowser serviceId={svc.id} storageMountId={browsingMount.id} containerPath={browsingMount.containerPath} />
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

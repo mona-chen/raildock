@@ -21,6 +21,16 @@ vi.mock('@/hooks/useServices', () => ({
   useRemoveStorageMount: () => ({ mutate: vi.fn() }),
   useSnapshotVolume: () => ({ mutate: vi.fn(), isPending: false }),
   useRecovery: () => ({ data: null }),
+  useBackupSchedules: () => ({ data: [] }),
+  useVolumeSnapshots: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreateSnapshotSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateBackupSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useDestroyBackupSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestoreBackup: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteBackup: () => ({ mutate: vi.fn(), isPending: false }),
+  useRunRestoreDrill: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestorePitrToNewService: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null }),
+  useServices: () => ({ data: [] }),
   useDatabaseInfo: () => ({ data: null, isLoading: false }),
   useBackupService: () => ({ mutate: vi.fn(), isPending: false }),
   useRestoreService: () => ({ mutate: vi.fn(), isPending: false }),
@@ -266,9 +276,9 @@ describe('ServicePanel', () => {
     expect(screen.getByRole('tab', { name: 'Networking' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Metrics' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument()
-    // Domains and volumes are grouped under Networking, not separate tabs.
+    // Domains live under Networking; volumes live with their snapshots under Storage.
     expect(screen.queryByRole('tab', { name: 'Domains' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Storage' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Storage' })).toBeInTheDocument()
     // The shell is a header action, not a tab.
     expect(screen.getByRole('button', { name: 'Shell' })).toHaveAttribute('aria-pressed', 'false')
   })
@@ -326,15 +336,14 @@ describe('ServicePanel', () => {
     input.remove()
   })
 
-  it('groups domains and volumes under the Networking tab', () => {
+  // Volumes used to sit under Networking, away from the snapshots that protect them.
+  it('keeps volumes with their snapshots under Storage, and the old storage link still lands there', () => {
     ;(useService as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockService() })
 
-    renderWithClient(<ServicePanel serviceId="svc-1" onClose={vi.fn()} />)
+    renderWithClient(<MemoryRouter initialEntries={['/dashboard/project/1?service=svc-1&tab=storage']}><ServicePanel serviceId="svc-1" onClose={vi.fn()} /></MemoryRouter>)
 
-    expect(screen.queryByRole('tab', { name: 'Volumes' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Networking' }))
-    expect(screen.getByRole('tab', { name: 'Domains' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Volumes' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Storage' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Volumes' })).toBeInTheDocument()
   })
 
   it('reviews the interruption before stopping a running service', async () => {

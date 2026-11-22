@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Rocket, Database, Zap, Search, ChevronRight, GitBranch, FileCode, Loader2 } from 'lucide-react'
+import { Layers, Play, Database, Zap, Search, ChevronRight, GitBranch, FileCode, Loader2 } from 'lucide-react'
 import { useTemplates, useDeployTemplate } from '@/hooks/useServices'
 
 interface TemplateGalleryProps {
@@ -8,7 +8,7 @@ interface TemplateGalleryProps {
 }
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  stack: Rocket,
+  stack: Layers,
   database: Database,
   cache: Zap,
   search: Search,
@@ -55,7 +55,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
 
       {categories.map((category) => {
         const categoryTemplates = templates.filter((t) => t.category === category)
-        const Icon = CATEGORY_ICONS[category] || Rocket
+        const Icon = CATEGORY_ICONS[category] || Layers
         const color = CATEGORY_COLORS[category] || '#8b5cf6'
 
         return (
@@ -113,7 +113,7 @@ export default function TemplateGallery({ onUseAsManifest, projectId }: Template
                         disabled={isDeploying}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/60 bg-white/6 hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
                       >
-                        {isDeploying ? <Loader2 size={12} className="animate-spin" /> : <Rocket size={12} />}
+                        {isDeploying ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
                         {isDeploying ? 'Deploying...' : 'Deploy'}
                       </button>
                     </div>

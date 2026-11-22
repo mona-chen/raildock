@@ -2,7 +2,7 @@ import { Server, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import type { Server as ServerRecord } from '@/types'
 import ServerOverview from '@/features/servers/ServerOverview'
@@ -21,6 +21,7 @@ import HttpTrafficPanel from '@/features/servers/HttpTrafficPanel'
 import NetworkFlowSettings from '@/features/servers/NetworkFlowSettings'
 import HostMetricsPanel from '@/features/servers/HostMetricsPanel'
 import ConfirmDialog from '@/features/shared/ConfirmDialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default function ServerPage() {
   const { data: servers = [], isLoading, isError, refetch } = useServers()
@@ -51,6 +52,13 @@ export default function ServerPage() {
   const [redirectMiddleware, setRedirectMiddleware] = useState('')
   const [defaultLabels, setDefaultLabels] = useState('{}')
   const { data: networks = [], isLoading: networksLoading } = useNetworks(settingsServer?.id)
+  const validatingIds = validateServer.pendingIds ?? []
+  const removeProjectCount = removeTarget?.projectIds?.length ?? 0
+
+  const openRemove = (server: ServerRecord) => {
+    destroyServer.reset?.()
+    setRemoveTarget(server)
+  }
 
   const openSettings = (server: ServerRecord) => {
     setSettingsServer(server)
@@ -106,7 +114,7 @@ export default function ServerPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className={`mx-auto ${serverId?'max-w-7xl':'max-w-5xl'} space-y-5`}>
-          {serverId ? <><div className="flex items-center justify-between"><Link to="/dashboard/servers" className="text-xs text-[#a0a0b0] hover:text-white">Servers / {selectedServer?.name || 'Server'}</Link>{selectedServer&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="text-xs text-[#9292a3]">Server actions</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a20] text-white"><DropdownMenuItem onSelect={()=>openSettings(selectedServer)}>Proxy settings</DropdownMenuItem><DropdownMenuItem onSelect={()=>validateServer.mutate(selectedServer.id)}>Check connection</DropdownMenuItem><DropdownMenuItem onSelect={()=>setImportServer(selectedServer)}>Import containers</DropdownMenuItem><DropdownMenuItem onSelect={()=>setAdoptServer(selectedServer)}>Adopt datastores</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div>{selectedServer?<><nav className="flex gap-6 border-b border-white/10" aria-label="Server sections">{(['resources','http','flows'] as const).map(mode=><button key={mode} onClick={()=>setParams({tab:mode})} aria-current={metricsMode===mode?'page':undefined} className={`pb-3 text-sm border-b-2 ${metricsMode===mode?'text-[#c4b5fd] border-rail-purple-light':'text-[#9292a3] border-transparent'}`}>{mode==='resources'?'Resources':mode==='http'?'HTTP traffic':'Service connections'}</button>)}</nav>{metricsMode==='resources'?<HostMetricsPanel key={selectedServer.id} serverId={selectedServer.id}/>:metricsMode==='flows'?<NetworkFlowSettings key={selectedServer.id} serverId={selectedServer.id}/>:<HttpTrafficPanel key={selectedServer.id} serverId={selectedServer.id}/>}</>:isLoading?<p role="status">Loading server…</p>:<ErrorState title="Server unavailable" message="The server could not be loaded or you no longer have access." onRetry={()=>refetch()}/>}</> : <>
+          {serverId ? <><div className="flex items-center justify-between"><Link to="/dashboard/servers" className="text-xs text-[#a0a0b0] hover:text-white">Servers / {selectedServer?.name || 'Server'}</Link>{selectedServer&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="text-xs text-[#9292a3]">Server actions</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a20] text-white"><DropdownMenuItem onSelect={()=>openSettings(selectedServer)}>Proxy settings</DropdownMenuItem><DropdownMenuItem onSelect={()=>validateServer.mutate(selectedServer.id)} disabled={validatingIds.includes(selectedServer.id)}>{validatingIds.includes(selectedServer.id)?'Checking connection…':'Check connection'}</DropdownMenuItem><DropdownMenuItem onSelect={()=>setImportServer(selectedServer)}>Import containers</DropdownMenuItem><DropdownMenuItem onSelect={()=>setAdoptServer(selectedServer)}>Adopt datastores</DropdownMenuItem>{canCreateServer&&<><DropdownMenuSeparator/><DropdownMenuItem onSelect={()=>openRemove(selectedServer)} className="text-red-300">Remove server…</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}</div>{selectedServer?<><nav className="flex gap-6 border-b border-white/10" aria-label="Server sections">{(['resources','http','flows'] as const).map(mode=><button key={mode} onClick={()=>setParams({tab:mode})} aria-current={metricsMode===mode?'page':undefined} className={`pb-3 text-sm border-b-2 ${metricsMode===mode?'text-[#c4b5fd] border-rail-purple-light':'text-[#9292a3] border-transparent'}`}>{mode==='resources'?'Resources':mode==='http'?'HTTP traffic':'Service connections'}</button>)}</nav>{metricsMode==='resources'?<HostMetricsPanel key={selectedServer.id} serverId={selectedServer.id}/>:metricsMode==='flows'?<NetworkFlowSettings key={selectedServer.id} serverId={selectedServer.id}/>:<HttpTrafficPanel key={selectedServer.id} serverId={selectedServer.id}/>}</>:isLoading?<p role="status">Loading server…</p>:<ErrorState title="Server unavailable" message="The server could not be loaded or you no longer have access." onRetry={()=>refetch()}/>}</> : <>
 
           {servers.length > 0 && <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3 text-xs text-[#a0a0b0]"><span className="h-2 w-2 rounded-full bg-emerald-400" />{servers.filter((server) => server.status === 'connected').length} of {servers.length} connected</div><label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/2.5 px-3 py-2"><Search size={14} className="text-[#a0a0b0]" /><input aria-label="Search servers" placeholder="Find a server…" value={search} onChange={(event) => setSearch(event.target.value)} className="w-44 bg-transparent text-xs outline-hidden" /></label></div>}
           {isLoading ? (
@@ -143,8 +151,8 @@ export default function ServerPage() {
             filteredServers.map((srv) => <ServerOverview key={srv.id} server={srv}
               onResources={() => navigate(`/dashboard/servers/${srv.id}?tab=resources`)}
               onHttp={() => navigate(`/dashboard/servers/${srv.id}?tab=http`)}
-              onSettings={() => openSettings(srv)} onImport={() => setImportServer(srv)} onAdopt={() => setAdoptServer(srv)} onRemove={() => setRemoveTarget(srv)}
-              onValidate={() => validateServer.mutate(srv.id)} validating={validateServer.isPending} canRemove={canCreateServer} />)
+              onSettings={() => openSettings(srv)} onImport={() => setImportServer(srv)} onAdopt={() => setAdoptServer(srv)} onRemove={() => openRemove(srv)}
+              onValidate={() => validateServer.mutate(srv.id)} validating={validatingIds.includes(srv.id)} canRemove={canCreateServer} />)
 
           )}
 
@@ -185,6 +193,15 @@ export default function ServerPage() {
             ability to deploy or back them up from here.
           </>
         }
+        warning={
+          removeProjectCount > 0 ? (
+            <>
+              {removeProjectCount} {removeProjectCount === 1 ? 'project still runs' : 'projects still run'} on this
+              server. RailDock will not remove a server that projects depend on — move or delete them first.
+            </>
+          ) : undefined
+        }
+        error={destroyServer.error?.message ?? null}
         confirmLabel="Remove server"
         destructive
         confirmWord={removeTarget?.name}
@@ -197,8 +214,10 @@ export default function ServerPage() {
         onConfirm={async () => {
           if (!removeTarget) return
           try {
-            await destroyServer.mutateAsync(removeTarget.id)
+            const removedId = removeTarget.id
+            await destroyServer.mutateAsync(removedId)
             setRemoveTarget(null)
+            if (serverId === removedId) navigate('/dashboard/servers')
           } catch {
             /* error toast is surfaced by the mutation hook */
           }
@@ -221,11 +240,13 @@ export default function ServerPage() {
         />
       )}
 
-      {settingsServer && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center px-4" onClick={() => setSettingsServer(null)}>
-          <div className="bg-[#18181B] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-[560px] max-h-[90vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white">Proxy Settings</h3>
-            <p className="text-xs text-[#8a8a99] mt-1 mb-5">{settingsServer.name}</p>
+      <Dialog open={settingsServer !== null} onOpenChange={(open) => { if (!open) setSettingsServer(null) }}>
+        {settingsServer && (
+          <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Proxy settings</DialogTitle>
+              <DialogDescription>{settingsServer.name}</DialogDescription>
+            </DialogHeader>
 
             <div className="space-y-4">
               <div>
@@ -288,15 +309,15 @@ export default function ServerPage() {
               )}
             </div>
 
-            <div className="flex gap-2 mt-6">
-              <button onClick={() => setSettingsServer(null)} className="flex-1 py-2.5 border border-white/10 text-[#A0A0B0] text-xs rounded-lg">Cancel</button>
-              <button onClick={saveSettings} disabled={updateServer.isPending || (proxyMode === 'external' && !proxyNetwork)} className="flex-1 py-2.5 bg-rail-purple text-white text-xs font-medium rounded-lg disabled:opacity-50">
-                {updateServer.isPending ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSettingsServer(null)}>Cancel</Button>
+              <Button onClick={saveSettings} disabled={updateServer.isPending || (proxyMode === 'external' && !proxyNetwork)}>
+                {updateServer.isPending ? 'Saving…' : 'Save settings'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   )
 }

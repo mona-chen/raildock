@@ -267,7 +267,7 @@ export interface Backup {
 export interface BackupDestination {
   id: string
   name: string
-  provider: 's3' | 'r2'
+  provider: 's3' | 'r2' | 'b2' | 'wasabi' | 'spaces' | 'hetzner' | 'minio' | 'gcs'
   endpoint?: string
   region: string
   bucket: string
@@ -287,6 +287,8 @@ export interface BackupSchedule {
   enabled: boolean
   storageMountId?: string
   storageMount?: StorageMount
+  /** Off-site destinations this schedule writes to; empty means host only. */
+  destinationIds: string[]
   lastRunAt?: string
   nextRunAt?: string
 }
@@ -312,10 +314,26 @@ export interface RestoreDrill {
   completedAt?: string
 }
 
+/** A point-in-time recovery into a new service; the source is never written. */
+export interface PitrRestore {
+  id: string
+  sourceServiceId: string | null
+  restoredServiceId: string | null
+  restoredServiceName?: string | null
+  serviceName: string
+  targetTime: string
+  status: 'pending' | 'running' | 'succeeded' | 'failed'
+  log?: string | null
+  tableCount?: number | null
+  createdAt?: string
+  completedAt?: string | null
+}
+
 export interface RecoveryOverview {
   destinations: BackupDestination[]
   pitr?: PostgresPitrConfig | null
   drills: RestoreDrill[]
+  pitrRestores: PitrRestore[]
   /**
    * Which destinations a new backup starts from. `serviceDestinationIds` is
    * `null` until the service picks its own list, in which case the organization
@@ -488,7 +506,10 @@ export interface Server {
   name: string
   host: string
   sshUser?: string          // SSH user (defaults to 'dokku')
+  sshPort?: number          // SSH port (defaults to 22)
   status: 'connected' | 'disconnected' | 'error'
+  statusCheckedAt?: string | null  // last ServerHealthCheckJob probe
+  statusError?: string | null
   dokkuVersion: string
   dockerVersion: string
   os: string
@@ -507,6 +528,14 @@ export interface Server {
   baseDomain?: string
   autoDomains?: boolean
   publicIp?: string
+}
+
+/** One read-only check ProvisionServerJob runs before bootstrap.sh. */
+export interface ServerPreflightCheck {
+  key: string
+  label: string
+  status: 'pass' | 'warn' | 'fail'
+  detail: string
 }
 
 export interface DockerContainer {

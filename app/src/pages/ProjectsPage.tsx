@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Folder, Plus, Search, Box, Trash2, ArrowUpRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProjects, useCreateProject, useDestroyProject } from '@/hooks/useProjects'
-import { deletionInFlight } from '@/lib/projects'
+import { useServers } from '@/hooks/useServers'
+import { deletionInFlight, preferredServerId } from '@/lib/projects'
 import type { Project } from '@/types'
 
 import { useCanvasStore } from '@/stores/useCanvasStore'
@@ -28,6 +29,10 @@ export default function ProjectsPage() {
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newEnv, setNewEnv] = useState<'production' | 'staging' | 'development'>('production')
+  const { data: servers = [] } = useServers()
+  // Empty means "not chosen": follow the healthiest server until the user picks.
+  const [newServerId, setNewServerId] = useState('')
+  const selectedServerId = newServerId && servers.some((s) => s.id === newServerId) ? newServerId : preferredServerId(servers)
 
   const filtered = projects.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,11 +56,12 @@ export default function ProjectsPage() {
 
   const handleCreate = () => {
     if (!newName.trim()) return
-    createProject.mutate({ name: newName.trim(), description: newDesc, environment: newEnv }, {
+    createProject.mutate({ name: newName.trim(), description: newDesc, environment: newEnv, serverId: selectedServerId }, {
       onSuccess: (project) => {
         setNewName('')
         setNewDesc('')
         setNewEnv('production')
+        setNewServerId('')
         setShowCreate(false)
         handleOpenProject(project.id)
       },
@@ -188,6 +194,26 @@ export default function ProjectsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {servers.length > 0 && (
+                <div>
+                  <label htmlFor="project-server" className="text-[11px] text-[#8a8a99] block mb-1.5">Server</label>
+                  <Select value={selectedServerId} onValueChange={setNewServerId}>
+                    <SelectTrigger id="project-server">
+                      <SelectValue placeholder="Select a server" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {servers.map((server) => (
+                        <SelectItem key={server.id} value={server.id}>
+                          {server.name} · {server.host}{server.status === 'connected' ? '' : server.status === 'error' ? ' (unreachable)' : ' (not connected)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {servers.find((s) => s.id === selectedServerId)?.status === 'error' && (
+                    <p className="text-[10px] text-rail-red mt-1">RailDock could not reach this server on its last check. Deploys will fail until it is back.</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex gap-2 mt-5">
               <button
@@ -318,11 +344,13 @@ function ProjectCard({
             e.stopPropagation()
             handleDeleteClick()
           }}
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/4 transition-all"
+          type="button"
+          className="absolute top-4 right-4 inline-flex min-h-8 min-w-8 items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/4 transition-all"
           disabled={deletionPending}
           title={deletionPending ? 'Project deletion is in progress' : 'Delete project'}
+          aria-label={deletionPending ? 'Project deletion is in progress' : `Delete project ${project.name}`}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
         </button>
       </div>
 

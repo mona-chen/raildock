@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback, useContext, createContext } from 'react'
-import { Trash2, Loader2, Globe, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, ExternalLink, Search, SlidersHorizontal, Rocket } from 'lucide-react'
+import { Trash2, Loader2, Globe, Cpu, Wrench, AlertTriangle, Lock, Unlock, FileCode, Copy, Check, Github, GitBranch, ExternalLink, Search, SlidersHorizontal, Play } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { GitSource, Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
@@ -16,7 +16,7 @@ import { cn, confirmationFieldTone } from '@/lib/utils'
 const tabs = [
   { key: 'general', label: 'General', icon: SlidersHorizontal },
   { key: 'source', label: 'Source', icon: GitBranch },
-  { key: 'deploy', label: 'Deploy', icon: Rocket },
+  { key: 'deploy', label: 'Deploy', icon: Play },
   // Named "Routing" rather than "Networking": the panel already has a
   // Networking tab (domains and volumes), and two different things sharing one
   // label made the settings sidebar ambiguous to read — and to click.

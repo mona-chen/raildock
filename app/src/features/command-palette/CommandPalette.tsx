@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Activity, Folder, Hammer, Plus, RefreshCw, Rocket, Server, Settings } from 'lucide-react'
+import { Activity, Folder, Hammer, Play, Plus, RefreshCw, Server, Settings } from 'lucide-react'
 import {
   CommandDialog,
   CommandEmpty,
@@ -99,7 +99,7 @@ export default function CommandPalette() {
             <CommandSeparator />
             <CommandGroup heading="Selected service">
               <CommandItem value="deploy service" onSelect={() => run(() => deployService.mutate(selectedServiceId))}>
-                <Rocket />
+                <Play />
                 Deploy latest
               </CommandItem>
               <CommandItem value="restart service" onSelect={() => run(() => restartService.mutate(selectedServiceId))}>

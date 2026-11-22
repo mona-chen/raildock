@@ -15,6 +15,7 @@ class SshConnectionBuilder
 
   def options
     base = {
+      port: server.ssh_port.presence || Server::DEFAULT_SSH_PORT,
       key_data: [ server.ssh_key ].compact,
       keys_only: true,
       use_agent: false,

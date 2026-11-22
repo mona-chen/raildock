@@ -30,6 +30,48 @@ at `/rails/storage/backups` in production. A backup is only marked completed
 after its artifact is persisted and SHA-256 verified. Keep the directory on
 durable storage and include it in host-level disaster recovery.
 
+## Off-site backup destinations and recovery keys
+
+Settings → Backups manages organization destinations: Amazon S3, Cloudflare R2,
+Backblaze B2, Wasabi, DigitalOcean Spaces, Hetzner Object Storage, MinIO and
+Google Cloud Storage (S3 interoperability endpoint with HMAC keys). All of them
+use the S3 API. A destination is saved only after a write/read/delete probe
+succeeds; a failed probe leaves nothing behind. Editing credentials re-probes
+the new values first and keeps the stored ones if the probe fails. Blank secret
+fields keep the current secret. Verification writes to the bucket, so only
+owners and admins can run it. A destination that still holds backups, backup
+copies or a PITR configuration cannot be deleted.
+
+Every artifact sent to a destination is encrypted with that destination's
+recovery key (AES-256-GCM) before it leaves the host. RailDock stores the key
+encrypted in its own database, so restores from the dashboard never ask for it.
+Keep a copy off-host anyway: if the RailDock database is lost, the key is the
+only way to read what is in the bucket. RailDock shows a generated key once,
+when the destination is created. You can supply your own 64-character
+hexadecimal key instead. The key cannot be changed later, because existing
+artifacts depend on it.
+
+### Decrypting an artifact without RailDock
+
+The artifact format is `RAILDOCK-BACKUP-V1\0` (19 bytes), a 12-byte IV, the
+ciphertext, and a 16-byte GCM authentication tag at the end of the file.
+`openssl enc` cannot decrypt GCM, so use the bundled script. It needs only Ruby
+and its OpenSSL library:
+
+```bash
+# Download the object (path_prefix/... as shown on the backup copy)
+aws s3 cp s3://my-backups/raildock/<key> artifact.backup   # add --endpoint-url for non-AWS providers
+
+# Prompts for the recovery key without echoing it
+ruby scripts/decrypt-backup.rb artifact.backup artifact.out
+# or: RAILDOCK_RECOVERY_KEY=<64 hex chars> ruby scripts/decrypt-backup.rb artifact.backup artifact.out
+```
+
+The output is written only after the authentication tag verifies, so a wrong key
+or a truncated download fails without leaving a partial file. The decrypted file
+is the original artifact, such as a database dump or a volume tarball. Restore it
+with the datastore's usual tools.
+
 ## Email invitations
 
 Set `SMTP_ADDRESS`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `MAIL_FROM` in `.env`, or configure SMTP through Settings. Until SMTP is configured, invitations are created but their links must be shared manually.

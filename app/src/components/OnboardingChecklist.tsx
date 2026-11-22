@@ -7,7 +7,7 @@ import {
   Server,
   Folder,
   Box,
-  Rocket,
+  Play,
   X,
 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
@@ -49,7 +49,7 @@ const STEPS: Step[] = [
     id: 'deploy',
     label: 'Deploy',
     description: 'Push code and watch it go live',
-    icon: Rocket,
+    icon: Play,
     action: 'Deploy now',
   },
 ]

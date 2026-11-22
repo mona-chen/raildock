@@ -1,5 +1,9 @@
 class Server < ApplicationRecord
-  has_many :projects, dependent: :nullify
+  # Deleting a server must not silently detach the projects deployed on it:
+  # their apps keep running on the host with nothing in RailDock pointing at
+  # them. The controller refuses with `server_has_projects`; this is the
+  # backstop for any other caller.
+  has_many :projects, dependent: :restrict_with_error
   has_many :server_metrics, dependent: :delete_all
   has_many :http_traffic_buckets, dependent: :delete_all
   has_many :monitoring_incidents, dependent: :delete_all
@@ -17,6 +21,8 @@ class Server < ApplicationRecord
   validates :host, uniqueness: { scope: :organization_id, case_sensitive: false }, if: :organization_id?
   validates :host, uniqueness: { scope: :user_id, case_sensitive: false }, if: -> { organization_id.blank? && user_id.present? }
   validate :ssh_key_format, if: -> { ssh_key.present? }
+  DEFAULT_SSH_PORT = 22
+  validates :ssh_port, numericality: { only_integer: true, greater_than: 0, less_than: 65_536 }
 
   enum :status, {
     connected: "connected",
@@ -29,6 +35,43 @@ class Server < ApplicationRecord
 
   validates :proxy_mode, inclusion: { in: PROXY_MODES }
   validates :external_proxy_network, presence: true, if: :external_proxy?
+
+  SETUP_OWNER_TTL = 2.hours
+  SETUP_ID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+
+  # A provisioning setup id is a bearer handle for the setup log stream (which
+  # carries host details), so remember who started it and only let members of
+  # that organization read it.
+  def self.record_setup_owner!(setup_id, organization_id:, user_id:)
+    Rails.cache.write(setup_owner_key(setup_id), { organization_id: organization_id, user_id: user_id }, expires_in: SETUP_OWNER_TTL)
+  end
+
+  def self.setup_owner(setup_id)
+    return nil unless setup_id.to_s.match?(SETUP_ID_FORMAT)
+
+    Rails.cache.read(setup_owner_key(setup_id))
+  end
+
+  def self.setup_accessible_by?(setup_id, user, organization: nil)
+    owner = setup_owner(setup_id)
+    return false unless owner && user
+    return false if organization && organization.id.to_s != owner[:organization_id].to_s
+
+    owner[:user_id].to_s == user.id.to_s ||
+      user.organization_memberships.exists?(organization_id: owner[:organization_id])
+  end
+
+  # Default server for a new project: a connected one first (ServerHealthCheckJob
+  # keeps `status` fresh), then the oldest, so the choice is stable.
+  def self.preferred_for_new_project(scope)
+    scope.order(Arel.sql("CASE servers.status WHEN 'connected' THEN 0 WHEN 'disconnected' THEN 1 ELSE 2 END"))
+      .order(:id)
+      .first
+  end
+
+  def self.setup_owner_key(setup_id)
+    "server_setup_owner:#{setup_id}"
+  end
 
   # Shared Lockbox instance for encryption/decryption (class-level for efficiency)
   LOCKBOX = Lockbox.new(key: Lockbox.master_key, encode: true)
@@ -53,6 +96,12 @@ class Server < ApplicationRecord
 
   def ssh_user
     self[:ssh_user].presence || DokkuEngineConstants::SSH_USER
+  end
+
+  # Every SSH client goes through SshConnectionBuilder, which reads this, so a
+  # host with sshd on a non-standard port works for deploys, metrics and logs.
+  def ssh_port
+    self[:ssh_port].presence || DEFAULT_SSH_PORT
   end
 
   def default_proxy

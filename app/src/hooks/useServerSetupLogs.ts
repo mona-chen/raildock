@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { getCable, isCableAvailable } from '@/lib/cable'
 import { api } from '@/lib/api'
 import { debugLog, debugWarn } from '@/lib/debug'
+import { camelizeKeys } from '@/lib/apiTransforms'
+import type { ServerPreflightCheck } from '@/types'
 
 interface SetupLog {
   line: string
@@ -14,6 +16,7 @@ export function useServerSetupLogs(setupId: string | null) {
   const [state, setState] = useState<'idle' | 'connecting' | 'live' | 'completed' | 'failed'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [serverId, setServerId] = useState<string | null>(null)
+  const [preflight, setPreflight] = useState<ServerPreflightCheck[] | null>(null)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null)
 
   useEffect(() => {
@@ -25,6 +28,7 @@ export function useServerSetupLogs(setupId: string | null) {
     setState('connecting')
     setError(null)
     setServerId(null)
+    setPreflight(null)
     setLogs([])
 
     let cancelled = false
@@ -45,8 +49,10 @@ export function useServerSetupLogs(setupId: string | null) {
             setState('failed')
             setError('WebSocket connection rejected')
           },
-          received(data: { type?: string; line?: string; stream?: string; error?: string; server_id?: string; host?: string }) {
-            if (data.type === 'log') {
+          received(data: { type?: string; line?: string; stream?: string; error?: string; server_id?: string; host?: string; checks?: unknown[] }) {
+            if (data.type === 'preflight') {
+              setPreflight(camelizeKeys(data.checks || []) as ServerPreflightCheck[])
+            } else if (data.type === 'log') {
               setLogs((current) => [
                 ...current,
                 { line: data.line || '', stream: data.stream, timestamp: new Date().toISOString() },
@@ -79,11 +85,13 @@ export function useServerSetupLogs(setupId: string | null) {
       logs?: SetupLog[]
       error?: string
       serverId?: string
+      preflight?: ServerPreflightCheck[] | null
     }) => {
       if (payload.logs?.length) setLogs(payload.logs)
       if (payload.state) setState(payload.state)
       if (payload.error) setError(payload.error)
       if (payload.serverId) setServerId(payload.serverId)
+      if (payload.preflight?.length) setPreflight(payload.preflight)
     }
 
     const poll = async () => {
@@ -96,6 +104,7 @@ export function useServerSetupLogs(setupId: string | null) {
           logs: data.logs,
           error: data.error,
           serverId: data.serverId,
+          preflight: data.preflight,
         })
 
         if (data.state === 'completed' || data.state === 'failed') {
@@ -117,5 +126,5 @@ export function useServerSetupLogs(setupId: string | null) {
     }
   }, [setupId])
 
-  return { logs, state, error, serverId }
+  return { logs, state, error, serverId, preflight }
 }

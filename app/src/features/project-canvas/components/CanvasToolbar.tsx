@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Ban, Box, ChevronDown, Rocket, RotateCcw, Square, Loader2, type LucideIcon } from 'lucide-react'
+import { Ban, Box, ChevronDown, Play, RotateCcw, Square, Loader2, type LucideIcon } from 'lucide-react'
 import ProjectNavigator from './ProjectNavigator'
 import EnvironmentSwitcher from './EnvironmentSwitcher'
 import {
@@ -145,7 +145,7 @@ export default function CanvasToolbar({
               onClick={() => { setPendingAction('deploy'); setOpen(false) }}
               className="text-[12px] cursor-pointer hover:bg-white/8 focus:bg-white/8 focus:text-white"
             >
-              <Rocket size={13} className="text-rail-purple" />
+              <Play size={13} className="text-rail-purple" />
               Deploy All Apps
             </DropdownMenuItem>
             <DropdownMenuItem

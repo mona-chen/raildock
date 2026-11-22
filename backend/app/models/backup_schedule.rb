@@ -3,9 +3,16 @@ class BackupSchedule < ApplicationRecord
   belongs_to :storage_mount, optional: true
 
   validates :frequency, inclusion: { in: %w[daily weekly monthly] }
-  validates :retention_count, numericality: { greater_than: 0, less_than_or_equal_to: 30 }
+  MAX_RETENTION = 90
+
+  before_validation :apply_default_retention
+
+  validates :retention_count, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_RETENTION }
   validates :backup_kind, inclusion: { in: %w[database volume] }
   validate :storage_mount_matches_service
+  # Checked only when the kind changes, so bookkeeping on an existing row
+  # (`update_next_run!` after a run) is never blocked.
+  validate :database_kind_matches_service, if: -> { new_record? || backup_kind_changed? }
 
   scope :enabled, -> { where(enabled: true) }
   scope :due, -> { enabled.where(next_run_at: ..Time.current) }
@@ -59,6 +66,21 @@ class BackupSchedule < ApplicationRecord
   end
 
   private
+    # A schedule created without an explicit window gets the cadence default
+    # instead of failing validation on a nil column.
+    def apply_default_retention
+      self.retention_count = self.class.default_retention_for(frequency) if retention_count.blank?
+    end
+
+    # A database schedule on an app service would fail on every run, so it is
+    # refused up front rather than surfacing as a stream of failed backups.
+    def database_kind_matches_service
+      return unless database?
+      return if service.nil? || service.logical_backup_supported?
+
+      errors.add(:backup_kind, "database is only available for datastores that support export")
+    end
+
     def storage_mount_matches_service
       return unless volume?
 

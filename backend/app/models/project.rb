@@ -4,6 +4,7 @@ class Project < ApplicationRecord
   belongs_to :server, optional: true
   has_many :services, dependent: :destroy
   has_many :activity_events, dependent: :destroy
+  has_many :pitr_restores, dependent: :delete_all
   has_many :manifest_operations, dependent: :destroy
   # Operations survive their project so a deletion can still be polled after
   # the row is gone; the pointer is nullified, not destroyed.

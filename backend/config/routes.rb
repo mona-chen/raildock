@@ -137,6 +137,7 @@ Rails.application.routes.draw do
       post "recovery/volumes/:storage_mount_id/snapshot", to: "recovery#snapshot_volume"
       put "recovery/pitr", to: "recovery#configure_pitr"
       delete "recovery/pitr", to: "recovery#disable_pitr"
+      post "recovery/pitr/restore", to: "recovery#restore_pitr"
       post "recovery/backups/:backup_id/drills", to: "recovery#create_drill"
       patch "recovery/preferences", to: "recovery#update_preferences"
       delete "env-vars/:key", to: "environment_variables#destroy"

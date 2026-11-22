@@ -38,8 +38,15 @@ vi.mock('@/hooks/useServices', () => ({
   useSnapshotVolume: () => ({ mutate: vi.fn(), isPending: false }),
   useCreateSnapshotSchedule: () => ({ mutate: vi.fn(), isPending: false }),
   useConfigurePitr: () => ({ mutate: vi.fn(), isPending: false }),
+  useDisablePitr: () => ({ mutate: vi.fn(), isPending: false }),
   useRunRestoreDrill: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestorePitrToNewService: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null }),
+  useServices: () => ({ data: [] }),
+  useAddStorageMount: () => ({ mutate: vi.fn(), isPending: false }),
+  useRemoveStorageMount: () => ({ mutate: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/features/service-panel/tabs/VolumeFileBrowser', () => ({ default: () => null }))
 
 vi.mock('@/lib/api', () => ({
   api: { services: { downloadBackup: vi.fn() } },
@@ -101,36 +108,69 @@ describe('BackupsTab', () => {
     }
   })
 
-  it('renders sub-tabs and defaults to Backups', () => {
+  it('defaults a datastore to database backups with point-in-time beside it', () => {
     renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
 
-    expect(screen.getByRole('tab', { name: /Backups/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByRole('tab', { name: /Snapshots/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Point-in-time recovery/i })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByText('Recovery')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Database backups/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Point-in-time/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByRole('tab', { name: /Volumes/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Database backups' })).toBeInTheDocument()
   })
 
   it('does not offer PostgreSQL recovery for other database engines', () => {
     renderWithClient(<BackupsTab svc={mockService({ subtype: 'mysql' })} serviceId="svc-1" />)
-    expect(screen.queryByRole('tab', { name: /Point-in-time recovery/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Point-in-time/i })).not.toBeInTheDocument()
   })
 
-  it('switches to Snapshots sub-tab', () => {
+  // Redis is typed as a cache, yet its plugin exports and imports dumps.
+  it('offers database backups for Redis', () => {
+    renderWithClient(<BackupsTab svc={mockService({ type: 'cache', subtype: 'redis' })} serviceId="svc-1" />)
+    expect(screen.getByRole('heading', { name: 'Database backups' })).toBeInTheDocument()
+  })
+
+  // An app has nothing to dump. It used to land on a database form whose
+  // buttons answered 422 "Backups are only available for databases".
+  it('shows an app its volumes directly, without database actions', () => {
+    renderWithClient(
+      <BackupsTab
+        svc={mockService({ type: 'app', subtype: 'web', storageMounts: [{ id: 'm1', hostPath: 'data', containerPath: '/data', kind: 'volume' }] })}
+        serviceId="svc-1"
+      />
+    )
+
+    expect(screen.queryByRole('tablist', { name: /Data protection sections/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Volumes' })).toBeInTheDocument()
+    expect(screen.getByText('Snapshot schedules')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Back up now/i })).not.toBeInTheDocument()
+  })
+
+  it('switches a datastore with mounts to its volumes', () => {
     renderWithClient(<BackupsTab svc={mockService({ storageMounts: [{ id: 'm1', hostPath: 'data', containerPath: '/data', kind: 'volume' }] })} serviceId="svc-1" />)
 
-    fireEvent.click(screen.getByRole('tab', { name: /Snapshots/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Volumes/i }))
 
-    expect(screen.getByRole('tab', { name: /Snapshots/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('Volume snapshots')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Volumes/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Snapshots')).toBeInTheDocument()
   })
 
-  it('switches to PITR sub-tab for postgres', () => {
+  it('switches to point-in-time recovery for postgres', () => {
     renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
 
-    fireEvent.click(screen.getByRole('tab', { name: /Point-in-time recovery/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Point-in-time/i }))
 
-    expect(screen.getByRole('tab', { name: /Point-in-time recovery/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('PostgreSQL point-in-time recovery')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Point-in-time/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Point-in-time recovery' })).toBeInTheDocument()
+  })
+
+  // WAL ships every minute unattended, so an unverified destination is not offered.
+  it('asks for a verified destination before point-in-time recovery can be turned on', () => {
+    recoveryState.destinations = [{ id: 'dest-1', name: 'Pending S3', status: 'pending' }]
+    renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
+
+    fireEvent.click(screen.getByRole('tab', { name: /Point-in-time/i }))
+
+    expect(screen.getByText(/None of your destinations has passed verification/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Turn on/i })).not.toBeInTheDocument()
   })
 
   // The app is served from a HashRouter, so a plain `href="/dashboard/..."`
@@ -179,6 +219,7 @@ describe('BackupsTab', () => {
 
     renderWithClient(<BackupsTab svc={mockService()} serviceId="svc-1" />)
 
+    fireEvent.click(screen.getByRole('button', { name: /Local only/i }))
     const checkbox = screen.getByText('Production S3').closest('label')!.querySelector('input')!
     fireEvent.click(checkbox)
 

@@ -26,8 +26,10 @@ default: &default
     # Destructive project teardown: snapshots first, then Dokku resource
     # removal. It can hold a project lock for a long time, so it gets its own
     # worker instead of delaying deployments or PITR WAL archiving.
+    # Server provisioning and the periodic health sweep share it too; the
+    # second thread keeps a sweep from delaying a provisioning run.
     - queues: [ maintenance ]
-      threads: 1
+      threads: 2
       processes: 1
       polling_interval: 0.5
 

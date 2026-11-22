@@ -157,6 +157,8 @@ RSpec.describe "Service backups", type: :request do
   describe "POST /api/services/:id/create_backup_schedule" do
     it "creates a volume snapshot schedule" do
       mount = service.storage_mounts.create!(host_path: "app-data", container_path: "/data", kind: "volume")
+      destination = server.backup_destinations.create!(name: "S3", provider: "s3", region: "us-east-1", bucket: "b",
+        access_key_id: "a", secret_access_key: "s")
 
       expect {
         post "/api/services/#{service.id}/create_backup_schedule", params: {
@@ -165,7 +167,7 @@ RSpec.describe "Service backups", type: :request do
             retention_count: 3,
             backup_kind: "volume",
             storage_mount_id: mount.id,
-            destination_ids: [ "dest-1" ]
+            destination_ids: [ destination.id.to_s ]
           }
         }, headers: auth_headers(user)
       }.to change(BackupSchedule, :count).by(1)
@@ -174,8 +176,47 @@ RSpec.describe "Service backups", type: :request do
       schedule = BackupSchedule.last
       expect(schedule.backup_kind).to eq("volume")
       expect(schedule.storage_mount_id).to eq(mount.id)
-      expect(schedule.destination_ids).to eq([ "dest-1" ])
+      expect(schedule.destination_ids).to eq([ destination.id.to_s ])
       expect(schedule.next_run_at).to be_present
+    end
+
+    # The dashboard sent camelCase keys that were silently dropped, so every
+    # schedule created from the UI failed validation.
+    it "accepts the camelCase keys the dashboard sends" do
+      post "/api/services/#{service.id}/create_backup_schedule", params: {
+        backup_schedule: { frequency: "weekly", retentionCount: 9, backupKind: "database" }
+      }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(BackupSchedule.last.retention_count).to eq(9)
+    end
+
+    it "falls back to the cadence's default retention when none is given" do
+      post "/api/services/#{service.id}/create_backup_schedule", params: {
+        backup_schedule: { frequency: "monthly" }
+      }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(BackupSchedule.last.retention_count).to eq(6)
+    end
+
+    it "refuses a destination the service cannot reach" do
+      post "/api/services/#{service.id}/create_backup_schedule", params: {
+        backup_schedule: { frequency: "daily", retention_count: 3, destination_ids: [ "999999" ] }
+      }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["error"]).to include("Invalid backup destination")
+    end
+
+    it "refuses a database schedule on an app that has nothing to dump" do
+      app = create(:service, project: project)
+
+      post "/api/services/#{app.id}/create_backup_schedule", params: {
+        backup_schedule: { frequency: "daily", retention_count: 3, backup_kind: "database" }
+      }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "rejects a volume schedule without a storage mount" do
@@ -189,6 +230,54 @@ RSpec.describe "Service backups", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.parsed_body["error"]).to include("Storage mount is required for volume snapshots")
+    end
+  end
+
+  describe "PATCH /api/services/:id/backup_schedules/:schedule_id" do
+    let!(:schedule) do
+      service.backup_schedules.create!(frequency: "monthly", retention_count: 6, backup_kind: "database").tap(&:update_next_run!)
+    end
+
+    it "moves the next run when the cadence changes" do
+      patch "/api/services/#{service.id}/backup_schedules/#{schedule.id}", params: {
+        backup_schedule: { frequency: "daily", retentionCount: 10 }
+      }, headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      schedule.reload
+      expect(schedule.retention_count).to eq(10)
+      expect(schedule.next_run_at).to be_within(1.minute).of(1.day.from_now)
+    end
+
+    it "does not fire a resumed schedule immediately for a slot it missed while paused" do
+      schedule.update!(enabled: false, next_run_at: 3.days.ago)
+
+      patch "/api/services/#{service.id}/backup_schedules/#{schedule.id}", params: {
+        backup_schedule: { enabled: true }
+      }, headers: auth_headers(user), as: :json
+
+      expect(schedule.reload.next_run_at).to be > Time.current
+    end
+  end
+
+  describe "POST /api/services/:id/backup" do
+    # Redis is typed as a cache, but its plugin exports and imports like a database.
+    it "backs up Redis" do
+      redis = create(:service, project: project, service_type: :cache, subtype: "redis", builder: nil)
+      allow(BackupJob).to receive(:perform_later)
+
+      post "/api/services/#{redis.id}/backup", headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:accepted)
+    end
+
+    it "points an app at volume snapshots instead" do
+      app = create(:service, project: project)
+
+      post "/api/services/#{app.id}/backup", headers: auth_headers(user), as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("backup_unsupported")
     end
   end
 end

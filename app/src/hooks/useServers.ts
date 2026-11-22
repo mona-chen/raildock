@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useMutationState, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import type { ServerTestResult } from '@/lib/api'
@@ -31,15 +31,36 @@ export function useTestServer() {
 }
 
 export function useProvisionServer() {
-  return useMutation<{ setupId: string }, Error, { host: string; adminUser?: string; setupId: string; proxyMode?: 'managed' | 'external'; name?: string; baseDomain?: string; autoDomains?: boolean; externalProxyNetwork?: string }>({
+  return useMutation<{ setupId: string }, Error, Parameters<typeof api.servers.provision>[0]>({
     mutationFn: api.servers.provision,
   })
 }
 
+const VALIDATE_SERVER_KEY = ['servers', 'validate'] as const
+
 export function useValidateServer() {
-  return useMutation({
-    mutationFn: api.servers.validate,
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationKey: VALIDATE_SERVER_KEY,
+    mutationFn: (id: string) => api.servers.validate(id),
+    onSuccess: (result: { success?: boolean; error?: string }) => {
+      if (result?.success === false) {
+        toast.error(`Connection check failed${result.error ? `: ${result.error}` : ''}`)
+      } else {
+        toast.success('Connection verified')
+      }
+    },
+    onError: (err) => toast.error(`Connection check failed: ${err.message}`),
+    // Status, versions and proxy details change on every check, pass or fail.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['servers'] }),
   })
+  // Track every in-flight check by server id so one card's check does not
+  // show every other card as "Checking…".
+  const pendingIds = useMutationState({
+    filters: { mutationKey: VALIDATE_SERVER_KEY, status: 'pending' },
+    select: (m) => String(m.state.variables),
+  })
+  return { ...mutation, pendingIds }
 }
 
 export function useUpdateServer() {
