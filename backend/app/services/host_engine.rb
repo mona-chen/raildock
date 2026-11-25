@@ -484,7 +484,7 @@ class HostEngine
 
   # Dokku web containers are named <app>.web.1
   # Dokku plugin containers are named dokku.<plugin>.<app>
-  def dokku_container_name(app_name)
+  def dokku_container_name(app_name, process_type: "web")
     # Get all running containers and find exact match
     result = run("docker ps --format '{{.Names}}'")
     return nil unless result[:success]
@@ -492,7 +492,7 @@ class HostEngine
     containers = result[:output].strip.split("\n")
 
     # Try exact match for regular app container first
-    exact = "#{app_name}.web.1"
+    exact = "#{app_name}.#{process_type}.1"
     return exact if containers.include?(exact)
 
     # Try plugin service containers

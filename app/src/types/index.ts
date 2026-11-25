@@ -246,6 +246,29 @@ export interface StorageMountEntry {
   size: number
 }
 
+export interface AppFileEntry {
+  type: 'file' | 'directory' | 'other'
+  name: string
+  size: number
+}
+
+export interface AppFileList {
+  path: string
+  entries: AppFileEntry[]
+  truncated: boolean
+  processType: string
+  processTypes: string[]
+}
+
+export interface AppFileContent {
+  path: string
+  name: string
+  size: number
+  binary: boolean
+  tooLarge: boolean
+  content: string | null
+}
+
 export interface LogEntry {
   timestamp: string
   processType: string

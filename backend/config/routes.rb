@@ -131,6 +131,10 @@ Rails.application.routes.draw do
 
     # Service sub-resource destroy actions (not shallow — stay under /services/:id/...)
     scope "/services/:service_id" do
+      get "files", to: "service_files#index"
+      get "files/content", to: "service_files#content"
+      get "files/download", to: "service_files#download"
+      post "files", to: "service_files#create"
       get "recovery", to: "recovery#show"
       post "recovery/destinations", to: "recovery#create_destination"
       post "recovery/destinations/:destination_id/verify", to: "recovery#verify_destination"

@@ -44,6 +44,8 @@ import type {
   UnmanagedDatastoreScan,
   StorageMountKind,
   StorageMountEntry,
+  AppFileList,
+  AppFileContent,
   DataTablesResponse,
   DataRowsResponse,
   ApiToken,
@@ -443,6 +445,47 @@ export const servicesApi = {
 
   browseStorageMount: async (id: string, storageMountId: string, path?: string): Promise<{ entries: StorageMountEntry[]; path: string; mount: string }> => {
     return fetchJson(`/api/services/${id}/storage/${storageMountId}/browse?path=${encodeURIComponent(path || '/')}`)
+  },
+
+  listFiles: async (id: string, path?: string, process?: string): Promise<AppFileList> => {
+    const query = new URLSearchParams()
+    if (path) query.set('path', path)
+    if (process) query.set('process', process)
+    const suffix = query.toString() ? `?${query}` : ''
+    return fetchJson(`/api/services/${id}/files${suffix}`)
+  },
+
+  readFile: async (id: string, path: string, process?: string): Promise<AppFileContent> => {
+    const query = new URLSearchParams({ path })
+    if (process) query.set('process', process)
+    return fetchJson(`/api/services/${id}/files/content?${query}`)
+  },
+
+  downloadFile: async (id: string, path: string, process?: string): Promise<Blob> => {
+    const query = new URLSearchParams({ path })
+    if (process) query.set('process', process)
+    const res = await fetch(`${API_BASE}/api/services/${id}/files/download?${query}`, { headers: getAuthHeaders() })
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload.error || 'File download failed')
+    }
+    return res.blob()
+  },
+
+  uploadFile: async (id: string, path: string, file: File, process?: string, overwrite = false): Promise<{ path: string; name: string; size: number }> => {
+    const headers = getAuthHeaders()
+    delete headers['Content-Type']
+    const body = new FormData()
+    body.append('file', file)
+    body.append('path', path)
+    body.append('overwrite', String(overwrite))
+    if (process) body.append('process', process)
+    const res = await fetch(`${API_BASE}/api/services/${id}/files`, { method: 'POST', headers, body })
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload.error || 'File upload failed')
+    }
+    return res.json()
   },
 
   logs: async (id: string): Promise<{ timestamp: string; processType: string; message: string }[]> => {

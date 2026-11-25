@@ -837,6 +837,35 @@ export function useBrowseStorageMount(id: string, storageMountId: string, path: 
   })
 }
 
+export function useServiceFiles(id: string, path: string, process: string) {
+  return useQuery({
+    queryKey: ['services', id, 'files', process, path],
+    queryFn: () => api.services.listFiles(id, path || undefined, process),
+    enabled: !!id,
+  })
+}
+
+export function useServiceFileContent(id: string, path: string | null, process: string) {
+  return useQuery({
+    queryKey: ['services', id, 'files', process, 'content', path],
+    queryFn: () => api.services.readFile(id, path ?? '', process),
+    enabled: !!id && !!path,
+  })
+}
+
+export function useUploadServiceFile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, path, file, process, overwrite }: { id: string; path: string; file: File; process: string; overwrite: boolean }) =>
+      api.services.uploadFile(id, path, file, process, overwrite),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'files'] })
+      toast.success('File uploaded to the running container')
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+}
+
 export function useTemplates() {
   return useQuery({
     queryKey: ['templates'],

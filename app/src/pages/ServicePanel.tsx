@@ -11,6 +11,7 @@ import {
   useRebuildService,
 } from '@/hooks/useServices'
 import LogsTab from '@/features/service-panel/tabs/LogsTab'
+import AppFilesTab from '@/features/service-panel/tabs/AppFilesTab'
 import InteractiveTerminal from '@/features/service-panel/tabs/InteractiveTerminal'
 import { SettingsPanel } from '@/features/service-settings/SettingsPanel'
 import OverviewTab from '@/features/service-panel/tabs/OverviewTab'
@@ -41,7 +42,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
   // snapshots under the Storage/Backups tab.
   const rawTab = searchParams.get('tab') || 'overview'
   const requestedTab = rawTab === 'storage' ? 'backups' : rawTab
-  const allowedTabs = ['overview', 'logs', 'variables', 'networking', 'backups', 'metrics', 'settings', ...(svc?.type !== 'database' ? ['deploy'] : []), ...(svc?.dataView ? ['data'] : [])]
+  const allowedTabs = ['overview', 'logs', 'variables', 'networking', 'backups', 'metrics', 'settings', ...(svc?.type !== 'database' ? ['deploy', 'files'] : []), ...(svc?.dataView ? ['data'] : [])]
   const tab = allowedTabs.includes(requestedTab) ? requestedTab : 'overview'
   const setTab = useCallback((next: string) => setSearchParams((previous) => { const params = new URLSearchParams(previous); params.set('tab', next); return params }, { replace: true }), [setSearchParams])
   const [expanded, setExpanded] = useState(false)
@@ -83,6 +84,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
       if (hasData) targets.t = 'data'
     } else {
       targets.d = 'deploy'
+      targets.f = 'files'
     }
     return targets
   }, [db, hasData])
@@ -239,6 +241,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
         { key: 'overview', label: 'Overview' },
         { key: 'deploy', label: 'Deployments' },
         { key: 'logs', label: 'Logs' },
+        { key: 'files', label: 'Files' },
         { key: 'variables', label: 'Variables' },
         { key: 'networking', label: 'Networking' },
         // Volumes and their snapshots live together. Every app gets the tab so
@@ -376,6 +379,7 @@ export default function ServicePanel({ serviceId, onClose }: ServicePanelProps) 
             )}
             {tab === 'deploy' && <DeployTab svc={svc} serviceId={serviceId} realtime={deploymentRealtime} />}
             {tab === 'logs' && <LogsTab serviceId={serviceId} />}
+            {tab === 'files' && <AppFilesTab serviceId={serviceId} />}
             {tab === 'data' && hasData && <DataTab serviceId={serviceId} />}
             {tab === 'backups' && <BackupsTab svc={svc} serviceId={serviceId} />}
             {tab === 'variables' && <VariablesTab svc={svc} />}
