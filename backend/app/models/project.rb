@@ -72,20 +72,7 @@ class Project < ApplicationRecord
       )
     end
 
-    engine = DokkuEngine.new(server)
-    failures = []
-
-    services.each do |service|
-      result = if service.subtype_record&.has_capability?(:destroy)
-        engine.datastore_destroy(service)
-      else
-        engine.app_destroy(service.dokku_app_name)
-      end
-
-      next if result.nil? || result[:success]
-
-      failures << "#{service.name}: #{(result[:output] || result[:error]).to_s.strip}"
-    end
+    failures = ProjectResourceTeardown.new(self).call
 
     if failures.any?
       refuse_destruction!(

@@ -684,8 +684,8 @@ export const servicesApi = {
     }
   },
 
-  rollback: async (id: string, deploymentId: string): Promise<void> => {
-    return fetchJson(`/api/services/${id}/rollback`, { method: 'POST', body: JSON.stringify({ deployment_id: deploymentId }) })
+  rollback: async (id: string, deploymentId: string, mode?: 'rebuild'): Promise<void> => {
+    return fetchJson(`/api/services/${id}/rollback`, { method: 'POST', body: JSON.stringify({ deployment_id: deploymentId, ...(mode ? {mode} : {}) }) })
   },
 
   containerStatus: async (id: string): Promise<{ status: string; output?: string }> => {

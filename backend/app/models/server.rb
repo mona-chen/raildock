@@ -163,7 +163,7 @@ class Server < ApplicationRecord
   # Overview is cached history only: listing servers must never open SSH sessions.
   def resource_summary
     sample = server_metrics.order(sampled_at: :desc).first
-    (sample&.data || { "available" => false }).slice("available", "cpu", "memory", "disk", "memory_used", "memory_total", "disk_used", "disk_total", "cpu_cores").merge("sampled_at" => sample&.sampled_at&.iso8601, "collection_enabled" => ObservabilitySettings.hosts_enabled?)
+    (sample&.data || { "available" => false }).slice("available", "cpu", "memory", "disk", "memory_used", "memory_total", "memory_available", "disk_used", "disk_total", "disk_available", "cpu_cores", "uptime_seconds").merge("sampled_at" => sample&.sampled_at&.iso8601, "collection_enabled" => ObservabilitySettings.hosts_enabled?)
   end
 
   private

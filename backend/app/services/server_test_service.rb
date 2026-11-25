@@ -32,12 +32,14 @@ class ServerTestService
         { os: "Unknown", uptime: "unknown" }
       end
 
+      docker_version = host_info[:docker_version].presence || result[:docker_version]
+
       logs = [
         "Connected to #{server.host}:#{server.ssh_port} as #{server.ssh_user}",
         "Host key fingerprint: #{server.host_key_fingerprint}",
         "OS: #{host_info[:os]}",
         "Uptime: #{host_info[:uptime]}",
-        "Docker: #{result[:docker_version]}",
+        "Docker: #{docker_version}",
         "Dokku: #{result[:dokku_version]}"
       ]
       logs << "Public IP: #{result[:public_ip]}" if result[:public_ip].present?
@@ -50,7 +52,7 @@ class ServerTestService
         host_key: server.host_key,
         host_key_fingerprint: server.host_key_fingerprint,
         dokku_version: result[:dokku_version],
-        docker_version: result[:docker_version],
+        docker_version: docker_version,
         os: host_info[:os],
         uptime: host_info[:uptime],
         public_ip: result[:public_ip],

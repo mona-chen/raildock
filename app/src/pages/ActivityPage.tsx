@@ -20,6 +20,7 @@ const ACTION_ICON: Record<string, React.ElementType> = {
   created: Settings,
   destroyed: ArrowDownRight,
   restarted: ArrowUpRight,
+  updated: Settings,
   warning: AlertTriangle,
 }
 
@@ -33,6 +34,7 @@ const ACTION_COLOR: Record<string, string> = {
   created: '#8b5cf6',
   destroyed: '#ef4444',
   restarted: '#22c55e',
+  updated: '#8b5cf6',
   warning: '#f59e0b',
 }
 

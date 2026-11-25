@@ -75,6 +75,7 @@ Rails.application.routes.draw do
         post :merge, on: :collection
       end
       resources :services, shallow: true do
+        resource :native, only: [ :show, :create ], controller: "native_services"
         member do
           post :deploy
           post :rollback
@@ -165,6 +166,8 @@ Rails.application.routes.draw do
     get "servers/:server_id/traffic", to: "observability#traffic"
     patch "servers/:server_id/traffic", to: "observability#traffic"
 
+    get "servers/:server_id/packages", to: "server_packages#show"
+    post "servers/:server_id/packages", to: "server_packages#create"
     resources :servers do
       member do
         post :validate

@@ -386,7 +386,7 @@ RSpec.describe DokkuEngine, type: :service do
     end
 
     it "#checks_skip generates the correct command with process types" do
-      expect(engine).to receive(:run).with("checks:skip myapp web worker").and_return({ success: true, output: "" })
+      expect(engine).to receive(:run).with("checks:skip myapp web,worker").and_return({ success: true, output: "" })
       engine.checks_skip("myapp", "web", "worker")
     end
   end
@@ -409,6 +409,18 @@ RSpec.describe DokkuEngine, type: :service do
   end
 
   describe "resource limit methods" do
+    it "clears native resource settings with Dokku's hyphenated subcommands" do
+      expect(engine).to receive(:run).with("resource:limit-clear myapp --process-type web").and_return(success: true)
+      expect(engine).to receive(:run).with("resource:reserve-clear myapp --process-type worker").and_return(success: true)
+      engine.resource_limit_clear("myapp", "web")
+      engine.resource_reserve_clear("myapp", "worker")
+    end
+
+    it "passes a configured memory and swap ceiling to the host" do
+      expect(engine).to receive(:run).with("resource:limit myapp --process-type web --memory 512m --memory-swap 1g").and_return(success: true)
+      engine.resource_limit("myapp", "web", memory: "512m", memory_swap: "1g")
+    end
+
     it "#resource_limit builds a command with all options" do
       expect(engine).to receive(:run).with("resource:limit myapp --process-type web --memory 512 --cpu 1 --nvidia-gpu 1").and_return({ success: true, output: "" })
       engine.resource_limit("myapp", "web", memory: "512", cpu: "1", nvidia_gpu: "1")
@@ -519,14 +531,18 @@ RSpec.describe DokkuEngine, type: :service do
   end
 
   describe "cron methods" do
-    it "#cron_set generates the correct command" do
-      expect(engine).to receive(:run).with("cron:set myapp \\*\\ \\*\\ \\*\\ \\*\\ \\* echo\\ hello").and_return({ success: true, output: "" })
-      engine.cron_set("myapp", "* * * * *", "echo hello")
+    it "sets native properties rather than pretending to create a schedule" do
+      expect(engine).to receive(:run).with("cron:set myapp maintenance true").and_return(success: true)
+      engine.cron_set("myapp", "maintenance", "true")
     end
 
-    it "#cron_clear generates the correct command" do
-      expect(engine).to receive(:run).with("cron:clear myapp").and_return({ success: true, output: "" })
-      engine.cron_clear("myapp")
+    it "uses native cron ids for run, suspend and resume" do
+      expect(engine).to receive(:run).with("cron:run myapp 1 --detach").and_return(success: true)
+      expect(engine).to receive(:run).with("cron:suspend myapp 1").and_return(success: true)
+      expect(engine).to receive(:run).with("cron:resume myapp 1").and_return(success: true)
+      engine.cron_run("myapp", "1")
+      engine.cron_suspend("myapp", "1")
+      engine.cron_resume("myapp", "1")
     end
   end
 

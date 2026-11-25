@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  check_server_packages:
+    class: CheckServerPackagesJob
+    schedule: every hour
   network_flow_samples:
     class: NetworkFlowSamplerJob
     schedule: every minute

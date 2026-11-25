@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_010100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_25_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -181,6 +181,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_010100) do
     t.string "status"
     t.string "triggered_by", default: "manual"
     t.datetime "updated_at", null: false
+    t.string "artifact_image_id"
+    t.string "artifact_image_ref"
+    t.string "config_revision"
+    t.string "native_build_id"
+    t.bigint "rollback_source_id"
     t.index ["idempotency_key"], name: "index_deployments_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["kind"], name: "index_deployments_on_kind"
     t.index ["service_id", "kind", "created_at"], name: "index_deployments_on_service_id_and_kind_and_created_at"
@@ -555,6 +560,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_010100) do
     t.string "name"
     t.bigint "organization_id"
     t.string "os"
+    t.jsonb "package_updates", default: {}, null: false
     t.string "proxy_mode", default: "managed", null: false
     t.string "public_ip"
     t.text "ssh_key_ciphertext"

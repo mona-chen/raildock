@@ -226,6 +226,26 @@ install_docker() {
   systemctl start docker || true
 }
 
+ensure_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log_info "Installing Python 3 for Dokku lifecycle and host maintenance..."
+  if command -v apt-get >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y python3
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y python3
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y python3
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "==> ERROR: Python 3 is required for RailDock-managed Dokku lifecycle settings and package maintenance." >&2
+    exit 1
+  fi
+}
+
 prepare_port_80() {
   # Dokku's package installs nginx and tries to start it on port 80.
   # If another service is already bound to port 80, dpkg will fail.
@@ -294,7 +314,7 @@ install_dokku() {
 
   log_info "Installing Dokku (PROXY_MODE=$PROXY_MODE)..."
   export DEBIAN_FRONTEND=noninteractive
-  export DOKKU_TAG="${DOKKU_TAG:-v0.38.1}"
+  export DOKKU_TAG="${DOKKU_TAG:-v0.38.34}"
   export DOKKU_VHOST_ENABLE="${DOKKU_VHOST_ENABLE:-false}"
   export DOKKU_SKIP_KEY_FILE="true"
 
@@ -330,6 +350,7 @@ configure_dokku_proxy() {
 configure_sshd
 ensure_user_and_key root
 install_docker
+ensure_python
 prepare_port_80
 install_dokku
 configure_dokku_proxy

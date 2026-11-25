@@ -120,6 +120,8 @@ module Api
         end
       end
       render json: @service
+    rescue ServiceSettingsSync::ApplyError => e
+      render json: { error: e.message, code: "settings_not_applied", settings_saved: true }, status: :bad_gateway
     end
 
     def destroy
@@ -221,10 +223,10 @@ module Api
       authorize_service!(@service, action: :deploy)
 
       target = @service.deployments.find(params[:deployment_id])
-      if @service.git_repo.present? && target.commit_sha.blank?
-        return render json: {
-          error: "This deployment has no commit SHA and cannot be rolled back precisely"
-        }, status: :unprocessable_entity
+      if params[:mode] == "rebuild"
+        return render json: { error: "No source commit is recorded" }, status: :unprocessable_entity if target.commit_sha.blank? || @service.git_repo.blank?
+      elsif !DeploymentArtifact.new(target, HostEngine.new(@service.project.server)).available?
+        return render json: { error: "The original image is no longer retained on this host. Rebuild the recorded source commit explicitly; it may produce a different image.", code: "artifact_unavailable" }, status: :unprocessable_entity
       end
 
       # Create a new deployment with the previous commit
@@ -234,7 +236,8 @@ module Api
         branch: target.branch || @service.branch || "main",
         commit_sha: target.commit_sha,
         commit_message: "Rollback: #{target.commit_message.presence || target.commit_sha.to_s.first(7)}",
-        triggered_by: "rollback"
+        triggered_by: "rollback",
+        rollback_source_id: params[:mode] == "rebuild" ? nil : target.id
       )
 
       DeploymentJob.perform_later(@service.id, deployment.id)
@@ -1233,12 +1236,13 @@ module Api
 
     def config_permitted_params
       [
-        :cron,
+        :rollbackRetention,
+        cron: [ :schedule, :command, :maintenance, :concurrency_policy ],
         proxy: [ :enabled, :proxyType, { portMappings: [ :scheme, :hostPort, :containerPort ] } ],
         dockerOptions: [ :phase, :option ],
         resourceLimits: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
         resourceReservations: [ :processType, :cpu, :memory, :memorySwap, :nvidiaGpu ],
-        checks: [ :enabled, :mode, :wait, :timeout, :attempts, :waitToRetire, { skipList: [] } ],
+        checks: [ :enabled, :mode, :path, :wait, :timeout, :attempts, :waitToRetire, { skipList: [] } ],
         letsencrypt: [ :enabled, :email, :staging, :autoRenew ],
         git: [ :deployBranch, :keepGitDir, :revEnvVar ],
         traefik: [ :labels, :properties ],
