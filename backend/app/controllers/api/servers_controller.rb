@@ -164,8 +164,8 @@ module Api
         @server.update!(
           status: :connected,
           dokku_version: result[:dokku_version],
-          docker_version: result[:docker_version],
-          os: result[:os].presence || host_info[:os],
+          docker_version: host_info[:docker_version].presence || result[:docker_version].presence&.then { |version| version.casecmp?("unknown") ? nil : version } || @server.docker_version,
+          os: host_info[:os].presence&.then { |os| os.casecmp?("unknown") ? nil : os } || result[:os].presence&.then { |os| os.casecmp?("unknown") ? nil : os } || @server.os.presence || "Unknown",
           uptime: result[:uptime].presence || host_info[:uptime],
           default_proxy: detected_proxy,
           public_ip: result[:public_ip]

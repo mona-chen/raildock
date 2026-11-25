@@ -5,15 +5,15 @@ RSpec.describe ActivityEvent, type: :model do
     it { is_expected.to validate_presence_of(:message) }
 
     it "is valid with recognized actions" do
-      %w[deployed stopped started restarted scaled linked unlinked created destroyed rebuilt warning].each do |action|
+      %w[deployed stopped started restarted scaled linked unlinked created destroyed rebuilt updated warning].each do |action|
         expect(build(:activity_event, action: action)).to be_valid
       end
     end
 
     it "raises ArgumentError with an unrecognized action" do
       expect {
-        build(:activity_event, action: "updated")
-      }.to raise_error(ArgumentError, "'updated' is not a valid action")
+        build(:activity_event, action: "unknown")
+      }.to raise_error(ArgumentError, "'unknown' is not a valid action")
     end
   end
 
@@ -23,7 +23,7 @@ RSpec.describe ActivityEvent, type: :model do
 
   describe "enums" do
     it "defines action enum with prefix" do
-      expect(described_class.actions.keys).to contain_exactly("deployed", "stopped", "started", "restarted", "scaled", "linked", "unlinked", "created", "destroyed", "rebuilt", "warning")
+      expect(described_class.actions.keys).to contain_exactly("deployed", "stopped", "started", "restarted", "scaled", "linked", "unlinked", "created", "destroyed", "rebuilt", "updated", "warning")
       event = create(:activity_event, action: :deployed)
       expect(event.action_deployed?).to be true
     end

@@ -501,7 +501,8 @@ export interface Builder {
 // ───────────────────────────────────────────────
 
 export interface Server {
-  resourceSummary?: { cpuCores?: number; memoryUsed?: number; memoryTotal?: number; diskUsed?: number; diskTotal?: number; available: boolean; cpu?: number | null; memory?: number | null; disk?: number | null; sampledAt?: string; collectionEnabled?: boolean }
+  packageUpdates?: import('@/lib/serverPackages').PackageUpdates
+  resourceSummary?: { cpuCores?: number; memoryUsed?: number; memoryTotal?: number; memoryAvailable?: number; diskUsed?: number; diskTotal?: number; diskAvailable?: number; uptimeSeconds?: number; available: boolean; cpu?: number | null; memory?: number | null; disk?: number | null; sampledAt?: string; collectionEnabled?: boolean }
   id: string
   name: string
   host: string
@@ -695,6 +696,10 @@ export interface AppUpdateInfo {
 // ───────────────────────────────────────────────
 
 export interface Deployment {
+  artifactImageRef?: string | null
+  artifactImageId?: string | null
+  configRevision?: string | null
+  nativeBuildId?: string | null
   id: string
   status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
   kind?: 'deploy' | 'restart' | 'rebuild' | 'env_sync'
@@ -766,7 +771,7 @@ export interface ActivityEvent {
   id: string
   projectId: string
   serviceName: string
-  action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'warning'
+  action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'updated' | 'warning'
   message: string
   timestamp: string
 }

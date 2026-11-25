@@ -84,6 +84,11 @@ export function useUpdateServiceConfig() {
       if (previous) queryClient.setQueryData<Service>(['services', id], { ...previous, config })
       return { id, previous }
     },
+    onSuccess: (_service, { config }) => {
+      if (['checks', 'cron', 'scripts', 'resourceLimits', 'resourceReservations'].some(key => key in config)) {
+        toast.info('Settings saved. Deploy this service to activate lifecycle and resource changes.')
+      }
+    },
     onError: (err, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(['services', context.id], context.previous)
       toast.error(`Failed to sync settings: ${err.message}`)
@@ -742,8 +747,8 @@ export function useRebuildService() {
 export function useRollbackService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, deploymentId }: { id: string; deploymentId: string }) =>
-      api.services.rollback(id, deploymentId),
+    mutationFn: ({ id, deploymentId, mode }: { id: string; deploymentId: string; mode?: 'rebuild' }) =>
+      mode ? api.services.rollback(id, deploymentId, mode) : api.services.rollback(id, deploymentId),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       queryClient.invalidateQueries({ queryKey: ['services', id, 'deployments'] })

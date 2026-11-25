@@ -141,6 +141,9 @@ class DeploymentJob < ApplicationJob
       return mark_failed(deployment, service, "App creation failed", result[:output]) unless result[:success]
     end
 
+    ManagedAppJson.new(service, host_engine).apply!
+    @native_lifecycle_prepared = true
+
     network_manager = ProjectNetworkManager.new(project, engine)
     network_result = network_manager.configure_attach_networks(service)
     return mark_failed(deployment, service, "Network configuration failed", network_result[:output]) unless network_result[:success]
@@ -216,6 +219,7 @@ class DeploymentJob < ApplicationJob
           process_type,
           memory: limits["memory"],
           cpu: limits["cpu"],
+          memory_swap: limits["memorySwap"] || limits["memory_swap"],
           nvidia_gpu: limits["nvidiaGpu"] || limits["nvidia_gpu"]
         )
         return mark_failed(deployment, service, "Resource limit sync failed for #{process_type}", result[:output]) unless result[:success]
@@ -290,7 +294,28 @@ class DeploymentJob < ApplicationJob
       status: "building", timestamp: Time.current.iso8601
     })
 
-    if service.docker_image.present?
+    rollback_target = deployment.rollback_source_id && service.deployments.find_by(id: deployment.rollback_source_id)
+    if deployment.rollback_source_id.present? && rollback_target.nil?
+      return mark_failed(deployment, service, "Rollback source deployment no longer exists")
+    end
+    if rollback_target
+      unless DeploymentArtifact.new(rollback_target, host_engine).available?
+        return mark_failed(deployment, service, "Rollback image is unavailable or has changed")
+      end
+      result = engine.run_streaming("git:from-image #{engine.escape(service.dokku_app_name)} #{engine.escape(rollback_target.artifact_image_ref)}",
+        cancelled: -> { deployment.reload.cancelled? }) do |chunk|
+        redacted_chunk = deployment.append_log_chunk!(chunk)
+        deploy_output << redacted_chunk
+        safely_broadcast_deployment(service, {
+          deployment_id: deployment.id,
+          status: "building",
+          log_chunk: redacted_chunk,
+          sequence: deployment.event_sequence,
+          started_at: deployment.started_at.iso8601
+        })
+      end
+      return if result[:cancelled] || abort_if_cancelled(deployment)
+    elsif service.docker_image.present?
       # Docker image deploy: git:from-image builds and deploys synchronously
       # Pre-pull to warm the layer cache and avoid overlayfs extraction races
       # on large images (e.g. ActivePieces with huge node_modules layers)
@@ -604,6 +629,10 @@ class DeploymentJob < ApplicationJob
     postdeploy_result = run_deploy_scripts(service, deployment, engine, "postdeploy", deploy_output)
     return if postdeploy_result == :failed
 
+    unless DeploymentArtifact.new(deployment, host_engine).capture(engine: engine)
+      deploy_output << "\nImage rollback is unavailable: could not retain this deployment's image.\n"
+    end
+
     # 15. Mark success
     deployment.update!(
       status: :succeeded,
@@ -679,7 +708,7 @@ class DeploymentJob < ApplicationJob
     command = scripts[phase]
     return :ok if command.blank?
 
-    if dokku_processes_deploy_script?(scripts)
+    if @native_lifecycle_prepared || dokku_processes_deploy_script?(scripts)
       note = "-----> #{phase} script is handled by Dokku's app.json processor, skipping RailDock runner\n"
       deploy_output << note
       deployment.append_log_chunk!(note)

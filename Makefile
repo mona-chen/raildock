@@ -29,6 +29,8 @@ help:
 	@printf "  $(G)make seed$(N)           Run Rails db:seed\n"
 	@printf "  $(G)make start-sim$(N)      Dev stack + Dokku simulator (macOS preview)\n"
 	@printf "  $(G)make seed-demo$(N)      Seed a demo project and history for the simulator\n"
+	@printf "  $(G)make start-real-dokku$(N) Start a Lima VM with real Dokku\n"
+	@printf "  $(G)make connect-real-dokku$(N) Register that VM as a dev server\n"
 	@printf "  $(G)make setup-dev$(N)      One-click dev setup (env, keys, server, migrations)\n"
 	@printf "  $(G)make reset-db$(N)        Wipe and recreate dev database\n"
 	@printf "  $(G)make fix-hmr$(N)        Restart frontend (fixes stale Vite cache)\n"
@@ -160,3 +162,14 @@ push:
 tag:
 	@git tag "v$$(date +%Y%m%d-%H%M%S)" && git push --tags
 	@printf "$(G)[make]$(N) Tagged and pushed\n"
+
+.PHONY: start-real-dokku stop-real-dokku
+start-real-dokku:
+	@bash scripts/start-real-dokku.sh
+
+stop-real-dokku:
+	@limactl stop raildock-dokku
+
+.PHONY: connect-real-dokku
+connect-real-dokku:
+	@bash scripts/connect-real-dokku.sh

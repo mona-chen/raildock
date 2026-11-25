@@ -50,7 +50,7 @@ class HostEngine
     info = { os: "Unknown", uptime: "unknown" }
     return info if server.ssh_key.blank?
 
-    os_result = run("(. /etc/os-release && echo \"$PRETTY_NAME\") 2>/dev/null || lsb_release -ds 2>/dev/null || hostnamectl --static 2>/dev/null")
+    os_result = run("(. /etc/os-release && echo \"$PRETTY_NAME\") 2>/dev/null || lsb_release -ds 2>/dev/null")
     info[:os] = os_result[:output].strip.presence || "Unknown" if os_result[:success]
 
     uptime_result = run("uptime -p 2>/dev/null || cat /proc/uptime 2>/dev/null")
@@ -58,6 +58,12 @@ class HostEngine
       output = uptime_result[:output].strip
       info[:uptime] = output.presence || "unknown"
     end
+
+    # The forced Dokku SSH command cannot execute docker --version. Query the
+    # daemon through the host connection instead, only when refreshing details.
+    docker_result = run("docker version --format '{{.Server.Version}}'")
+    version = docker_result[:output].to_s.strip
+    info[:docker_version] = version if docker_result[:success] && version.match?(/\A\d+\.\d+\.\d+[A-Za-z0-9.+~-]*\z/)
 
     info
   rescue => e

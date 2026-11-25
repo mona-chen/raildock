@@ -62,23 +62,8 @@ install_plugin "redis"    "https://github.com/dokku/dokku-redis.git"
 install_plugin "mysql"    "https://github.com/dokku/dokku-mysql.git"
 install_plugin "mongo"    "https://github.com/dokku/dokku-mongo.git"
 
-# Fix broken postgres plugin Dockerfile (ships with non-existent postgres:18.3)
-POSTGRES_DOCKERFILE="/var/lib/dokku/plugins/enabled/postgres/Dockerfile"
-if [ -f "$POSTGRES_DOCKERFILE" ]; then
-  if grep -q "postgres:18.3" "$POSTGRES_DOCKERFILE" 2>/dev/null; then
-    echo "[raildock-init] Patching postgres plugin Dockerfile (18.3 → 16-alpine)..."
-    echo 'FROM postgres:16-alpine' > "$POSTGRES_DOCKERFILE"
-  fi
-fi
-
-# Fix mongo plugin Dockerfile (8.2.7 has corrupted libcurl layer on some platforms)
-MONGO_DOCKERFILE="/var/lib/dokku/plugins/enabled/mongo/Dockerfile"
-if [ -f "$MONGO_DOCKERFILE" ]; then
-  if grep -q "mongo:8.2.7" "$MONGO_DOCKERFILE" 2>/dev/null; then
-    echo "[raildock-init] Patching mongo plugin Dockerfile (8.2.7 → 7.0)..."
-    echo 'FROM mongo:7.0' > "$MONGO_DOCKERFILE"
-  fi
-fi
+# Datastore versions are selected when creating the service. Preserve vendor
+# defaults; never silently substitute a different database major release.
 
 # ── Operational Plugins ────────────────────────────────────
 # These plugins unlock existing RailDock UI features

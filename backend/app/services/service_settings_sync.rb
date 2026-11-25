@@ -5,9 +5,31 @@ require "shellwords"
 # Only applies settings that can be changed without a full redeploy.
 # Settings requiring redeploy (builder, docker options) are flagged but not auto-applied here.
 class ServiceSettingsSync
+  class ApplyError < StandardError; end
+
+  # Dokku reports command failures as values. Never let those become a successful
+  # HTTP response merely because the SSH transport itself did not raise.
+  class CheckedEngine
+    def initialize(engine)
+      @engine = engine
+    end
+
+    def method_missing(name, *args, **kwargs, &block)
+      result = @engine.public_send(name, *args, **kwargs, &block)
+      if result.is_a?(Hash) && result[:success] == false
+        raise ApplyError, "Settings were saved, but Dokku could not apply #{name.to_s.humanize.downcase}. Review the host configuration and retry."
+      end
+      result
+    end
+
+    def respond_to_missing?(name, include_private = false)
+      @engine.respond_to?(name, include_private) || super
+    end
+  end
+
   def initialize(service, engine)
     @service = service
-    @engine = engine
+    @engine = CheckedEngine.new(engine)
     @app_name = service.dokku_app_name
   end
 
@@ -75,12 +97,9 @@ class ServiceSettingsSync
     else @engine.checks_enable(@app_name)
     end
 
-    {
-      "wait" => new_checks["wait"],
-      "timeout" => new_checks["timeout"],
-      "attempts" => new_checks["attempts"],
-      "wait-to-retire" => new_checks["waitToRetire"]
-    }.compact.each { |property, value| @engine.checks_set(@app_name, property, value) }
+    retire = new_checks["waitToRetire"] || new_checks["wait_to_retire"]
+    @engine.checks_set(@app_name, "wait-to-retire", retire) if retire.present?
+    ManagedAppJson.new(@service, HostEngine.new(@service.project.server)).apply!
   end
 
   # ── Cron ─────────────────────────────────────
@@ -90,17 +109,7 @@ class ServiceSettingsSync
 
     return if old_cron == new_cron
 
-    if new_cron.empty?
-      @engine.cron_clear(@app_name)
-    else
-      cron_entries = new_cron.map do |job|
-        schedule = job["schedule"]
-        command = job["command"]
-        "#{schedule} dokku #{@app_name} #{command}" if schedule && command
-      end.compact.join("\n")
-
-      @engine.cron_set(@app_name, cron_entries)
-    end
+    ManagedAppJson.new(@service, HostEngine.new(@service.project.server)).apply!
   end
 
   # ── Resource Limits ──────────────────────────
@@ -110,16 +119,17 @@ class ServiceSettingsSync
 
     return if old_limits == new_limits
 
-    (@service.process_types&.map(&:name) || []).each do |pt_name|
+    (resource_entries(old_limits) + resource_entries(new_limits)).map { |row| row["processType"] }.uniq.each do |pt_name|
       @engine.resource_limit_clear(@app_name, pt_name)
     end
 
-    new_limits.each do |res|
+    resource_entries(new_limits).each do |res|
       @engine.resource_limit(
         @app_name,
         res["processType"],
         memory: res["memory"].presence,
         cpu: res["cpu"].presence,
+        memory_swap: res["memorySwap"].presence,
         nvidia_gpu: res["nvidiaGpu"].presence
       )
     end
@@ -132,11 +142,11 @@ class ServiceSettingsSync
 
     return if old_res == new_res
 
-    (@service.process_types&.map(&:name) || []).each do |pt_name|
+    (resource_entries(old_res) + resource_entries(new_res)).map { |row| row["processType"] }.uniq.each do |pt_name|
       @engine.resource_reserve_clear(@app_name, pt_name)
     end
 
-    new_res.each do |res|
+    resource_entries(new_res).each do |res|
       @engine.resource_reserve(
         @app_name,
         res["processType"],
@@ -198,6 +208,14 @@ class ServiceSettingsSync
       @engine.maintenance_enable(@app_name)
     else
       @engine.maintenance_disable(@app_name)
+    end
+  end
+
+  def resource_entries(value)
+    if value.is_a?(Hash)
+      value.map { |process, settings| settings.stringify_keys.merge("processType" => process) }
+    else
+      Array(value).map(&:stringify_keys)
     end
   end
 

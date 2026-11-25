@@ -18,12 +18,14 @@ class ProjectNetworkManager
 
   def ensure_network!
     result = engine.network_list
-    return if result[:output]&.include?(network_name)
+    return result unless result[:success]
+    names = result[:output].to_s.lines.map(&:strip)
+    return { success: true } if names.include?(network_name)
 
     engine.network_create(network_name)
-    host_engine.docker_network_create(network_name)
   rescue => e
     Rails.logger.error "Failed to create network #{network_name}: #{e.message}"
+    { success: false, output: e.message }
   end
 
   # Connect a service to the project network AND add network aliases for
@@ -79,7 +81,13 @@ class ProjectNetworkManager
   end
 
   def configure_attach_networks(service)
-    ensure_network!
+    network_result = ensure_network!
+    return network_result unless network_result[:success]
+
+    # Start on the project network instead of joining the shared Docker bridge.
+    # Explicit external/proxy networks remain deliberate shared trust boundaries.
+    result = engine.run("network:set #{service.dokku_app_name} initial-network #{network_name}")
+    return result unless result[:success]
 
     # Private project network — attach-post-create so containers can resolve
     # linked services (e.g. rustfs, mysql) at boot time. Only one network here
@@ -141,7 +149,11 @@ class ProjectNetworkManager
   end
 
   def disconnect_service(service)
-    engine.network_disconnect(service.dokku_app_name, network_name)
+    container = host_engine.dokku_container_name(service.dokku_app_name)
+    if container.present?
+      result = host_engine.docker_network_disconnect(container, network_name)
+      return result unless result[:success]
+    end
     engine.run("network:set #{service.dokku_app_name} attach-post-create")
   rescue => e
     Rails.logger.warn "Failed to disconnect #{service.dokku_app_name}: #{e.message}"

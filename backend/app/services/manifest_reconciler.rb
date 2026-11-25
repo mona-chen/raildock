@@ -971,14 +971,9 @@ class ManifestReconciler
     return unless checks[:enabled] != false
 
     app_name = service.dokku_app_name
-    engine.checks_set(app_name, "wait", checks[:wait] || 5)
-    engine.checks_set(app_name, "timeout", checks[:timeout] || 30)
-    engine.checks_set(app_name, "attempts", checks[:attempts] || 5)
     engine.checks_set(app_name, "wait-to-retire", checks[:wait_to_retire] || 60)
-    if checks[:skip].present?
-      engine.checks_skip(app_name, *Array(checks[:skip]))
-    end
     engine.checks_enable(app_name)
+    engine.checks_skip(app_name, *Array(checks[:skip])) if checks[:skip].present?
   end
 
   def wait_for_container(app_name, host_engine, timeout: 60)
@@ -1242,9 +1237,6 @@ def apply_storage_change(engine, service, change)
     else engine.checks_enable(app_name)
     end
 
-    %i[ wait timeout attempts ].each do |property|
-      engine.checks_set(app_name, property.to_s, checks[property]) if checks[property].present?
-    end
     engine.checks_set(app_name, "wait-to-retire", checks[:wait_to_retire]) if checks[:wait_to_retire].present?
     { success: true }
   end
@@ -1253,9 +1245,8 @@ def apply_storage_change(engine, service, change)
     cron = change.new_value || []
     service.config = (service.config || {}).merge("cron" => cron.map(&:deep_stringify_keys))
     service.save!
-    # Dokku cron is handled via app.json or docker options; for now we just store in config
-    # A full implementation would write app.json to the repo or use the cron plugin
-    { success: true, note: "Cron schedules updated in config. Restart may be needed for Dokku to pick them up." }
+    ManagedAppJson.new(service, HostEngine.new(service.project.server)).apply!
+    { success: true, note: "Cron declaration saved. Deploy to activate the native schedule." }
   end
 
   def apply_resource_change(engine, service, change)
@@ -1265,13 +1256,15 @@ def apply_storage_change(engine, service, change)
     service.save!
 
     limits.each do |process_type, cfg|
-      engine.resource_limit(
-        service.dokku_app_name,
-        process_type,
-        memory: cfg[:memory],
-        cpu: cfg[:cpu],
-        nvidia_gpu: cfg[:nvidia_gpu]
-      )
+      options = { memory: cfg[:memory], cpu: cfg[:cpu] }
+      if change.field == :limits
+        options[:memory_swap] = cfg[:memory_swap] || cfg[:memorySwap]
+        options[:nvidia_gpu] = cfg[:nvidia_gpu]
+        result = engine.resource_limit(service.dokku_app_name, process_type, **options)
+      else
+        result = engine.resource_reserve(service.dokku_app_name, process_type, **options)
+      end
+      return result unless result[:success]
     end
     { success: true }
   end

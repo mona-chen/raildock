@@ -58,6 +58,8 @@ RSpec.describe DeploymentJob, type: :job do
     allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
     allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
     allow(ProjectNetworkManager).to receive(:new).with(project, engine).and_return(network_manager)
+    allow(ManagedAppJson).to receive(:new).with(service, host_engine).and_return(instance_double(ManagedAppJson, apply!: { success: true }))
+    allow(DeploymentArtifact).to receive(:new).and_return(instance_double(DeploymentArtifact, capture: true, available?: true))
     allow(DeploymentsChannel).to receive(:broadcast_to)
 
     allow(engine).to receive(:with_session).and_yield
@@ -193,7 +195,7 @@ RSpec.describe DeploymentJob, type: :job do
         expect(engine).to have_received(:proxy_enable).with(service.dokku_app_name)
         expect(engine).to have_received(:docker_option_add).with(service.dokku_app_name, "deploy", "--restart=on-failure")
         expect(engine).to have_received(:resource_limit).with(
-          service.dokku_app_name, "web", memory: "512", cpu: "1", nvidia_gpu: "1"
+          service.dokku_app_name, "web", memory: "512", cpu: "1", memory_swap: nil, nvidia_gpu: "1"
         )
         expect(engine).to have_received(:git_set_deploy_branch).with(service.dokku_app_name, "feature")
         expect(engine).to have_received(:run).with("git:sync #{service.dokku_app_name} #{service.git_repo} feature")

@@ -188,7 +188,7 @@ install_dokku() {
   local detected_hostname
   detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
 
-  export DOKKU_TAG="${DOKKU_TAG:-v0.38.1}"
+  export DOKKU_TAG="${DOKKU_TAG:-v0.38.34}"
   export DOKKU_HOSTNAME="${DOKKU_HOSTNAME:-$detected_hostname}"
   export DOKKU_VHOST_ENABLE="${DOKKU_VHOST_ENABLE:-false}"
   export DOKKU_SKIP_KEY_FILE="true"
@@ -228,19 +228,8 @@ ensure_dokku_plugins() {
   install_dokku_plugin "mysql"    "https://github.com/dokku/dokku-mysql.git"
   install_dokku_plugin "mongo"    "https://github.com/dokku/dokku-mongo.git"
 
-  # Patch postgres plugin if it ships with a broken default image
-  POSTGRES_DOCKERFILE="/var/lib/dokku/plugins/enabled/postgres/Dockerfile"
-  if [ -f "$POSTGRES_DOCKERFILE" ] && grep -q "postgres:18.3" "$POSTGRES_DOCKERFILE" 2>/dev/null; then
-    log_info "Patching postgres plugin Dockerfile (18.3 → 16-alpine)..."
-    echo 'FROM postgres:16-alpine' > "$POSTGRES_DOCKERFILE"
-  fi
-
-  # Patch mongo plugin if it ships with a broken default image
-  MONGO_DOCKERFILE="/var/lib/dokku/plugins/enabled/mongo/Dockerfile"
-  if [ -f "$MONGO_DOCKERFILE" ] && grep -q "mongo:8.2.7" "$MONGO_DOCKERFILE" 2>/dev/null; then
-    log_info "Patching mongo plugin Dockerfile (8.2.7 → 7.0)..."
-    echo 'FROM mongo:7.0' > "$MONGO_DOCKERFILE"
-  fi
+  # Keep upstream defaults intact. Datastore major versions are explicit service
+  # configuration, never a silent installer rewrite of a vendor Dockerfile.
 
   log_ok "Dokku plugins ready"
 }
@@ -630,6 +619,31 @@ check_docker() {
   log_ok "Docker $(docker version --format '{{.Server.Version}}') is ready"
 }
 
+ensure_python3() {
+  if command -v python3 >/dev/null 2>&1; then
+    log_ok "Python 3 is available"
+    return 0
+  fi
+
+  log_info "Installing Python 3 for Dokku lifecycle and host maintenance..."
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y python3
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y python3
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y python3
+  elif command -v brew >/dev/null 2>&1; then
+    brew install python3
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    log_error "Python 3 is required for RailDock-managed Dokku lifecycle settings and package maintenance."
+    exit 1
+  fi
+  log_ok "Python 3 installed"
+}
+
 check_ports() {
   if command -v ss >/dev/null 2>&1 && ss -tulnp 2>/dev/null | grep -q ":${APP_PORT} "; then
     log_error "Port ${APP_PORT} is already in use — stop the conflicting service first"
@@ -840,6 +854,7 @@ install_raildock() {
   log_step "Checking prerequisites..."
   check_os
   check_docker
+  ensure_python3
   check_ports
 
   log_step "Checking Dokku..."
@@ -1006,6 +1021,7 @@ update_raildock() {
   fi
   backup_env
   fill_missing_env_vars
+  ensure_python3
   ensure_builder_binaries
   ensure_backup_dir_permissions
   if [ "$BUILD_FROM_SOURCE" = "1" ]; then
