@@ -56,6 +56,10 @@ production:
     class: ProxyDriftCheckJob
     schedule: every 6 hours
 
+  check_ssl_status:
+    class: CheckSslStatusJob
+    schedule: every 2 minutes
+
   server_health_check:
     class: ServerHealthCheckJob
     queue: maintenance

@@ -562,6 +562,88 @@ export interface ServerPreflightCheck {
   detail: string
 }
 
+export interface TraefikContainer {
+  id: string
+  name?: string | null
+  image: string
+  status: string
+  state: string
+  running: boolean
+  ports: string
+  networks: string
+}
+
+export interface TraefikRoute {
+  id: string
+  serviceId: string
+  serviceName: string
+  projectId: string
+  projectName?: string | null
+  hostname: string
+  rule: string
+  targetPort: number
+  backend?: string | null
+  container: string
+  running?: boolean | null
+  proxyEnabled: boolean
+  temporary: boolean
+  wildcard: boolean
+  ssl?: boolean | null
+  sslStatus: string
+  sslExpiresAt?: string | null
+  sslStatusMessage?: string | null
+  state: 'active' | 'proxy_disabled' | 'container_stopped' | 'certificate_pending' | 'certificate_failed' | 'unknown'
+}
+
+export interface TraefikCertificate {
+  id: number
+  hostname: string
+  serviceId: string
+  serviceName: string
+  projectName?: string | null
+  status: string
+  expiresAt?: string | null
+  statusMessage?: string | null
+  challengeType: string
+  wildcard: boolean
+  temporary: boolean
+}
+
+export interface TraefikWarning {
+  id: number
+  projectName?: string | null
+  serviceName?: string | null
+  message: string
+  createdAt?: string | null
+}
+
+export interface TraefikOverview {
+  mode: 'managed' | 'external'
+  managed: boolean
+  network?: string | null
+  entrypoints: { http?: string | null; https?: string | null }
+  certResolver?: string | null
+  redirectMiddleware?: string | null
+  defaultLabels: Record<string, string>
+  containers: TraefikContainer[]
+  settings: Record<string, string | boolean | null | undefined>
+  routes: TraefikRoute[]
+  certificates: TraefikCertificate[]
+  warnings: TraefikWarning[]
+  summary: {
+    routes: number
+    activeRoutes: number
+    routesNeedingAttention: number
+    certificates: number
+    activeCertificates: number
+    certificatesNeedingAttention: number
+    proxyContainers: number
+    runningProxyContainers: number
+  }
+  inventoryError?: string | null
+  checkedAt: string
+}
+
 export interface DockerContainer {
   id: string
   name: string

@@ -51,6 +51,7 @@ import type {
   ApiToken,
   ApiTokenScope,
   CreatedApiToken,
+  TraefikOverview,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -860,6 +861,23 @@ export const serversApi = {
 
   validate: async (id: string): Promise<{ success: boolean; error?: string }> => {
     return fetchJson(`/api/servers/${id}/validate`, { method: 'POST' })
+  },
+
+  traefik: async (id: string): Promise<TraefikOverview> => {
+    return fetchJson(`/api/servers/${id}/traefik`)
+  },
+
+  traefikLogs: async (id: string, lines = 200, container?: string): Promise<{ success: boolean; output: string; container?: string | null; lines: number; error?: string }> => {
+    const query = new URLSearchParams({ lines: String(lines) })
+    if (container) query.set('container', container)
+    return fetchJson(`/api/servers/${id}/traefik/logs?${query}`)
+  },
+
+  traefikAction: async (id: string, operation: 'start' | 'stop' | 'restart' | 'check', confirmation?: string): Promise<{ success?: boolean; accepted?: boolean; operation: string; output?: string; error?: string; partial?: boolean }> => {
+    return fetchJson(`/api/servers/${id}/traefik`, {
+      method: 'POST',
+      body: JSON.stringify({ operation, confirmation }),
+    })
   },
 
   destroy: async (id: string): Promise<void> => {

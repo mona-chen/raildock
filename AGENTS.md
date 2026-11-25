@@ -637,3 +637,11 @@ the image's immutable version so an `edge`/`latest` Compose alias cannot hide it
 - Listing and downloads require service read permission; uploads require update permission and `ServiceOperationLock`. Reads cap directory entries, previews and downloads; uploads cap at 10 MiB and require explicit overwrite. The API rejects non-app services and unknown process types.
 - The Files tab writes to the container's writable layer. That layer is replaced on the next deploy, so persistent files belong in a Storage mount. The UI must keep saying so. Deletes, renames and directory creation are intentionally not exposed yet.
 - The viewer highlights common source/config formats client-side with line numbers, search, wrap and copy controls. It never executes file content; keep highlighting a presentation concern and do not turn it into a preview server or evaluator.
+
+## Traefik workspace
+
+- The server **Proxy** tab is read-only by default: it combines Docker container inventory with RailDock's intended routes, certificate records and recent `Proxy routing problem detected` activity. Managed mode shows safe start/stop/restart controls; external mode never starts, stops or reconfigures someone else's Traefik.
+- `TraefikOverview` must only expose allowlisted `traefik:report` fields. The JSON report includes DNS-provider credentials; never pass the raw report or password fields to the browser. `TraefikLogs` redacts output and bounds both line count and payload size.
+- Managed route and certificate inventory is limited to services whose effective proxy type is `traefik`; a service configured for nginx/caddy must not appear as a Traefik route. External mode owns Traefik labels for every app it routes.
+- Stop and restart are destructive to every app behind the proxy and require the exact server name. `start` is non-destructive. A failed restart reports `partial: true` rather than claiming recovery.
+- `CheckSslStatusJob` refreshes pending certificates every two minutes and active certificates every six hours via `recurring.yml`. Keep that schedule: domain expiry/status is also the certificate inventory shown in the Proxy tab.

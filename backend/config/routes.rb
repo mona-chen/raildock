@@ -172,6 +172,9 @@ Rails.application.routes.draw do
 
     get "servers/:server_id/packages", to: "server_packages#show"
     post "servers/:server_id/packages", to: "server_packages#create"
+    get "servers/:server_id/traefik", to: "traefik#show"
+    get "servers/:server_id/traefik/logs", to: "traefik#logs"
+    post "servers/:server_id/traefik", to: "traefik#update"
     resources :servers do
       member do
         post :validate

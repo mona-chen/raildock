@@ -14,11 +14,13 @@ class ProxyDriftCheckJob < ApplicationJob
   # Suppress repeat warnings for the same service within this window.
   REPORT_WINDOW = 24.hours
 
-  def perform
+  def perform(server_id = nil)
     checked = 0
     drifted = 0
 
-    Server.where(proxy_mode: "external").find_each do |server|
+    scope = Server.where(proxy_mode: "external")
+    scope = scope.where(id: server_id) if server_id.present?
+    scope.find_each do |server|
       engine = DokkuEngine.new(server)
       host_engine = HostEngine.new(server)
 

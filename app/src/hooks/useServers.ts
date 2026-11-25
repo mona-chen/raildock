@@ -88,6 +88,40 @@ export function useDestroyServer() {
   })
 }
 
+export function useTraefikOverview(serverId: string | undefined) {
+  return useQuery({
+    queryKey: ['servers', serverId, 'traefik'],
+    queryFn: () => api.servers.traefik(serverId!),
+    enabled: !!serverId,
+    refetchInterval: 30000,
+  })
+}
+
+export function useTraefikLogs(serverId: string | undefined, enabled: boolean, container?: string) {
+  return useQuery({
+    queryKey: ['servers', serverId, 'traefik', 'logs', container ?? 'auto'],
+    queryFn: () => api.servers.traefikLogs(serverId!, 200, container),
+    enabled: !!serverId && enabled,
+  })
+}
+
+export function useTraefikAction(serverId: string | undefined) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ operation, confirmation }: { operation: 'start' | 'stop' | 'restart' | 'check'; confirmation?: string }) =>
+      api.servers.traefikAction(serverId!, operation, confirmation),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'traefik'] })
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'traefik', 'logs'] })
+      if (result.accepted) toast.success('Routing check queued')
+      else if (result.operation === 'start') toast.success('Traefik started')
+      else if (result.operation === 'stop') toast.success('Traefik stopped')
+      else toast.success('Traefik restarted')
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+}
+
 export function useServerDockerContainers(serverId: string | undefined) {
   return useQuery({
     queryKey: ['servers', serverId, 'docker-imports'],
