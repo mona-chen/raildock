@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :domain do
-    hostname { Faker::Internet.domain_name }
+    sequence(:hostname) { |n| "app-#{n}.example.com" }
     port { 443 }
     ssl { false }
     letsencrypt { false }
