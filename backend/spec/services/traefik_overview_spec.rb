@@ -21,10 +21,11 @@ RSpec.describe TraefikOverview do
     allow(engine).to receive(:run).with("traefik:report --global --format json").and_return(
       success: true,
       output: {
-        "image" => "traefik:v3.6",
-        "http-entry-point" => "web",
-        "https-entry-point" => "websecure",
-        "letsencrypt-email" => "ops@example.com",
+        "computed-image" => "traefik:v3.6",
+        "computed-http-entry-point" => "web",
+        "computed-https-entry-point" => "websecure",
+        "computed-letsencrypt-email" => "ops@example.com",
+        "computed-api-enabled" => "true",
         "dns-provider-cf_api_key" => "must-not-leak"
       }.to_json
     )
@@ -41,7 +42,7 @@ RSpec.describe TraefikOverview do
       state: "active"
     )
     expect(result[:certificates].first).to include(hostname: "app.example.com", status: "active")
-    expect(result[:settings]).to include(image: "traefik:v3.6", http_entrypoint: "web")
+    expect(result[:settings]).to include(image: "traefik:v3.6", http_entrypoint: "web", api_enabled: true)
     expect(result[:settings].to_json).not_to include("must-not-leak")
   end
 

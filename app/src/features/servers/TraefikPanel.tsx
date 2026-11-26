@@ -109,6 +109,14 @@ export default function TraefikPanel({ server }: { server: Server }) {
         </div>
       )}
 
+      {managed && data.routes.length === 0 && Object.keys(data.proxyTypes || {}).length > 0 && (
+        <div className="rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3 text-xs leading-5 text-white/45">
+          No apps on this server are routed by Traefik. Managed proxy types:{' '}
+          <span className="font-mono text-white/65">{Object.entries(data.proxyTypes || {}).map(([name, count]) => `${name} (${count})`).join(', ')}</span>.
+          {!data.containers.length && ' The Traefik plugin is configured but its container is not running.'}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           ['Proxy containers', `${data.summary.runningProxyContainers}/${data.summary.proxyContainers} running`, data.summary.runningProxyContainers > 0],

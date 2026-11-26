@@ -5,18 +5,19 @@ require "json"
 # state. It never edits Traefik configuration.
 class TraefikOverview
   SAFE_REPORT_SETTINGS = {
-    image: "image",
-    letsencrypt_email: "letsencrypt-email",
-    challenge_mode: "challenge-mode",
-    dns_provider: "dns-provider",
-    log_level: "log-level",
-    api_enabled: "api-enabled",
-    dashboard_enabled: "dashboard-enabled",
-    http_entrypoint: "http-entry-point",
-    https_entrypoint: "https-entry-point",
-    api_vhost: "api-vhost",
-    basic_auth_username: "basic-auth-username"
+    image: "computed-image",
+    letsencrypt_email: "computed-letsencrypt-email",
+    challenge_mode: "computed-challenge-mode",
+    dns_provider: "computed-dns-provider",
+    log_level: "computed-log-level",
+    api_enabled: "computed-api-enabled",
+    dashboard_enabled: "computed-dashboard-enabled",
+    http_entrypoint: "computed-http-entry-point",
+    https_entrypoint: "computed-https-entry-point",
+    api_vhost: "computed-api-vhost",
+    basic_auth_username: "computed-basic-auth-username"
   }.freeze
+  BOOLEAN_SETTINGS = %i[api_enabled dashboard_enabled].freeze
 
   def initialize(server, host_engine: nil, engine: nil)
     @server = server
@@ -27,12 +28,13 @@ class TraefikOverview
   def call
     rows, inventory_error = container_rows
     running_names = rows.select { |row| row["State"].to_s == "running" }.map { |row| container_name(row) }.compact.to_set
-    services = traefik_services
+    services = app_services
+    routed_services = traefik_services(services)
 
-    routes = services.flat_map do |service|
+    routes = routed_services.flat_map do |service|
       service.domains.map { |domain| route_for(service, domain, running_names, inventory_error) }
     end
-    certificates = certificate_rows(services)
+    certificates = certificate_rows(routed_services)
 
     {
       mode: server.proxy_mode,
@@ -49,6 +51,7 @@ class TraefikOverview
       settings: managed_settings,
       routes: routes,
       certificates: certificates,
+      proxy_types: services.map { |service| service_proxy_type(service) }.tally,
       warnings: proxy_warnings,
       summary: {
         routes: routes.length,
@@ -96,8 +99,7 @@ class TraefikOverview
     Service.where(project_id: server.project_ids, service_type: "app").includes(:project, :domains).order(:name).to_a
   end
 
-  def traefik_services
-    services = app_services
+  def traefik_services(services = app_services)
     return services if server.external_proxy?
 
     services.select { |service| service_proxy_type(service) == "traefik" }
@@ -189,7 +191,11 @@ class TraefikOverview
 
     report = JSON.parse(result[:output].to_s)
     SAFE_REPORT_SETTINGS.each_with_object({}) do |(key, report_key), settings|
-      settings[key] = report[report_key] if report.key?(report_key)
+      bare_key = report_key.delete_prefix("computed-")
+      value = report.key?(report_key) ? report[report_key] : report[bare_key]
+      next if value.nil?
+
+      settings[key] = BOOLEAN_SETTINGS.include?(key) ? ActiveModel::Type::Boolean.new.cast(value) : value
     end
   rescue JSON::ParserError
     {}

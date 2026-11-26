@@ -629,6 +629,7 @@ export interface TraefikOverview {
   settings: Record<string, string | boolean | null | undefined>
   routes: TraefikRoute[]
   certificates: TraefikCertificate[]
+  proxyTypes?: Record<string, number>
   warnings: TraefikWarning[]
   summary: {
     routes: number
