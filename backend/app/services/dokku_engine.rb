@@ -1,18 +1,6 @@
 require "net/ssh"
 require "shellwords"
 
-# SSH connection configuration constants
-module DokkuEngineConstants
-  SSH_TIMEOUT = 30
-  SSH_CONNECTION_TIMEOUT = 10
-  SSH_USER = "dokku"
-
-  # Regex patterns for parsing Dokku output
-  DOKKU_VERSION_REGEX = /dokku version (\S+)/
-  DOCKER_VERSION_REGEX = /Docker version ([\d\.]+)/
-  DOKKU_APPS_LOCKED_REGEX = /Deploy lock exists|locked/i
-end
-
 class DokkuEngine
   attr_reader :server
 
@@ -618,7 +606,7 @@ class DokkuEngine
   end
 
   def checks_skip(app_name, *process_types)
-    run("checks:skip #{escape(app_name)} #{process_types.map { |pt| escape(pt) }.join(" ")}")
+    run("checks:skip #{escape(app_name)} #{escape(process_types.join(","))}")
   end
 
   def checks_set(app_name, property, value)
@@ -647,10 +635,11 @@ class DokkuEngine
 
   # ── Resource Limits ──────────────────────────
   # Dokku resource commands require --process-type flag before the process type value
-  def resource_limit(app_name, process_type, memory: nil, cpu: nil, nvidia_gpu: nil)
+  def resource_limit(app_name, process_type, memory: nil, cpu: nil, memory_swap: nil, nvidia_gpu: nil)
     args = [ "--process-type #{escape(process_type)}" ]
     args << "--memory #{escape(memory)}" if memory
     args << "--cpu #{escape(cpu)}" if cpu
+    args << "--memory-swap #{escape(memory_swap)}" if memory_swap
     args << "--nvidia-gpu #{nvidia_gpu.to_i}" if nvidia_gpu
     run("resource:limit #{escape(app_name)} #{args.join(" ")}")
   end
@@ -667,11 +656,11 @@ class DokkuEngine
   end
 
   def resource_limit_clear(app_name, process_type)
-    run("resource:limit:clear #{escape(app_name)} --process-type #{escape(process_type)}")
+    run("resource:limit-clear #{escape(app_name)} --process-type #{escape(process_type)}")
   end
 
   def resource_reserve_clear(app_name, process_type)
-    run("resource:reserve:clear #{escape(app_name)} --process-type #{escape(process_type)}")
+    run("resource:reserve-clear #{escape(app_name)} --process-type #{escape(process_type)}")
   end
 
   # ── Let's Encrypt / SSL ──────────────────────
@@ -723,14 +712,6 @@ class DokkuEngine
     run("network:create #{escape(network_name)}")
   end
 
-  def network_connect(app_name, network_name)
-    run("network:connect #{escape(app_name)} #{escape(network_name)}")
-  end
-
-  def network_disconnect(app_name, network_name)
-    run("network:disconnect #{escape(app_name)} #{escape(network_name)}")
-  end
-
   def network_list
     run("network:list")
   end
@@ -742,11 +723,23 @@ class DokkuEngine
   # ── Build Management ────────────────────────
 
   def builds_list(app_name)
-    run("builds:list #{escape(app_name)}")
+    run("builds:list #{escape(app_name)} --format json")
   end
 
-  def builds_remove(app_name, build_id)
-    run("builds:remove #{escape(app_name)} #{escape(build_id)}")
+  def builds_info(app_name, build_id)
+    run("builds:info #{escape(app_name)} #{escape(build_id)} --format json")
+  end
+
+  def builds_output(app_name, build_id)
+    run("builds:output #{escape(app_name)} #{escape(build_id)}")
+  end
+
+  def builds_cancel(app_name)
+    run("builds:cancel #{escape(app_name)}")
+  end
+
+  def builds_prune(app_name)
+    run("builds:prune #{escape(app_name)}")
   end
 
   # ── Git Deployment ───────────────────────────
@@ -810,6 +803,20 @@ class DokkuEngine
   # Generic dispatch: unlink from an app
   def datastore_unlink(service, app_name)
     run_subtype_command(service, :unlink, escape(app_name))
+  end
+
+  # Read native links, including relationships created outside RailDock.
+  def datastore_links(service)
+    st = service.subtype_record
+    return { success: false } unless st&.dokku_plugin.present?
+    result = run("#{st.dokku_command(:links)} #{escape(service.dokku_app_name)}")
+    if !result[:success] && result[:output].to_s.strip.match?(/\A!?\s*Service\s+['"]?#{Regexp.escape(service.dokku_app_name)}['"]?\s+does not exist[.!]?\z/i)
+      return { success: true, apps: [] }
+    end
+    return { success: false } unless result[:success]
+    apps = result[:output].to_s.lines.map(&:strip).reject { |line| line.blank? || line.start_with?("=====>") }
+    return { success: false } unless apps.all? { |name| name.match?(/\A[a-z0-9][a-z0-9.-]*\z/) }
+    { success: true, apps: apps }
   end
 
   # Generic dispatch: info
@@ -884,12 +891,25 @@ class DokkuEngine
 
   # ── Cron ─────────────────────────────────────
 
-  def cron_set(app_name, schedule, command)
-    run("cron:set #{escape(app_name)} #{escape(schedule)} #{escape(command)}")
+  # Definitions belong to app.json. cron:set only changes native properties.
+  def cron_set(app_name, property, value)
+    run("cron:set #{escape(app_name)} #{escape(property)} #{escape(value)}")
   end
 
-  def cron_clear(app_name)
-    run("cron:clear #{escape(app_name)}")
+  def cron_list(app_name)
+    run("cron:list #{escape(app_name)} --format json")
+  end
+
+  def cron_run(app_name, cron_id)
+    run("cron:run #{escape(app_name)} #{escape(cron_id)} --detach")
+  end
+
+  def cron_suspend(app_name, cron_id)
+    run("cron:suspend #{escape(app_name)} #{escape(cron_id)}")
+  end
+
+  def cron_resume(app_name, cron_id)
+    run("cron:resume #{escape(app_name)} #{escape(cron_id)}")
   end
 
   # ── Metrics / Status ─────────────────────────

@@ -10,6 +10,9 @@
 #     schedule: at 5am every day
 
 production:
+  check_server_packages:
+    class: CheckServerPackagesJob
+    schedule: every hour
   network_flow_samples:
     class: NetworkFlowSamplerJob
     schedule: every minute
@@ -52,6 +55,10 @@ production:
   proxy_drift_check:
     class: ProxyDriftCheckJob
     schedule: every 6 hours
+
+  check_ssl_status:
+    class: CheckSslStatusJob
+    schedule: every 2 minutes
 
   server_health_check:
     class: ServerHealthCheckJob

@@ -2,7 +2,7 @@ class ActivityEvent < ApplicationRecord
   belongs_to :project
   belongs_to :api_token, optional: true
 
-  validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed warning rebuilt] }
+  validates :action, inclusion: { in: %w[deployed stopped started restarted scaled linked unlinked created destroyed warning rebuilt updated] }
   validates :message, presence: true
 
   enum :action, {
@@ -16,7 +16,8 @@ class ActivityEvent < ApplicationRecord
     created: "created",
     destroyed: "destroyed",
     warning: "warning",
-    rebuilt: "rebuilt"
+    rebuilt: "rebuilt",
+    updated: "updated"
   }, prefix: true
 
   default_scope { order(created_at: :desc) }

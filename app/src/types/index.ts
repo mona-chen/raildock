@@ -246,6 +246,29 @@ export interface StorageMountEntry {
   size: number
 }
 
+export interface AppFileEntry {
+  type: 'file' | 'directory' | 'other'
+  name: string
+  size: number
+}
+
+export interface AppFileList {
+  path: string
+  entries: AppFileEntry[]
+  truncated: boolean
+  processType: string
+  processTypes: string[]
+}
+
+export interface AppFileContent {
+  path: string
+  name: string
+  size: number
+  binary: boolean
+  tooLarge: boolean
+  content: string | null
+}
+
 export interface LogEntry {
   timestamp: string
   processType: string
@@ -501,7 +524,8 @@ export interface Builder {
 // ───────────────────────────────────────────────
 
 export interface Server {
-  resourceSummary?: { cpuCores?: number; memoryUsed?: number; memoryTotal?: number; diskUsed?: number; diskTotal?: number; available: boolean; cpu?: number | null; memory?: number | null; disk?: number | null; sampledAt?: string; collectionEnabled?: boolean }
+  packageUpdates?: import('@/lib/serverPackages').PackageUpdates
+  resourceSummary?: { cpuCores?: number; memoryUsed?: number; memoryTotal?: number; memoryAvailable?: number; diskUsed?: number; diskTotal?: number; diskAvailable?: number; uptimeSeconds?: number; available: boolean; cpu?: number | null; memory?: number | null; disk?: number | null; sampledAt?: string; collectionEnabled?: boolean }
   id: string
   name: string
   host: string
@@ -536,6 +560,89 @@ export interface ServerPreflightCheck {
   label: string
   status: 'pass' | 'warn' | 'fail'
   detail: string
+}
+
+export interface TraefikContainer {
+  id: string
+  name?: string | null
+  image: string
+  status: string
+  state: string
+  running: boolean
+  ports: string
+  networks: string
+}
+
+export interface TraefikRoute {
+  id: string
+  serviceId: string
+  serviceName: string
+  projectId: string
+  projectName?: string | null
+  hostname: string
+  rule: string
+  targetPort: number
+  backend?: string | null
+  container: string
+  running?: boolean | null
+  proxyEnabled: boolean
+  temporary: boolean
+  wildcard: boolean
+  ssl?: boolean | null
+  sslStatus: string
+  sslExpiresAt?: string | null
+  sslStatusMessage?: string | null
+  state: 'active' | 'proxy_disabled' | 'container_stopped' | 'certificate_pending' | 'certificate_failed' | 'unknown'
+}
+
+export interface TraefikCertificate {
+  id: number
+  hostname: string
+  serviceId: string
+  serviceName: string
+  projectName?: string | null
+  status: string
+  expiresAt?: string | null
+  statusMessage?: string | null
+  challengeType: string
+  wildcard: boolean
+  temporary: boolean
+}
+
+export interface TraefikWarning {
+  id: number
+  projectName?: string | null
+  serviceName?: string | null
+  message: string
+  createdAt?: string | null
+}
+
+export interface TraefikOverview {
+  mode: 'managed' | 'external'
+  managed: boolean
+  network?: string | null
+  entrypoints: { http?: string | null; https?: string | null }
+  certResolver?: string | null
+  redirectMiddleware?: string | null
+  defaultLabels: Record<string, string>
+  containers: TraefikContainer[]
+  settings: Record<string, string | boolean | null | undefined>
+  routes: TraefikRoute[]
+  certificates: TraefikCertificate[]
+  proxyTypes?: Record<string, number>
+  warnings: TraefikWarning[]
+  summary: {
+    routes: number
+    activeRoutes: number
+    routesNeedingAttention: number
+    certificates: number
+    activeCertificates: number
+    certificatesNeedingAttention: number
+    proxyContainers: number
+    runningProxyContainers: number
+  }
+  inventoryError?: string | null
+  checkedAt: string
 }
 
 export interface DockerContainer {
@@ -695,6 +802,10 @@ export interface AppUpdateInfo {
 // ───────────────────────────────────────────────
 
 export interface Deployment {
+  artifactImageRef?: string | null
+  artifactImageId?: string | null
+  configRevision?: string | null
+  nativeBuildId?: string | null
   id: string
   status: 'pending' | 'building' | 'deploying' | 'succeeded' | 'failed' | 'cancelled'
   kind?: 'deploy' | 'restart' | 'rebuild' | 'env_sync'
@@ -766,7 +877,7 @@ export interface ActivityEvent {
   id: string
   projectId: string
   serviceName: string
-  action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'warning'
+  action: 'deployed' | 'stopped' | 'started' | 'restarted' | 'scaled' | 'linked' | 'unlinked' | 'created' | 'destroyed' | 'rebuilt' | 'updated' | 'warning'
   message: string
   timestamp: string
 }

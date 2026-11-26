@@ -5,6 +5,7 @@ import type { GitSource, Service } from '@/types'
 import { useUpdateService, useUpdateServiceConfig, useDestroyService } from '@/hooks/useServices'
 import { useCopy } from '@/hooks/useCopy'
 import { api } from '@/lib/api'
+import NativeOperations from './NativeOperations'
 import AccessibleToggle from '@/features/shared/AccessibleToggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useGitSources, useGitSourceBranches, useGitSourceDirectories } from '@/hooks/useGitSources'
@@ -23,6 +24,7 @@ const tabs = [
   { key: 'network', label: 'Routing', icon: Globe },
   { key: 'resources', label: 'Resources', icon: Cpu },
   { key: 'advanced', label: 'Advanced', icon: Wrench },
+  { key: 'host', label: 'On this host', icon: Cpu },
   { key: 'danger', label: 'Danger Zone', icon: AlertTriangle },
 ] as const
 
@@ -44,6 +46,7 @@ const SETTINGS_INDEX: Record<string, string[]> = {
   network: ['Proxy', 'Proxy Type', 'Port Mappings', "SSL / Let's Encrypt", 'Email', 'External Networks'],
   resources: ['CPU', 'Memory', 'Swap', 'NVIDIA GPU', 'Reservations'],
   advanced: ['Docker Options', 'Cron Jobs'],
+  host: ['Dokku', 'Active schedules', 'Registry', 'Host deployment history', 'Log rotation'],
   danger: ['Destroy Service'],
 }
 
@@ -191,6 +194,7 @@ export function SettingsPanel({ svc }: { svc: Service }) {
               {tab === 'network' && <NetworkSettings svc={effectiveSvc} />}
               {tab === 'resources' && <ResourceSettings svc={effectiveSvc} />}
               {tab === 'advanced' && <AdvancedSettings svc={effectiveSvc} />}
+              {tab === 'host' && <NativeOperations serviceId={effectiveSvc.id} />}
               {tab === 'danger' && <DangerZone svc={effectiveSvc} />}
             </div>
           </div>
@@ -684,6 +688,9 @@ function DeploySettings({ svc }: { svc: Service }) {
 
   return (
     <SettingsGroup>
+      <SettingCard title="Rollback images" description="Keep 1–10 deployment images on this host. More images use more disk space; database data and old environment values are not restored.">
+        <TextField label="Images to retain" type="number" value={String(svc.config?.rollbackRetention ?? 3)} onChange={value => setConfigPath('rollbackRetention', Math.max(1, Math.min(10, Number(value) || 1)))} />
+      </SettingCard>
       <SettingCard title="Restart Policy" description="What Docker does when the container exits.">
         <Select value={svc.restartPolicy} onValueChange={(v) => setField('restartPolicy', v)}>
           <SelectTrigger className="w-full bg-black/40 border border-white/8 rounded px-2 py-1.5 text-[12px] text-white/70 focus:outline-hidden focus:border-rail-purple/40">
@@ -719,6 +726,7 @@ function DeploySettings({ svc }: { svc: Service }) {
         {checks.mode === 'disabled' && <div className="mb-3 rounded-md border border-red-500/15 bg-red-500/5 px-3 py-2 text-[11px] leading-4 text-red-300/70">Downtime expected: old containers stop before replacements start.</div>}
         {checks.mode === 'enabled' && (
           <div className="grid grid-cols-2 gap-3">
+            <TextField label="Readiness path" value={String((svc.config?.checks as Record<string, unknown> | undefined)?.path ?? '/')} onChange={(v) => setConfigPath('checks.path', v)} />
             <TextField label="Wait (seconds)" type="number" value={String(checks.wait)} onChange={(v) => setConfigPath('checks.wait', parseInt(v) || 0)} />
             <TextField label="Timeout (seconds)" type="number" value={String(checks.timeout)} onChange={(v) => setConfigPath('checks.timeout', parseInt(v) || 0)} />
             <TextField label="Attempts" type="number" value={String(checks.attempts)} onChange={(v) => setConfigPath('checks.attempts', parseInt(v) || 1)} />
@@ -923,8 +931,9 @@ function NetworkSettings({ svc }: { svc: Service }) {
 // ── Resource Settings ──────────────────────────────────────
 function ResourceSettings({ svc }: { svc: Service }) {
   const { setConfigPath } = useConfigUpdater()
-  const limits = svc.resourceLimits || []
-  const reservations = svc.resourceReservations || []
+  const normalize = (value: unknown): Array<{processType:string;[key:string]:unknown}> => Array.isArray(value) ? value : value && typeof value === 'object' ? Object.entries(value).map(([processType, settings]) => ({...(settings as Record<string,unknown>),processType})) : []
+  const limits = normalize(svc.config?.resourceLimits ?? svc.resourceLimits)
+  const reservations = normalize(svc.config?.resourceReservations ?? svc.resourceReservations)
 
   const updateLimit = (processType: string, field: string, value: string) => {
     const next = limits.map((r) => (r.processType === processType ? { ...r, [field]: value || undefined } : r))
@@ -945,11 +954,11 @@ function ResourceSettings({ svc }: { svc: Service }) {
   return (
     <SettingsGroup>
       {svc.processTypes && svc.processTypes.length > 0 ? (
-        svc.processTypes.map((pt) => {
+        [...svc.processTypes, {name: 'build'}].filter((pt, index, rows) => rows.findIndex(row => row.name === pt.name) === index).map((pt) => {
           const limit = limits.find((r) => r.processType === pt.name) || { processType: pt.name }
           const reserve = reservations.find((r) => r.processType === pt.name) || { processType: pt.name }
           return (
-            <SettingCard key={pt.name} wide title={`Process: ${pt.name}`}>
+            <SettingCard key={pt.name} wide title={pt.name === 'build' ? 'Build budget' : `Process: ${pt.name}`}>
               <div className="space-y-3">
                 <div className="text-[11px] font-medium text-white/45">Limits</div>
                 <div className="grid grid-cols-2 gap-2">

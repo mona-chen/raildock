@@ -44,11 +44,14 @@ import type {
   UnmanagedDatastoreScan,
   StorageMountKind,
   StorageMountEntry,
+  AppFileList,
+  AppFileContent,
   DataTablesResponse,
   DataRowsResponse,
   ApiToken,
   ApiTokenScope,
   CreatedApiToken,
+  TraefikOverview,
 } from '@/types'
 
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -445,6 +448,47 @@ export const servicesApi = {
     return fetchJson(`/api/services/${id}/storage/${storageMountId}/browse?path=${encodeURIComponent(path || '/')}`)
   },
 
+  listFiles: async (id: string, path?: string, process?: string): Promise<AppFileList> => {
+    const query = new URLSearchParams()
+    if (path) query.set('path', path)
+    if (process) query.set('process', process)
+    const suffix = query.toString() ? `?${query}` : ''
+    return fetchJson(`/api/services/${id}/files${suffix}`)
+  },
+
+  readFile: async (id: string, path: string, process?: string): Promise<AppFileContent> => {
+    const query = new URLSearchParams({ path })
+    if (process) query.set('process', process)
+    return fetchJson(`/api/services/${id}/files/content?${query}`)
+  },
+
+  downloadFile: async (id: string, path: string, process?: string): Promise<Blob> => {
+    const query = new URLSearchParams({ path })
+    if (process) query.set('process', process)
+    const res = await fetch(`${API_BASE}/api/services/${id}/files/download?${query}`, { headers: getAuthHeaders() })
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload.error || 'File download failed')
+    }
+    return res.blob()
+  },
+
+  uploadFile: async (id: string, path: string, file: File, process?: string, overwrite = false): Promise<{ path: string; name: string; size: number }> => {
+    const headers = getAuthHeaders()
+    delete headers['Content-Type']
+    const body = new FormData()
+    body.append('file', file)
+    body.append('path', path)
+    body.append('overwrite', String(overwrite))
+    if (process) body.append('process', process)
+    const res = await fetch(`${API_BASE}/api/services/${id}/files`, { method: 'POST', headers, body })
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload.error || 'File upload failed')
+    }
+    return res.json()
+  },
+
   logs: async (id: string): Promise<{ timestamp: string; processType: string; message: string }[]> => {
     return fetchJson(`/api/services/${id}/logs`)
   },
@@ -684,8 +728,8 @@ export const servicesApi = {
     }
   },
 
-  rollback: async (id: string, deploymentId: string): Promise<void> => {
-    return fetchJson(`/api/services/${id}/rollback`, { method: 'POST', body: JSON.stringify({ deployment_id: deploymentId }) })
+  rollback: async (id: string, deploymentId: string, mode?: 'rebuild'): Promise<void> => {
+    return fetchJson(`/api/services/${id}/rollback`, { method: 'POST', body: JSON.stringify({ deployment_id: deploymentId, ...(mode ? {mode} : {}) }) })
   },
 
   containerStatus: async (id: string): Promise<{ status: string; output?: string }> => {
@@ -817,6 +861,23 @@ export const serversApi = {
 
   validate: async (id: string): Promise<{ success: boolean; error?: string }> => {
     return fetchJson(`/api/servers/${id}/validate`, { method: 'POST' })
+  },
+
+  traefik: async (id: string): Promise<TraefikOverview> => {
+    return fetchJson(`/api/servers/${id}/traefik`)
+  },
+
+  traefikLogs: async (id: string, lines = 200, container?: string): Promise<{ success: boolean; output: string; container?: string | null; lines: number; error?: string }> => {
+    const query = new URLSearchParams({ lines: String(lines) })
+    if (container) query.set('container', container)
+    return fetchJson(`/api/servers/${id}/traefik/logs?${query}`)
+  },
+
+  traefikAction: async (id: string, operation: 'start' | 'stop' | 'restart' | 'check', confirmation?: string): Promise<{ success?: boolean; accepted?: boolean; operation: string; output?: string; error?: string; partial?: boolean }> => {
+    return fetchJson(`/api/servers/${id}/traefik`, {
+      method: 'POST',
+      body: JSON.stringify({ operation, confirmation }),
+    })
   },
 
   destroy: async (id: string): Promise<void> => {

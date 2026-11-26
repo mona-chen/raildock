@@ -295,6 +295,8 @@ RSpec.describe "Api::ServicesController", type: :request do
 
     context "when authenticated" do
       it "creates a rollback deployment" do
+        allow_any_instance_of(DeploymentArtifact).to receive(:available?).and_return(true)
+
         expect {
           post "/api/services/#{service.id}/rollback", params: { deployment_id: target_deployment.id }, headers: auth_headers(user)
         }.to change(Deployment, :count).by(1)
@@ -304,6 +306,7 @@ RSpec.describe "Api::ServicesController", type: :request do
         json = JSON.parse(response.body)
         expect(json["status"]).to eq("pending")
         expect(json["commit_sha"]).to eq("oldsha1")
+        expect(Deployment.last.rollback_source_id).to eq(target_deployment.id)
       end
 
       it "returns 404 for non-existent deployment" do
@@ -318,12 +321,35 @@ RSpec.describe "Api::ServicesController", type: :request do
 
         expect {
           post "/api/services/#{service.id}/rollback",
-            params: { deployment_id: target_deployment.id },
+            params: { deployment_id: target_deployment.id, mode: "rebuild" },
             headers: auth_headers(user)
         }.not_to change(Deployment, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(JSON.parse(response.body)["error"]).to match(/no commit SHA/)
+        expect(JSON.parse(response.body)["error"]).to match(/No source commit is recorded/)
+      end
+
+      it "refuses an image rollback when the retained image is unavailable" do
+        allow_any_instance_of(DeploymentArtifact).to receive(:available?).and_return(false)
+
+        expect {
+          post "/api/services/#{service.id}/rollback", params: { deployment_id: target_deployment.id }, headers: auth_headers(user)
+        }.not_to change(Deployment, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(JSON.parse(response.body)["code"]).to eq("artifact_unavailable")
+      end
+
+      it "rebuilds the recorded commit without claiming a retained image" do
+        service.update!(git_repo: "https://github.com/acme/app.git")
+
+        expect(DeploymentJob).to receive(:perform_later)
+        post "/api/services/#{service.id}/rollback",
+          params: { deployment_id: target_deployment.id, mode: "rebuild" },
+          headers: auth_headers(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(Deployment.last.rollback_source_id).to be_nil
       end
     end
   end

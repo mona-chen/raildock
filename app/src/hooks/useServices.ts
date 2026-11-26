@@ -84,6 +84,11 @@ export function useUpdateServiceConfig() {
       if (previous) queryClient.setQueryData<Service>(['services', id], { ...previous, config })
       return { id, previous }
     },
+    onSuccess: (_service, { config }) => {
+      if (['checks', 'cron', 'scripts', 'resourceLimits', 'resourceReservations'].some(key => key in config)) {
+        toast.info('Settings saved. Deploy this service to activate lifecycle and resource changes.')
+      }
+    },
     onError: (err, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(['services', context.id], context.previous)
       toast.error(`Failed to sync settings: ${err.message}`)
@@ -742,8 +747,8 @@ export function useRebuildService() {
 export function useRollbackService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, deploymentId }: { id: string; deploymentId: string }) =>
-      api.services.rollback(id, deploymentId),
+    mutationFn: ({ id, deploymentId, mode }: { id: string; deploymentId: string; mode?: 'rebuild' }) =>
+      mode ? api.services.rollback(id, deploymentId, mode) : api.services.rollback(id, deploymentId),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['services', id] })
       queryClient.invalidateQueries({ queryKey: ['services', id, 'deployments'] })
@@ -829,6 +834,35 @@ export function useBrowseStorageMount(id: string, storageMountId: string, path: 
     queryKey: ['services', id, 'storage_mounts', storageMountId, 'browse', path],
     queryFn: () => api.services.browseStorageMount(id, storageMountId, path),
     enabled: !!id && !!storageMountId,
+  })
+}
+
+export function useServiceFiles(id: string, path: string, process: string) {
+  return useQuery({
+    queryKey: ['services', id, 'files', process, path],
+    queryFn: () => api.services.listFiles(id, path || undefined, process),
+    enabled: !!id,
+  })
+}
+
+export function useServiceFileContent(id: string, path: string | null, process: string) {
+  return useQuery({
+    queryKey: ['services', id, 'files', process, 'content', path],
+    queryFn: () => api.services.readFile(id, path ?? '', process),
+    enabled: !!id && !!path,
+  })
+}
+
+export function useUploadServiceFile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, path, file, process, overwrite }: { id: string; path: string; file: File; process: string; overwrite: boolean }) =>
+      api.services.uploadFile(id, path, file, process, overwrite),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['services', id, 'files'] })
+      toast.success('File uploaded to the running container')
+    },
+    onError: (error: Error) => toast.error(error.message),
   })
 }
 

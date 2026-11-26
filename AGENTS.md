@@ -21,6 +21,8 @@ make test        # Frontend tests (in the frontend container)
 make test-backend  # Backend RSpec (in the backend container)
 make start-sim     # Dev stack + the Dokku simulator (macOS preview)
 make seed-demo     # Demo organization, projects, services and history
+make start-real-dokku  # Lima Ubuntu VM running real Dokku 0.38.34
+make connect-real-dokku # Register that VM as a development server
 ```
 
 Dev runs from `docker-compose.dev.yml` (standalone, not layered on
@@ -125,7 +127,7 @@ curl -sSL .../install.sh | bash -s -- \
 Remote hosts are bootstrapped via the script returned by
 `GET /api/organizations/:id/server_bootstrap`. Run it as root (the automated
 path uses `sudo -n` when the admin user is not root); it installs
-Docker, Dokku, the datastore plugins, and the Nixpacks/Railpack builders,
+Docker, Python 3, Dokku, the datastore plugins, and the Nixpacks/Railpack builders,
 authorizes the organization's public key for both `root` and `dokku`, and
 raises `sshd` connection limits (validated with `sshd -t`, reloading either the
 `ssh` or `sshd` unit). For fully automated provisioning, add the
@@ -327,7 +329,7 @@ Anything that deletes production data has to be explicit and recoverable. Keep t
 Dokku is the deployment engine; RailDock is a multi-host control plane that
 drives it over SSH. **Prefer Dokku's own declarative mechanisms over
 reimplementing them in Rails.** The exceptions below are deliberate and were
-verified against Dokku v0.38.1 — `dokku/` is a gitignored reference checkout
+verified against Dokku v0.38.34 — `dokku/` is a gitignored reference checkout
 (`git clone https://github.com/dokku/dokku.git dokku`); read it and check the
 version the target servers run before assuming a behavior.
 
@@ -612,3 +614,34 @@ the image's immutable version so an `edge`/`latest` Compose alias cannot hide it
 - Collection is separate from the per-browser canvas animation preference. Reduced motion and hidden tabs suppress movement. Disabling server collection stops SSH sampling; retained minute history is pruned independently. Live-only retention creates no history rows. Keep server collection bounded/coalesced, environments isolated at the API, and raw socket endpoints/payloads on the host. See `docs/network-flow-observability.md`.
 
 - Host UI/automatic updates back up the actual application DATABASE_URL using the bundled database container’s matching PostgreSQL client when available (URL via stdin, never logged). External-only installations fall back to the app client. Backup or catalog verification failure must stop before replacement and report backup_failed; never skip the backup to bypass a client/server mismatch.
+
+## Host package maintenance
+
+- `servers.package_updates` is a cached, bounded report and active-operation identity. The servers list never runs SSH. `CheckServerPackagesJob` inspects configured Debian/Ubuntu APT caches every six hours (hourly sweep); only an explicit check refreshes repository indexes.
+- `POST /servers/:server_id/packages` authorizes server update permission. Installing requires a typed server name, disruption acknowledgement and a completed reviewed operation no older than one hour. The host independently rechecks the package-plan digest, pins reviewed candidate versions, and uses `--only-upgrade --no-remove`. Never run an arbitrary package command from request text, automatically retry an install, remove packages, or reboot.
+- Maintenance runs under a unique transient systemd unit on the root SSH host, independently of Rails. The host serializes operations with flock and retains bounded JSON progress under `/var/lib/raildock/maintenance/<operation_id>/`. A control-plane/SSH outage does not mean apt stopped; leave unknown operations blocked and reconcile rather than launching another install. Package services may restart, so show disruption and host-snapshot guidance before confirmation. No package rollback is promised.
+- OS release upgrades use a guided provider-console flow with snapshot, off-host-backup and recovery-console acknowledgements. Ubuntu's supported upgrader detects the eligible next release. Never silently rewrite distribution repositories, force a development release, or run an unattended OS release upgrade. A container rollback cannot undo an OS upgrade.
+- Project teardown preflights native datastore links before mutating anything. `ProjectResourceTeardown` refuses links to apps outside the project, unlinks only owned apps, removes apps before datastores, and accepts exact missing-resource errors on retry. Snapshot requirements and typed confirmation still apply. A partial host teardown retains RailDock records for retry; do not claim that retained records mean host resources were untouched.
+
+## Native Dokku controls and rollback images
+
+- `ManagedAppJson` is the only bridge from RailDock config to Dokku's app.json-supported lifecycle settings (cron, startup healthchecks, predeploy/postdeploy). It installs a versioned Dokku plugin that merges an app-specific overlay immediately before Dokku reads its own extracted app.json; Rails never executes those scripts. An explicit empty cron list, blank script phase or disabled check clears the value instead of leaving a stale one. The overlay is only written when RailDock owns that setting, so repository-defined scripts and process checks are preserved when untouched. The bridge requires a tested Dokku 0.38.x host.
+- `DokkuCapabilities` discovers enabled namespaces from `dokku help` rather than assuming optional plugins. Native UI operations are a closed, named allowlist (`cron_*`, `registry_*`, `logs_rotation`); never accept a shell command from request text. Registry passwords go through stdin, and raw registry failures are not echoed because they may contain credentials.
+- A rollback uses a retained image by default and verifies its exact image ID first; `mode=rebuild` explicitly rebuilds the recorded commit and may produce a different image. Database data, environment values and release scripts are not restored by an image rollback. Images are retained 1–10 per service (`config.rollbackRetention`, default 3), and rollback is unavailable when the image cannot be verified.
+- **Never retain a rollback image with a plain `docker image tag`.** Dokku's pre-deploy cleanup runs `docker image prune --all` filtered by `com.dokku.app-name`, so the inherited label makes the history tag disappear on the next deploy. `DeploymentArtifact#capture` commits a metadata-only copy under the `raildock-history` app label, which survives cleanup while preserving the original layers and runtime configuration. The next deploy's image still receives the real app label.
+- `scripts/start-real-dokku.sh` starts a dedicated Lima Ubuntu VM and installs real Dokku; `scripts/connect-real-dokku.sh` registers it for the local organization without moving simulator apps. Use `backend/db/seeds/real_dokku_smoke.rb` for an end-to-end deploy through `DeploymentJob`; it is development-only and refuses a host that is not the local VM.
+
+## Service file browser
+
+- `AppFileBrowser` reads and writes inside the running `<app>.<process>.1` container through fixed `docker exec` commands over `HostEngine`'s root SSH session. Paths are passed as positional arguments, never interpolated into a shell script. Do not replace this with a request-provided command or a host-path browser.
+- Listing and downloads require service read permission; uploads require update permission and `ServiceOperationLock`. Reads cap directory entries, previews and downloads; uploads cap at 10 MiB and require explicit overwrite. The API rejects non-app services and unknown process types.
+- The Files tab writes to the container's writable layer. That layer is replaced on the next deploy, so persistent files belong in a Storage mount. The UI must keep saying so. Deletes, renames and directory creation are intentionally not exposed yet.
+- The viewer highlights common source/config formats client-side with line numbers, search, wrap and copy controls. It never executes file content; keep highlighting a presentation concern and do not turn it into a preview server or evaluator.
+
+## Traefik workspace
+
+- The server **Proxy** tab is read-only by default: it combines Docker container inventory with RailDock's intended routes, certificate records and recent `Proxy routing problem detected` activity. Managed mode shows safe start/stop/restart controls; external mode never starts, stops or reconfigures someone else's Traefik.
+- `TraefikOverview` must only expose allowlisted `traefik:report` fields. The JSON report includes DNS-provider credentials; never pass the raw report or password fields to the browser. `TraefikLogs` redacts output and bounds both line count and payload size.
+- Managed route and certificate inventory is limited to services whose effective proxy type is `traefik`; a service configured for nginx/caddy must not appear as a Traefik route. External mode owns Traefik labels for every app it routes.
+- Stop and restart are destructive to every app behind the proxy and require the exact server name. `start` is non-destructive. A failed restart reports `partial: true` rather than claiming recovery.
+- `CheckSslStatusJob` refreshes pending certificates every two minutes and active certificates every six hours via `recurring.yml`. Keep that schedule: domain expiry/status is also the certificate inventory shown in the Proxy tab.

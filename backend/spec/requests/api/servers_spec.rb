@@ -128,7 +128,7 @@ RSpec.describe "Api::ServersController", type: :request do
         engine = instance_double(DokkuEngine)
         allow(DokkuEngine).to receive(:new).with(server).and_return(engine)
         allow(engine).to receive(:validate_connection).and_return(
-          { success: true, dokku_version: "0.35.0", docker_version: "26.0.0", os: nil, uptime: "10d" }
+          { success: true, dokku_version: "0.35.0", docker_version: "unknown", os: "Unknown", uptime: "10d" }
         )
         allow(engine).to receive(:run).with("proxy:report --global --proxy-global-type").and_return(
           { success: true, output: "nginx" }
@@ -136,7 +136,7 @@ RSpec.describe "Api::ServersController", type: :request do
 
         host_engine = instance_double(HostEngine)
         allow(HostEngine).to receive(:new).with(server).and_return(host_engine)
-        allow(host_engine).to receive(:host_info).and_return({ os: "Ubuntu 22.04", uptime: "up 10 days" })
+        allow(host_engine).to receive(:host_info).and_return({ os: "Ubuntu 22.04", uptime: "up 10 days", docker_version: "28.0.1" })
 
         post "/api/servers/#{server.id}/validate", headers: org_headers
 
@@ -149,6 +149,7 @@ RSpec.describe "Api::ServersController", type: :request do
         expect(server.status).to eq("connected")
         expect(server.dokku_version).to eq("0.35.0")
         expect(server.os).to eq("Ubuntu 22.04")
+        expect(server.docker_version).to eq("28.0.1")
       end
 
       it "sets server status to error on failed validation" do

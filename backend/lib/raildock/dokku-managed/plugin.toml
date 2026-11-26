@@ -1,0 +1,4 @@
+[plugin]
+description = "RailDock declarative app.json settings bridge"
+version = "0.1.0"
+[plugin.config]

@@ -75,6 +75,7 @@ Rails.application.routes.draw do
         post :merge, on: :collection
       end
       resources :services, shallow: true do
+        resource :native, only: [ :show, :create ], controller: "native_services"
         member do
           post :deploy
           post :rollback
@@ -130,6 +131,10 @@ Rails.application.routes.draw do
 
     # Service sub-resource destroy actions (not shallow — stay under /services/:id/...)
     scope "/services/:service_id" do
+      get "files", to: "service_files#index"
+      get "files/content", to: "service_files#content"
+      get "files/download", to: "service_files#download"
+      post "files", to: "service_files#create"
       get "recovery", to: "recovery#show"
       post "recovery/destinations", to: "recovery#create_destination"
       post "recovery/destinations/:destination_id/verify", to: "recovery#verify_destination"
@@ -165,6 +170,11 @@ Rails.application.routes.draw do
     get "servers/:server_id/traffic", to: "observability#traffic"
     patch "servers/:server_id/traffic", to: "observability#traffic"
 
+    get "servers/:server_id/packages", to: "server_packages#show"
+    post "servers/:server_id/packages", to: "server_packages#create"
+    get "servers/:server_id/traefik", to: "traefik#show"
+    get "servers/:server_id/traefik/logs", to: "traefik#logs"
+    post "servers/:server_id/traefik", to: "traefik#update"
     resources :servers do
       member do
         post :validate

@@ -207,10 +207,12 @@ export function DeploymentLogPanel({ deploymentId, liveLog }: { deploymentId: st
 
 function RollbackConfirmDialog({
   deploymentId,
+  rebuild,
   onConfirm,
   onCancel,
 }: {
   deploymentId: string
+  rebuild?: boolean
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -222,13 +224,13 @@ function RollbackConfirmDialog({
             <AlertTriangle size={20} className="text-amber-400" />
           </div>
           <div>
-            <div className="text-[14px] font-semibold text-white/90">Rollback Deployment?</div>
-            <div className="text-[12px] text-white/50">This will redeploy an older version.</div>
+            <div className="text-[14px] font-semibold text-white/90">{rebuild ? 'Rebuild source commit?' : 'Roll back image?'}</div>
+            <div className="text-[12px] text-white/50">{rebuild ? 'Build again from the recorded revision.' : 'Reuse the retained image.'}</div>
           </div>
         </div>
         <p className="text-[12px] text-white/50 mb-5">
-          Rolling back to deployment <span className="font-mono text-white/60">{String(deploymentId).slice(0, 8)}</span> will
-          stop the current version and redeploy this older build. Any data written since then may be affected.
+          Deployment <span className="font-mono text-white/60">{String(deploymentId).slice(0, 8)}</span>: {rebuild ? 'dependencies and base images may have changed, so rebuilding can produce a different image.' : 'the retained image identity will be verified before deployment.'} Current environment settings stay in effect. Database data is not restored; release scripts still run.
+
         </p>
         <div className="flex gap-2 justify-end">
           <button
@@ -242,7 +244,7 @@ function RollbackConfirmDialog({
             className="px-4 py-2 bg-amber-500/15 text-amber-400 rounded-lg text-[12px] hover:bg-amber-500/25 transition-colors flex items-center gap-1.5"
           >
             <RotateCcw size={12} />
-            Rollback
+            {rebuild ? 'Rebuild commit' : 'Roll back image'}
           </button>
         </div>
       </div>
@@ -337,7 +339,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
 
   const handleRollback = (deploymentId: string) => {
     rollbackService.mutate(
-      { id: svc.id, deploymentId },
+      { id: svc.id, deploymentId, ...(deployments?.find(item => item.id === deploymentId)?.artifactImageRef ? {} : {mode: 'rebuild' as const}) },
       {
         onSuccess: () => {
           toast.success('Rollback initiated')
@@ -544,10 +546,11 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
                           e.stopPropagation()
                           setRollbackTarget(d.id)
                         }}
-                        disabled={rollbackService.isPending}
+                        disabled={rollbackService.isPending || (!d.artifactImageRef && (!d.commitSha || !svc.gitRepo))}
+                        title={!d.artifactImageRef && (!d.commitSha || !svc.gitRepo) ? 'Original image was not retained' : undefined}
                         className="ml-1 rounded bg-white/6 px-1.5 py-0.5 text-[9px] text-white/50 hover:bg-white/10 hover:text-white/70 disabled:opacity-50"
                       >
-                        Rollback
+                        {d.artifactImageRef ? 'Rollback' : 'Rebuild commit'}
                       </button>
                     )}
                   </div>
@@ -567,6 +570,7 @@ export default function DeployTab({ svc, serviceId, realtime }: DeployTabProps) 
       {rollbackTarget && (
         <RollbackConfirmDialog
           deploymentId={rollbackTarget}
+          rebuild={!deployments?.find(item => item.id === rollbackTarget)?.artifactImageRef}
           onConfirm={() => handleRollback(rollbackTarget)}
           onCancel={() => setRollbackTarget(null)}
         />
